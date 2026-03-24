@@ -1,0 +1,55 @@
+{
+  "name": "raizan-core",
+  "version": "0.1.0",
+  "private": true,
+  "main": "main.js",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "electron:dev": "npm run build && electron .",
+    "electron:build": "npm run build && electron-builder"
+  },
+  "dependencies": {
+    "electron-serve": "^3.0.1",
+    "electron-updater": "^6.8.3",
+    "lucide-react": "^0.577.0",
+    "next": "16.2.0",
+    "oracledb": "^6.10.0",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "react-hot-toast": "^2.6.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "electron": "^41.0.3",
+    "electron-builder": "^26.8.1",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.0",
+    "tailwindcss": "^4"
+  },
+  "build": {
+    "appId": "com.raizancore.app",
+    "productName": "Raizan Core",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "out/**/*",
+      "main.js",
+      "package.json",
+      "node_modules/**/*"
+    ],
+    "win": {
+      "target": "nsis"
+    }
+  },
+  "publish": [
+      {
+        "provider": "github",
+        "owner": "andersonrprofeta",
+        "repo": "Raizan"
+      }
+    ]
+}

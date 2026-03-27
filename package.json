@@ -1,6 +1,6 @@
 {
   "name": "raizan-core",
-  "version": "0.1.0",
+  "version": "0.1.6",
   "private": true,
   "main": "main.js",
   "scripts": {
@@ -19,7 +19,8 @@
     "oracledb": "^6.10.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
-    "react-hot-toast": "^2.6.0"
+    "react-hot-toast": "^2.6.0",
+    "recharts": "^3.8.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -37,6 +38,7 @@
     },
     "files": [
       "out/**/*",
+      "preload.js",
       "main.js",
       "package.json",
       "node_modules/**/*"
@@ -46,10 +48,10 @@
     }
   },
   "publish": [
-      {
-        "provider": "github",
-        "owner": "andersonrprofeta",
-        "repo": "Raizan"
-      }
-    ]
+    {
+      "provider": "github",
+      "owner": "andersonrprofeta",
+      "repo": "Raizan"
+    }
+  ]
 }

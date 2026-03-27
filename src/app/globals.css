@@ -24,3 +24,42 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* ==========================================
+   SCROLLBAR CUSTOMIZADO (DARK MODE PREMIUM)
+   ========================================== */
+
+/* Aplica para a classe custom-scrollbar que usamos na Sidebar e no Main */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px; /* Bem fininha e elegante */
+  height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent; /* Fundo invisível para não quebrar o layout */
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #27272a; /* Cor zinc-800 do Tailwind */
+  border-radius: 10px; /* Deixa a ponta redondinha */
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #3f3f46; /* Fica um pouco mais clara ao passar o mouse (zinc-700) */
+}
+
+/* Força o scrollbar global da página a seguir o mesmo estilo (caso algo escape) */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #09090b; 
+}
+::-webkit-scrollbar-thumb {
+  background: #27272a; 
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #52525b; 
+}

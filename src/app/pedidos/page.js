@@ -3,15 +3,162 @@
 import { useState, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
-import { Download, CheckCircle2, Store, ShoppingBag, Smartphone, Monitor, Loader2, FileDown, ChevronLeft, ChevronRight } from "lucide-react";
+// 1. Adicionados os novos ícones do Modal aqui:
+import { Download, CheckCircle2, Store, ShoppingBag, Smartphone, Monitor, Loader2, FileDown, ChevronLeft, ChevronRight, X, User, MapPin, FileText, Package, Phone, Mail, Calendar } from "lucide-react";
 import toast from 'react-hot-toast';
 import { getApiUrl } from "@/components/utils/api";
 
+// ==========================================
+// COMPONENTES AUXILIARES DO MODAL
+// ==========================================
+const getMetaValue = (metaData, keys) => {
+  if (!metaData) return "Não informado";
+  const meta = metaData.find(m => keys.includes(m.key));
+  return meta ? meta.value : "Não informado";
+};
+
+const formatarMoeda = (valor) => {
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor || 0);
+};
+
+export function ModalDetalhesPedido({ pedido, onClose }) {
+  if (!pedido) return null;
+
+  const dataPedido = new Date(pedido.date_created).toLocaleString('pt-BR');
+  const cpfCnpj = getMetaValue(pedido.meta_data, ['_billing_cpf', '_billing_cnpj', 'billing_cpf', 'billing_cnpj']);
+  const ie = getMetaValue(pedido.meta_data, ['_billing_ie', 'billing_ie']);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-all" onClick={onClose}>
+      {/* Container do Modal (o onClick e.stopPropagation evita que feche ao clicar dentro) */}
+      <div className="bg-[#0c0c0e] border border-zinc-800/80 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+        
+        {/* Cabeçalho */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800/80 bg-zinc-900/40">
+          <div>
+            <h2 className="text-xl font-bold text-zinc-100 flex items-center gap-2">
+              Pedido #{pedido.id}
+              <span className="text-xs px-2 py-1 rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/20 font-medium ml-2 uppercase tracking-wider">
+                {pedido.status}
+              </span>
+            </h2>
+            <p className="text-xs text-zinc-400 flex items-center gap-1 mt-1">
+              <Calendar size={12} /> {dataPedido}
+            </p>
+          </div>
+          <button onClick={onClose} className="p-2 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-xl transition-colors">
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* Corpo do Modal com Scroll */}
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            {/* Coluna Esquerda: Dados do Cliente */}
+            <div className="space-y-6">
+              <div className="bg-zinc-900/30 border border-zinc-800/50 rounded-xl p-5">
+                <h3 className="text-sm font-semibold text-zinc-100 flex items-center gap-2 mb-4 border-b border-zinc-800 pb-2">
+                  <User size={16} className="text-purple-400" /> Informações do Cliente
+                </h3>
+                <div className="space-y-3 text-sm">
+                  <p><span className="text-zinc-500">Razão/Nome:</span> <span className="text-zinc-200 font-medium">{pedido.billing.first_name} {pedido.billing.last_name}</span></p>
+                  <p><span className="text-zinc-500">CPF/CNPJ:</span> <span className="text-zinc-200">{cpfCnpj}</span></p>
+                  <p><span className="text-zinc-500">Inscrição Est.:</span> <span className="text-zinc-200">{ie}</span></p>
+                  <p className="flex items-center gap-2 mt-2"><Mail size={14} className="text-zinc-500" /> <span className="text-zinc-200 truncate">{pedido.billing.email}</span></p>
+                  <p className="flex items-center gap-2"><Phone size={14} className="text-zinc-500" /> <span className="text-zinc-200">{pedido.billing.phone || "Não informado"}</span></p>
+                </div>
+              </div>
+            </div>
+
+            {/* Coluna Direita: Endereço e Notas */}
+            <div className="space-y-6">
+              <div className="bg-zinc-900/30 border border-zinc-800/50 rounded-xl p-5">
+                <h3 className="text-sm font-semibold text-zinc-100 flex items-center gap-2 mb-4 border-b border-zinc-800 pb-2">
+                  <MapPin size={16} className="text-blue-400" /> Cobrança / Entrega
+                </h3>
+                <div className="space-y-1 text-sm text-zinc-300">
+                  <p>{pedido.billing.address_1}{pedido.billing.address_2 ? `, ${pedido.billing.address_2}` : ''}</p>
+                  <p>{pedido.billing.neighborhood || pedido.billing.city} - {pedido.billing.state}</p>
+                  <p>CEP: {pedido.billing.postcode}</p>
+                </div>
+              </div>
+
+              {pedido.customer_note && (
+                <div className="bg-orange-500/5 border border-orange-500/20 rounded-xl p-5">
+                  <h3 className="text-sm font-semibold text-orange-400 flex items-center gap-2 mb-2">
+                    <FileText size={16} /> Observação do Cliente
+                  </h3>
+                  <p className="text-sm text-zinc-300 italic">{pedido.customer_note}</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Produtos do Pedido */}
+          <div className="mt-6 bg-zinc-900/30 border border-zinc-800/50 rounded-xl p-5">
+            <h3 className="text-sm font-semibold text-zinc-100 flex items-center gap-2 mb-4 border-b border-zinc-800 pb-2">
+              <Package size={16} className="text-emerald-400" /> Itens do Pedido
+            </h3>
+            
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left">
+                <thead className="text-xs text-zinc-500 uppercase bg-zinc-900/50">
+                  <tr>
+                    <th className="px-4 py-3 rounded-l-lg">Produto</th>
+                    <th className="px-4 py-3 text-center">Qtd</th>
+                    <th className="px-4 py-3 text-right">Preço Un.</th>
+                    <th className="px-4 py-3 text-right rounded-r-lg">Total</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-800/50">
+                  {pedido.line_items?.map((item) => (
+                    <tr key={item.id} className="hover:bg-zinc-800/20 transition-colors">
+                      <td className="px-4 py-3 font-medium text-zinc-200">{item.name} <br/><span className="text-xs text-zinc-500 font-normal">SKU: {item.sku || 'N/A'}</span></td>
+                      <td className="px-4 py-3 text-center text-zinc-300">{item.quantity}</td>
+                      <td className="px-4 py-3 text-right text-zinc-300">{formatarMoeda(item.price)}</td>
+                      <td className="px-4 py-3 text-right text-emerald-400 font-medium">{formatarMoeda(item.total)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Totais do Pedido */}
+            <div className="mt-4 pt-4 border-t border-zinc-800 flex flex-col items-end space-y-2 text-sm">
+              <div className="flex justify-between w-56 text-zinc-400">
+                <span>Subtotal:</span>
+                <span>{formatarMoeda(pedido.total - pedido.shipping_total)}</span>
+              </div>
+              <div className="flex justify-between w-56 text-zinc-400">
+                <span>Frete:</span>
+                <span>{formatarMoeda(pedido.shipping_total)}</span>
+              </div>
+              <div className="flex justify-between w-56 text-lg font-bold text-zinc-100 mt-2 pt-2 border-t border-zinc-800">
+                <span>Total:</span>
+                <span className="text-emerald-400">{formatarMoeda(pedido.total)}</span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
+// ==========================================
+// TELA PRINCIPAL DE PEDIDOS
+// ==========================================
 export default function Pedidos() {
   const [activeTab, setActiveTab] = useState("woo");
   const [pedidos, setPedidos] = useState([]);
   const [loading, setLoading] = useState(false);
   const [baixados, setBaixados] = useState({});
+  
+  // O NOVO ESTADO DO MODAL
+  const [pedidoSelecionado, setPedidoSelecionado] = useState(null);
   
   // ESTADOS DE PAGINAÇÃO
   const [page, setPage] = useState(1);
@@ -27,7 +174,6 @@ export default function Pedidos() {
   const carregarPedidosWoo = async () => {
     setLoading(true);
     try {
-      // CORREÇÃO AQUI: Uso das crases (`) envolvendo a URL inteira
       const res = await fetch(`${getApiUrl()}/api/woo/pedidos`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -45,7 +191,6 @@ export default function Pedidos() {
     setLoading(false);
   };
 
-  // Recarrega sempre que mudar a aba, a página ou o limite
   useEffect(() => {
     if (activeTab === "woo") {
       carregarPedidosWoo();
@@ -56,7 +201,6 @@ export default function Pedidos() {
     }
   }, [activeTab, page, limit]);
 
-  // Se trocar de aba, volta para a página 1
   const handleTabChange = (tabId) => {
     setActiveTab(tabId);
     setPage(1);
@@ -83,6 +227,7 @@ export default function Pedidos() {
     const novosBaixados = { ...baixados, [pedido.id]: true };
     setBaixados(novosBaixados);
     localStorage.setItem("raizan_pedidos_baixados", JSON.stringify(novosBaixados));
+    toast.success("Arquivo CSV exportado!");
   };
 
   const renderStatus = (status) => {
@@ -99,7 +244,6 @@ export default function Pedidos() {
     return <span className={`inline-flex px-2.5 py-1 rounded-md text-xs font-medium border ${style}`}>{labels[status] || status}</span>;
   };
 
-  // AS CORES DINÂMICAS PARA AS ABAS
   const tabs = [
     { id: "woo", label: "Site Próprio", icon: <Monitor size={16} />, theme: "purple" },
     { id: "shopee", label: "Shopee", icon: <ShoppingBag size={16} />, theme: "orange" },
@@ -131,7 +275,6 @@ export default function Pedidos() {
                 <p className="text-sm text-zinc-400 mt-1">Exporte as vendas dos marketplaces para o seu ERP.</p>
               </div>
               
-              {/* CONTROLE DE PAGINAÇÃO SUPERIOR */}
               <div className="flex items-center gap-3">
                 <span className="text-sm text-zinc-500">Exibir:</span>
                 <select 
@@ -147,7 +290,6 @@ export default function Pedidos() {
               </div>
             </div>
 
-            {/* ABAS DOS MARKETPLACES (Agora coloridas!) */}
             <div className="flex gap-2 border-b border-zinc-800/60 pb-px overflow-x-auto no-scrollbar">
               {tabs.map(tab => (
                 <button
@@ -160,7 +302,6 @@ export default function Pedidos() {
               ))}
             </div>
 
-            {/* TABELA DE PEDIDOS */}
             <div className="border border-zinc-800/60 bg-zinc-900/40 rounded-2xl overflow-hidden backdrop-blur-sm relative flex flex-col">
               
               {loading && (
@@ -195,7 +336,12 @@ export default function Pedidos() {
                       const foiBaixado = baixados[pedido.id];
 
                       return (
-                        <tr key={pedido.id} className="hover:bg-zinc-800/30 transition-colors">
+                        <tr 
+                          key={pedido.id} 
+                          // O CLICK PARA ABRIR O MODAL ENTRA AQUI!
+                          onClick={() => setPedidoSelecionado(pedido)}
+                          className="hover:bg-zinc-800/30 transition-colors cursor-pointer"
+                        >
                           <td className="px-5 py-4 text-zinc-300 font-mono font-medium">#{pedido.id}</td>
                           <td className="px-5 py-4 font-medium text-zinc-200">
                             {pedido.billing.first_name} {pedido.billing.last_name}
@@ -205,7 +351,7 @@ export default function Pedidos() {
                             {new Date(pedido.date_created).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute:'2-digit' })}
                           </td>
                           <td className="px-5 py-4 text-zinc-200 font-medium text-right whitespace-nowrap">
-                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(pedido.total)}
+                            {formatarMoeda(pedido.total)}
                           </td>
                           <td className="px-5 py-4 text-center">
                             {renderStatus(pedido.status)}
@@ -213,7 +359,8 @@ export default function Pedidos() {
                           <td className="px-5 py-4">
                             <div className="flex items-center justify-center">
                               <button 
-                                onClick={() => handleBaixarCSV(pedido)}
+                                // O STOP PROPAGATION ESTÁ AQUI (Pra evitar que exportar abra o modal também)
+                                onClick={(e) => { e.stopPropagation(); handleBaixarCSV(pedido); }}
                                 title={foiBaixado ? "Baixar Novamente" : "Baixar CSV do Pedido"}
                                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all shadow-sm active:scale-95 ${
                                   foiBaixado 
@@ -249,6 +396,13 @@ export default function Pedidos() {
           </div>
         </main>
       </div>
+
+      {/* RENDERIZA O MODAL SE HOUVER UM PEDIDO SELECIONADO */}
+      <ModalDetalhesPedido 
+        pedido={pedidoSelecionado} 
+        onClose={() => setPedidoSelecionado(null)} 
+      />
+
     </div>
   );
 }

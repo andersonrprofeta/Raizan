@@ -1,4 +1,4 @@
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, ipcMain } = require('electron'); // <-- Adicionei o ipcMain aqui
 const serve = require('electron-serve');
 const path = require('path');
 const { autoUpdater } = require('electron-updater');
@@ -12,11 +12,10 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
-    minWidth: 1024, // <--- O usuário não consegue diminuir mais que isso
-    minHeight: 768, // <--- Protege o seu layout de quebrar
+    minWidth: 1024,
+    minHeight: 768,
     title: "Raizan Core",
     autoHideMenuBar: true, 
-    // resizable: false, <--- APAGUE ESTA LINHA!
     
     titleBarStyle: 'hidden', 
     titleBarOverlay: {
@@ -26,11 +25,13 @@ function createWindow() {
     },
 
     webPreferences: {
-      nodeIntegration: true,
+      nodeIntegration: false, // O Next.js não precisa do Node direto, ele usa o tradutor
+      contextIsolation: true, // Liga a blindagem de segurança (Obrigatório pro Preload funcionar)
+      preload: path.join(__dirname, 'preload.js')
     },
   });
 
-  mainWindow.maximize(); // Ele ainda vai nascer grandão em tela cheia!
+  mainWindow.maximize(); 
 
   appServe(mainWindow).then(() => {
     mainWindow.loadURL('app://-/');
@@ -41,20 +42,64 @@ function createWindow() {
   });
 }
 
-// --- LÓGICA DE ATUALIZAÇÃO AUTOMÁTICA ---
+// ==========================================
+// LÓGICA DE ATUALIZAÇÃO AUTOMÁTICA (O MOTOR)
+// ==========================================
 
-// 1. Quando o app abrir e a tela estiver pronta, ele procura atualizações invisível no fundo
-app.on('ready', () => {
-  autoUpdater.checkForUpdatesAndNotify();
+// Desliga o download automático para o cliente poder ver o botão de atualizar
+autoUpdater.autoDownload = false; 
+
+// Função que envia as "fofocas" (textos e porcentagem) lá pro terminalzinho do React
+function sendStatusToWindow(text, progress = 0, status = 'info') {
+  if (mainWindow) {
+    mainWindow.webContents.send('update-message', { text, progress, status });
+  }
+}
+
+// 1. Eventos do autoUpdater (Ouvindo o servidor do GitHub/Seu site)
+autoUpdater.on('checking-for-update', () => sendStatusToWindow('Procurando atualizações no servidor central...'));
+
+autoUpdater.on('update-available', (info) => {
+  sendStatusToWindow(`Versão ${info.version} encontrada! Iniciando download...`, 0, 'downloading');
+  autoUpdater.downloadUpdate(); // Começa a baixar o .exe novo
 });
 
-// 2. Se ele achar e baixar uma atualização, ele avisa o Windows para instalar na próxima vez que o app fechar
+autoUpdater.on('update-not-available', () => sendStatusToWindow('O sistema já está na versão mais recente.', 100, 'success'));
+
+autoUpdater.on('error', (err) => sendStatusToWindow(`Erro de conexão: ${err.message}`, 0, 'error'));
+
+autoUpdater.on('download-progress', (progressObj) => {
+  let log_message = `Baixando pacote criptografado: ${Math.round(progressObj.percent)}%`;
+  sendStatusToWindow(log_message, progressObj.percent, 'downloading');
+});
+
 autoUpdater.on('update-downloaded', () => {
-  // Opcional: Aqui poderíamos colocar um aviso na tela "Atualização baixada! Reinicie o app."
-  // Mas por enquanto, ele apenas vai instalar silenciosamente quando o usuário fechar o sistema.
+  sendStatusToWindow('Download concluído! O sistema está pronto para reiniciar e instalar.', 100, 'ready');
 });
 
-app.on('ready', createWindow);
+
+// 2. Eventos do IPC Main (Ouvindo os botões que o cliente clica no React)
+ipcMain.on('buscar-atualizacao', () => {
+  autoUpdater.checkForUpdates();
+});
+
+ipcMain.on('instalar-atualizacao', () => {
+  autoUpdater.quitAndInstall(false, true); // Fecha o app, instala o novo .exe e reabre!
+});
+
+// ==========================================
+// INICIALIZAÇÃO DO APP
+// ==========================================
+app.on('ready', () => {
+  createWindow();
+  
+  // O PULO DO GATO: Assim que a tela abrir, ele já procura atualizações silenciosamente!
+  // Como colocamos autoUpdater.autoDownload = false lá em cima, ele não vai baixar sozinho,
+  // apenas vai acender o sininho de roxo se achar algo!
+  setTimeout(() => {
+    autoUpdater.checkForUpdates();
+  }, 3000); // Dá 3 segundos pra tela terminar de carregar antes de bater no GitHub
+});
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {

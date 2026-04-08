@@ -1,48 +1,51 @@
 "use client";
 
 import { useState } from "react";
-import { Database, Lock, Mail, ArrowRight, AlertTriangle } from "lucide-react"; // Adicionei o AlertTriangle aqui
+import { Database, Lock, Mail, ArrowRight, AlertTriangle } from "lucide-react"; 
+import { getApiUrl, getHeaders } from "@/components/utils/api";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [license, setLicense] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState(""); // Nosso "Toasty" de erro
+  const [errorMsg, setErrorMsg] = useState(""); 
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setIsLoading(true);
-    setErrorMsg(""); // Limpa o erro anterior ao tentar de novo
+    setErrorMsg(""); 
     
     try {
-      // ⚠️ Lembre-se: Para testar na sua casa, o localhost precisa ser o IP do servidor
-      const response = await fetch("http://digital.rafany.com.br:3001/api/auth/login", {
+      const response = await fetch(`${getApiUrl()}/api/auth/login`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getHeaders(), 
         body: JSON.stringify({ email, license })
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        // Mostra o erro elegante na tela!
         setErrorMsg(data.error || "Falha na autenticação."); 
         setIsLoading(false);
         return;
       }
 
-      // Tudo certo, salva no cofre
+      // 🟢 Tudo certo, salva no cofre
       localStorage.setItem("@raizan:email", data.email);
       localStorage.setItem("@raizan:license", license);
       localStorage.setItem("@raizan:expires_at", data.expires_at); 
       localStorage.setItem("@raizan:modulos", JSON.stringify(data.modulos));
+      
+      // 🟢 A LINHA MÁGICA ATUALIZADA (Puxando o padrão do WordPress)
+      const nomeDoWordpress = [data.first_name, data.last_name].filter(Boolean).join(" ") || data.display_name || "Admin Raizan";
+      localStorage.setItem("@raizan:nome", nomeDoWordpress);
 
       setIsLoading(false);
-      window.location.href = "/"; 
+      window.location.href = "/dashboard"; 
       
     } catch (err) {
       console.error(err);
-      setErrorMsg("Erro ao conectar no servidor central. Verifique sua internet.");
+      setErrorMsg("Erro ao conectar no servidor central. Verifique se o IP está correto nas configurações.");
       setIsLoading(false);
     }
   };
@@ -140,13 +143,22 @@ export default function Login() {
           </form>
         </div>
 
-        {/* Rodapé */}
-        <p className="mt-8 text-center text-xs text-zinc-600">
-          Precisa de ajuda com sua licença? <br/>
-          <a href="https://raizan.com.br" target="_blank" rel="noreferrer" className="text-purple-400 hover:text-purple-300 transition-colors">
-            Acesse o portal do cliente
-          </a>
-        </p>
+        {/* Rodapé do Admin */}
+        <div className="mt-8 text-center text-xs text-zinc-600 space-y-4">
+          <p>
+            Quer comprar uma licença ou precisa de ajuda? <br/>
+            <a href="https://raizan.com.br" target="_blank" rel="noreferrer" className="inline-block mt-1 text-purple-400 hover:text-purple-300 transition-colors">
+              Acesse o portal Raizan
+            </a>
+          </p>
+          
+          {/* LINK PARA VOLTAR AO B2B */}
+          <div>
+            <a href="/b2b-login" className="text-zinc-500 hover:text-purple-400 transition-colors">
+              &larr; Voltar para o Portal do Lojista
+            </a>
+          </div>
+        </div>
 
       </div>
     </div>

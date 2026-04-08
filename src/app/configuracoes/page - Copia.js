@@ -10,58 +10,42 @@ import toast from 'react-hot-toast';
 export default function Configuracoes() {
   const [status, setStatus] = useState("idle"); 
   
+  // ESTADO EXCLUSIVO DO FRONTEND
   const [coreUrl, setCoreUrl] = useState("http://localhost:3001");
-  const [isLocked, setIsLocked] = useState(false); 
+  const [isLocked, setIsLocked] = useState(false); // Sabe se a máquina está lacrada
   const [loadingLock, setLoadingLock] = useState(true);
 
   const [formData, setFormData] = useState({
-    tenantId: "",
+    tenantId: "", // O NOSSO NOVO CAMPO MAGICO
     host: "", port: "1521", serviceName: "", user: "", password: "",
     wooUrl: "", wooKey: "", wooSecret: "",
     cronInterval: 5,
     tabelaPreco: "PDPRECO",
-    mpAccessToken: "", 
-    mpPublicKey: ""    
+    mpAccessToken: "", // 🟢 Chave Privada do Mercado Pago
+    mpPublicKey: ""    // 🟢 Chave Pública do Mercado Pago (NOVO)
   });
 
   useEffect(() => {
+    // Carrega do localStorage os últimos dados preenchidos
     const dadosSalvos = localStorage.getItem("raizan_config_geral");
-    let currentTenant = "";
-
     if (dadosSalvos) {
       const config = JSON.parse(dadosSalvos);
-      currentTenant = config.tenantId || ""; // Captura o tenant salvo
       setFormData({ 
         ...config, 
         cronInterval: config.cronInterval || 5,
         tabelaPreco: config.tabelaPreco || "PDPRECO",
         mpAccessToken: config.mpAccessToken || "", 
-        mpPublicKey: config.mpPublicKey || "" 
+        mpPublicKey: config.mpPublicKey || "" // 🟢 Garante que carregue a chave pública
       });
     }
-
-    // 🟢 CORREÇÃO 2: Força a leitura do LocalStorage primeiro para blindar a URL!
-    const urlSalva = localStorage.getItem("raizan_core_url") || getApiUrl();
-    setCoreUrl(urlSalva);
-    
-    verificarLacreDaMaquina(urlSalva, currentTenant);
+    setCoreUrl(getApiUrl());
+    verificarLacreDaMaquina(getApiUrl());
   }, []);
 
-  // 🟢 CORREÇÃO 1: Agora passamos o "Tenant" pra montar o crachá e provar pro Motor quem somos!
-  const verificarLacreDaMaquina = async (url, tenantFallback) => {
+  const verificarLacreDaMaquina = async (url) => {
     try {
-      // Forçamos a injeção do cabeçalho de segurança
-      const customHeaders = {
-        ...getHeaders(),
-        "x-tenant-id": tenantFallback || "rafany" 
-      };
-
-      const response = await fetch(`${url}/api/config/status`, {
-        headers: customHeaders // AQUI ESTAVA O SEGREDO! Agora o Motor recebe o crachá.
-      });
-      
+      const response = await fetch(`${url}/api/config/status`);
       const data = await response.json();
-      
       setIsLocked(data.locked);
       if (data.locked && data.tenantId) {
         setFormData(prev => ({ ...prev, tenantId: data.tenantId }));
@@ -86,7 +70,7 @@ export default function Configuracoes() {
     try {
       const response = await fetch(`${urlLimpa}/api/config/salvar`, {
         method: "POST",
-        headers: { ...getHeaders(), "x-tenant-id": formData.tenantId }, // Reforço de segurança
+        headers: getHeaders(), // 🟢 AQUI ESTAVA O ERRO! Agora ele manda o crachá correto.
         body: JSON.stringify(formData), 
       });
 
@@ -96,7 +80,7 @@ export default function Configuracoes() {
         setStatus("success"); 
         localStorage.setItem("raizan_config_geral", JSON.stringify(formData));
         toast.success("Máquina Lacrada e Configurações salvas!"); 
-        setIsLocked(true); 
+        setIsLocked(true); // Tranca a tela na hora!
         setTimeout(() => setStatus("idle"), 3000);
       } else {
         setStatus("error"); 
@@ -112,38 +96,16 @@ export default function Configuracoes() {
     if (!confirm("CUIDADO: Isso vai desvincular o motor desta máquina da nuvem. O sistema será reiniciado. Continuar?")) return;
     
     try {
-      // 🟢 CORREÇÃO: Enviando o crachá de segurança e dizendo quem somos!
-      const response = await fetch(`${coreUrl}/api/config/revogar`, { 
-        method: "POST",
-        headers: { 
-          ...getHeaders(), 
-          "x-tenant-id": formData.tenantId || "rafany",
-          "Content-Type": "application/json"
-        } 
-      });
-
-      // Detetive para ver se o servidor devolveu erro HTML em vez de JSON (ex: Rota não existe)
-      const contentType = response.headers.get("content-type");
-      if (!contentType || !contentType.includes("application/json")) {
-         const erroBruto = await response.text();
-         console.error("❌ Erro Bruto do Servidor ao revogar:", erroBruto);
-         toast.error("Erro no motor! Verifique o console (F12).");
-         return;
-      }
-
+      const response = await fetch(`${coreUrl}/api/config/revogar`, { method: "POST" });
       const data = await response.json();
-      
       if (data.success) {
-        toast.success("Lacre removido! O sistema está livre novamente.");
+        toast.success("Lacre removido! O sistema vai reiniciar...");
         setIsLocked(false);
         setFormData(prev => ({ ...prev, tenantId: "" }));
         localStorage.removeItem("raizan_config_geral");
-      } else {
-        toast.error("Erro: " + (data.message || "O servidor recusou abrir o lacre."));
       }
     } catch (error) {
-      console.error("❌ Erro fatal ao revogar:", error);
-      toast.error("Erro de comunicação ao tentar revogar o lacre.");
+      toast.error("Erro ao tentar revogar o lacre.");
     }
   };
 

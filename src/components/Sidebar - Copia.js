@@ -8,7 +8,7 @@ import {
   Settings, Database, LogOut, Store, ShoppingCart, 
   Globe, BookOpen, Megaphone, MessageCircle, Server, 
   FileText, Boxes, AlertTriangle, ChevronDown, ChevronRight,
-  TrendingUp, Building2, CreditCard, Receipt, Tag, Percent
+  TrendingUp, Building2, CreditCard, Receipt
 } from "lucide-react";
 import packageJson from "../../package.json";
 import toast from 'react-hot-toast';
@@ -28,22 +28,18 @@ export default function Sidebar() {
     sistema: false
   });
 
-  // 🟢 ESTADOS PARA CONTROLAR O TEXTO E A COR DO BOTÃO
-  const [textoPedido, setTextoPedido] = useState("Novo Pedido");
-  const [temPedidoAberto, setTemPedidoAberto] = useState(false); // Faltava essa variável!
-
   // O ÚNICO E SOBERANO SEGURANÇA DA BOATE 🛑
   useEffect(() => {
     const b2bUser = localStorage.getItem("raizan_user");
     const adminLicenca = localStorage.getItem("@raizan:license");
 
-    // 1. REGRA DO LOJISTA VIP
+    // 1. REGRA DO LOJISTA VIP (Se tiver crachá, libera e MORRE a função)
     if (b2bUser) {
       try {
         const user = JSON.parse(b2bUser);
         setUserRole("lojista");
         setUserName(user.nome || "Usuário");
-        return; 
+        return; // SINAL DE PARE! NADA ABAIXO DESSA LINHA VAI EXECUTAR PARA O LOJISTA.
       } catch (e) {
         console.error("Erro ao ler dados do Lojista");
       }
@@ -51,12 +47,11 @@ export default function Sidebar() {
 
     // 2. REGRA DO ADMIN
     setUserRole("admin");
-    
-    // Busca o nome no cofre. Se estiver vazio, aí sim usa Admin Raizan
-    const nomeSalvo = localStorage.getItem("@raizan:nome");
-    setUserName(nomeSalvo && nomeSalvo.trim() !== "" ? nomeSalvo : "Admin Raizan");
+    setUserName("Admin Raizan");
 
+    // Se NÃO é lojista e NÃO tem licença, é invasor. Expulsa!
     if (!adminLicenca) {
+      // Devolve para a porta certa
       if (pathname && pathname.includes("b2b")) {
         window.location.href = "/login-b2b";
       } else {
@@ -95,38 +90,6 @@ export default function Sidebar() {
     } else if (modulos) {
       setModulosLiberados(JSON.parse(modulos));
     }
-  }, [pathname]);
-
-  // 🟢 O "VIGIA" DO CARRINHO: Checa se tem algo no cofre para mudar o texto e a COR
-  useEffect(() => {
-    const checarCarrinho = () => {
-      const carrinhoSalvo = localStorage.getItem("@raizan:carrinho");
-      if (carrinhoSalvo) {
-        try {
-          const parsed = JSON.parse(carrinhoSalvo);
-          // Se tiver pelo menos 1 item no carrinho
-          if (Object.keys(parsed).length > 0) {
-            setTextoPedido("Continuar Pedido");
-            setTemPedidoAberto(true); // 🟢 Liga a luz verde!
-            return;
-          }
-        } catch (e) { }
-      }
-      // Se estiver vazio ou der erro, volta ao normal
-      setTextoPedido("Novo Pedido");
-      setTemPedidoAberto(false); // 🔴 Desliga a luz verde
-    };
-
-    checarCarrinho();
-
-    // Adicionamos um escutador pra ele atualizar no momento exato do clique nas outras abas
-    window.addEventListener('storage', checarCarrinho);
-    const intervalo = setInterval(checarCarrinho, 1000);
-    
-    return () => {
-      window.removeEventListener('storage', checarCarrinho);
-      clearInterval(intervalo);
-    };
   }, [pathname]);
 
   const handleSairDoApp = () => {
@@ -168,6 +131,7 @@ export default function Sidebar() {
   const hasMkt = ["crm", "whatsapp", "website", "catalogo", "ads"].some(tem);
   const hasSys = ["host", "configuracoes", "sistema"].some(tem);
 
+  // SE AINDA NÃO DESCOBRIU O PAPEL, MOSTRA A BARRA VAZIA (FIM DO PISCA-PISCA)
   if (!userRole) {
     return <aside className="h-screen sticky top-0 w-[260px] bg-[#0c0c0e] border-r border-zinc-800/80 flex flex-col z-20 shrink-0"></aside>;
   }
@@ -198,22 +162,7 @@ export default function Sidebar() {
           <div className="space-y-1">
             <div className="text-xs font-bold text-zinc-600 tracking-wider uppercase mb-3 px-2">Portal de Compras</div>
             <NavLink href="/b2b-inicio" icon={LayoutDashboard} label="Dashboard" />
-            
-            {/* 🟢 AQUI ESTÁ A MÁGICA FINAL: Trocamos o NavLink normal por um botão inteligente! */}
-            <Link 
-              href="/b2b-pedidos" 
-              className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all text-sm ${
-                temPedidoAberto 
-                  ? "bg-emerald-500/10 text-emerald-400 font-medium border border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.15)]" 
-                  : isActive("/b2b-pedidos")
-                    ? "bg-purple-500/10 text-purple-400 font-medium border border-purple-500/20" 
-                    : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200 border border-transparent"
-              }`}
-            >
-              <Store size={18} className={temPedidoAberto ? "text-emerald-400" : isActive("/b2b-pedidos") ? "text-purple-400" : "text-zinc-500"} />
-              {textoPedido}
-            </Link>
-            
+            <NavLink href="/b2b-pedidos" icon={Store} label="Novo Pedido" />
             <NavLink href="/b2b-historico" icon={Package} label="Meus Pedidos" />
             <NavLink href="/b2b-xml" icon={FileText} label="XML/NF-e" />
             <NavLink href="/b2b-financeiro" icon={Receipt} label="Financeiro" />
@@ -227,11 +176,10 @@ export default function Sidebar() {
             </div>
 
             {tem("portal-b2b") && (
-              <div className="space-y-1 pb-2 border-b border-zinc-800/50">
-                <div className="text-xs font-bold text-zinc-600 tracking-wider uppercase mb-2 px-2 mt-4">Atacado B2B</div>
-                <NavLink href="/b2b-pedidos" icon={Building2} label="Simular Catálogo" />
-                <NavLink href="/pedidos" icon={ShoppingBag} label="Gestão de Pedidos" />
-                <NavLink href="/promocoes" icon={Tag} label="Gestão de Promoções" />
+              <div className="space-y-1">
+                <div className="text-xs font-bold text-zinc-600 tracking-wider uppercase mb-2 px-2 mt-4">Atacado</div>
+                <NavLink href="/b2b-pedidos" icon={Building2} label="Simular Catálogo B2B" />
+                <NavLink href="/pedidos" icon={ShoppingBag} label="Gestão de Pedidos B2B" />
               </div>
             )}
 

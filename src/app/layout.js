@@ -1,6 +1,9 @@
 import "./globals.css";
 import { Toaster } from 'react-hot-toast';
 
+// 1. Importe o ChatWidget aqui no topo
+import ChatWidget from "@/components/ChatWidget";
+
 export const metadata = {
   title: "Raizan Core",
   description: "Dashboard ERP",
@@ -12,8 +15,11 @@ export default function RootLayout({ children }) {
       <body className="bg-zinc-950 text-white antialiased">
         <div className="fixed inset-0 -z-10 bg-[radial-gradient(circle_at_top,rgba(124,58,237,0.15),transparent_50%)]" />
         
-        {/* A página entra AQUI (Uma vez só! rs) */}
+        {/* A página entra AQUI */}
         {children}
+
+        {/* 2. Coloque o ChatWidget aqui, para ele flutuar em todas as páginas! */}
+        {/*<ChatWidget />*/}
 
         {/* Injetor de Toasts */}
         <Toaster 

@@ -5,6 +5,7 @@ import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import { getApiUrl } from "@/components/utils/api";
 import { ShieldCheck, Key, LogOut, CheckCircle2, Store, CreditCard, Eye, EyeOff, XOctagon, Lock, RefreshCw } from "lucide-react";
+import toast from 'react-hot-toast';
 
 export default function MinhaConta() {
   const [dadosLicenca, setDadosLicenca] = useState({

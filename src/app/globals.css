@@ -63,3 +63,16 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #52525b; 
 }
+
+/*COISAS DOIDAS QUE NEM EU SEI O QUE É*/
+/* 🌙 DARK FORÇADO */
+.dark {
+  --background: #0a0a0a;
+  --foreground: #ededed;
+}
+
+/* ☀️ LIGHT FORÇADO */
+.light {
+  --background: #ffffff;
+  --foreground: #171717;
+}

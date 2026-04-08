@@ -1,6 +1,6 @@
 {
   "name": "raizan-core",
-  "version": "0.1.6",
+  "version": "0.2.2",
   "private": true,
   "main": "main.js",
   "scripts": {
@@ -12,9 +12,11 @@
     "electron:build": "npm run build && electron-builder"
   },
   "dependencies": {
+    "@mercadopago/sdk-react": "^1.0.7",
     "electron-serve": "^3.0.1",
     "electron-updater": "^6.8.3",
     "lucide-react": "^0.577.0",
+    "mysql2": "^3.20.0",
     "next": "16.2.0",
     "oracledb": "^6.10.0",
     "react": "19.2.4",

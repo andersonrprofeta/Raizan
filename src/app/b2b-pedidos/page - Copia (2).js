@@ -1,0 +1,758 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import Sidebar from "@/components/Sidebar";
+import Header from "@/components/Header";
+import { Search, ShoppingCart, CheckCircle2, AlertCircle, Package, Barcode, Loader2, DollarSign, Zap, ShoppingBag, X, FileText, QrCode, Building2, Truck, MapPin, CreditCard, CalendarDays, ChevronLeft, ChevronRight, Tag, Clock, ShieldCheck, RefreshCw } from "lucide-react";
+import { getApiUrl, getHeaders } from "@/components/utils/api";
+import toast from 'react-hot-toast';
+
+// ==========================================
+// CONFIGURAÇÕES DO MOTOR DE IMAGENS 
+// ==========================================
+const BASE_URL_IMAGENS = "https://portalseller.com.br/img_pro/";
+
+const getProductImageUrl = (ean) => {
+  if (ean && ean.trim() !== "") return `${BASE_URL_IMAGENS}${ean}.webp`;
+  return "https://placehold.co/100x100/18181b/52525b?text=Sem+Foto";
+};
+
+const formatarMoeda = (valor) => {
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor || 0);
+};
+
+// ==========================================
+// COMPONENTE: MODAL DE CHECKOUT B2B
+// ==========================================
+function ModalCheckout({ isOpen, onClose, carrinho, produtos, tabelaAtiva, onFinalizarPedido }) {
+  const [metodoPagamento, setMetodoPagamento] = useState('faturado');
+  const [prazoBoleto, setPrazoBoleto] = useState('30'); 
+  const [metodoEnvio, setMetodoEnvio] = useState('transportadora');
+  const [isProcessando, setIsProcessando] = useState(false);
+  
+  // 🟢 ESTADOS DA TELA E PIX
+  const [step, setStep] = useState('resumo'); // 'resumo', 'sucesso_pix', ou 'concluido'
+  const [dadosPix, setDadosPix] = useState(null);
+  const [copiado, setCopiado] = useState(false);
+  
+  // 🟢 NOVOS ESTADOS: Cronômetro e Verificação Manual
+  const [tempoExpiracao, setTempoExpiracao] = useState(1800); // 30 minutos em segundos
+  const [isVerificando, setIsVerificando] = useState(false);
+
+  // Zera as coisas quando o modal abre
+  useEffect(() => {
+    if (isOpen) {
+      setStep('resumo'); setDadosPix(null); setCopiado(false); setIsProcessando(false); setTempoExpiracao(1800);
+    }
+  }, [isOpen]);
+
+  // 🟢 EFEITO DO CRONÔMETRO (Desce 1 segundo a cada segundo)
+  useEffect(() => {
+    let timer;
+    if (step === 'sucesso_pix' && tempoExpiracao > 0) {
+      timer = setInterval(() => setTempoExpiracao(prev => prev - 1), 1000);
+    }
+    return () => clearInterval(timer);
+  }, [step, tempoExpiracao]);
+
+  // Formata os segundos para "MM:SS"
+  const formatarTempo = (segundos) => {
+    const m = Math.floor(segundos / 60).toString().padStart(2, '0');
+    const s = (segundos % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+  };
+
+  // O RADAR AUTOMÁTICO DO PIX (Mantemos ele aqui pro futuro)
+  useEffect(() => {
+    let intervalo;
+    if (step === 'sucesso_pix' && dadosPix?.pedidoId) {
+      intervalo = setInterval(async () => {
+        try {
+          const res = await fetch(`${getApiUrl()}/api/b2b/status-pedido/${dadosPix.pedidoId}`, { headers: getHeaders() });
+          const data = await res.json();
+          if (data.status === 'pago') setStep('concluido');
+        } catch (e) { console.log("Radar falhou", e); }
+      }, 5000); 
+    }
+    return () => clearInterval(intervalo);
+  }, [step, dadosPix]);
+
+  // 🟢 FUNÇÃO DE VERIFICAÇÃO MANUAL DO PIX
+  const verificarPagamentoManual = async () => {
+    setIsVerificando(true);
+    try {
+      const res = await fetch(`${getApiUrl()}/api/b2b/status-pedido/${dadosPix.pedidoId}`, { headers: getHeaders() });
+      const data = await res.json();
+      
+      if (data.status === 'pago') {
+        setStep('concluido');
+      } else {
+        toast.error("Pagamento não identificado. Se você já pagou, aguarde alguns segundos e tente novamente.", { duration: 4000 });
+      }
+    } catch (e) { 
+      toast.error("Erro ao comunicar com o servidor.");
+    }
+    setTimeout(() => setIsVerificando(false), 1000); // Dá um tempinho visual na bolinha girando
+  };
+
+  if (!isOpen) return null;
+
+  const itensComprados = Object.values(carrinho).map(p => {
+    const precoOriginal = p[tabelaAtiva] !== undefined ? parseFloat(p[tabelaAtiva]) : parseFloat(p.PDPRECO);
+    const precoFinal = p.em_promocao ? parseFloat(p.preco_promocional) : precoOriginal;
+    return { ...p, precoUsado: precoFinal, totalItem: precoFinal * p.qtd };
+  });
+
+  const subtotal = itensComprados.reduce((acc, item) => acc + item.totalItem, 0);
+
+  const handleConfirmar = async () => {
+    setIsProcessando(true);
+    const resultado = await onFinalizarPedido({ 
+      itens: itensComprados, subtotal, metodoPagamento, 
+      prazoBoleto: metodoPagamento === 'faturado' ? prazoBoleto : null, metodoEnvio 
+    });
+    setIsProcessando(false);
+
+    if (resultado && resultado.pagamento?.tipo === 'pix') {
+      setDadosPix({ ...resultado.pagamento, pedidoId: resultado.pedidoId });
+      setTempoExpiracao(1800); // Reseta o cronômetro para 30 min
+      setStep('sucesso_pix');
+    } else if (resultado) {
+      onClose(); 
+    }
+  };
+
+  const copiarPix = () => {
+    navigator.clipboard.writeText(dadosPix.qr_code);
+    setCopiado(true); toast.success("Código PIX copiado!");
+    setTimeout(() => setCopiado(false), 3000);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm transition-all" onClick={step === 'resumo' ? onClose : null}>
+      <div className="bg-[#0c0c0e] border border-zinc-800/80 rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+        
+        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800/80 bg-zinc-900/40">
+          <h2 className="text-xl font-bold text-zinc-100 flex items-center gap-2">
+            {step === 'resumo' && <><ShoppingCart className="text-emerald-400" /> Finalizar Pedido</>}
+            {step === 'sucesso_pix' && <><Clock className="text-teal-400" /> Aguardando Pagamento</>}
+            {step === 'concluido' && <><CheckCircle2 className="text-emerald-400" /> Pedido Concluído</>}
+          </h2>
+          <button onClick={onClose} disabled={isProcessando} className="p-2 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-xl transition-colors disabled:opacity-50">
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* TELA 3: SUCESSO ABSOLUTO (PAGO!) */}
+        {step === 'concluido' && (
+          <div className="flex flex-col items-center justify-center p-16 text-center animate-in zoom-in-90 duration-500">
+            <div className="w-24 h-24 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center mb-6 shadow-[0_0_50px_rgba(16,185,129,0.2)]">
+              <CheckCircle2 size={48} className="animate-bounce" />
+            </div>
+            <h2 className="text-3xl font-black text-zinc-100 mb-3 tracking-tight">Obrigado pelo seu pedido!</h2>
+            <p className="text-lg text-zinc-400 mb-8 max-w-lg">
+              Recebemos o seu pagamento via PIX. Seu pedido <b>#{dadosPix?.pedidoId}</b> já foi faturado e enviado para a nossa equipe de separação logística.
+            </p>
+            <div className="flex gap-4">
+              <button onClick={onClose} className="px-6 py-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-100 rounded-xl font-bold transition-all">
+                Voltar ao Catálogo
+              </button>
+              <button onClick={() => { onClose(); window.location.href = "/b2b-historico"; }} className="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-all">
+                Acompanhar no Histórico
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* 🟢 TELA 2: QR CODE PIX (REFORMULADA COM SEGURANÇA E CRONÔMETRO) */}
+        {step === 'sucesso_pix' && dadosPix && (
+          <div className="flex flex-col items-center justify-center p-8 text-center animate-in slide-in-from-right-8 overflow-y-auto custom-scrollbar">
+            <div className="w-12 h-12 bg-teal-500/10 text-teal-400 rounded-full flex items-center justify-center mb-4 relative">
+              <QrCode size={24} />
+              <div className="absolute inset-0 rounded-full border-2 border-teal-500/30 animate-ping"></div>
+            </div>
+            <h2 className="text-2xl font-bold text-zinc-100 mb-1">Pague via PIX para liberar o envio</h2>
+            <p className="text-zinc-400 text-sm mb-6 max-w-md">Abra o aplicativo do seu banco e escaneie o código abaixo.</p>
+            
+            {/* 🟢 CRONÔMETRO */}
+            <div className="bg-zinc-900/60 border border-zinc-800/80 rounded-xl px-4 py-2.5 mb-6 flex items-center gap-3 shadow-inner">
+              <Clock size={18} className="text-teal-400" />
+              <span className="text-sm font-medium text-zinc-300">O código expira em:</span>
+              <span className={`text-xl font-mono font-black ${tempoExpiracao < 300 ? 'text-rose-400 animate-pulse' : 'text-teal-400'}`}>
+                {formatarTempo(tempoExpiracao)}
+              </span>
+            </div>
+            
+           {/* 🟢 CAIXA DO QR CODE BLINDADA */}
+           <div className="bg-white p-3 rounded-2xl mb-6 shadow-[0_0_30px_rgba(20,184,166,0.15)] border-4 border-teal-500/20 relative overflow-hidden group flex items-center justify-center min-h-[200px] min-w-[200px]">
+              {dadosPix.qr_code_base64 && dadosPix.qr_code_base64.length > 50 ? (
+                /* Se o Mercado Pago mandou a imagem certinha, a gente usa a dele */
+                <img src={`data:image/png;base64,${dadosPix.qr_code_base64}`} alt="QR Code PIX" className="w-48 h-48 relative z-10 object-contain" />
+              ) : (
+                /* Se o Mercado Pago falhar na imagem, a gente desenha o QR Code na hora usando o Copia e Cola! */
+                <img src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(dadosPix.qr_code)}`} alt="QR Code PIX Gerado" className="w-48 h-48 relative z-10 object-contain" />
+              )}
+            </div>
+
+            <div className="w-full max-w-md space-y-3 mb-6">
+              <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider text-left block">Pix Copia e Cola</label>
+              <div className="flex items-center gap-2">
+                <input type="text" readOnly value={dadosPix.qr_code} className="flex-1 bg-zinc-950 border border-zinc-800 text-zinc-400 px-4 py-3 rounded-xl text-sm outline-none font-mono truncate" />
+                <button onClick={copiarPix} className={`px-4 py-3 rounded-xl font-bold text-sm transition-all flex items-center gap-2 ${copiado ? 'bg-teal-500/20 text-teal-400 border border-teal-500/30' : 'bg-zinc-800 text-zinc-200 hover:bg-zinc-700'}`}>
+                  {copiado ? <CheckCircle2 size={18} /> : 'Copiar'}
+                </button>
+              </div>
+            </div>
+
+            {/* 🟢 BOTÃO DE CHECAGEM MANUAL */}
+            <button 
+              onClick={verificarPagamentoManual} 
+              disabled={isVerificando}
+              className="flex items-center gap-2 text-sm text-zinc-400 hover:text-teal-400 transition-colors disabled:opacity-50 px-4 py-2 rounded-lg hover:bg-zinc-800/50 mb-6"
+            >
+              <RefreshCw size={16} className={isVerificando ? "animate-spin text-teal-400" : ""} />
+              {isVerificando ? "Verificando com o banco..." : "Já paguei, mas a tela não mudou"}
+            </button>
+
+            {/* 🟢 RODAPÉ DE SEGURANÇA */}
+            <div className="flex flex-col items-center gap-1.5 pt-6 border-t border-zinc-800/60 w-full max-w-md">
+              <div className="flex items-center gap-2 text-xs font-medium text-zinc-400 bg-zinc-900/50 px-3 py-1.5 rounded-lg border border-zinc-800/50">
+                <ShieldCheck size={14} className="text-emerald-500 shrink-0" />
+                <p>Pagamento 100% seguro pelo <b>Mercado Pago</b>.</p>
+              </div>
+              <p className="text-[11px] text-zinc-600 text-center">
+                Ambiente criptografado. Seu pedido será liberado automaticamente após a aprovação da instituição financeira.
+              </p>
+            </div>
+
+          </div>
+        )}
+
+        {/* TELA 1: RESUMO DO PEDIDO */}
+        {step === 'resumo' && (
+          <div className="flex-1 overflow-y-auto custom-scrollbar p-6 grid grid-cols-1 lg:grid-cols-2 gap-8 animate-in slide-in-from-left-8">
+            <div className="space-y-6">
+              
+              <div className="bg-zinc-900/30 border border-zinc-800/50 rounded-xl p-5 space-y-4">
+                <h3 className="text-sm font-bold text-zinc-100 border-b border-zinc-800 pb-2">Forma de Pagamento</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <button onClick={() => setMetodoPagamento('faturado')} className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all ${metodoPagamento === 'faturado' ? 'bg-emerald-500/10 border-emerald-500 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.1)]' : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:border-zinc-700'}`}>
+                    <FileText size={20} className="mb-1.5" />
+                    <span className="text-xs font-semibold">Boleto</span>
+                  </button>
+                  <button onClick={() => setMetodoPagamento('pix')} className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all ${metodoPagamento === 'pix' ? 'bg-teal-500/10 border-teal-500 text-teal-400 shadow-[0_0_15px_rgba(20,184,166,0.1)]' : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:border-zinc-700'}`}>
+                    <QrCode size={20} className="mb-1.5" />
+                    <span className="text-xs font-semibold">PIX (API)</span>
+                  </button>
+                  <button onClick={() => setMetodoPagamento('cartao')} className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all ${metodoPagamento === 'cartao' ? 'bg-blue-500/10 border-blue-500 text-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.1)]' : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:border-zinc-700'}`}>
+                    <CreditCard size={20} className="mb-1.5" />
+                    <span className="text-xs font-semibold">Cartão</span>
+                  </button>
+                </div>
+
+                <div className="pt-2">
+                  {metodoPagamento === 'faturado' && (
+                    <div className="animate-in fade-in slide-in-from-top-2">
+                      <label className="text-xs text-zinc-500 font-medium mb-2 block">Prazos liberados para seu CNPJ:</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {['30', '30/60', '30/60/90', '30/60/90/120'].map(prazo => (
+                          <button key={prazo} onClick={() => setPrazoBoleto(prazo)} className={`flex items-center gap-2 p-2.5 rounded-lg border text-sm transition-all ${prazoBoleto === prazo ? 'bg-emerald-500 text-black border-emerald-500 font-bold' : 'bg-zinc-900 border-zinc-700 text-zinc-300 hover:border-zinc-500'}`}>
+                            <CalendarDays size={16} className={prazoBoleto === prazo ? 'text-black' : 'text-zinc-500'} /> {prazo} Dias
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {metodoPagamento === 'pix' && (
+                    <div className="animate-in fade-in slide-in-from-top-2 p-3 bg-teal-500/10 border border-teal-500/20 rounded-lg text-teal-400 text-sm flex items-start gap-2">
+                      <QrCode size={18} className="shrink-0 mt-0.5" />
+                      <p>O QR Code do Mercado Pago será gerado na próxima tela após a confirmação do pedido.</p>
+                    </div>
+                  )}
+                  {metodoPagamento === 'cartao' && (
+                    <div className="animate-in fade-in slide-in-from-top-2 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg text-blue-400 text-sm flex items-start gap-2">
+                      <CreditCard size={18} className="shrink-0 mt-0.5" />
+                      <p>A tela de pagamento do cartão será exibida no próximo passo.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="bg-zinc-900/30 border border-zinc-800/50 rounded-xl p-5 space-y-4">
+                <h3 className="text-sm font-bold text-zinc-100 border-b border-zinc-800 pb-2">Método de Envio</h3>
+                <div className="space-y-3">
+                  <label className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${metodoEnvio === 'transportadora' ? 'bg-emerald-500/10 border-emerald-500' : 'bg-zinc-950 border-zinc-800 hover:border-zinc-700'}`}>
+                    <input type="radio" name="envio" checked={metodoEnvio === 'transportadora'} onChange={() => setMetodoEnvio('transportadora')} className="hidden" />
+                    <div className={`p-2 rounded-lg ${metodoEnvio === 'transportadora' ? 'bg-emerald-500 text-black' : 'bg-zinc-800 text-zinc-400'}`}><Truck size={18} /></div>
+                    <div>
+                      <p className={`text-sm font-bold ${metodoEnvio === 'transportadora' ? 'text-emerald-400' : 'text-zinc-300'}`}>Transportadora Parceira</p>
+                      <p className="text-xs text-zinc-500">Frete FOB (A ser calculado pela logística)</p>
+                    </div>
+                  </label>
+                  <label className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${metodoEnvio === 'retirada' ? 'bg-emerald-500/10 border-emerald-500' : 'bg-zinc-950 border-zinc-800 hover:border-zinc-700'}`}>
+                    <input type="radio" name="envio" checked={metodoEnvio === 'retirada'} onChange={() => setMetodoEnvio('retirada')} className="hidden" />
+                    <div className={`p-2 rounded-lg ${metodoEnvio === 'retirada' ? 'bg-emerald-500 text-black' : 'bg-zinc-800 text-zinc-400'}`}><MapPin size={18} /></div>
+                    <div>
+                      <p className={`text-sm font-bold ${metodoEnvio === 'retirada' ? 'text-emerald-400' : 'text-zinc-300'}`}>Retirada no CD Rafany</p>
+                      <p className="text-xs text-zinc-500">Isento de frete. Agendamento necessário.</p>
+                    </div>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col bg-zinc-900/50 border border-zinc-800/80 rounded-xl overflow-hidden">
+              <h3 className="text-sm font-bold text-zinc-100 p-4 border-b border-zinc-800 bg-zinc-900/80">
+                Resumo dos Itens ({itensComprados.length})
+              </h3>
+              <div className="flex-1 overflow-y-auto custom-scrollbar p-2">
+                <ul className="divide-y divide-zinc-800/50 px-2">
+                  {itensComprados.map(item => (
+                    <li key={item.PDCODPRO} className="py-3 flex items-start justify-between gap-4">
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-zinc-200 line-clamp-1">{item.PDNOME}</p>
+                        <p className="text-xs text-zinc-500">
+                          SKU: {item.PDCODPRO} | {item.qtd}x {formatarMoeda(item.precoUsado)} {item.em_promocao && <span className="text-rose-400 ml-1">(Oferta)</span>}
+                        </p>
+                      </div>
+                      <div className="text-sm font-bold text-zinc-100 whitespace-nowrap">
+                        {formatarMoeda(item.totalItem)}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div className="p-5 border-t border-zinc-800 bg-zinc-900/80 space-y-4">
+                <div className="flex justify-between items-center text-zinc-400 text-sm">
+                  <span>Subtotal Itens:</span><span>{formatarMoeda(subtotal)}</span>
+                </div>
+                <div className="flex justify-between items-center text-zinc-400 text-sm pb-4 border-b border-zinc-800/60">
+                  <span>Estimativa de Frete:</span><span className="italic">A calcular</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-lg font-bold text-zinc-100">Total Previsto:</span>
+                  <span className="text-2xl font-black text-emerald-400">{formatarMoeda(subtotal)}</span>
+                </div>
+                <button onClick={handleConfirmar} disabled={isProcessando} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-3.5 rounded-xl font-bold shadow-[0_0_20px_rgba(16,185,129,0.2)] transition-all flex items-center justify-center gap-2 mt-4">
+                  {isProcessando ? <><Loader2 size={18} className="animate-spin" /> Gerando Pedido...</> : 'Confirmar e Enviar Pedido'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+      </div>
+    </div>
+  );
+}
+
+// ==========================================
+// COMPONENTE AUXILIAR DO SELECTOR DE QTD
+// ==========================================
+function SeletorQuantidade({ id, qtd, onQtdChange }) {
+  if (qtd > 0) {
+    return (
+      <div className="flex items-center justify-between bg-zinc-950 border border-emerald-500/30 rounded-lg overflow-hidden h-9">
+        <button onClick={() => onQtdChange(id, Math.max(0, qtd - 1))} className="w-8 h-full flex items-center justify-center text-zinc-400 hover:bg-zinc-800 hover:text-white transition-colors">-</button>
+        <span className="font-bold text-emerald-400 text-sm w-6 text-center">{qtd}</span>
+        <button onClick={() => onQtdChange(id, qtd + 1)} className="w-8 h-full flex items-center justify-center text-zinc-400 hover:bg-zinc-800 hover:text-white transition-colors">+</button>
+      </div>
+    );
+  }
+  return (
+    <button onClick={() => onQtdChange(id, 1)} className="w-full h-9 flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-medium transition-all text-xs">
+      Adicionar
+    </button>
+  );
+}
+
+// ==========================================
+// TELA PRINCIPAL: CATÁLOGO B2B
+// ==========================================
+export default function CatalogoB2B() {
+  const [carrinho, setCarrinho] = useState({});
+  const [produtos, setProdutos] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [search, setSearch] = useState("");
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [tabelaAtiva, setTabelaAtiva] = useState("PDPRECO");
+  
+  // ESTADOS DA PAGINAÇÃO
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20); 
+  const [totalPages, setTotalPages] = useState(1);
+
+  // ESTADOS DAS OFERTAS
+  const [somenteOfertas, setSomenteOfertas] = useState(false);
+  const [listaOfertas, setListaOfertas] = useState([]);
+
+  useEffect(() => {
+    const carregarCarrinhoEListners = () => {
+      const carrinhoSalvo = localStorage.getItem("@raizan:carrinho");
+      if (carrinhoSalvo) {
+        try { setCarrinho(JSON.parse(carrinhoSalvo)); } catch(e) { }
+      }
+    };
+    
+    carregarCarrinhoEListners();
+
+    // 🟢 ESCUTA MUDANÇAS NO CARRINHO FEITAS PELA HEADER
+    const syncCarrinho = () => {
+      const c = localStorage.getItem("@raizan:carrinho");
+      if(c) try { setCarrinho(JSON.parse(c)); } catch(e) {}
+    };
+    window.addEventListener('storage', syncCarrinho);
+
+    // 🟢 Busca as promoções na NUVEM assim que a página carrega!
+    carregarListaOfertasGlobais();
+
+    return () => window.removeEventListener('storage', syncCarrinho);
+  }, []);
+
+  const carregarListaOfertasGlobais = async () => {
+    try {
+      const res = await fetch(`${getApiUrl()}/api/admin/promocoes`, { headers: getHeaders() });
+      const data = await res.json();
+      if(data.success) {
+        const hoje = new Date();
+        const ofertasAtivas = data.promocoes.filter(promo => {
+          const inicio = new Date(promo.data_inicio);
+          const fim = new Date(promo.data_fim);
+          fim.setHours(23, 59, 59);
+          return promo.ativo && hoje >= inicio && hoje <= fim;
+        });
+        setListaOfertas(ofertasAtivas);
+      }
+    } catch(e) { console.error("Erro ao buscar ofertas do modal"); }
+  };
+
+  // 🟢 MÁGICA DA PAGINAÇÃO: O Hook escuta a mudança do Checkbox "somenteOfertas"
+  useEffect(() => {
+    carregarProdutos();
+  }, [page, limit, somenteOfertas]); 
+
+  const carregarProdutos = async () => {
+    // Se marcou o filtro de ofertas, mas não tem oferta cadastrada/ativa, não precisa nem chamar a API
+    if (somenteOfertas && listaOfertas.length === 0) {
+      setProdutos([]);
+      setTotalPages(1);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const payload = { 
+        search, 
+        hideBlocked: true, 
+        hideSamples: true, 
+        page, 
+        limit: Number(limit),
+        // 🟢 INJEÇÃO DOS SKUS: Se o checkbox tá marcado, manda a lista. Se não, manda vazio.
+        skusFiltro: somenteOfertas ? listaOfertas.map(o => o.sku) : []
+      };
+      
+      const response = await fetch(`${getApiUrl()}/api/produtos`, {
+        method: "POST", 
+        headers: { "Content-Type": "application/json" }, 
+        body: JSON.stringify(payload),
+      });
+      const data = await response.json();
+      
+      if (data.success) {
+        const produtosFiltrados = data.produtos.filter(p => p.PDSTATUS !== 6 && p.PDSTATUS !== 8);
+        setProdutos(produtosFiltrados); 
+        
+        if (data.totalPages) setTotalPages(data.totalPages);
+        if (data.tabelaPrecoBase) setTabelaAtiva(data.tabelaPrecoBase);
+      } else {
+        toast.error(data.message || "Erro ao conectar com o banco de dados.");
+      }
+    } catch (error) { 
+      toast.error("Erro ao carregar catálogo.");
+    }
+    setLoading(false);
+  };
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    setPage(1);
+    carregarProdutos();
+  };
+
+  // Carimba a promoção nos produtos listados na tela para desenhar o desconto visualmente
+  const produtosComPromocaoCarimbada = produtos.map(p => {
+    const oferta = listaOfertas.find(o => o.sku === p.PDCODPRO.toString());
+    if (oferta) {
+      return { ...p, em_promocao: true, preco_promocional: oferta.preco_promocional };
+    }
+    return { ...p, em_promocao: false };
+  });
+
+  const handleQuantidade = (produto, qtd) => {
+    setCarrinho(prev => {
+      const novo = { ...prev };
+      if (qtd === 0) {
+        delete novo[produto.PDCODPRO];
+      } else {
+        novo[produto.PDCODPRO] = { ...produto, qtd };
+      }
+      localStorage.setItem("@raizan:carrinho", JSON.stringify(novo));
+      
+      // 🟢 Avisa a Header que a quantidade no catálogo mudou!
+      window.dispatchEvent(new Event('storage'));
+      return novo;
+    });
+  };
+
+  //MUDANÇA NA COBRANÇA VIA PIX SERÁ FEITA AQUI
+  
+const handleFinalizarPedido = async (dadosDoPedido) => {
+    const savedUser = localStorage.getItem("raizan_user");
+    if (!savedUser) {
+      toast.error("Sessão expirada. Faça login novamente.");
+      window.location.href = "/login-b2b";
+      return null;
+    }
+
+    const userLogado = JSON.parse(savedUser);
+    const payloadCompleto = {
+      ...dadosDoPedido, 
+      cliente: {
+        codigo: userLogado.codigo,
+        razao: userLogado.nome,
+        cnpj: userLogado.cnpj,
+        email: userLogado.email, 
+        telefone: userLogado.telefone
+      }
+    };
+
+    const toastId = toast.loading("Gerando pedido na Rafany..."); //ESSES NOMES ONDE TEM RAFANY PODERIA PUIXAR DO BANCO DA EMPRESA CONECTADA NO TENETID PARA NÃO MISTURAR AS COISAS
+    
+    try {
+      const response = await fetch(`${getApiUrl()}/api/b2b/criar-pedido`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payloadCompleto)
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        toast.success(`Pedido #${data.pedidoId} gerado!`, { id: toastId });
+        
+        // Limpa o carrinho silenciosamente
+        setCarrinho({}); 
+        localStorage.removeItem("@raizan:carrinho"); 
+        window.dispatchEvent(new Event('storage'));
+
+        // Retorna os dados para o Modal saber o que desenhar na tela (O QR Code)
+        return data; 
+      } else {
+        toast.error("Erro ao gerar pedido: " + data.message, { id: toastId });
+        return null;
+      }
+    } catch (error) {
+      toast.error("Erro de comunicação com o servidor.", { id: toastId });
+      return null;
+    }
+  };
+
+  const getEstiloTabelaPreco = (tabela) => {
+    switch(tabela) {
+      case 'PDPRECO2': return { cor: 'text-amber-400' };
+      case 'PDPRECO3': return { cor: 'text-teal-400' };
+      default: return { cor: 'text-emerald-400' };
+    }
+  };
+  const infoTabela = getEstiloTabelaPreco(tabelaAtiva);
+
+  return (
+    <div className="flex h-screen bg-[#09090b] text-zinc-100 overflow-hidden">
+      <Sidebar />
+
+      <div className="flex-1 flex flex-col h-screen relative">
+        <Header />
+        
+        <main className="flex-1 overflow-y-auto custom-scrollbar p-8 pb-32">
+          <div className="max-w-7xl mx-auto space-y-6">
+            
+            <div className="bg-zinc-900/40 p-6 rounded-2xl border border-zinc-800/60 flex flex-col lg:flex-row gap-4 items-center justify-between">
+              <div>
+                <h1 className="text-2xl font-bold text-zinc-100 flex items-center gap-3">
+                  <Package className="text-emerald-400" /> Catálogo B2B Rafany
+                </h1>
+                <p className="text-sm text-zinc-400 mt-1">Reponha o estoque da sua loja com a Rafany Distribuidora.</p>
+              </div>
+
+              <div className="flex items-center gap-4 flex-wrap justify-end">
+                
+                <label className="flex items-center gap-2 cursor-pointer bg-zinc-950 border border-zinc-800 hover:border-zinc-700 px-4 py-2.5 rounded-xl transition-colors text-sm text-zinc-300">
+                  <input 
+                    type="checkbox" 
+                    checked={somenteOfertas} 
+                    onChange={(e) => {
+                      setSomenteOfertas(e.target.checked);
+                      setPage(1); // 🟢 Importante: volta para a página 1 ao ativar o filtro!
+                    }}
+                    className="w-4 h-4 rounded border-zinc-700 text-rose-500 focus:ring-rose-500 bg-zinc-950 cursor-pointer"
+                  />
+                  <Tag size={16} className={somenteOfertas ? "text-rose-400" : "text-zinc-500"} />
+                  <span className={somenteOfertas ? "font-bold text-rose-400" : ""}>Apenas Ofertas</span>
+                </label>
+
+                <select 
+                  value={limit} 
+                  onChange={(e) => { setLimit(e.target.value); setPage(1); }} 
+                  className="bg-zinc-950 border border-zinc-800 text-zinc-300 px-3 py-2.5 rounded-xl text-sm outline-none focus:border-emerald-500 cursor-pointer"
+                >
+                  <option value="20">20 por pág</option>
+                  <option value="50">50 por pág</option>
+                  <option value="100">100 por pág</option>
+                </select>
+
+                <form onSubmit={handleSearch} className="relative w-full sm:w-72 lg:w-96">
+                  <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+                  <input 
+                    type="text" 
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Buscar por nome, EAN ou código..." 
+                    className="w-full bg-zinc-950 border border-zinc-800 text-zinc-200 pl-10 pr-4 py-2.5 rounded-xl text-sm outline-none focus:border-emerald-500 transition-all placeholder:text-zinc-600"
+                  />
+                </form>
+              </div>
+            </div>
+
+            <div className="border border-zinc-800/60 bg-[#0c0c0e] rounded-2xl overflow-hidden relative min-h-[400px] flex flex-col">
+              {loading && (
+                <div className="absolute inset-0 z-10 bg-zinc-900/50 backdrop-blur-sm flex items-center justify-center">
+                  <Loader2 size={32} className="text-emerald-500 animate-spin" />
+                </div>
+              )}
+
+              <div className="overflow-x-auto flex-1">
+                <table className="w-full text-sm text-left">
+                  <thead className="bg-zinc-900/80 text-zinc-400 font-medium border-b border-zinc-800/60">
+                    <tr>
+                      <th className="px-5 py-4 w-20 text-center">Imagem</th> 
+                      <th className="px-5 py-4 w-[40%]">Produto</th>
+                      <th className="px-5 py-4 w-32">Marca</th>
+                      <th className="px-5 py-4 text-center">Estoque</th>
+                      <th className={`px-5 py-4 text-right font-bold ${infoTabela.cor}`}>Preço Unitário</th>
+                      <th className="px-5 py-4 text-center w-40 rounded-r-2xl">Compra</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-800/40">
+                    {produtosComPromocaoCarimbada.length === 0 && !loading && (
+                      <tr>
+                        <td colSpan="6" className="px-5 py-12 text-center text-zinc-500">
+                          Nenhum produto encontrado. Verifique sua busca ou remova os filtros.
+                        </td>
+                      </tr>
+                    )}
+
+                    {produtosComPromocaoCarimbada.map((produto) => {
+                      const qtdNoCarrinho = carrinho[produto.PDCODPRO]?.qtd || 0;
+                      const imageUrl = getProductImageUrl(produto.PDCODBARRA);
+                      const temEstoque = produto.PDSALDO > 0;
+                      
+                      const precoOriginal = produto[tabelaAtiva] !== undefined ? parseFloat(produto[tabelaAtiva]) : parseFloat(produto.PDPRECO);
+                      const precoExibicao = produto.em_promocao ? parseFloat(produto.preco_promocional) : precoOriginal;
+                      const desconto = produto.em_promocao && precoOriginal > 0 ? Math.round(((precoOriginal - precoExibicao) / precoOriginal) * 100) : 0;
+
+                      return (
+                        <tr key={produto.PDCODPRO} className={`transition-colors group ${!temEstoque ? 'opacity-50 grayscale' : 'hover:bg-zinc-800/20'}`}>
+                          <td className="px-5 py-4">
+                            
+                            <div className="relative w-[72px] h-[72px] bg-zinc-900 border border-zinc-800 rounded-xl flex items-center justify-center overflow-hidden shrink-0 group-hover:border-emerald-500/50 transition-all mx-auto">
+                              {produto.em_promocao && desconto > 0 && (
+                                <div className="absolute top-0 right-0 bg-rose-600 text-white text-[10px] font-black px-1.5 py-0.5 rounded-bl-lg shadow-md z-10 flex items-center gap-0.5 animate-pulse">
+                                  <Zap size={10} fill="currentColor" />-{desconto}%
+                                </div>
+                              )}
+                              <img src={imageUrl} alt={produto.PDNOME} className="w-full h-full object-contain p-1" onError={(e) => { e.target.src = "https://placehold.co/100x100/18181b/52525b?text=Sem+Foto"; }} />
+                            </div>
+
+                          </td>
+                          <td className="px-5 py-4">
+                            <h3 className="font-bold text-zinc-100 group-hover:text-emerald-400 transition-colors line-clamp-2">{produto.PDNOME}</h3>
+                            <div className="flex items-center gap-1.5 mt-1.5 text-xs text-zinc-500 font-mono">
+                              <Barcode size={13} className="text-zinc-600" /> {produto.PDCODBARRA || "SEM EAN"} <span className="text-zinc-700 mx-1">|</span> <span className="text-zinc-400">SKU: {produto.PDCODPRO}</span>
+                            </div>
+                          </td>
+                          <td className="px-5 py-4 text-zinc-400">{produto.PDMARCA || "-"}</td>
+                          <td className="px-5 py-4 text-center">
+                            {temEstoque ? (
+                              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-semibold border border-emerald-500/20">
+                                <CheckCircle2 size={13}/> Disp: {produto.PDSALDO}
+                              </div>
+                            ) : (
+                              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-500/10 text-red-400 text-xs font-semibold border border-red-500/20">
+                                <AlertCircle size={13}/> Sem Estoque
+                              </div>
+                            )}
+                          </td>
+                          <td className={`px-5 py-4 text-right text-base whitespace-nowrap ${infoTabela.cor}`}>
+                            {produto.em_promocao ? (
+                              <div className="flex flex-col items-end">
+                                <span className="text-zinc-500 line-through text-[11px] font-medium leading-none">{formatarMoeda(precoOriginal)}</span>
+                                <span className="text-emerald-400 font-bold text-lg">{formatarMoeda(precoExibicao)}</span>
+                              </div>
+                            ) : (
+                              <span className="font-bold">{formatarMoeda(precoOriginal)}</span>
+                            )}
+                          </td>
+                          <td className="px-5 py-4">
+                            {temEstoque ? (
+                              <SeletorQuantidade id={produto.PDCODPRO} qtd={qtdNoCarrinho} onQtdChange={(id, qtd) => handleQuantidade(produto, qtd)} />
+                            ) : (
+                              <span className="text-xs text-zinc-600 font-medium block text-center">Indisponível</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="p-4 border-t border-zinc-800/60 bg-zinc-900/80 flex items-center justify-between text-sm">
+                <span className="text-zinc-500">
+                  Mostrando página <span className="text-zinc-300 font-medium">{page}</span> de <span className="text-zinc-300 font-medium">{totalPages || 1}</span>
+                </span>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="bg-zinc-800 hover:bg-zinc-700 px-3 py-1.5 rounded-lg text-zinc-300 transition-colors disabled:opacity-50"><ChevronLeft size={16} /></button>
+                  <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages || totalPages === 0} className="bg-zinc-800 hover:bg-zinc-700 px-3 py-1.5 rounded-lg text-zinc-300 transition-colors disabled:opacity-50"><ChevronRight size={16} /></button>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </main>
+
+        {Object.keys(carrinho).length > 0 && (
+          <div className="fixed bottom-0 left-[260px] right-0 bg-[#0c0c0e]/90 backdrop-blur-md border-t border-emerald-500/30 p-4 px-8 flex items-center justify-between animate-in slide-in-from-bottom-10 z-30 shadow-2xl shadow-emerald-950/20 pr-40">
+            <div className="flex items-center gap-3">
+              <div className="bg-gradient-to-br from-emerald-600 to-teal-600 p-2.5 rounded-2xl shadow-lg">
+                <ShoppingCart className="text-white" size={24} />
+              </div>
+              <div>
+                <p className="text-lg font-bold text-zinc-100 leading-tight">
+                  {Object.values(carrinho).reduce((a, b) => a + b.qtd, 0)} Itens no Pedido
+                </p>
+                <p className="text-xs text-zinc-400">Revise os itens e feche a cotação.</p>
+              </div>
+            </div>
+            
+            <button onClick={() => setIsCheckoutOpen(true)} className="bg-emerald-600 hover:bg-emerald-500 text-white px-8 py-3.5 rounded-xl font-bold shadow-[0_0_15px_rgba(5,150,105,0.4)] transition-all flex items-center gap-2">
+              Avançar para Checkout
+            </button>
+          </div>
+        )}
+
+      </div>
+
+      <ModalCheckout isOpen={isCheckoutOpen} onClose={() => setIsCheckoutOpen(false)} carrinho={carrinho} produtos={produtos} tabelaAtiva={tabelaAtiva} onFinalizarPedido={handleFinalizarPedido} />
+      
+    </div>
+  );
+}

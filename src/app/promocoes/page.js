@@ -11,6 +11,9 @@ export default function GestaoPromocoes() {
   const [promocoes, setPromocoes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [salvando, setSalvando] = useState(false);
+  
+  // 🟢 NOVO ESTADO: Controla qual SKU está pedindo confirmação para deletar
+  const [skuConfirmacao, setSkuConfirmacao] = useState(null);
 
   // Form states
   const [sku, setSku] = useState("");
@@ -65,8 +68,10 @@ export default function GestaoPromocoes() {
     setSalvando(false);
   };
 
+  // 🟢 NOVA FUNÇÃO DE REMOVER (Sem travar o Electron!)
   const handleRemover = async (skuRemover) => {
-    if (!confirm(`Tem certeza que deseja remover a oferta deste produto?`)) return;
+    setSkuConfirmacao(null); // Esconde os botões de Sim/Não
+    const toastId = toast.loading("Removendo promoção...");
     
     try {
       const res = await fetch(`${getApiUrl()}/api/admin/promocoes/${skuRemover}`, {
@@ -75,11 +80,13 @@ export default function GestaoPromocoes() {
       });
       const data = await res.json();
       if (data.success) {
-        toast.success("Promoção removida!");
+        toast.success("Promoção removida com sucesso!", { id: toastId });
         carregarPromocoes();
+      } else {
+        toast.error(data.message || "Erro ao remover.", { id: toastId });
       }
     } catch (error) {
-      toast.error("Erro ao remover.");
+      toast.error("Erro de comunicação.", { id: toastId });
     }
   };
 
@@ -196,23 +203,33 @@ export default function GestaoPromocoes() {
                           
                           {/* CABEÇALHO DO CARD: NOME E SKU */}
                           <div>
-                            <div className="flex justify-between items-start mb-2">
+                            <div className="flex justify-between items-start mb-2 relative">
                               <div className="pr-6 w-full">
                                 <p className="text-[10px] text-purple-400 font-mono font-bold tracking-wider mb-1 px-2 py-0.5 bg-purple-500/10 rounded border border-purple-500/20 w-fit">
                                   SKU {promo.sku}
                                 </p>
-                                {/* 🟢 O NOME DO PRODUTO AQUI COM LIMITE DE 2 LINHAS */}
                                 <p className="text-sm font-bold text-zinc-100 leading-snug line-clamp-2" title={promo.nome_produto}>
                                   {promo.nome_produto || "Produto não encontrado"}
                                 </p>
                               </div>
-                              <button 
-                                onClick={() => handleRemover(promo.sku)}
-                                className="text-zinc-500 hover:text-rose-400 p-1.5 bg-zinc-800 hover:bg-rose-500/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100 absolute top-4 right-4"
-                                title="Remover Promoção"
-                              >
-                                <Trash2 size={16} />
-                              </button>
+
+                              {/* 🟢 A MÁGICA VISUAL AQUI: CONFIRMAÇÃO INLINE */}
+                              {skuConfirmacao === promo.sku ? (
+                                <div className="absolute top-0 right-0 flex items-center gap-1.5 bg-[#0c0c0e] p-1.5 rounded-lg border border-rose-500/30 shadow-lg z-20 animate-in fade-in zoom-in-95">
+                                  <span className="text-[10px] text-rose-400 font-bold ml-1">Excluir?</span>
+                                  <button onClick={() => handleRemover(promo.sku)} className="bg-rose-500/20 hover:bg-rose-500 text-rose-300 hover:text-white px-2 py-1 rounded text-xs transition-colors font-bold">Sim</button>
+                                  <button onClick={() => setSkuConfirmacao(null)} className="bg-zinc-800 hover:bg-zinc-700 text-zinc-400 px-2 py-1 rounded text-xs transition-colors">Não</button>
+                                </div>
+                              ) : (
+                                <button 
+                                  onClick={() => setSkuConfirmacao(promo.sku)}
+                                  className="text-zinc-500 hover:text-rose-400 p-1.5 bg-zinc-800 hover:bg-rose-500/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100 absolute top-0 right-0"
+                                  title="Remover Promoção"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              )}
+                              {/* FIM DA MÁGICA VISUAL */}
                             </div>
                           </div>
                           

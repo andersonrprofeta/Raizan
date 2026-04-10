@@ -40,23 +40,24 @@ export default function Configuracoes() {
       });
     }
 
+    // 🟢 CORREÇÃO 2: Força a leitura do LocalStorage primeiro para blindar a URL!
     const urlSalva = localStorage.getItem("raizan_core_url") || getApiUrl();
     setCoreUrl(urlSalva);
     
     verificarLacreDaMaquina(urlSalva, currentTenant);
   }, []);
 
+  // 🟢 CORREÇÃO 1: Agora passamos o "Tenant" pra montar o crachá e provar pro Motor quem somos!
   const verificarLacreDaMaquina = async (url, tenantFallback) => {
     try {
+      // Forçamos a injeção do cabeçalho de segurança
       const customHeaders = {
         ...getHeaders(),
         "x-tenant-id": tenantFallback || "rafany" 
       };
 
-      // Tira o cache do Electron para sempre ler o status real
-      const response = await fetch(`${url}/api/config/status?t=${Date.now()}`, {
-        headers: customHeaders,
-        cache: 'no-store'
+      const response = await fetch(`${url}/api/config/status`, {
+        headers: customHeaders // AQUI ESTAVA O SEGREDO! Agora o Motor recebe o crachá.
       });
       
       const data = await response.json();
@@ -67,7 +68,6 @@ export default function Configuracoes() {
       }
     } catch (error) {
       console.log("Motor offline ou indisponível.");
-      setIsLocked(false); // Se o motor estiver fora, garante tela destravada
     } finally {
       setLoadingLock(false);
     }
@@ -86,7 +86,7 @@ export default function Configuracoes() {
     try {
       const response = await fetch(`${urlLimpa}/api/config/salvar`, {
         method: "POST",
-        headers: { ...getHeaders(), "x-tenant-id": formData.tenantId },
+        headers: { ...getHeaders(), "x-tenant-id": formData.tenantId }, // Reforço de segurança
         body: JSON.stringify(formData), 
       });
 
@@ -111,25 +111,39 @@ export default function Configuracoes() {
   const handleRevogarLacre = async () => {
     if (!confirm("CUIDADO: Isso vai desvincular o motor desta máquina da nuvem. O sistema será reiniciado. Continuar?")) return;
     
-    // 🟢 A MÁGICA DA FORÇA BRUTA AQUI!
-    // A primeira coisa que fazemos é DESTRAVAR O REACT (setIsLocked=false).
-    // Não esperamos o servidor. Não apagamos o seu formulário. Apenas abrimos os cadeados.
-    setIsLocked(false);
-    toast.success("Lacre removido forçadamente da tela! Pode atualizar os dados.");
-    
     try {
-      await fetch(`${coreUrl}/api/config/revogar`, { 
+      // 🟢 CORREÇÃO: Enviando o crachá de segurança e dizendo quem somos!
+      const response = await fetch(`${coreUrl}/api/config/revogar`, { 
         method: "POST",
         headers: { 
           ...getHeaders(), 
           "x-tenant-id": formData.tenantId || "rafany",
           "Content-Type": "application/json"
-        },
-        body: JSON.stringify({})
+        } 
       });
-      // Mesmo se a chamada falhar ou der erro 500 no Electron, a tela JÁ ESTÁ DESTRAVADA.
+
+      // Detetive para ver se o servidor devolveu erro HTML em vez de JSON (ex: Rota não existe)
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+         const erroBruto = await response.text();
+         console.error("❌ Erro Bruto do Servidor ao revogar:", erroBruto);
+         toast.error("Erro no motor! Verifique o console (F12).");
+         return;
+      }
+
+      const data = await response.json();
+      
+      if (data.success) {
+        toast.success("Lacre removido! O sistema está livre novamente.");
+        setIsLocked(false);
+        setFormData(prev => ({ ...prev, tenantId: "" }));
+        localStorage.removeItem("raizan_config_geral");
+      } else {
+        toast.error("Erro: " + (data.message || "O servidor recusou abrir o lacre."));
+      }
     } catch (error) {
-      console.error("Erro silencioso ao revogar no backend. A tela já está liberada.", error);
+      console.error("❌ Erro fatal ao revogar:", error);
+      toast.error("Erro de comunicação ao tentar revogar o lacre.");
     }
   };
 
@@ -162,10 +176,12 @@ export default function Configuracoes() {
 
             <form onSubmit={handleTestConnection} className="space-y-6 relative">
               
+              {/* SE ESTIVER TRAVADO, COLOCA UMA TELA DE VIDRO POR CIMA DE TUDO */}
               {isLocked && (
                 <div className="absolute inset-0 z-20 bg-[#09090b]/40 backdrop-blur-[2px] rounded-2xl cursor-not-allowed border border-emerald-500/10" />
               )}
 
+              {/* O NOVO CARD DE IDENTIDADE (CRACHÁ DA MÁQUINA) */}
               <div className="border border-emerald-500/30 bg-emerald-500/5 rounded-2xl p-6 relative overflow-hidden">
                  <div className="flex items-center gap-3 mb-4 border-b border-emerald-500/20 pb-4">
                   <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center border border-emerald-500/30">
@@ -188,6 +204,7 @@ export default function Configuracoes() {
                 </div>
               </div>
 
+              {/* CARD: CONEXÃO DO APP */}
               <div className="border border-blue-500/30 bg-blue-500/5 rounded-2xl p-6 relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
                   <Server size={100} />
@@ -222,6 +239,7 @@ export default function Configuracoes() {
                 </div>
               </div>
 
+              {/* CARD ORACLE */}
               <div className="border border-zinc-800/60 bg-zinc-900/40 rounded-2xl p-6">
                 <div className="flex items-center gap-3 mb-6 pb-6 border-b border-zinc-800/60">
                   <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center border border-red-500/20">
@@ -274,6 +292,7 @@ export default function Configuracoes() {
                 </div>
               </div>
 
+              {/* CARD WOOCOMMERCE */}
               <div className="border border-zinc-800/60 bg-zinc-900/40 rounded-2xl p-6">
                 <div className="flex items-center gap-3 mb-6 pb-6 border-b border-zinc-800/60">
                   <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center border border-purple-500/20">
@@ -301,6 +320,7 @@ export default function Configuracoes() {
                 </div>
               </div>
 
+              {/* 🟢 O NOVO CARD DO MERCADO PAGO 🟢 */}
               <div className="border border-sky-500/30 bg-sky-500/5 rounded-2xl p-6 relative overflow-hidden">
                 <div className="flex items-center gap-3 mb-6 pb-6 border-b border-zinc-800/60">
                   <div className="w-10 h-10 rounded-xl bg-sky-500/10 flex items-center justify-center border border-sky-500/20">
@@ -345,6 +365,7 @@ export default function Configuracoes() {
                 </div>
               </div>
 
+              {/* CARD AUTOMAÇÃO */}
               <div className="border border-zinc-800/60 bg-zinc-900/40 rounded-2xl p-6">
                 <div className="flex items-center gap-3 mb-6 pb-6 border-b border-zinc-800/60">
                   <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20">
@@ -368,6 +389,7 @@ export default function Configuracoes() {
                 </div>
               </div>
 
+              {/* BOTÕES DE AÇÃO */}
               {!isLocked && (
                 <div className="flex items-center justify-between p-4 bg-zinc-900 border border-zinc-800 rounded-xl sticky bottom-4 z-30">
                   <div className="flex items-center gap-2">

@@ -8,7 +8,7 @@ import {
   Settings, Database, LogOut, Store, ShoppingCart, 
   Globe, BookOpen, Megaphone, MessageCircle, Server, 
   FileText, Boxes, AlertTriangle, ChevronDown, ChevronRight,
-  TrendingUp, Building2, CreditCard, Receipt, Tag, Percent
+  TrendingUp, Building2, Receipt, Tag, X
 } from "lucide-react";
 import packageJson from "../../package.json";
 import toast from 'react-hot-toast';
@@ -28,33 +28,44 @@ export default function Sidebar() {
     sistema: false
   });
 
-  // 🟢 ESTADOS PARA CONTROLAR O TEXTO E A COR DO BOTÃO
   const [textoPedido, setTextoPedido] = useState("Novo Pedido");
-  const [temPedidoAberto, setTemPedidoAberto] = useState(false); // Faltava essa variável!
+  const [temPedidoAberto, setTemPedidoAberto] = useState(false); 
+  
+  // 🟢 ESTADO PARA CONTROLAR A GAVETA MOBILE
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
 
-  // O ÚNICO E SOBERANO SEGURANÇA DA BOATE 🛑
+  // Escuta o comando do Botão Hambúrguer que está no Header
+  useEffect(() => {
+    const handleToggleMenu = () => setIsMobileOpen(prev => !prev);
+    window.addEventListener('toggleMobileSidebar', handleToggleMenu);
+    return () => window.removeEventListener('toggleMobileSidebar', handleToggleMenu);
+  }, []);
+
+  const closeMobileSidebar = () => {
+    setIsMobileOpen(false);
+  };
+
   useEffect(() => {
     const b2bUser = localStorage.getItem("raizan_user");
     const adminLicenca = localStorage.getItem("@raizan:license");
 
-    // 1. REGRA DO LOJISTA VIP
     if (b2bUser) {
       try {
-        const user = JSON.parse(b2bUser);
+        let userObj = JSON.parse(b2bUser);
+        if (userObj.user) userObj = userObj.user; // Desempacotador blindado
+
+        const nomeOficial = userObj.nome || userObj.RAZAO || userObj.razao_social || "Lojista";
         setUserRole("lojista");
-        setUserName(user.nome || "Usuário");
+        setUserName(nomeOficial.trim().split(' ')[0]);
         return; 
       } catch (e) {
-        console.error("Erro ao ler dados do Lojista");
+        console.error("Erro ao ler dados do Lojista", e);
       }
     }
 
-    // 2. REGRA DO ADMIN
     setUserRole("admin");
-    
-    // Busca o nome no cofre. Se estiver vazio, aí sim usa Admin Raizan
     const nomeSalvo = localStorage.getItem("@raizan:nome");
-    setUserName(nomeSalvo && nomeSalvo.trim() !== "" ? nomeSalvo : "Admin Raizan");
+    setUserName(nomeSalvo && nomeSalvo.trim() !== "" ? nomeSalvo.split(' ')[0] : "Admin");
 
     if (!adminLicenca) {
       if (pathname && pathname.includes("b2b")) {
@@ -65,7 +76,6 @@ export default function Sidebar() {
       return;
     }
 
-    // Processamento da Licença do Admin
     const modulos = localStorage.getItem("@raizan:modulos");
     const vencimento = localStorage.getItem("@raizan:expires_at");
     let isExpired = false;
@@ -97,29 +107,24 @@ export default function Sidebar() {
     }
   }, [pathname]);
 
-  // 🟢 O "VIGIA" DO CARRINHO: Checa se tem algo no cofre para mudar o texto e a COR
   useEffect(() => {
     const checarCarrinho = () => {
       const carrinhoSalvo = localStorage.getItem("@raizan:carrinho");
       if (carrinhoSalvo) {
         try {
           const parsed = JSON.parse(carrinhoSalvo);
-          // Se tiver pelo menos 1 item no carrinho
           if (Object.keys(parsed).length > 0) {
             setTextoPedido("Continuar Pedido");
-            setTemPedidoAberto(true); // 🟢 Liga a luz verde!
+            setTemPedidoAberto(true);
             return;
           }
         } catch (e) { }
       }
-      // Se estiver vazio ou der erro, volta ao normal
       setTextoPedido("Novo Pedido");
-      setTemPedidoAberto(false); // 🔴 Desliga a luz verde
+      setTemPedidoAberto(false);
     };
 
     checarCarrinho();
-
-    // Adicionamos um escutador pra ele atualizar no momento exato do clique nas outras abas
     window.addEventListener('storage', checarCarrinho);
     const intervalo = setInterval(checarCarrinho, 1000);
     
@@ -152,187 +157,211 @@ export default function Sidebar() {
   const NavLink = ({ href, icon: Icon, label }) => (
     <Link 
       href={href} 
-      className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all text-sm ${
+      onClick={closeMobileSidebar}
+      className={`flex w-full min-w-0 items-center gap-3 rounded-lg px-2.5 py-2 text-xs transition-all sm:px-3 sm:text-sm ${
         isActive(href) 
           ? "bg-purple-500/10 text-purple-400 font-medium border border-purple-500/20" 
           : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200 border border-transparent"
       }`}
     >
-      <Icon size={18} className={isActive(href) ? "text-purple-400" : "text-zinc-500"} />
-      {label}
+      <Icon size={18} className={`shrink-0 ${isActive(href) ? "text-purple-400" : "text-zinc-500"}`} />
+      <span className="min-w-0 truncate">{label}</span>
     </Link>
   );
 
   const hasVendas = ["pedidos", "mercado-livre", "shopee", "magalu", "pdv"].some(tem);
-  const hasGestao = ["produtos", "estoque", "clientes", "financeiro", "notas", "relatorios"].some(tem);
+  const hasGestao = ["produtos", "estoque", "clientes", "financeiro", "notas", "relatorios", "xml"].some(tem);
   const hasMkt = ["crm", "whatsapp", "website", "catalogo", "ads"].some(tem);
   const hasSys = ["host", "configuracoes", "sistema"].some(tem);
 
   if (!userRole) {
-    return <aside className="h-screen sticky top-0 w-[260px] bg-[#0c0c0e] border-r border-zinc-800/80 flex flex-col z-20 shrink-0"></aside>;
+    return <aside className="hidden h-screen sticky top-0 w-[260px] max-w-full shrink-0 flex-col overflow-x-hidden border-r border-zinc-800/80 bg-[#0c0c0e] z-20 lg:flex"></aside>;
   }
 
   return (
-    <aside className="h-screen sticky top-0 w-[260px] bg-[#0c0c0e] border-r border-zinc-800/80 flex flex-col z-20 shrink-0 transition-all" style={{ WebkitAppRegion: 'drag' }}>
-      
-      <div className="flex items-center gap-3 h-16 px-5 border-b border-zinc-800/80 shrink-0" style={{ WebkitAppRegion: 'no-drag' }}>
-        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-purple-500/20 shrink-0">
-          <Database size={18} className="text-white" />
-        </div>
-        <h1 className="text-lg font-bold text-zinc-100 tracking-tight truncate">
-          Raizan Core
-        </h1>
-      </div>
+    <>
+      {/* 🟢 OVERLAY MÁGICO (Clica fora e fecha a gaveta no celular) */}
+      {isMobileOpen && (
+        <div 
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden animate-in fade-in"
+          onClick={closeMobileSidebar}
+        />
+      )}
 
-      <nav className="flex-1 overflow-y-auto custom-scrollbar py-5 px-3 space-y-5" style={{ WebkitAppRegion: 'no-drag' }}>
+      {/* 🟢 SIDEBAR EM SI (Classes do Tailwind para Gaveta Invisível/Visível) */}
+      <aside 
+        className={`fixed top-0 z-50 flex h-screen w-[85vw] max-w-[260px] shrink-0 flex-col overflow-x-hidden border-r border-zinc-800/80 bg-[#0c0c0e] shadow-2xl transition-transform duration-300 ease-in-out sm:w-[320px] lg:sticky lg:w-[260px] lg:max-w-[260px] lg:shadow-none
+        ${isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`} 
+        style={{ WebkitAppRegion: 'drag' }}
+      >
         
-        {licencaExpirada && userRole === "admin" && (
-          <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 flex flex-col items-center text-center animate-pulse">
-            <AlertTriangle size={24} className="text-red-400 mb-2" />
-            <span className="text-xs font-bold text-red-400 uppercase tracking-wider">Licença Expirada</span>
-            <span className="text-[10px] text-zinc-500 mt-1">Sincronize ou renove seu plano.</span>
-          </div>
-        )}
-
-        {userRole === "lojista" && (
-          <div className="space-y-1">
-            <div className="text-xs font-bold text-zinc-600 tracking-wider uppercase mb-3 px-2">Portal de Compras</div>
-            <NavLink href="/b2b-inicio" icon={LayoutDashboard} label="Dashboard" />
-            
-            {/* 🟢 AQUI ESTÁ A MÁGICA FINAL: Trocamos o NavLink normal por um botão inteligente! */}
-            <Link 
-              href="/b2b-pedidos" 
-              className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all text-sm ${
-                temPedidoAberto 
-                  ? "bg-emerald-500/10 text-emerald-400 font-medium border border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.15)]" 
-                  : isActive("/b2b-pedidos")
-                    ? "bg-purple-500/10 text-purple-400 font-medium border border-purple-500/20" 
-                    : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200 border border-transparent"
-              }`}
-            >
-              <Store size={18} className={temPedidoAberto ? "text-emerald-400" : isActive("/b2b-pedidos") ? "text-purple-400" : "text-zinc-500"} />
-              {textoPedido}
-            </Link>
-            
-            <NavLink href="/b2b-historico" icon={Package} label="Meus Pedidos" />
-            <NavLink href="/b2b-xml" icon={FileText} label="XML/NF-e" />
-            <NavLink href="/b2b-financeiro" icon={Receipt} label="Financeiro" />
-          </div>
-        )}
-
-        {userRole === "admin" && (
-          <>
-            <div className="space-y-1">
-              <NavLink href="/" icon={LayoutDashboard} label="Dashboard Principal" />
+        <div className="flex h-16 shrink-0 items-center justify-between gap-2 border-b border-zinc-800/80 px-3 sm:gap-3 sm:px-5" style={{ WebkitAppRegion: 'no-drag' }}>
+          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-purple-600 to-indigo-600 shadow-lg shadow-purple-500/20">
+              <Database size={18} className="text-white" />
             </div>
-
-            {tem("portal-b2b") && (
-              <div className="space-y-1 pb-2 border-b border-zinc-800/50">
-                <div className="text-xs font-bold text-zinc-600 tracking-wider uppercase mb-2 px-2 mt-4">Atacado B2B</div>
-                <NavLink href="/b2b-pedidos" icon={Building2} label="Simular Catálogo" />
-                <NavLink href="/pedidos" icon={ShoppingBag} label="Gestão de Pedidos" />
-                <NavLink href="/promocoes" icon={Tag} label="Gestão de Promoções" />
-              </div>
-            )}
-
-            {hasVendas && !licencaExpirada && (
-              <div className="pt-2">
-                <button onClick={() => toggleMenu('vendas')} className={`w-full flex items-center justify-between px-2 py-2 text-sm rounded-lg transition-colors ${openMenus.vendas ? 'text-zinc-200' : 'text-zinc-400 hover:text-zinc-200'}`}>
-                  <div className="flex items-center gap-3"><TrendingUp size={16} className={openMenus.vendas ? 'text-emerald-400' : 'text-zinc-500'} /><span className="font-semibold uppercase tracking-wide text-xs">Vendas & Canais</span></div>
-                  {openMenus.vendas ? <ChevronDown size={14} className="text-zinc-500"/> : <ChevronRight size={14} className="text-zinc-500"/>}
-                </button>
-                {openMenus.vendas && (
-                  <div className="mt-1 ml-3 pl-3 border-l border-zinc-800 space-y-1 animate-in slide-in-from-top-2">
-                    {tem("pedidos") && <NavLink href="/pedidos" icon={ShoppingBag} label="WooCommerce" />}
-                    {tem("mercado-livre") && <NavLink href="/mercado-livre" icon={Store} label="Mercado Livre" />}
-                    {tem("shopee") && <NavLink href="/shopee" icon={ShoppingCart} label="Shopee" />}
-                    {tem("magalu") && <NavLink href="/magalu" icon={Store} label="Magalu" />}
-                    {tem("pdv") && <NavLink href="/pdv" icon={MonitorSmartphone} label="PDV Frente de Caixa" />}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {hasGestao && !licencaExpirada && (
-              <div className="pt-2">
-                <button onClick={() => toggleMenu('gestao')} className={`w-full flex items-center justify-between px-2 py-2 text-sm rounded-lg transition-colors ${openMenus.gestao ? 'text-zinc-200' : 'text-zinc-400 hover:text-zinc-200'}`}>
-                  <div className="flex items-center gap-3"><Package size={16} className={openMenus.gestao ? 'text-blue-400' : 'text-zinc-500'} /><span className="font-semibold uppercase tracking-wide text-xs">Gestão & ERP</span></div>
-                  {openMenus.gestao ? <ChevronDown size={14} className="text-zinc-500"/> : <ChevronRight size={14} className="text-zinc-500"/>}
-                </button>
-                {openMenus.gestao && (
-                  <div className="mt-1 ml-3 pl-3 border-l border-zinc-800 space-y-1 animate-in slide-in-from-top-2">
-                    {tem("produtos") && <NavLink href="/produtos" icon={Package} label="Produtos (Sinc)" />}
-                    {tem("estoque") && <NavLink href="/estoque" icon={Boxes} label="Controle de Estoque" />}
-                    {tem("clientes") && <NavLink href="/clientes" icon={Users} label="Base de Clientes" />}
-                    {tem("financeiro") && <NavLink href="/financeiro" icon={CircleDollarSign} label="Financeiro" />}
-                    {tem("notas") && <NavLink href="/notas" icon={FileText} label="Emissão de Notas" />}
-                    {tem("relatorios") && <NavLink href="/relatorios" icon={BarChart3} label="Relatórios" />}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {hasMkt && !licencaExpirada && (
-              <div className="pt-2">
-                <button onClick={() => toggleMenu('marketing')} className={`w-full flex items-center justify-between px-2 py-2 text-sm rounded-lg transition-colors ${openMenus.marketing ? 'text-zinc-200' : 'text-zinc-400 hover:text-zinc-200'}`}>
-                  <div className="flex items-center gap-3"><Megaphone size={16} className={openMenus.marketing ? 'text-orange-400' : 'text-zinc-500'} /><span className="font-semibold uppercase tracking-wide text-xs">Marketing & CRM</span></div>
-                  {openMenus.marketing ? <ChevronDown size={14} className="text-zinc-500"/> : <ChevronRight size={14} className="text-zinc-500"/>}
-                </button>
-                {openMenus.marketing && (
-                  <div className="mt-1 ml-3 pl-3 border-l border-zinc-800 space-y-1 animate-in slide-in-from-top-2">
-                    {tem("crm") && <NavLink href="/crm" icon={Briefcase} label="CRM de Vendas" />}
-                    {tem("whatsapp") && <NavLink href="/whatsapp" icon={MessageCircle} label="Auto WhatsApp" />}
-                    {tem("catalogo") && <NavLink href="/catalogo" icon={BookOpen} label="Vitrine Pública" />}
-                    {tem("website") && <NavLink href="/website" icon={Globe} label="Construtor de Site" />}
-                    {tem("ads") && <NavLink href="/ads" icon={Megaphone} label="Gestão Meta Ads" />}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {hasSys && !licencaExpirada && (
-              <div className="pt-2">
-                <button onClick={() => toggleMenu('sistema')} className={`w-full flex items-center justify-between px-2 py-2 text-sm rounded-lg transition-colors ${openMenus.sistema ? 'text-zinc-200' : 'text-zinc-400 hover:text-zinc-200'}`}>
-                  <div className="flex items-center gap-3"><Settings size={16} className={openMenus.sistema ? 'text-zinc-300' : 'text-zinc-500'} /><span className="font-semibold uppercase tracking-wide text-xs">Sistema</span></div>
-                  {openMenus.sistema ? <ChevronDown size={14} className="text-zinc-500"/> : <ChevronRight size={14} className="text-zinc-500"/>}
-                </button>
-                {openMenus.sistema && (
-                  <div className="mt-1 ml-3 pl-3 border-l border-zinc-800 space-y-1 animate-in slide-in-from-top-2">
-                    {tem("configuracoes") && <NavLink href="/configuracoes" icon={Settings} label="Ajustes do Motor" />}
-                    {tem("host") && <NavLink href="/host" icon={Server} label="Hospedagem" />}
-                    {tem("sistema") && <NavLink href="/sistema" icon={Terminal} label="Terminal Root" />}
-                  </div>
-                )}
-              </div>
-            )}
-          </>
-        )}
-      </nav>
-
-      <div className="p-4 border-t border-zinc-800/80 bg-zinc-900/30 shrink-0" style={{ WebkitAppRegion: 'no-drag' }}>
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center shrink-0">
-            <Users size={18} className={userRole === "admin" ? "text-purple-400" : "text-emerald-400"} />
+            <h1 className="truncate text-base font-bold tracking-tight text-zinc-100 sm:text-lg">
+              Raizan Core
+            </h1>
           </div>
-          <div className="overflow-hidden">
-            <p className="text-sm font-bold text-zinc-200 truncate">{userName}</p>
-            <p className={`text-xs capitalize font-medium ${userRole === "admin" ? "text-purple-400" : "text-emerald-400"}`}>{userRole}</p>
-          </div>
+          
+          {/* Botão de Fechar Exclusivo para Mobile */}
+          <button onClick={closeMobileSidebar} className="rounded bg-zinc-900 p-1 text-zinc-400 hover:text-white lg:hidden">
+            <X size={20} />
+          </button>
         </div>
-        
-        <button 
-          onClick={handleSairDoApp}
-          className="w-full flex items-center justify-center gap-2 py-2 text-sm text-zinc-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors border border-transparent hover:border-rose-500/20"
-        >
-          <LogOut size={16} /> {userRole === "admin" ? "Fechar App" : "Sair da Conta"}
-        </button>
-        
-        {userRole === "admin" && (
-          <p className="mt-3 text-[10px] text-zinc-600 text-center uppercase tracking-widest font-bold">
-            v{packageJson.version}
-          </p>
-        )}
-      </div>
-    </aside>
+
+        <nav className="custom-scrollbar flex-1 space-y-5 overflow-x-hidden overflow-y-auto px-2 py-4 sm:px-3 sm:py-5" style={{ WebkitAppRegion: 'no-drag' }}>
+          
+          {licencaExpirada && userRole === "admin" && (
+            <div className="flex animate-pulse flex-col items-center rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-center">
+              <AlertTriangle size={24} className="text-red-400 mb-2" />
+              <span className="text-xs font-bold uppercase tracking-wider text-red-400">Licença Expirada</span>
+              <span className="text-[10px] text-zinc-500 mt-1">Sincronize ou renove seu plano.</span>
+            </div>
+          )}
+
+          {userRole === "lojista" && (
+            <div className="space-y-1">
+              <div className="mb-3 px-2 text-[10px] font-bold uppercase tracking-wider text-zinc-600 sm:text-xs">Portal de Compras</div>
+              <NavLink href="/b2b-inicio" icon={LayoutDashboard} label="Dashboard" />
+              
+              <Link 
+                href="/b2b-pedidos" 
+                onClick={closeMobileSidebar}
+                className={`flex w-full min-w-0 items-center gap-3 rounded-lg px-2.5 py-2 text-xs transition-all sm:px-3 sm:text-sm ${
+                  temPedidoAberto 
+                    ? "bg-emerald-500/10 text-emerald-400 font-medium border border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.15)]" 
+                    : isActive("/b2b-pedidos")
+                      ? "bg-purple-500/10 text-purple-400 font-medium border border-purple-500/20" 
+                      : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200 border border-transparent"
+                }`}
+              >
+                <Store size={18} className={`shrink-0 ${temPedidoAberto ? "text-emerald-400" : isActive("/b2b-pedidos") ? "text-purple-400" : "text-zinc-500"}`} />
+                <span className="min-w-0 truncate">{textoPedido}</span>
+              </Link>
+              
+              <NavLink href="/b2b-historico" icon={Package} label="Meus Pedidos" />
+              <NavLink href="/b2b-xml" icon={FileText} label="XML/NF-e" />
+              <NavLink href="/b2b-financeiro" icon={Receipt} label="Financeiro" />
+            </div>
+          )}
+
+          {userRole === "admin" && (
+            <>
+              <div className="space-y-1">
+                <NavLink href="/" icon={LayoutDashboard} label="Dashboard Principal" />
+              </div>
+
+              {tem("portal-b2b") && (
+                <div className="space-y-1 pb-2 border-b border-zinc-800/50">
+                  <div className="mt-4 mb-2 px-2 text-[10px] font-bold uppercase tracking-wider text-zinc-600 sm:text-xs">Atacado B2B</div>
+                  <NavLink href="/b2b-pedidos" icon={Building2} label="Simular Catálogo" />
+                  <NavLink href="/pedidos" icon={ShoppingBag} label="Gestão de Pedidos" />
+                  <NavLink href="/promocoes" icon={Tag} label="Gestão de Promoções" />
+                </div>
+              )}
+
+              {hasVendas && !licencaExpirada && (
+                <div className="pt-2">
+                  <button onClick={() => toggleMenu('vendas')} className={`flex w-full items-center justify-between rounded-lg px-2 py-2 text-xs transition-colors sm:text-sm ${openMenus.vendas ? 'text-zinc-200' : 'text-zinc-400 hover:text-zinc-200'}`}>
+                    <div className="flex min-w-0 items-center gap-2 sm:gap-3"><TrendingUp size={16} className={`shrink-0 ${openMenus.vendas ? 'text-emerald-400' : 'text-zinc-500'}`} /><span className="truncate text-[10px] font-semibold uppercase tracking-wide sm:text-xs">Vendas & Canais</span></div>
+                    {openMenus.vendas ? <ChevronDown size={14} className="text-zinc-500"/> : <ChevronRight size={14} className="text-zinc-500"/>}
+                  </button>
+                  {openMenus.vendas && (
+                    <div className="mt-1 ml-2 space-y-1 border-l border-zinc-800 pl-2 sm:ml-3 sm:pl-3 animate-in slide-in-from-top-2">
+                      {tem("pedidos") && <NavLink href="/pedidos" icon={ShoppingBag} label="WooCommerce" />}
+                      {tem("mercado-livre") && <NavLink href="/mercado-livre" icon={Store} label="Mercado Livre" />}
+                      {tem("shopee") && <NavLink href="/shopee" icon={ShoppingCart} label="Shopee" />}
+                      {tem("magalu") && <NavLink href="/magalu" icon={Store} label="Magalu" />}
+                      {tem("pdv") && <NavLink href="/pdv" icon={MonitorSmartphone} label="PDV Frente de Caixa" />}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {hasGestao && !licencaExpirada && (
+                <div className="pt-2">
+                  <button onClick={() => toggleMenu('gestao')} className={`flex w-full items-center justify-between rounded-lg px-2 py-2 text-xs transition-colors sm:text-sm ${openMenus.gestao ? 'text-zinc-200' : 'text-zinc-400 hover:text-zinc-200'}`}>
+                    <div className="flex min-w-0 items-center gap-2 sm:gap-3"><Package size={16} className={`shrink-0 ${openMenus.gestao ? 'text-blue-400' : 'text-zinc-500'}`} /><span className="truncate text-[10px] font-semibold uppercase tracking-wide sm:text-xs">Gestão & ERP</span></div>
+                    {openMenus.gestao ? <ChevronDown size={14} className="text-zinc-500"/> : <ChevronRight size={14} className="text-zinc-500"/>}
+                  </button>
+                  {openMenus.gestao && (
+                    <div className="mt-1 ml-2 space-y-1 border-l border-zinc-800 pl-2 sm:ml-3 sm:pl-3 animate-in slide-in-from-top-2">
+                      {tem("produtos") && <NavLink href="/produtos" icon={Package} label="Produtos (Sinc)" />}
+                      {tem("xml") && <NavLink href="/xml" icon={Receipt} label="XML e Boletos" />}
+                      {tem("estoque") && <NavLink href="/estoque" icon={Boxes} label="Controle de Estoque" />}
+                      {tem("clientes") && <NavLink href="/clientes" icon={Users} label="Base de Clientes" />}
+                      {tem("financeiro") && <NavLink href="/financeiro" icon={CircleDollarSign} label="Financeiro" />}
+                      {tem("notas") && <NavLink href="/notas" icon={FileText} label="Emissão de Notas" />}
+                      {tem("relatorios") && <NavLink href="/relatorios" icon={BarChart3} label="Relatórios" />}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {hasMkt && !licencaExpirada && (
+                <div className="pt-2">
+                  <button onClick={() => toggleMenu('marketing')} className={`flex w-full items-center justify-between rounded-lg px-2 py-2 text-xs transition-colors sm:text-sm ${openMenus.marketing ? 'text-zinc-200' : 'text-zinc-400 hover:text-zinc-200'}`}>
+                    <div className="flex min-w-0 items-center gap-2 sm:gap-3"><Megaphone size={16} className={`shrink-0 ${openMenus.marketing ? 'text-orange-400' : 'text-zinc-500'}`} /><span className="truncate text-[10px] font-semibold uppercase tracking-wide sm:text-xs">Marketing & CRM</span></div>
+                    {openMenus.marketing ? <ChevronDown size={14} className="text-zinc-500"/> : <ChevronRight size={14} className="text-zinc-500"/>}
+                  </button>
+                  {openMenus.marketing && (
+                    <div className="mt-1 ml-2 space-y-1 border-l border-zinc-800 pl-2 sm:ml-3 sm:pl-3 animate-in slide-in-from-top-2">
+                      {tem("crm") && <NavLink href="/crm" icon={Briefcase} label="CRM de Vendas" />}
+                      {tem("whatsapp") && <NavLink href="/whatsapp" icon={MessageCircle} label="Auto WhatsApp" />}
+                      {tem("catalogo") && <NavLink href="/catalogo" icon={BookOpen} label="Vitrine Pública" />}
+                      {tem("website") && <NavLink href="/website" icon={Globe} label="Construtor de Site" />}
+                      {tem("ads") && <NavLink href="/ads" icon={Megaphone} label="Gestão Meta Ads" />}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {hasSys && !licencaExpirada && (
+                <div className="pt-2">
+                  <button onClick={() => toggleMenu('sistema')} className={`flex w-full items-center justify-between rounded-lg px-2 py-2 text-xs transition-colors sm:text-sm ${openMenus.sistema ? 'text-zinc-200' : 'text-zinc-400 hover:text-zinc-200'}`}>
+                    <div className="flex min-w-0 items-center gap-2 sm:gap-3"><Settings size={16} className={`shrink-0 ${openMenus.sistema ? 'text-zinc-300' : 'text-zinc-500'}`} /><span className="truncate text-[10px] font-semibold uppercase tracking-wide sm:text-xs">Sistema</span></div>
+                    {openMenus.sistema ? <ChevronDown size={14} className="text-zinc-500"/> : <ChevronRight size={14} className="text-zinc-500"/>}
+                  </button>
+                  {openMenus.sistema && (
+                    <div className="mt-1 ml-2 space-y-1 border-l border-zinc-800 pl-2 sm:ml-3 sm:pl-3 animate-in slide-in-from-top-2">
+                      {tem("configuracoes") && <NavLink href="/configuracoes" icon={Settings} label="Ajustes do Motor" />}
+                      {tem("host") && <NavLink href="/host" icon={Server} label="Hospedagem" />}
+                      {tem("sistema") && <NavLink href="/sistema" icon={Terminal} label="Terminal Root" />}
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+        </nav>
+
+        <div className="shrink-0 border-t border-zinc-800/80 bg-zinc-900/30 p-3 sm:p-4" style={{ WebkitAppRegion: 'no-drag' }}>
+          <div className="mb-4 flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-zinc-700 bg-zinc-800">
+              <Users size={18} className={userRole === "admin" ? "text-purple-400" : "text-emerald-400"} />
+            </div>
+            <div className="min-w-0 overflow-hidden">
+              <p className="truncate text-sm font-bold text-zinc-200">{userName}</p>
+              <p className={`text-xs capitalize font-medium ${userRole === "admin" ? "text-purple-400" : "text-emerald-400"}`}>{userRole}</p>
+            </div>
+          </div>
+          
+          <button 
+            onClick={handleSairDoApp}
+            className="flex w-full items-center justify-center gap-2 rounded-lg border border-transparent py-2 text-xs text-zinc-400 transition-colors hover:border-rose-500/20 hover:bg-rose-500/10 hover:text-rose-400 sm:text-sm"
+          >
+            <LogOut size={16} /> {userRole === "admin" ? "Fechar App" : "Sair da Conta"}
+          </button>
+          
+          {userRole === "admin" && (
+            <p className="mt-3 text-[10px] text-zinc-600 text-center uppercase tracking-widest font-bold">
+              v{packageJson.version}
+            </p>
+          )}
+        </div>
+      </aside>
+    </>
   );
 }

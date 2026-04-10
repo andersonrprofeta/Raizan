@@ -5,7 +5,7 @@ import { Toaster } from 'react-hot-toast';
 import ChatWidget from "@/components/ChatWidget";
 
 export const metadata = {
-  title: "Raizan Core",
+  title: "Hub de integrações Raizan Core",
   description: "Dashboard ERP",
 };
 

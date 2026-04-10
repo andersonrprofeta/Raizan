@@ -24,6 +24,9 @@ export default function Login() {
 
       const data = await response.json();
 
+      // 🟢 O NOSSO RAIO-X: Isso vai imprimir no F12 tudo que o servidor mandou!
+      console.log("📦 PACOTE QUE CHEGOU DO SERVIDOR:", data);
+
       if (!response.ok) {
         setErrorMsg(data.error || "Falha na autenticação."); 
         setIsLoading(false);
@@ -35,13 +38,18 @@ export default function Login() {
       localStorage.setItem("@raizan:license", license);
       localStorage.setItem("@raizan:expires_at", data.expires_at); 
       localStorage.setItem("@raizan:modulos", JSON.stringify(data.modulos));
-      
-      // 🟢 A LINHA MÁGICA ATUALIZADA (Puxando o padrão do WordPress)
-      const nomeDoWordpress = [data.first_name, data.last_name].filter(Boolean).join(" ") || data.display_name || "Admin Raizan";
-      localStorage.setItem("@raizan:nome", nomeDoWordpress);
+
+      // 🟢 A CORREÇÃO DEFINITIVA: O Detetive de Nomes
+      // Ele tenta pegar o "nome", se não tiver, tenta o "first_name", se não tiver, usa "Administrador"
+      const nomeOficial = data.nome || 
+                          [data.first_name, data.last_name].filter(Boolean).join(" ") || 
+                          data.display_name || 
+                          "Administrador";
+                          
+      localStorage.setItem("@raizan:nome", nomeOficial);
 
       setIsLoading(false);
-      window.location.href = "/dashboard"; 
+      window.location.href = "/resumo"; 
       
     } catch (err) {
       console.error(err);
@@ -154,7 +162,7 @@ export default function Login() {
           
           {/* LINK PARA VOLTAR AO B2B */}
           <div>
-            <a href="/b2b-login" className="text-zinc-500 hover:text-purple-400 transition-colors">
+            <a href="/login-b2b" className="text-zinc-500 hover:text-purple-400 transition-colors">
               &larr; Voltar para o Portal do Lojista
             </a>
           </div>

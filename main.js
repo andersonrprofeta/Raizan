@@ -22,12 +22,16 @@ function createWindow() {
       color: '#09090b',
       symbolColor: '#e4e4e7',
       height: 35
+
+      
     },
 
     webPreferences: {
       nodeIntegration: false, // O Next.js não precisa do Node direto, ele usa o tradutor
       contextIsolation: true, // Liga a blindagem de segurança (Obrigatório pro Preload funcionar)
-      preload: path.join(__dirname, 'preload.js')
+      preload: path.join(__dirname, 'preload.js'),
+      // 🟢 ADICIONE ESTA LINHA: Ela desativa a trava de segurança de áudio do navegador!
+    autoplayPolicy: 'no-user-gesture-required'
     },
   });
 

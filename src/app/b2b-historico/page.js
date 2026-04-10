@@ -126,36 +126,36 @@ function ModalPagamentoRetentativa({ isOpen, onClose, pedido, user, onSucesso })
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm transition-all">
-      <div className="bg-[#0c0c0e] border border-zinc-800/80 rounded-2xl shadow-2xl w-full max-w-xl overflow-hidden animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm transition-all">
+      <div className="bg-[#0c0c0e] border border-zinc-800/80 rounded-2xl shadow-2xl w-full max-w-xl max-h-[92vh] overflow-y-auto animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
         
-        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 bg-zinc-900/50">
-          <h2 className="text-lg font-bold text-zinc-100 flex items-center gap-2">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-zinc-800 bg-zinc-900/50">
+          <h2 className="text-base sm:text-lg font-bold text-zinc-100 flex items-center gap-2">
             <CreditCard className="text-emerald-400" /> Realizar Pagamento
           </h2>
           <button onClick={onClose} disabled={isProcessando} className="text-zinc-400 hover:text-white"><X size={20} /></button>
         </div>
 
         {step === 'sucesso_pix' && dadosPix ? (
-          <div className="p-8 text-center flex flex-col items-center justify-center">
-            <h2 className="text-xl font-bold text-zinc-100 mb-2">Escaneie o QR Code</h2>
+          <div className="p-4 sm:p-8 text-center flex flex-col items-center justify-center">
+            <h2 className="text-lg sm:text-xl font-bold text-zinc-100 mb-2">Escaneie o QR Code</h2>
             <div className="bg-white p-3 rounded-2xl mb-6 shadow-lg border-4 border-teal-500/20">
-              <img src={`data:image/png;base64,${dadosPix.qr_code_base64}`} alt="PIX" className="w-48 h-48" />
+              <img src={`data:image/png;base64,${dadosPix.qr_code_base64}`} alt="PIX" className="w-40 h-40 sm:w-48 sm:h-48" />
             </div>
-            <input type="text" readOnly value={dadosPix.qr_code} className="w-full bg-zinc-950 border border-zinc-800 text-zinc-400 px-4 py-3 rounded-xl text-xs outline-none font-mono truncate mb-4" />
+            <input type="text" readOnly value={dadosPix.qr_code} className="w-full bg-zinc-950 border border-zinc-800 text-zinc-400 px-3 sm:px-4 py-3 rounded-xl text-xs outline-none font-mono truncate mb-4" />
             <button onClick={() => { toast.success("Código copiado!"); navigator.clipboard.writeText(dadosPix.qr_code); }} className="px-6 py-3 bg-teal-600 hover:bg-teal-500 text-white rounded-xl font-bold transition-all w-full">
               Copiar Código Pix
             </button>
           </div>
         ) : (
-          <div className="p-6">
-            <div className="flex justify-between items-center bg-zinc-900/50 p-4 rounded-xl border border-zinc-800 mb-6">
+          <div className="p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2 bg-zinc-900/50 p-4 rounded-xl border border-zinc-800 mb-6">
               <span className="text-zinc-400 font-medium">Total a pagar:</span>
-              <span className="text-2xl font-black text-emerald-400">{totalFormatado}</span>
+              <span className="text-xl sm:text-2xl font-black text-emerald-400 break-words">{totalFormatado}</span>
             </div>
 
             <h3 className="text-sm font-bold text-zinc-100 mb-3 border-b border-zinc-800 pb-2">Selecione a forma de pagamento</h3>
-            <div className="grid grid-cols-3 gap-3 mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
               <button onClick={() => setMetodoPagamento('pix')} className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all ${metodoPagamento === 'pix' ? 'bg-teal-500/10 border-teal-500 text-teal-400' : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:border-zinc-700'}`}>
                 <QrCode size={20} className="mb-1.5" /> <span className="text-xs font-semibold">PIX</span>
               </button>
@@ -168,7 +168,7 @@ function ModalPagamentoRetentativa({ isOpen, onClose, pedido, user, onSucesso })
             </div>
 
             {metodoPagamento === 'faturado' && user?.prazos_liberados && (
-              <div className="grid grid-cols-2 gap-3 mb-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
                 {user.prazos_liberados.map(prazo => (
                   <button key={prazo} onClick={() => setPrazoBoleto(prazo)} className={`p-3 rounded-xl border text-left transition-all ${prazoBoleto === prazo ? 'border-emerald-500 bg-emerald-500/10 ring-1 ring-emerald-500/50' : 'border-zinc-800 bg-zinc-900/80 hover:border-zinc-700'}`}>
                     <p className="font-bold text-zinc-100">{prazo}</p>
@@ -236,12 +236,12 @@ function ModalDetalhes({ pedido, onClose, onPagarAgora }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm transition-all animate-in fade-in" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm transition-all animate-in fade-in" onClick={onClose}>
       <div className="bg-[#0c0c0e] border border-zinc-800/80 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
         
-        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 bg-zinc-900/50 shrink-0">
-          <div>
-            <h2 className="text-xl font-bold text-zinc-100 flex items-center gap-2">
+        <div className="flex items-start sm:items-center justify-between gap-3 px-4 sm:px-6 py-4 border-b border-zinc-800 bg-zinc-900/50 shrink-0">
+          <div className="min-w-0">
+            <h2 className="text-lg sm:text-xl font-bold text-zinc-100 flex items-center gap-2 break-words">
               <ShoppingBag className="text-emerald-400" /> Pedido #{pedido.id}
             </h2>
             <p className="text-xs text-zinc-400 mt-1 flex items-center gap-1"><Calendar size={12}/> {dataAjustada}</p>
@@ -249,15 +249,15 @@ function ModalDetalhes({ pedido, onClose, onPagarAgora }) {
           <button onClick={onClose} className="p-2 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-xl transition-colors"><X size={20} /></button>
         </div>
 
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-6">
-          <div className="grid grid-cols-2 gap-4 shrink-0">
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-6 space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 shrink-0">
             <div className="bg-zinc-900/50 p-4 rounded-xl border border-zinc-800">
               <p className="text-xs text-zinc-500 font-medium mb-1 uppercase tracking-wider">Status Atual</p>
               <StatusBadge status={pedido.status} />
             </div>
             <div className="bg-zinc-900/50 p-4 rounded-xl border border-zinc-800">
               <p className="text-xs text-zinc-500 font-medium mb-1 uppercase tracking-wider">Pagamento e Envio</p>
-              <p className="text-sm text-zinc-200 font-bold uppercase">{getMeta('metodo_pagamento')} <span className="text-zinc-500 font-normal normal-case">({getMeta('prazo_boleto')})</span></p>
+              <p className="text-sm text-zinc-200 font-bold uppercase break-words">{getMeta('metodo_pagamento')} <span className="text-zinc-500 font-normal normal-case">({getMeta('prazo_boleto')})</span></p>
               <p className="text-xs text-zinc-400 mt-1 capitalize"><span className="text-zinc-500">Envio:</span> {getMeta('metodo_envio')}</p>
             </div>
           </div>
@@ -270,20 +270,20 @@ function ModalDetalhes({ pedido, onClose, onPagarAgora }) {
               <div className="max-h-[40vh] overflow-y-auto custom-scrollbar">
                 <ul className="divide-y divide-zinc-800/50">
                   {pedido.line_items?.map(item => (
-                    <li key={item.id} className="p-3 flex items-start justify-between gap-4 hover:bg-zinc-800/30 transition-colors">
-                      <div className="flex-1">
+                    <li key={item.id} className="p-3 flex flex-col sm:flex-row sm:items-start justify-between gap-2 sm:gap-4 hover:bg-zinc-800/30 transition-colors">
+                      <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-zinc-200">{item.name}</p>
-                        <p className="text-xs text-zinc-500 mt-0.5">SKU: {item.sku} | Qtd: {item.quantity}</p>
+                        <p className="text-xs text-zinc-500 mt-0.5 break-words">SKU: {item.sku} | Qtd: {item.quantity}</p>
                       </div>
-                      <div className="text-sm font-bold text-zinc-100 whitespace-nowrap mt-1">{formatarMoeda(item.total)}</div>
+                      <div className="text-sm font-bold text-zinc-100 whitespace-nowrap sm:mt-1">{formatarMoeda(item.total)}</div>
                     </li>
                   ))}
                 </ul>
               </div>
 
-              <div className="p-4 bg-zinc-900/80 border-t border-zinc-800 flex justify-between items-center shrink-0 shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.2)]">
+              <div className="p-4 bg-zinc-900/80 border-t border-zinc-800 flex flex-col sm:flex-row justify-between sm:items-center gap-1 shrink-0 shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.2)]">
                 <span className="text-sm font-medium text-zinc-400">Total do Pedido:</span>
-                <span className="text-xl font-bold text-emerald-400">{formatarMoeda(pedido.total)}</span>
+                <span className="text-lg sm:text-xl font-bold text-emerald-400">{formatarMoeda(pedido.total)}</span>
               </div>
               
               {/* ========================================== */}
@@ -362,22 +362,22 @@ export default function HistoricoPedidosB2B() {
   return (
     <div className="flex h-screen bg-[#09090b] text-zinc-100 overflow-hidden">
       <Sidebar />
-      <div className="flex-1 flex flex-col h-screen relative">
+      <div className="flex-1 flex flex-col h-screen relative min-w-0">
         <Header />
         
-        <main className="flex-1 overflow-y-auto custom-scrollbar p-8">
+        <main className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-6 lg:p-8">
           <div className="max-w-7xl mx-auto space-y-6">
             
-            <div className="bg-[#0c0c0e] p-6 rounded-2xl border border-zinc-800/60 shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4 relative overflow-hidden">
+            <div className="bg-[#0c0c0e] p-4 sm:p-6 rounded-2xl border border-zinc-800/60 shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4 relative overflow-hidden">
               <div className="absolute right-0 top-0 w-64 h-64 bg-emerald-600/10 rounded-full blur-[80px] pointer-events-none" />
-              <div className="relative z-10 flex items-center justify-between w-full">
-                <div>
-                  <h1 className="text-2xl font-bold text-zinc-100 flex items-center gap-3">
+              <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between w-full gap-4">
+                <div className="min-w-0">
+                  <h1 className="text-xl sm:text-2xl font-bold text-zinc-100 flex items-center gap-3">
                     <FileText className="text-emerald-400" /> Meus Pedidos
                   </h1>
-                  <p className="text-sm text-zinc-400 mt-1">Acompanhe o status das suas compras e acesse os comprovantes.</p>
+                  <p className="text-sm md:text-base text-zinc-400 mt-1">Acompanhe o status das suas compras e acesse os comprovantes.</p>
                 </div>
-                <button onClick={carregarPedidos} disabled={loading} className="p-2.5 bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-700/50 rounded-xl text-zinc-400 hover:text-emerald-400 transition-all shadow-sm group flex items-center gap-2">
+                <button onClick={carregarPedidos} disabled={loading} className="w-full sm:w-auto justify-center p-2.5 bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-700/50 rounded-xl text-zinc-400 hover:text-emerald-400 transition-all shadow-sm group flex items-center gap-2">
                   <RefreshCw size={18} className={loading ? "animate-spin text-emerald-500" : "group-hover:rotate-180 transition-transform duration-500"} />
                   <span className="text-sm font-medium hidden sm:block">Atualizar</span>
                 </button>
@@ -391,8 +391,8 @@ export default function HistoricoPedidosB2B() {
                 </div>
               )}
 
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm text-left">
+              <div className="w-full overflow-x-auto">
+                <table className="w-full min-w-[720px] text-xs sm:text-sm text-left">
                   <thead className="bg-zinc-900/80 text-zinc-400 font-medium border-b border-zinc-800/60">
                     <tr>
                       <th className="px-6 py-4 rounded-tl-2xl">ID do Pedido</th>
@@ -429,7 +429,7 @@ export default function HistoricoPedidosB2B() {
               </div>
 
               {totalPages > 1 && (
-                <div className="p-4 border-t border-zinc-800/60 bg-zinc-900/40 flex items-center justify-between text-sm">
+                <div className="p-4 border-t border-zinc-800/60 bg-zinc-900/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-sm">
                   <span className="text-zinc-500">Página <span className="text-zinc-300 font-bold">{page}</span> de {totalPages}</span>
                   <div className="flex gap-2">
                     <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="p-2 bg-zinc-800 rounded-lg text-zinc-300 hover:bg-zinc-700 disabled:opacity-50"><ChevronLeft size={16} /></button>

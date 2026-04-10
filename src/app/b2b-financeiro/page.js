@@ -222,20 +222,20 @@ export default function FinanceiroBI() {
   };
 
   return (
-    <div className="flex h-[100dvh] bg-[#09090b] text-zinc-100 overflow-hidden">
+    <div className="flex h-[100dvh] bg-[#09090b] text-zinc-100 overflow-x-hidden">
       <Sidebar />
 
-      <div className="flex-1 flex flex-col min-h-0">
+      <div className="flex-1 flex flex-col min-h-0 min-w-0">
         <Header />
 
-        <main className="flex-1 overflow-y-auto custom-scrollbar p-8 space-y-6">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6 min-w-0">
 
           {/* FILTRO */}
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {[7, 30, 90].map(d => (
               <button key={d}
                 onClick={() => setPeriodo(d)}
-                className={`px-4 py-2 rounded-lg text-sm transition-all ${
+                className={`flex-1 min-w-[96px] sm:flex-none px-3 sm:px-4 py-2 rounded-lg text-sm md:text-base transition-all ${
                   periodo === d ? "bg-emerald-600 text-white shadow-lg" : "bg-zinc-900/80 border border-zinc-800 text-zinc-400 hover:text-zinc-200"
                 }`}>
                 {d} dias
@@ -244,7 +244,7 @@ export default function FinanceiroBI() {
           </div>
 
           {/* CARDS */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
             <Card title="Faturado (Pago)" value={format(totalPago)} icon={<DollarSign />} />
             <Card title="A Receber (Devedor)" value={format(totalDevedor)} icon={<AlertTriangle />} />
             <Card title="Pedidos Válidos" value={pagos.length + abertos.length} icon={<TrendingUp />} />
@@ -252,13 +252,13 @@ export default function FinanceiroBI() {
           </div>
 
           {/* GRID PRINCIPAL */}
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-6 min-w-0">
 
             {/* GRÁFICO */}
-            <div className="xl:col-span-2 bg-zinc-900/40 border border-zinc-800 rounded-2xl p-6">
-              <h3 className="mb-4 text-zinc-100 font-bold">Fluxo Financeiro</h3>
+            <div className="xl:col-span-2 bg-zinc-900/40 border border-zinc-800 rounded-2xl p-4 sm:p-6 min-w-0">
+              <h3 className="mb-3 sm:mb-4 text-zinc-100 font-bold text-base md:text-lg">Fluxo Financeiro</h3>
 
-              <ResponsiveContainer width="100%" height={300}>
+              <ResponsiveContainer width="100%" height={240}>
                 <AreaChart data={chartData}>
                   <defs>
                     <linearGradient id="corPago" x1="0" y1="0" x2="0" y2="1">
@@ -296,16 +296,16 @@ export default function FinanceiroBI() {
             </div>
 
             {/* RANKING */}
-            <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-6">
-              <h3 className="mb-4 text-zinc-100 font-bold">Top Produtos</h3>
+            <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-4 sm:p-6 min-w-0">
+              <h3 className="mb-4 text-zinc-100 font-bold text-base md:text-lg">Top Produtos</h3>
 
               {rankingLista.length === 0 ? (
                  <p className="text-sm text-zinc-500 mt-10 text-center">Nenhum dado no período.</p>
               ) : (
                 rankingLista.map(p => (
-                  <div key={p.nome} className="mb-4">
-                    <div className="flex justify-between text-sm mb-1">
-                      <span className="truncate max-w-[70%] text-zinc-300">{p.nome}</span>
+                  <div key={p.nome} className="mb-4 min-w-0">
+                    <div className="flex items-center justify-between text-sm md:text-base mb-1 gap-2 min-w-0">
+                      <span className="truncate flex-1 min-w-0 text-zinc-300">{p.nome}</span>
                       <span className="text-emerald-400 font-bold">{p.qtd} un</span>
                     </div>
 
@@ -323,26 +323,26 @@ export default function FinanceiroBI() {
           </div>
 
           {/* EXTRATO COM BOTÃO DE PDF */}
-          <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-zinc-100 font-bold">Extrato de Movimentações</h3>
+          <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-4 sm:p-6 min-w-0">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4 sm:mb-6">
+              <h3 className="text-zinc-100 font-bold text-base md:text-lg">Extrato de Movimentações</h3>
               
               {/* 🟢 O BOTÃO DE GERAR ESPELHO AQUI */}
               <button 
                 onClick={gerarPDF}
-                className="flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white px-4 py-2 rounded-xl text-xs font-bold transition-all border border-zinc-700 hover:border-zinc-500"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all border border-zinc-700 hover:border-zinc-500"
               >
                 <Printer size={16} /> Exportar Extrato (PDF)
               </button>
             </div>
 
-            <div className="max-h-[300px] overflow-y-auto space-y-2 custom-scrollbar pr-2">
+            <div className="max-h-[300px] overflow-y-auto overflow-x-hidden space-y-2 custom-scrollbar pr-1 sm:pr-2 min-w-0">
               {pedidosFiltrados.length === 0 && <p className="text-zinc-500 text-sm">Nenhuma movimentação no período.</p>}
               
               {pedidosFiltrados.slice(0, 20).map(p => (
-                <div key={p.id} className="flex justify-between items-center p-3 rounded-xl border border-transparent hover:border-zinc-800 hover:bg-zinc-800/50 transition-all group">
-                  <div>
-                    <p className="text-sm font-bold text-zinc-200 group-hover:text-white transition-colors">Pedido #{p.id}</p>
+                <div key={p.id} className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 p-3 rounded-xl border border-transparent hover:border-zinc-800 hover:bg-zinc-800/50 transition-all group min-w-0">
+                  <div className="min-w-0">
+                    <p className="text-sm md:text-base font-bold text-zinc-200 group-hover:text-white transition-colors truncate">Pedido #{p.id}</p>
                     
                     <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full mt-1 inline-block border ${
                       statusPagos.includes(p.status) ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 
@@ -353,7 +353,7 @@ export default function FinanceiroBI() {
                     </span>
                     
                   </div>
-                  <span className={`font-bold ${statusPagos.includes(p.status) ? "text-emerald-400" : statusCancelados.includes(p.status) ? "text-zinc-500 line-through" : "text-amber-400"}`}>
+                  <span className={`font-bold text-sm md:text-base sm:text-right ${statusPagos.includes(p.status) ? "text-emerald-400" : statusCancelados.includes(p.status) ? "text-zinc-500 line-through" : "text-amber-400"}`}>
                     {format(p.total)}
                   </span>
                 </div>
@@ -369,7 +369,7 @@ export default function FinanceiroBI() {
 
 function Card({ icon, title, value }) {
   return (
-    <div className="bg-zinc-900/40 border border-zinc-800/60 rounded-2xl p-5 hover:bg-zinc-800/40 transition-colors relative overflow-hidden group">
+    <div className="bg-zinc-900/40 border border-zinc-800/60 rounded-2xl p-4 sm:p-5 hover:bg-zinc-800/40 transition-colors relative overflow-hidden group min-w-0">
       <div className="absolute -inset-1 bg-gradient-to-r from-emerald-600/20 to-teal-600/20 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
       
       <div className="relative flex justify-between items-start mb-2">
@@ -377,8 +377,8 @@ function Card({ icon, title, value }) {
           <div className="text-emerald-400">{icon}</div>
         </div>
       </div>
-      <p className="text-sm font-medium text-zinc-400 relative">{title}</p>
-      <h3 className="text-2xl font-bold text-zinc-100 mt-1 relative">{value}</h3>
+      <p className="text-sm md:text-base font-medium text-zinc-400 relative truncate">{title}</p>
+      <h3 className="text-xl md:text-2xl font-bold text-zinc-100 mt-1 relative break-words">{value}</h3>
     </div>
   );
 }

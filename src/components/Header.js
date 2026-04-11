@@ -26,9 +26,11 @@ function ModalResumoCarrinho({ isOpen, onClose }) {
 
   const itens = Object.values(carrinho);
   
+  // 🟢 NOVA MATEMÁTICA: Agora só dá o desconto se a qtd for >= a qtd_minima_promocao
   const subtotal = itens.reduce((acc, item) => {
     const precoOriginal = parseFloat(item.PDPRECO) || 0;
-    const precoFinal = item.em_promocao ? parseFloat(item.preco_promocional) : precoOriginal;
+    const atingiuMinimo = item.em_promocao && item.qtd >= (item.qtd_minima_promocao || 1);
+    const precoFinal = atingiuMinimo ? parseFloat(item.preco_promocional) : precoOriginal;
     return acc + (precoFinal * item.qtd);
   }, 0);
 
@@ -51,17 +53,24 @@ function ModalResumoCarrinho({ isOpen, onClose }) {
             </div>
           ) : (
             itens.map(item => {
+              // 🟢 NOVA LÓGICA DO ITEM: Checa a quantidade mínima
               const precoOriginal = parseFloat(item.PDPRECO) || 0;
-              const precoFinal = item.em_promocao ? parseFloat(item.preco_promocional) : precoOriginal;
+              const atingiuMinimo = item.em_promocao && item.qtd >= (item.qtd_minima_promocao || 1);
+              const precoFinal = atingiuMinimo ? parseFloat(item.preco_promocional) : precoOriginal;
               
               return (
                 <div key={item.PDCODPRO} className="flex items-center justify-between gap-2 bg-zinc-900/50 p-3 rounded-xl border border-zinc-800/60 min-w-0">
                   <div className="flex-1 pr-1 sm:pr-2 min-w-0">
                     <p className="text-sm md:text-base font-bold text-zinc-200 line-clamp-1">{item.PDNOME}</p>
+                    
+                    {/* 🟢 EXIBIÇÃO: Se atingiu, fica Verde (Oferta). Se não atingiu, fica Vermelho avisando o mínimo */}
                     <p className="text-xs text-zinc-500 mt-0.5">
-                      {item.qtd}x {formatarMoeda(precoFinal)} {item.em_promocao && <span className="text-rose-400 ml-1 font-bold">(Oferta)</span>}
+                      {item.qtd}x {formatarMoeda(precoFinal)} 
+                      {item.em_promocao && atingiuMinimo && <span className="text-emerald-400 ml-1 font-bold">(Oferta Aplicada)</span>}
+                      {item.em_promocao && !atingiuMinimo && <span className="text-rose-500 ml-1 font-bold">⚠️ Leve {item.qtd_minima_promocao} para Oferta</span>}
                     </p>
                   </div>
+                  
                   <div className="text-sm md:text-base font-bold text-emerald-400 pl-1 sm:pl-3 shrink-0">
                     {formatarMoeda(precoFinal * item.qtd)}
                   </div>
@@ -100,8 +109,9 @@ function ModalOfertasGlobal({ isOpen, onClose, ofertas, onComprar }) {
 
   if (!isOpen) return null;
 
-  const handleQtdChange = (sku, novaQtd) => {
-    setQuantidades(prev => ({ ...prev, [sku]: Math.max(1, novaQtd) }));
+  // 🟢 FORÇA O LIMITE: Agora ela recebe o 'minExigido' e não deixa o número ficar menor que ele.
+  const handleQtdChange = (sku, novaQtd, minExigido) => {
+    setQuantidades(prev => ({ ...prev, [sku]: Math.max(minExigido, novaQtd) }));
   };
 
   return (
@@ -126,7 +136,9 @@ function ModalOfertasGlobal({ isOpen, onClose, ofertas, onComprar }) {
             <div className="text-center py-10 text-zinc-500">Nenhuma oferta relâmpago ativa no momento.</div>
           ) : (
             ofertas.map(promo => {
-              const qtdAtual = quantidades[promo.sku] || 1;
+              // 🟢 REGRA DA OFERTA: Descobre o mínimo e já trava o contador inicial nele
+              const minExigido = promo.qtd_minima || 1;
+              const qtdAtual = quantidades[promo.sku] || minExigido;
 
               return (
                 <div key={promo.sku} className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-zinc-900/50 p-4 rounded-2xl border border-zinc-800 hover:border-rose-500/50 transition-all group gap-4 min-w-0">
@@ -138,15 +150,21 @@ function ModalOfertasGlobal({ isOpen, onClose, ofertas, onComprar }) {
                   
                   <div className="flex flex-col items-stretch sm:items-end gap-2 w-full sm:w-auto">
                     <div className="flex items-center justify-between bg-zinc-950 border border-emerald-500/30 rounded-lg overflow-hidden h-10 w-full sm:w-32">
-                      <button onClick={() => handleQtdChange(promo.sku, qtdAtual - 1)} className="w-10 h-full flex items-center justify-center text-zinc-400 hover:bg-zinc-800 hover:text-white transition-colors"><Minus size={14}/></button>
+                      {/* Passando minExigido no clique de menos */}
+                      <button onClick={() => handleQtdChange(promo.sku, qtdAtual - 1, minExigido)} className="w-10 h-full flex items-center justify-center text-zinc-400 hover:bg-zinc-800 hover:text-white transition-colors"><Minus size={14}/></button>
                       <span className="font-bold text-emerald-400 text-sm w-8 text-center">{qtdAtual}</span>
-                      <button onClick={() => handleQtdChange(promo.sku, qtdAtual + 1)} className="w-10 h-full flex items-center justify-center text-zinc-400 hover:bg-zinc-800 hover:text-white transition-colors"><Plus size={14}/></button>
+                      <button onClick={() => handleQtdChange(promo.sku, qtdAtual + 1, minExigido)} className="w-10 h-full flex items-center justify-center text-zinc-400 hover:bg-zinc-800 hover:text-white transition-colors"><Plus size={14}/></button>
                     </div>
 
                     <button 
                       onClick={() => {
                         onComprar({
-                          PDCODPRO: promo.sku, PDNOME: promo.nome_produto, PDPRECO: promo.preco_promocional, em_promocao: true, preco_promocional: promo.preco_promocional
+                          PDCODPRO: promo.sku, 
+                          PDNOME: promo.nome_produto, 
+                          PDPRECO: promo.preco_promocional, 
+                          em_promocao: true, 
+                          preco_promocional: promo.preco_promocional,
+                          qtd_minima_promocao: minExigido // 🟢 INJETANDO A REGRA PARA O CARRINHO LER
                         }, qtdAtual);
                         toast.success(`${qtdAtual}x adicionado ao carrinho!`);
                       }} 

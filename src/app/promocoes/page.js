@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
-import { Tag, Calendar, DollarSign, Package, Plus, Trash2, Loader2, Percent } from "lucide-react";
+import { Tag, Calendar, DollarSign, Package, Plus, Trash2, Loader2, Percent, Layers } from "lucide-react";
 import { getApiUrl, getHeaders } from "@/components/utils/api";
 import toast from 'react-hot-toast';
 
@@ -12,12 +12,12 @@ export default function GestaoPromocoes() {
   const [loading, setLoading] = useState(true);
   const [salvando, setSalvando] = useState(false);
   
-  // 🟢 NOVO ESTADO: Controla qual SKU está pedindo confirmação para deletar
   const [skuConfirmacao, setSkuConfirmacao] = useState(null);
 
   // Form states
   const [sku, setSku] = useState("");
   const [preco, setPreco] = useState("");
+  const [qtdMinima, setQtdMinima] = useState("1"); // 🟢 NOVO ESTADO
   const [dataInicio, setDataInicio] = useState("");
   const [dataFim, setDataFim] = useState("");
 
@@ -49,6 +49,7 @@ export default function GestaoPromocoes() {
         body: JSON.stringify({
           sku,
           preco_promocional: precoFormatado,
+          qtd_minima: parseInt(qtdMinima) || 1, // 🟢 ENVIANDO PARA O SERVIDOR
           data_inicio: dataInicio,
           data_fim: dataFim
         })
@@ -57,7 +58,7 @@ export default function GestaoPromocoes() {
       const data = await res.json();
       if (data.success) {
         toast.success(data.message);
-        setSku(""); setPreco(""); setDataInicio(""); setDataFim("");
+        setSku(""); setPreco(""); setQtdMinima("1"); setDataInicio(""); setDataFim("");
         carregarPromocoes();
       } else {
         toast.error(data.message);
@@ -68,9 +69,8 @@ export default function GestaoPromocoes() {
     setSalvando(false);
   };
 
-  // 🟢 NOVA FUNÇÃO DE REMOVER (Sem travar o Electron!)
   const handleRemover = async (skuRemover) => {
-    setSkuConfirmacao(null); // Esconde os botões de Sim/Não
+    setSkuConfirmacao(null); 
     const toastId = toast.loading("Removendo promoção...");
     
     try {
@@ -107,13 +107,12 @@ export default function GestaoPromocoes() {
                 <h1 className="text-2xl font-bold text-zinc-100 flex items-center gap-3">
                   <Percent className="text-purple-400" /> Campanhas e Ofertas B2B
                 </h1>
-                <p className="text-sm text-zinc-400 mt-1">Gerencie preços promocionais exclusivos para o portal de lojistas.</p>
+                <p className="text-sm text-zinc-400 mt-1">Gerencie preços promocionais e quantidades mínimas para o portal.</p>
               </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               
-              {/* COLUNA ESQUERDA: FORMULÁRIO */}
               <div className="bg-[#0c0c0e] border border-zinc-800/60 rounded-2xl p-6 shadow-xl h-fit relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-purple-600/10 rounded-full blur-[50px] pointer-events-none" />
                 
@@ -129,20 +128,33 @@ export default function GestaoPromocoes() {
                       <input 
                         type="text" required value={sku} onChange={(e) => setSku(e.target.value)}
                         placeholder="Ex: 32980"
-                        className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl py-2.5 pl-10 pr-4 text-zinc-100 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all font-mono"
+                        className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl py-2.5 pl-10 pr-4 text-zinc-100 focus:outline-none focus:border-purple-500 transition-all font-mono"
                       />
                     </div>
                   </div>
 
-                  <div>
-                    <label className="text-xs font-semibold text-zinc-400 uppercase">Preço Promocional (R$)</label>
-                    <div className="relative mt-1">
-                      <DollarSign size={16} className="absolute left-3 top-3 text-emerald-500" />
-                      <input 
-                        type="text" required value={preco} onChange={(e) => setPreco(e.target.value)}
-                        placeholder="19,99"
-                        className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl py-2.5 pl-10 pr-4 text-zinc-100 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all font-mono text-emerald-400 font-bold"
-                      />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs font-semibold text-zinc-400 uppercase">Preço Promocional</label>
+                      <div className="relative mt-1">
+                        <DollarSign size={16} className="absolute left-3 top-3 text-emerald-500" />
+                        <input 
+                          type="text" required value={preco} onChange={(e) => setPreco(e.target.value)}
+                          placeholder="19,99"
+                          className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl py-2.5 pl-10 pr-4 text-emerald-400 focus:outline-none focus:border-emerald-500 transition-all font-mono font-bold"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      {/* 🟢 NOVO INPUT: QUANTIDADE MÍNIMA */}
+                      <label className="text-xs font-semibold text-zinc-400 uppercase text-amber-400/80">Qtd. Mínima</label>
+                      <div className="relative mt-1">
+                        <Layers size={16} className="absolute left-3 top-3 text-amber-500" />
+                        <input 
+                          type="number" min="1" required value={qtdMinima} onChange={(e) => setQtdMinima(e.target.value)}
+                          className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl py-2.5 pl-10 pr-4 text-amber-400 focus:outline-none focus:border-amber-500 transition-all font-mono font-bold"
+                        />
+                      </div>
                     </div>
                   </div>
 
@@ -153,7 +165,7 @@ export default function GestaoPromocoes() {
                         <Calendar size={16} className="absolute left-3 top-3 text-zinc-500" />
                         <input 
                           type="date" required value={dataInicio} onChange={(e) => setDataInicio(e.target.value)}
-                          className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl py-2.5 pl-10 pr-2 text-zinc-100 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all text-sm color-scheme-dark"
+                          className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl py-2.5 pl-10 pr-2 text-zinc-100 focus:outline-none focus:border-purple-500 transition-all text-sm color-scheme-dark"
                         />
                       </div>
                     </div>
@@ -163,7 +175,7 @@ export default function GestaoPromocoes() {
                         <Calendar size={16} className="absolute left-3 top-3 text-zinc-500" />
                         <input 
                           type="date" required value={dataFim} onChange={(e) => setDataFim(e.target.value)}
-                          className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl py-2.5 pl-10 pr-2 text-zinc-100 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all text-sm color-scheme-dark"
+                          className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl py-2.5 pl-10 pr-2 text-zinc-100 focus:outline-none focus:border-purple-500 transition-all text-sm color-scheme-dark"
                         />
                       </div>
                     </div>
@@ -178,7 +190,6 @@ export default function GestaoPromocoes() {
                 </form>
               </div>
 
-              {/* COLUNA DIREITA: LISTAGEM */}
               <div className="lg:col-span-2 bg-[#0c0c0e] border border-zinc-800/60 rounded-2xl overflow-hidden shadow-xl flex flex-col h-full min-h-[500px]">
                 <div className="p-6 border-b border-zinc-800/60 bg-zinc-900/30 flex justify-between items-center">
                   <h2 className="text-lg font-bold text-zinc-100">Ofertas Ativas</h2>
@@ -201,19 +212,23 @@ export default function GestaoPromocoes() {
                       {promocoes.map((promo) => (
                         <div key={promo.id} className="bg-zinc-900/50 border border-zinc-800 hover:border-purple-500/50 rounded-xl p-5 transition-all group relative flex flex-col justify-between">
                           
-                          {/* CABEÇALHO DO CARD: NOME E SKU */}
                           <div>
                             <div className="flex justify-between items-start mb-2 relative">
                               <div className="pr-6 w-full">
-                                <p className="text-[10px] text-purple-400 font-mono font-bold tracking-wider mb-1 px-2 py-0.5 bg-purple-500/10 rounded border border-purple-500/20 w-fit">
-                                  SKU {promo.sku}
-                                </p>
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className="text-[10px] text-purple-400 font-mono font-bold tracking-wider px-2 py-0.5 bg-purple-500/10 rounded border border-purple-500/20">
+                                    SKU {promo.sku}
+                                  </span>
+                                  {/* 🟢 SELO DE QUANTIDADE MÍNIMA */}
+                                  <span className="text-[10px] text-amber-400 font-bold px-2 py-0.5 bg-amber-500/10 rounded border border-amber-500/20 flex items-center gap-1">
+                                    <Layers size={10} /> Mínimo: {promo.qtd_minima || 1} un
+                                  </span>
+                                </div>
                                 <p className="text-sm font-bold text-zinc-100 leading-snug line-clamp-2" title={promo.nome_produto}>
                                   {promo.nome_produto || "Produto não encontrado"}
                                 </p>
                               </div>
 
-                              {/* 🟢 A MÁGICA VISUAL AQUI: CONFIRMAÇÃO INLINE */}
                               {skuConfirmacao === promo.sku ? (
                                 <div className="absolute top-0 right-0 flex items-center gap-1.5 bg-[#0c0c0e] p-1.5 rounded-lg border border-rose-500/30 shadow-lg z-20 animate-in fade-in zoom-in-95">
                                   <span className="text-[10px] text-rose-400 font-bold ml-1">Excluir?</span>
@@ -224,16 +239,13 @@ export default function GestaoPromocoes() {
                                 <button 
                                   onClick={() => setSkuConfirmacao(promo.sku)}
                                   className="text-zinc-500 hover:text-rose-400 p-1.5 bg-zinc-800 hover:bg-rose-500/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100 absolute top-0 right-0"
-                                  title="Remover Promoção"
                                 >
                                   <Trash2 size={16} />
                                 </button>
                               )}
-                              {/* FIM DA MÁGICA VISUAL */}
                             </div>
                           </div>
                           
-                          {/* RODAPÉ DO CARD: PREÇO E DATA */}
                           <div className="mt-4 border-t border-zinc-800/80 pt-4 flex items-center justify-between">
                             <span className="text-2xl font-bold text-emerald-400">{formatarMoeda(promo.preco_promocional)}</span>
                             

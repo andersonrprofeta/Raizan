@@ -12,6 +12,7 @@
     "electron:build": "npm run build && electron-builder"
   },
   "dependencies": {
+    "@ducanh2912/next-pwa": "^10.2.9",
     "@mercadopago/sdk-react": "^1.0.7",
     "electron-serve": "^3.0.1",
     "electron-updater": "^6.8.3",

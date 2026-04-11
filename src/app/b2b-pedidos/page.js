@@ -146,8 +146,14 @@ function ModalCheckout({ isOpen, onClose, carrinho, produtos, tabelaAtiva, onFin
 
   const itensComprados = Object.values(carrinho).map(p => {
     const precoOriginal = p[tabelaAtiva] !== undefined ? parseFloat(p[tabelaAtiva]) : parseFloat(p.PDPRECO);
-    const precoFinal = p.em_promocao ? parseFloat(p.preco_promocional) : precoOriginal;
-    return { ...p, precoUsado: precoFinal, totalItem: precoFinal * p.qtd };
+    
+    // 🟢 MATEMÁTICA CORRIGIDA NO CHECKOUT: Só aplica desconto se a quantidade bater a meta!
+    const minExigido = p.qtd_minima_promocao || 1;
+    const atingiuMinimo = p.em_promocao && p.qtd >= minExigido;
+    const precoFinal = atingiuMinimo ? parseFloat(p.preco_promocional) : precoOriginal;
+    
+    // Guardamos a flag "atingiuMinimo" para poder pintar de verde lá embaixo
+    return { ...p, precoUsado: precoFinal, totalItem: precoFinal * p.qtd, atingiuMinimo };
   });
 
   const subtotal = itensComprados.reduce((acc, item) => acc + item.totalItem, 0);
@@ -429,7 +435,9 @@ function ModalCheckout({ isOpen, onClose, carrinho, produtos, tabelaAtiva, onFin
                       <div className="flex-1">
                         <p className="text-sm sm:text-base font-medium text-zinc-200 line-clamp-2 break-words">{item.PDNOME}</p>
                         <p className="text-xs text-zinc-500">
-                          SKU: {item.PDCODPRO} | {item.qtd}x {formatarMoeda(item.precoUsado)} {item.em_promocao && <span className="text-rose-400 ml-1">(Oferta)</span>}
+                          SKU: {item.PDCODPRO} | {item.qtd}x {formatarMoeda(item.precoUsado)} 
+                          {/* 🟢 Só mostra o texto de Oferta se ele realmente bateu a quantidade mínima */}
+                          {item.atingiuMinimo && <span className="text-emerald-400 font-bold ml-1">(Oferta Aplicada)</span>}
                         </p>
                       </div>
                       <div className="text-sm sm:text-base font-bold text-zinc-100 whitespace-nowrap">
@@ -600,10 +608,16 @@ export default function CatalogoB2B() {
   };
 
   // Carimba a promoção nos produtos listados na tela para desenhar o desconto visualmente
+  // Carimba a promoção nos produtos listados na tela
   const produtosComPromocaoCarimbada = produtos.map(p => {
     const oferta = listaOfertas.find(o => o.sku === p.PDCODPRO.toString());
     if (oferta) {
-      return { ...p, em_promocao: true, preco_promocional: oferta.preco_promocional };
+      return { 
+        ...p, 
+        em_promocao: true, 
+        preco_promocional: oferta.preco_promocional,
+        qtd_minima_promocao: oferta.qtd_minima || 1 // 🟢 CARIMBANDO A QTD MÍNIMA AQUI!
+      };
     }
     return { ...p, em_promocao: false };
   });
@@ -758,7 +772,7 @@ const handleFinalizarPedido = async (dadosDoPedido) => {
                       <th className="px-3 sm:px-5 py-3 sm:py-4 w-32">Marca</th>
                       <th className="px-3 sm:px-5 py-3 sm:py-4 text-center">Estoque</th>
                       <th className={`px-3 sm:px-5 py-3 sm:py-4 text-right font-bold ${infoTabela.cor}`}>Preço Unitário</th>
-                      <th className="px-3 sm:px-5 py-3 sm:py-4 text-center w-40 rounded-r-2xl">Compra</th>
+                      <th className="px-3 sm:px-5 py-3 sm:py-4 text-center w-40 rounded-tr-2xl">Compra</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-800/40">
@@ -775,9 +789,12 @@ const handleFinalizarPedido = async (dadosDoPedido) => {
                       const imageUrl = getProductImageUrl(produto.PDCODBARRA);
                       const temEstoque = produto.PDSALDO > 0;
                       
+                      // 🟢 NOVA LÓGICA DE PREÇO COM QUANTIDADE MÍNIMA
                       const precoOriginal = produto[tabelaAtiva] !== undefined ? parseFloat(produto[tabelaAtiva]) : parseFloat(produto.PDPRECO);
-                      const precoExibicao = produto.em_promocao ? parseFloat(produto.preco_promocional) : precoOriginal;
-                      const desconto = produto.em_promocao && precoOriginal > 0 ? Math.round(((precoOriginal - precoExibicao) / precoOriginal) * 100) : 0;
+                      const minExigido = produto.qtd_minima_promocao || 1;
+                      const atingiuMinimo = produto.em_promocao && qtdNoCarrinho >= minExigido;
+                      const precoExibicao = atingiuMinimo ? parseFloat(produto.preco_promocional) : precoOriginal;
+                      const desconto = atingiuMinimo && precoOriginal > 0 ? Math.round(((precoOriginal - precoExibicao) / precoOriginal) * 100) : 0;
 
                       return (
                         <tr key={produto.PDCODPRO} className={`transition-colors group ${!temEstoque ? 'opacity-50 grayscale' : 'hover:bg-zinc-800/20'}`}>
@@ -814,8 +831,23 @@ const handleFinalizarPedido = async (dadosDoPedido) => {
                           <td className={`px-3 sm:px-5 py-3 sm:py-4 text-right text-sm sm:text-base whitespace-nowrap ${infoTabela.cor}`}>
                             {produto.em_promocao ? (
                               <div className="flex flex-col items-end">
-                                <span className="text-zinc-500 line-through text-[11px] font-medium leading-none">{formatarMoeda(precoOriginal)}</span>
-                                <span className="text-emerald-400 font-bold text-base sm:text-lg">{formatarMoeda(precoExibicao)}</span>
+                                {/* O preço original riscado só aparece se o desconto ativar */}
+                                {atingiuMinimo && <span className="text-zinc-500 line-through text-[11px] font-medium leading-none mb-0.5">{formatarMoeda(precoOriginal)}</span>}
+                                
+                                <span className={`font-bold ${atingiuMinimo ? 'text-emerald-400 text-base sm:text-lg' : ''}`}>
+                                  {formatarMoeda(precoExibicao)}
+                                </span>
+
+                                {/* 🟢 AVISO VISUAL DE QUANTIDADE */}
+                                {!atingiuMinimo ? (
+                                   <span className="text-[9px] bg-rose-500/10 text-rose-400 px-1.5 py-0.5 rounded border border-rose-500/20 mt-1 flex items-center gap-1 w-fit">
+                                      <Tag size={10} /> Oferta a partir de {minExigido} un.
+                                   </span>
+                                ) : (
+                                   <span className="text-[9px] bg-emerald-500/10 text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-500/20 mt-1 flex items-center gap-1 w-fit">
+                                      <Zap size={10} /> Oferta Aplicada!
+                                   </span>
+                                )}
                               </div>
                             ) : (
                               <span className="font-bold">{formatarMoeda(precoOriginal)}</span>

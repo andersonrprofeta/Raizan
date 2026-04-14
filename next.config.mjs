@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'export',
+ // output: 'export',
   images: { unoptimized: true },
   trailingSlash: true // <--- Ensina o Next.js a criar as pastas certinho pro Electron
 };

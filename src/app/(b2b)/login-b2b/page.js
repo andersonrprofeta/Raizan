@@ -5,7 +5,7 @@ import Image from "next/image";
 import { Mail, Lock, ArrowRight, AlertTriangle, Loader2 } from "lucide-react"; 
 //import { getApiUrl } from "@/components/utils/api";
 import toast from "react-hot-toast";
-import packageJson from "../../../package.json";
+import packageJson from "../../../../package.json";
 import { getApiUrl, getHeaders } from "@/components/utils/api";
 
 export default function LoginB2B() {

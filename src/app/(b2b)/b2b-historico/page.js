@@ -262,6 +262,36 @@ function ModalDetalhes({ pedido, onClose, onPagarAgora }) {
             </div>
           </div>
 
+          {/* ========================================== */}
+          {/* 🟢 HISTÓRICO DE EDIÇÕES / AJUSTES DO PEDIDO */}
+          {/* ========================================== */}
+          {pedido.historico_edicoes && pedido.historico_edicoes.length > 0 && (
+            <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-4 shrink-0 shadow-inner">
+              <h3 className="text-sm font-bold text-amber-500 flex items-center gap-2 mb-3">
+                <AlertCircle size={16} /> Avisos sobre o seu pedido
+              </h3>
+              <div className="space-y-3 divide-y divide-amber-500/10">
+                {pedido.historico_edicoes.map((hist, index) => (
+                  <div key={index} className="pt-3 first:pt-0">
+                    <p className="text-sm text-zinc-300">
+                      <span className="text-xs text-zinc-500 font-medium mr-2">
+                        {new Date(hist.data).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}:
+                      </span> 
+                      {hist.motivo}
+                    </p>
+                    
+                    {/* Se a edição gerou crédito na carteira, mostra em destaque! */}
+                    {hist.gerou_credito && hist.valor_abatido > 0 && (
+                      <p className="text-xs font-bold text-emerald-400 mt-1.5 flex items-center gap-1.5 bg-emerald-500/10 w-fit px-2 py-1 rounded-md">
+                        + {formatarMoeda(hist.valor_abatido)} adicionados como crédito em sua Carteira!
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="flex flex-col">
             <h3 className="text-sm font-bold text-zinc-100 mb-3 flex items-center gap-2 border-b border-zinc-800 pb-2 shrink-0">
               <Package size={16} className="text-emerald-500" /> Itens do Pedido ({pedido.line_items?.length})

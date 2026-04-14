@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
-import { Download, CheckCircle2, Store, ShoppingBag, Smartphone, Monitor, Loader2, FileDown, ChevronLeft, ChevronRight, X, User, MapPin, FileText, Package, Phone, Mail, Calendar, Building2 } from "lucide-react";
+import { Download, CheckCircle2, Store, ShoppingBag, Smartphone, Monitor, Loader2, FileDown, ChevronLeft, ChevronRight, X, User, MapPin, FileText, Package, Phone, Mail, Calendar, Building2, Edit } from "lucide-react"; // 🟢 ADD: Edit
+import Link from "next/link"; // 🟢 ADD: Import do Link do Next
 import toast from 'react-hot-toast';
 import { getApiUrl } from "@/components/utils/api";
 
@@ -66,6 +67,15 @@ export function ModalDetalhesPedido({ pedido, onClose, activeTab, onUpdateStatus
                 )}
                 {statusOpcoes.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
               </select>
+
+              {/* 🟢 O BOTÃO DE EDITAR CORRIGIDO */}
+              {['aguardando-pagamento', 'pending', 'processing', 'on-hold', 'pago'].includes(pedido.status) && (
+                <Link href={`/editar-pedido/${pedido.id}`}>
+                  <button className="bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 ml-2">
+                    <Edit size={14} /> Editar
+                  </button>
+                </Link>
+              )}
             </div>
           </div>
           

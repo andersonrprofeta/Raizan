@@ -1,6 +1,6 @@
 {
   "name": "raizan-core",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "private": true,
   "main": "main.js",
   "scripts": {
@@ -19,6 +19,7 @@
     "lucide-react": "^0.577.0",
     "mysql2": "^3.20.0",
     "next": "16.2.0",
+    "next-themes": "^0.4.6",
     "oracledb": "^6.10.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",

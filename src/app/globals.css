@@ -1,78 +1,75 @@
 @import "tailwindcss";
 
+/* 🟢 A MÁGICA DO NEXT-THEMES NO TAILWIND V4 */
+/* Isso avisa o Tailwind que os prefixos "dark:" só devem funcionar quando o botão de luz for clicado */
+@custom-variant dark (&:is(.dark *));
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* ☀️ CORES DO MODO CLARO */
+  --background: #f4f4f5; /* Um cinza beeeem claro para não doer o olho (zinc-100) */
+  --foreground: #18181b; /* Texto escuro */
+}
+
+.dark {
+  /* 🌙 CORES DO MODO TREVAS */
+  --background: #09090b; /* O seu fundo preto premium (zinc-950) */
+  --foreground: #fafafa; /* Texto claro */
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  transition: background-color 0.3s ease, color 0.3s ease; /* Transição suave ao trocar de tema */
 }
 
 /* ==========================================
-   SCROLLBAR CUSTOMIZADO (DARK MODE PREMIUM)
+   SCROLLBAR CUSTOMIZADO (AGORA COM LIGHT/DARK)
    ========================================== */
 
-/* Aplica para a classe custom-scrollbar que usamos na Sidebar e no Main */
 .custom-scrollbar::-webkit-scrollbar {
-  width: 6px; /* Bem fininha e elegante */
+  width: 6px; 
   height: 6px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {
-  background: transparent; /* Fundo invisível para não quebrar o layout */
+  background: transparent; 
 }
 
+/* Cor do scrollbar no Modo Claro */
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #27272a; /* Cor zinc-800 do Tailwind */
-  border-radius: 10px; /* Deixa a ponta redondinha */
+  background: #d4d4d8; 
+  border-radius: 10px;
 }
-
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #3f3f46; /* Fica um pouco mais clara ao passar o mouse (zinc-700) */
+  background: #a1a1aa; 
 }
 
-/* Força o scrollbar global da página a seguir o mesmo estilo (caso algo escape) */
+/* Cor do scrollbar no Modo Trevas */
+.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #27272a; 
+}
+.dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #3f3f46; 
+}
+
+/* Scrollbar Global */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: #09090b; 
+  background: transparent; 
 }
 ::-webkit-scrollbar-thumb {
-  background: #27272a; 
+  background: #d4d4d8; 
   border-radius: 10px;
 }
-::-webkit-scrollbar-thumb:hover {
-  background: #52525b; 
-}
-
-/*COISAS DOIDAS QUE NEM EU SEI O QUE É*/
-/* 🌙 DARK FORÇADO */
-.dark {
-  --background: #0a0a0a;
-  --foreground: #ededed;
-}
-
-/* ☀️ LIGHT FORÇADO */
-.light {
-  --background: #ffffff;
-  --foreground: #171717;
+.dark ::-webkit-scrollbar-thumb {
+  background: #27272a; 
 }

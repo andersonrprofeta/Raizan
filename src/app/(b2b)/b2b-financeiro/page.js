@@ -222,7 +222,7 @@ export default function FinanceiroBI() {
   };
 
   return (
-    <div className="flex h-[100dvh] bg-[#09090b] text-zinc-100 overflow-x-hidden">
+    <div className="flex h-[100dvh] bg-zinc-50 dark:bg-[#09090b] text-zinc-900 dark:text-zinc-100 overflow-x-hidden transition-colors duration-300">
       <Sidebar />
 
       <div className="flex-1 flex flex-col min-h-0 min-w-0">
@@ -236,7 +236,7 @@ export default function FinanceiroBI() {
               <button key={d}
                 onClick={() => setPeriodo(d)}
                 className={`flex-1 min-w-[96px] sm:flex-none px-3 sm:px-4 py-2 rounded-lg text-sm md:text-base transition-all ${
-                  periodo === d ? "bg-emerald-600 text-white shadow-lg" : "bg-zinc-900/80 border border-zinc-800 text-zinc-400 hover:text-zinc-200"
+                  periodo === d ? "bg-emerald-600 text-white shadow-lg" : "bg-white dark:bg-zinc-900/80 border border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200"
                 }`}>
                 {d} dias
               </button>
@@ -255,8 +255,8 @@ export default function FinanceiroBI() {
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-6 min-w-0">
 
             {/* GRÁFICO */}
-            <div className="xl:col-span-2 bg-zinc-900/40 border border-zinc-800 rounded-2xl p-4 sm:p-6 min-w-0">
-              <h3 className="mb-3 sm:mb-4 text-zinc-100 font-bold text-base md:text-lg">Fluxo Financeiro</h3>
+            <div className="xl:col-span-2 bg-white dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-4 sm:p-6 min-w-0 shadow-sm dark:shadow-none transition-colors duration-300">
+              <h3 className="mb-3 sm:mb-4 text-zinc-900 dark:text-zinc-100 font-bold text-base md:text-lg">Fluxo Financeiro</h3>
 
               <ResponsiveContainer width="100%" height={240}>
                 <AreaChart data={chartData}>
@@ -272,7 +272,7 @@ export default function FinanceiroBI() {
                     </linearGradient>
                   </defs>
 
-                  <CartesianGrid stroke="#27272a" vertical={false} />
+                  <CartesianGrid stroke="#27272a" vertical={false} opacity={0.3} />
 
                   <XAxis
                       dataKey="name"
@@ -286,7 +286,7 @@ export default function FinanceiroBI() {
                   <Tooltip 
                     formatter={(v) => format(v)} 
                     contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', borderRadius: '8px' }} 
-                    itemStyle={{ fontWeight: 'bold' }}
+                    itemStyle={{ fontWeight: 'bold', color: '#e4e4e7' }}
                   />
 
                   <Area dataKey="pagos" stroke="#10b981" strokeWidth={2} fill="url(#corPago)" />
@@ -296,20 +296,20 @@ export default function FinanceiroBI() {
             </div>
 
             {/* RANKING */}
-            <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-4 sm:p-6 min-w-0">
-              <h3 className="mb-4 text-zinc-100 font-bold text-base md:text-lg">Top Produtos</h3>
+            <div className="bg-white dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-4 sm:p-6 min-w-0 shadow-sm dark:shadow-none transition-colors duration-300">
+              <h3 className="mb-4 text-zinc-900 dark:text-zinc-100 font-bold text-base md:text-lg">Top Produtos</h3>
 
               {rankingLista.length === 0 ? (
-                 <p className="text-sm text-zinc-500 mt-10 text-center">Nenhum dado no período.</p>
+                 <p className="text-sm text-zinc-500 dark:text-zinc-500 mt-10 text-center">Nenhum dado no período.</p>
               ) : (
                 rankingLista.map(p => (
                   <div key={p.nome} className="mb-4 min-w-0">
                     <div className="flex items-center justify-between text-sm md:text-base mb-1 gap-2 min-w-0">
-                      <span className="truncate flex-1 min-w-0 text-zinc-300">{p.nome}</span>
-                      <span className="text-emerald-400 font-bold">{p.qtd} un</span>
+                      <span className="truncate flex-1 min-w-0 text-zinc-700 dark:text-zinc-300">{p.nome}</span>
+                      <span className="text-emerald-600 dark:text-emerald-400 font-bold">{p.qtd} un</span>
                     </div>
 
-                    <div className="w-full bg-zinc-800 h-2 rounded-full overflow-hidden">
+                    <div className="w-full bg-zinc-200 dark:bg-zinc-800 h-2 rounded-full overflow-hidden">
                       <div
                         className="bg-emerald-500 h-full rounded-full transition-all duration-1000"
                         style={{ width: `${(p.qtd / maxQtd) * 100}%` }}
@@ -323,14 +323,14 @@ export default function FinanceiroBI() {
           </div>
 
           {/* EXTRATO COM BOTÃO DE PDF */}
-          <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-4 sm:p-6 min-w-0">
+          <div className="bg-white dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-4 sm:p-6 min-w-0 shadow-sm dark:shadow-none transition-colors duration-300">
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4 sm:mb-6">
-              <h3 className="text-zinc-100 font-bold text-base md:text-lg">Extrato de Movimentações</h3>
+              <h3 className="text-zinc-900 dark:text-zinc-100 font-bold text-base md:text-lg">Extrato de Movimentações</h3>
               
               {/* 🟢 O BOTÃO DE GERAR ESPELHO AQUI */}
               <button 
                 onClick={gerarPDF}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all border border-zinc-700 hover:border-zinc-500"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all border border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-500"
               >
                 <Printer size={16} /> Exportar Extrato (PDF)
               </button>
@@ -340,20 +340,20 @@ export default function FinanceiroBI() {
               {pedidosFiltrados.length === 0 && <p className="text-zinc-500 text-sm">Nenhuma movimentação no período.</p>}
               
               {pedidosFiltrados.slice(0, 20).map(p => (
-                <div key={p.id} className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 p-3 rounded-xl border border-transparent hover:border-zinc-800 hover:bg-zinc-800/50 transition-all group min-w-0">
+                <div key={p.id} className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 p-3 rounded-xl border border-transparent hover:border-zinc-200 dark:hover:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-all group min-w-0">
                   <div className="min-w-0">
-                    <p className="text-sm md:text-base font-bold text-zinc-200 group-hover:text-white transition-colors truncate">Pedido #{p.id}</p>
+                    <p className="text-sm md:text-base font-bold text-zinc-800 dark:text-zinc-200 group-hover:text-emerald-600 dark:group-hover:text-white transition-colors truncate">Pedido #{p.id}</p>
                     
                     <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full mt-1 inline-block border ${
-                      statusPagos.includes(p.status) ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 
-                      statusCancelados.includes(p.status) ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' : 
-                      'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                      statusPagos.includes(p.status) ? 'bg-emerald-100 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/20' : 
+                      statusCancelados.includes(p.status) ? 'bg-rose-100 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-500/20' : 
+                      'bg-amber-100 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-500/20'
                     }`}>
                       {p.status.replace('-', ' ')}
                     </span>
                     
                   </div>
-                  <span className={`font-bold text-sm md:text-base sm:text-right ${statusPagos.includes(p.status) ? "text-emerald-400" : statusCancelados.includes(p.status) ? "text-zinc-500 line-through" : "text-amber-400"}`}>
+                  <span className={`font-bold text-sm md:text-base sm:text-right ${statusPagos.includes(p.status) ? "text-emerald-600 dark:text-emerald-400" : statusCancelados.includes(p.status) ? "text-zinc-400 dark:text-zinc-500 line-through" : "text-amber-600 dark:text-amber-400"}`}>
                     {format(p.total)}
                   </span>
                 </div>
@@ -369,16 +369,16 @@ export default function FinanceiroBI() {
 
 function Card({ icon, title, value }) {
   return (
-    <div className="bg-zinc-900/40 border border-zinc-800/60 rounded-2xl p-4 sm:p-5 hover:bg-zinc-800/40 transition-colors relative overflow-hidden group min-w-0">
-      <div className="absolute -inset-1 bg-gradient-to-r from-emerald-600/20 to-teal-600/20 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+    <div className="bg-white dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-800/60 rounded-2xl p-4 sm:p-5 hover:bg-zinc-50 dark:hover:bg-zinc-800/40 shadow-sm dark:shadow-none transition-colors relative overflow-hidden group min-w-0">
+      <div className="absolute -inset-1 bg-gradient-to-r from-emerald-600/10 to-teal-600/10 dark:from-emerald-600/20 dark:to-teal-600/20 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
       
       <div className="relative flex justify-between items-start mb-2">
-        <div className="w-10 h-10 rounded-xl bg-zinc-950 border border-zinc-800 flex items-center justify-center shadow-inner">
-          <div className="text-emerald-400">{icon}</div>
+        <div className="w-10 h-10 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 flex items-center justify-center shadow-inner">
+          <div className="text-emerald-600 dark:text-emerald-400">{icon}</div>
         </div>
       </div>
-      <p className="text-sm md:text-base font-medium text-zinc-400 relative truncate">{title}</p>
-      <h3 className="text-xl md:text-2xl font-bold text-zinc-100 mt-1 relative break-words">{value}</h3>
+      <p className="text-sm md:text-base font-medium text-zinc-500 dark:text-zinc-400 relative truncate">{title}</p>
+      <h3 className="text-xl md:text-2xl font-bold text-zinc-900 dark:text-zinc-100 mt-1 relative break-words">{value}</h3>
     </div>
   );
 }

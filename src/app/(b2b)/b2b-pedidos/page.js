@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
-import { Search, ShoppingCart, CheckCircle2, AlertCircle, Package, Barcode, Loader2, DollarSign, Zap, ShoppingBag, X, FileText, QrCode, Building2, Truck, MapPin, CreditCard, CalendarDays, ChevronLeft, ChevronRight, Tag, Clock, ShieldCheck, RefreshCw } from "lucide-react";
+// 🟢 1. LIXEIRA IMPORTADA AQUI (Trash2)
+import { Search, ShoppingCart, CheckCircle2, AlertCircle, Package, Barcode, Loader2, DollarSign, Zap, ShoppingBag, X, FileText, QrCode, Building2, Truck, MapPin, CreditCard, CalendarDays, ChevronLeft, ChevronRight, Tag, Clock, ShieldCheck, RefreshCw, Trash2 } from "lucide-react";
 import { getApiUrl, getHeaders } from "@/components/utils/api";
 import toast from 'react-hot-toast';
 import { initMercadoPago, Payment } from '@mercadopago/sdk-react';
@@ -25,7 +26,8 @@ const formatarMoeda = (valor) => {
 // ==========================================
 // COMPONENTE: MODAL DE CHECKOUT B2B
 // ==========================================
-function ModalCheckout({ isOpen, onClose, carrinho, produtos, tabelaAtiva, onFinalizarPedido }) {
+// 🟢 2. ADICIONEI "onRemoverItem" AQUI NAS PROPS
+function ModalCheckout({ isOpen, onClose, carrinho, produtos, tabelaAtiva, onFinalizarPedido, onRemoverItem }) {
   const [metodoPagamento, setMetodoPagamento] = useState('faturado');
   const [prazoBoleto, setPrazoBoleto] = useState('30'); 
   const [metodoEnvio, setMetodoEnvio] = useState('transportadora');
@@ -155,6 +157,12 @@ function ModalCheckout({ isOpen, onClose, carrinho, produtos, tabelaAtiva, onFin
     // Guardamos a flag "atingiuMinimo" para poder pintar de verde lá embaixo
     return { ...p, precoUsado: precoFinal, totalItem: precoFinal * p.qtd, atingiuMinimo };
   });
+
+  // 🟢 FECHA O MODAL AUTOMATICAMENTE SE O USUÁRIO REMOVER O ÚLTIMO ITEM
+  if (itensComprados.length === 0 && step === 'resumo') {
+    onClose();
+    return null;
+  }
 
   const subtotal = itensComprados.reduce((acc, item) => acc + item.totalItem, 0);
 
@@ -429,7 +437,8 @@ function ModalCheckout({ isOpen, onClose, carrinho, produtos, tabelaAtiva, onFin
               <div className="flex-1 overflow-y-auto custom-scrollbar p-2">
                 <ul className="divide-y divide-zinc-200 dark:divide-zinc-800/50 px-2">
                   {itensComprados.map(item => (
-                    <li key={item.PDCODPRO} className="py-3 flex items-start justify-between gap-3 sm:gap-4">
+                    // 🟢 3. ADICIONEI O BOTÃO DE REMOVER AQUI EMBAIXO
+                    <li key={item.PDCODPRO} className="py-3 flex items-start justify-between gap-3 sm:gap-4 group">
                       <div className="flex-1">
                         <p className="text-sm sm:text-base font-medium text-zinc-800 dark:text-zinc-200 line-clamp-2 break-words">{item.PDNOME}</p>
                         <p className="text-xs text-zinc-500">
@@ -438,8 +447,17 @@ function ModalCheckout({ isOpen, onClose, carrinho, produtos, tabelaAtiva, onFin
                           {item.atingiuMinimo && <span className="text-emerald-600 dark:text-emerald-400 font-bold ml-1">(Oferta Aplicada)</span>}
                         </p>
                       </div>
-                      <div className="text-sm sm:text-base font-bold text-zinc-900 dark:text-zinc-100 whitespace-nowrap">
-                        {formatarMoeda(item.totalItem)}
+                      <div className="flex flex-col items-end gap-2">
+                        <div className="text-sm sm:text-base font-bold text-zinc-900 dark:text-zinc-100 whitespace-nowrap">
+                          {formatarMoeda(item.totalItem)}
+                        </div>
+                        <button 
+                          onClick={() => onRemoverItem(item.PDCODPRO)}
+                          className="text-zinc-400 dark:text-zinc-500 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 px-2 py-1 rounded transition-colors flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider"
+                          title="Remover do carrinho"
+                        >
+                          <Trash2 size={14} /> <span className="hidden sm:inline">Remover</span>
+                        </button>
                       </div>
                     </li>
                   ))}
@@ -873,6 +891,10 @@ const handleFinalizarPedido = async (dadosDoPedido) => {
               </div>
 
             </div>
+            
+            {/* 🟢 4. O ESPAÇADOR FANTASMA AQUI! */}
+            {Object.keys(carrinho).length > 0 && <div className="h-28 w-full shrink-0"></div>}
+
           </div>
         </main>
 
@@ -898,7 +920,16 @@ const handleFinalizarPedido = async (dadosDoPedido) => {
 
       </div>
 
-      <ModalCheckout isOpen={isCheckoutOpen} onClose={() => setIsCheckoutOpen(false)} carrinho={carrinho} produtos={produtos} tabelaAtiva={tabelaAtiva} onFinalizarPedido={handleFinalizarPedido} />
+      {/* 🟢 3. PASSANDO A FUNÇÃO DE REMOVER PARA O MODAL */}
+      <ModalCheckout 
+        isOpen={isCheckoutOpen} 
+        onClose={() => setIsCheckoutOpen(false)} 
+        carrinho={carrinho} 
+        produtos={produtos} 
+        tabelaAtiva={tabelaAtiva} 
+        onFinalizarPedido={handleFinalizarPedido} 
+        onRemoverItem={(id) => handleQuantidade({ PDCODPRO: id }, 0)} 
+      />
       
     </div>
   );

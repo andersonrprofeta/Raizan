@@ -87,10 +87,10 @@ export default function EditarPedidoB2B({ params }) {
     }
   };
 
-  if (loading) return <div className="h-screen bg-[#09090b] flex items-center justify-center"><Loader2 className="animate-spin text-emerald-500" /></div>;
+  if (loading) return <div className="h-screen bg-zinc-50 dark:bg-[#09090b] flex items-center justify-center transition-colors duration-300"><Loader2 className="animate-spin text-emerald-500" /></div>;
 
   return (
-    <div className="flex h-screen bg-[#09090b] text-zinc-100 overflow-hidden">
+    <div className="flex h-screen bg-zinc-50 dark:bg-[#09090b] text-zinc-900 dark:text-zinc-100 overflow-hidden transition-colors duration-300">
       <Sidebar />
       <div className="flex-1 flex flex-col h-screen relative min-w-0">
         <Header />
@@ -98,12 +98,13 @@ export default function EditarPedidoB2B({ params }) {
         <main className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-8">
           <div className="max-w-5xl mx-auto space-y-6">
             
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-zinc-900/40 p-6 rounded-2xl border border-zinc-800 gap-4">
+            {/* CABEÇALHO */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-white dark:bg-zinc-900/40 p-6 rounded-2xl border border-zinc-200 dark:border-zinc-800 gap-4 shadow-sm dark:shadow-none transition-colors">
               <div>
-                <Link href="/pedidos" className="text-zinc-500 hover:text-zinc-300 flex items-center gap-2 text-sm mb-2 transition-all">
+                <Link href="/pedidos" className="text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300 flex items-center gap-2 text-sm mb-2 transition-all">
                   <ArrowLeft size={16} /> Voltar para Gestão
                 </Link>
-                <h1 className="text-2xl font-bold flex items-center gap-3">
+                <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-3 text-zinc-900 dark:text-zinc-100 transition-colors">
                   <Package className="text-amber-500" /> Ajustar Pedido #{id}
                 </h1>
               </div>
@@ -111,7 +112,7 @@ export default function EditarPedidoB2B({ params }) {
               <button 
                 onClick={salvarAlteracoes}
                 disabled={salvando}
-                className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-500 text-white px-8 py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg transition-all disabled:opacity-50"
+                className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-500 text-white px-8 py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition-all disabled:opacity-50"
               >
                 {salvando ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
                 Salvar e Sincronizar ERP
@@ -120,8 +121,8 @@ export default function EditarPedidoB2B({ params }) {
 
             {/* 🟢 ALERTA INTELIGENTE E CAMPO DE MOTIVO */}
             {diferenca > 0 && (
-              <div className="bg-amber-500/10 border border-amber-500/20 p-5 rounded-xl flex flex-col gap-4">
-                <div className="flex items-start gap-4 text-amber-400">
+              <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 p-5 rounded-xl flex flex-col gap-4 transition-colors">
+                <div className="flex items-start gap-4 text-amber-600 dark:text-amber-400">
                   <AlertTriangle size={24} className="shrink-0 mt-1" />
                   <div>
                     <h4 className="font-bold text-base mb-1">
@@ -130,23 +131,23 @@ export default function EditarPedidoB2B({ params }) {
                     
                     {/* A lógica que você pediu: verifica se já pagou */}
                     {['pago', 'processing', 'completed'].includes(pedido?.status) ? (
-                       <p className="text-sm text-amber-500/80">O cliente <b>já realizou o pagamento</b> deste pedido. Escolha como tratar a diferença financeira:</p>
+                       <p className="text-sm text-amber-700 dark:text-amber-500/80 transition-colors">O cliente <b>já realizou o pagamento</b> deste pedido. Escolha como tratar a diferença financeira:</p>
                     ) : (
-                       <p className="text-sm text-emerald-500 font-medium">O cliente <b>ainda não pagou</b>. O valor da cobrança (PIX/Boleto) será atualizado automaticamente para o novo total.</p>
+                       <p className="text-sm text-emerald-700 dark:text-emerald-500 font-medium transition-colors">O cliente <b>ainda não pagou</b>. O valor da cobrança (PIX/Boleto) será atualizado automaticamente para o novo total.</p>
                     )}
                   </div>
                 </div>
 
                 {/* Se já pagou, mostra a opção da carteira */}
                 {['pago', 'processing', 'completed'].includes(pedido?.status) && (
-                   <label className="flex items-center gap-3 bg-zinc-900/50 p-4 rounded-xl border border-amber-500/20 cursor-pointer w-fit transition-all hover:bg-zinc-900/80">
+                   <label className="flex items-center gap-3 bg-white dark:bg-zinc-900/50 p-4 rounded-xl border border-amber-300 dark:border-amber-500/20 cursor-pointer w-fit transition-all hover:bg-zinc-50 dark:hover:bg-zinc-900/80 shadow-sm dark:shadow-none">
                      <input
                        type="checkbox"
                        checked={gerarCredito}
                        onChange={(e) => setGerarCredito(e.target.checked)}
-                       className="w-5 h-5 rounded border-zinc-700 text-amber-500 focus:ring-amber-500 bg-zinc-950 cursor-pointer"
+                       className="w-5 h-5 rounded border-zinc-300 dark:border-zinc-700 text-amber-500 focus:ring-amber-500 bg-zinc-100 dark:bg-zinc-950 cursor-pointer transition-colors"
                      />
-                     <span className="text-sm font-bold text-zinc-200">
+                     <span className="text-sm font-bold text-zinc-800 dark:text-zinc-200 transition-colors">
                        Gerar {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(diferenca)} em créditos na Carteira do Lojista
                      </span>
                    </label>
@@ -155,73 +156,77 @@ export default function EditarPedidoB2B({ params }) {
             )}
 
             {/* 🟢 CAMPO DE MOTIVO DA EDIÇÃO (Sempre aparece para log) */}
-            <div className="bg-zinc-900/30 border border-zinc-800/60 rounded-2xl p-5">
-              <label className="flex items-center gap-2 text-sm font-bold text-zinc-200 mb-3">
-                 <MessageSquare size={16} className="text-blue-400" />
+            <div className="bg-white dark:bg-zinc-900/30 border border-zinc-200 dark:border-zinc-800/60 rounded-2xl p-5 shadow-sm dark:shadow-none transition-colors">
+              <label className="flex items-center gap-2 text-sm font-bold text-zinc-800 dark:text-zinc-200 mb-3 transition-colors">
+                 <MessageSquare size={16} className="text-blue-600 dark:text-blue-400" />
                  Motivo da Edição <span className="text-rose-500">*</span>
               </label>
               <textarea
                 value={motivo}
                 onChange={(e) => setMotivo(e.target.value)}
                 placeholder="Ex: Furo de estoque no produto XYZ. Combinado com o cliente via WhatsApp."
-                className="w-full bg-zinc-950/50 border border-zinc-800 rounded-xl p-4 text-sm text-zinc-200 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all resize-none h-24 placeholder:text-zinc-600"
+                className="w-full bg-zinc-50 dark:bg-zinc-950/50 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 text-sm text-zinc-900 dark:text-zinc-200 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all resize-none h-24 placeholder:text-zinc-400 dark:placeholder:text-zinc-600"
               />
             </div>
 
-            <div className="bg-[#0c0c0e] border border-zinc-800 rounded-2xl overflow-hidden shadow-2xl">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-zinc-900/80 text-zinc-400 border-b border-zinc-800">
-                  <tr>
-                    <th className="px-6 py-4">Produto</th>
-                    <th className="px-6 py-4 text-center">Preço Unit.</th>
-                    <th className="px-6 py-4 text-center">Qtd Atual</th>
-                    <th className="px-6 py-4 text-right">Subtotal</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-800/50">
-                  {itens.map((item, index) => {
-                    // Extraímos e garantimos que são números
-                    const preco = parseFloat(item.price || 0);
-                    const quantidade = item.quantity || 0;
-
-                    return (
-                    <tr key={item.id || item.sku} className="hover:bg-zinc-900/30 transition-colors">
-                      {/* 🟢 item.name em vez de PDNOME */}
-                      <td className="px-6 py-4 font-medium text-zinc-200">{item.name}</td>
-                      
-                      <td className="px-6 py-4 text-center text-zinc-400">
-                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(preco)}
-                      </td>
-                      
-                      <td className="px-6 py-4">
-                        <div className="flex items-center justify-center gap-3">
-                          <button onClick={() => handleQtdChange(index, quantidade - 1)} className="p-1.5 bg-zinc-800 hover:bg-zinc-700 rounded-lg"><Minus size={14}/></button>
-                          
-                          {/* 🟢 Mostra a quantidade nova */}
-                          <span className="w-8 text-center font-bold text-emerald-400">{quantidade}</span>
-                          
-                          <button onClick={() => handleQtdChange(index, quantidade + 1)} className="p-1.5 bg-zinc-800 hover:bg-zinc-700 rounded-lg"><Plus size={14}/></button>
-                        </div>
-                      </td>
-                      
-                      <td className="px-6 py-4 text-right font-bold text-zinc-100">
-                        {/* 🟢 Calcula o subtotal da linha */}
-                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(preco * quantidade)}
-                      </td>
+            {/* TABELA DE PRODUTOS */}
+            <div className="bg-white dark:bg-[#0c0c0e] border border-zinc-200 dark:border-zinc-800 rounded-2xl overflow-hidden shadow-md dark:shadow-2xl transition-colors">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-zinc-50 dark:bg-zinc-900/80 text-zinc-500 dark:text-zinc-400 border-b border-zinc-200 dark:border-zinc-800 transition-colors">
+                    <tr>
+                      <th className="px-6 py-4">Produto</th>
+                      <th className="px-6 py-4 text-center">Preço Unit.</th>
+                      <th className="px-6 py-4 text-center">Qtd Atual</th>
+                      <th className="px-6 py-4 text-right">Subtotal</th>
                     </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800/50 transition-colors">
+                    {itens.map((item, index) => {
+                      // Extraímos e garantimos que são números
+                      const preco = parseFloat(item.price || 0);
+                      const quantidade = item.quantity || 0;
 
-              <div className="p-8 bg-zinc-900/20 border-t border-zinc-800 flex flex-col items-end gap-2">
-                 <div className="flex items-center gap-4 text-zinc-500">
+                      return (
+                      <tr key={item.id || item.sku} className="hover:bg-zinc-50 dark:hover:bg-zinc-900/30 transition-colors">
+                        {/* 🟢 item.name em vez de PDNOME */}
+                        <td className="px-6 py-4 font-medium text-zinc-900 dark:text-zinc-200 transition-colors">{item.name}</td>
+                        
+                        <td className="px-6 py-4 text-center text-zinc-500 dark:text-zinc-400 transition-colors">
+                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(preco)}
+                        </td>
+                        
+                        <td className="px-6 py-4">
+                          <div className="flex items-center justify-center gap-3">
+                            <button onClick={() => handleQtdChange(index, quantidade - 1)} className="p-1.5 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 rounded-lg transition-colors"><Minus size={14}/></button>
+                            
+                            {/* 🟢 Mostra a quantidade nova */}
+                            <span className="w-8 text-center font-bold text-emerald-600 dark:text-emerald-400 transition-colors">{quantidade}</span>
+                            
+                            <button onClick={() => handleQtdChange(index, quantidade + 1)} className="p-1.5 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 rounded-lg transition-colors"><Plus size={14}/></button>
+                          </div>
+                        </td>
+                        
+                        <td className="px-6 py-4 text-right font-bold text-zinc-900 dark:text-zinc-100 transition-colors">
+                          {/* 🟢 Calcula o subtotal da linha */}
+                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(preco * quantidade)}
+                        </td>
+                      </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* RODAPÉ COM TOTAL */}
+              <div className="p-6 sm:p-8 bg-zinc-50 dark:bg-zinc-900/20 border-t border-zinc-200 dark:border-zinc-800 flex flex-col items-end gap-2 transition-colors">
+                 <div className="flex items-center gap-4 text-zinc-500 dark:text-zinc-500">
                     <span>Total Anterior:</span>
                     <span className="line-through">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalOriginal)}</span>
                  </div>
                  <div className="flex items-center gap-4">
-                    <span className="text-xl font-bold text-zinc-100">Novo Total:</span>
-                    <span className="text-3xl font-black text-emerald-400">
+                    <span className="text-xl font-bold text-zinc-900 dark:text-zinc-100 transition-colors">Novo Total:</span>
+                    <span className="text-3xl font-black text-emerald-600 dark:text-emerald-400 transition-colors">
                       {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(novoTotal)}
                     </span>
                  </div>

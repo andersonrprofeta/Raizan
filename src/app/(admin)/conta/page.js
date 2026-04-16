@@ -156,54 +156,57 @@ export default function MinhaConta() {
   };
 
   return (
-    <div className="flex h-screen bg-[#09090b] text-zinc-100 overflow-hidden">
+    <div className="flex h-screen bg-zinc-50 dark:bg-[#09090b] text-zinc-900 dark:text-zinc-100 overflow-hidden transition-colors duration-300">
       <Sidebar />
 
       <div className="flex-1 flex flex-col h-screen overflow-hidden relative">
         <Header />
         
-        <main className="flex-1 overflow-y-auto custom-scrollbar p-8 pb-24">
+        <main className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-8 pb-24">
           <div className="max-w-5xl mx-auto space-y-8">
             
             <div>
-              <h1 className="text-2xl font-bold text-zinc-100 tracking-tight">Detalhes da Assinatura</h1>
-              <p className="text-sm text-zinc-400 mt-1">Gerencie os dados da sua empresa e o status da sua licença do Raizan Core.</p>
+              <h1 className="text-2xl font-black text-zinc-900 dark:text-zinc-100 tracking-tight transition-colors">Detalhes da Assinatura</h1>
+              <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400 mt-1 transition-colors">Gerencie os dados da sua empresa e o status da sua licença do Raizan Core.</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               
               <div className="md:col-span-1 space-y-6">
-                <div className="bg-zinc-900/40 border border-zinc-800/60 rounded-2xl p-6 flex flex-col items-center text-center">
-                  <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-purple-600 to-indigo-600 flex items-center justify-center shadow-xl shadow-purple-900/20 mb-4 ring-4 ring-zinc-950">
+                
+                {/* CARD PERFIL */}
+                <div className="bg-white dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-800/60 rounded-3xl p-6 flex flex-col items-center text-center shadow-sm dark:shadow-none transition-colors">
+                  <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-purple-600 to-indigo-600 flex items-center justify-center shadow-xl shadow-purple-500/30 dark:shadow-purple-900/20 mb-4 ring-4 ring-white dark:ring-zinc-950 transition-all">
                     <Store size={40} className="text-white" />
                   </div>
-                  <h2 className="text-lg font-bold text-zinc-100">{dadosLicenca.nome}</h2>
-                  <p className="text-sm text-zinc-400 mb-4">{dadosLicenca.email}</p>
+                  <h2 className="text-lg font-black text-zinc-900 dark:text-zinc-100 transition-colors">{dadosLicenca.nome}</h2>
+                  <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-4 transition-colors">{dadosLicenca.email}</p>
                   
-                  <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-3 py-1 text-xs font-semibold rounded-full flex items-center gap-1 mb-6">
+                  <span className="bg-emerald-100 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20 px-4 py-1.5 text-xs font-bold rounded-full flex items-center gap-1.5 mb-6 transition-colors shadow-sm dark:shadow-none">
                     <ShieldCheck size={14} /> Sistema Autenticado
                   </span>
 
                   <button 
                     onClick={handleSincronizar}
                     disabled={sincronizando}
-                    className="w-full py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-2 border border-zinc-700/50"
+                    className="w-full py-2.5 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 border border-zinc-200 dark:border-zinc-700/50 shadow-sm dark:shadow-none active:scale-95"
                   >
-                    <RefreshCw size={14} className={sincronizando ? "animate-spin text-purple-400" : ""} /> 
+                    <RefreshCw size={14} className={sincronizando ? "animate-spin text-purple-600 dark:text-purple-400" : ""} /> 
                     {sincronizando ? "Sincronizando..." : "Sincronizar Permissões"}
                   </button>
                 </div>
 
-                <div className="bg-red-500/5 border border-red-500/20 rounded-2xl p-6">
-                  <h3 className="text-red-400 font-semibold flex items-center gap-2 mb-2">
+                {/* CARD ZONA DE PERIGO */}
+                <div className="bg-rose-50 dark:bg-red-500/5 border border-rose-200 dark:border-red-500/20 rounded-3xl p-6 shadow-sm dark:shadow-none transition-colors">
+                  <h3 className="text-rose-700 dark:text-red-400 font-black flex items-center gap-2 mb-2 transition-colors">
                     <XOctagon size={18} /> Zona de Perigo
                   </h3>
-                  <p className="text-xs text-zinc-500 mb-4">
+                  <p className="text-xs font-medium text-rose-600/80 dark:text-zinc-500 mb-4 transition-colors">
                     Ao revogar a licença, este terminal perderá imediatamente o acesso.
                   </p>
                   <button 
                     onClick={handleRevogarLicenca}
-                    className="w-full py-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-2"
+                    className="w-full py-2.5 bg-white dark:bg-red-500/10 hover:bg-rose-100 dark:hover:bg-red-500/20 text-rose-700 dark:text-red-400 border border-rose-200 dark:border-red-500/30 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 shadow-sm dark:shadow-none active:scale-95"
                   >
                     <LogOut size={16} /> Revogar Acesso
                   </button>
@@ -212,38 +215,39 @@ export default function MinhaConta() {
 
               <div className="md:col-span-2 space-y-6">
                 
-                <div className="bg-zinc-900/40 border border-zinc-800/60 rounded-2xl p-6">
-                  <h2 className="text-base font-semibold text-zinc-100 mb-6 flex items-center gap-2">
-                    <Key size={18} className="text-purple-400" /> Chave de Licença
+                {/* CARD CHAVE DE LICENÇA */}
+                <div className="bg-white dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-800/60 rounded-3xl p-6 sm:p-8 shadow-sm dark:shadow-none transition-colors">
+                  <h2 className="text-lg font-black text-zinc-900 dark:text-zinc-100 mb-6 flex items-center gap-2 transition-colors">
+                    <Key size={20} className="text-purple-600 dark:text-purple-400 transition-colors" /> Chave de Licença
                   </h2>
 
                   <div className="space-y-6">
-                    <div className="flex items-center justify-between bg-zinc-950/50 p-4 rounded-xl border border-zinc-800/50">
+                    <div className="flex items-center justify-between bg-zinc-50 dark:bg-zinc-950/50 p-5 rounded-2xl border border-zinc-200 dark:border-zinc-800/50 transition-colors">
                       <div>
-                        <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Validade da Assinatura</label>
+                        <label className="text-[11px] font-bold text-zinc-500 dark:text-zinc-500 uppercase tracking-widest transition-colors">Validade da Assinatura</label>
                         <div className="flex items-center gap-2 mt-1">
-                          <span className={`text-lg font-medium ${diasRestantes === "Expirada" ? "text-red-400" : "text-emerald-400"}`}>
+                          <span className={`text-lg font-black transition-colors ${diasRestantes === "Expirada" ? "text-rose-600 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400"}`}>
                             {diasRestantes === "Expirada" ? "Expirada" : "Ativa"}
                           </span>
                         </div>
                       </div>
                       <div className="text-right">
-                        <span className="text-2xl font-bold text-zinc-200">{diasRestantes}</span>
+                        <span className="text-3xl font-black text-zinc-900 dark:text-zinc-200 transition-colors">{diasRestantes}</span>
                         {diasRestantes !== "Vitalícia" && diasRestantes !== "Data Inválida" && (
-                          <span className="text-sm text-zinc-500 ml-1">dias restantes</span>
+                          <span className="text-sm font-medium text-zinc-500 dark:text-zinc-500 ml-1 transition-colors">dias restantes</span>
                         )}
                       </div>
                     </div>
 
                     <div>
-                      <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2 block">Sua Chave Criptografada</label>
-                      <div className="flex items-center">
-                        <div className="flex-1 bg-zinc-950 border border-zinc-800/80 rounded-l-xl px-4 py-3 font-mono text-sm text-zinc-300 overflow-hidden">
+                      <label className="text-[11px] font-bold text-zinc-500 dark:text-zinc-500 uppercase tracking-widest mb-2 block transition-colors">Sua Chave Criptografada</label>
+                      <div className="flex items-center shadow-sm dark:shadow-none rounded-xl">
+                        <div className="flex-1 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800/80 rounded-l-xl px-5 py-3.5 font-mono text-sm font-bold text-zinc-700 dark:text-zinc-300 overflow-hidden transition-colors">
                           {mostrarChave ? dadosLicenca.licenca : "••••••••••••••••••••••••••••••"}
                         </div>
                         <button 
                           onClick={() => setMostrarChave(!mostrarChave)}
-                          className="px-4 py-3 bg-zinc-800 border-y border-r border-zinc-800/80 rounded-r-xl text-zinc-400 hover:text-zinc-100 transition-colors"
+                          className="px-5 py-3.5 bg-zinc-100 dark:bg-zinc-800 border-y border-r border-zinc-200 dark:border-zinc-800/80 rounded-r-xl text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all"
                         >
                           {mostrarChave ? <EyeOff size={18} /> : <Eye size={18} />}
                         </button>
@@ -252,39 +256,40 @@ export default function MinhaConta() {
                   </div>
                 </div>
 
-                <div className="bg-zinc-900/40 border border-zinc-800/60 rounded-2xl p-6">
+                {/* CARD ECOSSISTEMA */}
+                <div className="bg-white dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-800/60 rounded-3xl p-6 sm:p-8 shadow-sm dark:shadow-none transition-colors">
                   <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-base font-semibold text-zinc-100 flex items-center gap-2">
-                      <CheckCircle2 size={18} className="text-indigo-400" /> Ecossistema Raizan
+                    <h2 className="text-lg font-black text-zinc-900 dark:text-zinc-100 flex items-center gap-2 transition-colors">
+                      <CheckCircle2 size={20} className="text-indigo-600 dark:text-indigo-400 transition-colors" /> Ecossistema Raizan
                     </h2>
                   </div>
                   
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {TODOS_MODULOS.map((modulo) => {
                       const temModulo = temModuloLiberado(modulo);
                       
                       return (
                         <div 
                           key={modulo.id} 
-                          className={`flex items-center justify-between px-4 py-3 rounded-xl border transition-all ${
+                          className={`flex items-center justify-between px-4 py-3.5 rounded-xl border transition-all ${
                             temModulo 
-                              ? "bg-emerald-500/5 border-emerald-500/20" 
-                              : "bg-zinc-950/50 border-zinc-800/50 opacity-70" 
+                              ? "bg-emerald-50 dark:bg-emerald-500/5 border-emerald-200 dark:border-emerald-500/20 shadow-sm dark:shadow-none" 
+                              : "bg-zinc-50 dark:bg-zinc-950/50 border-zinc-200 dark:border-zinc-800/50 opacity-80 dark:opacity-70" 
                           }`}
                         >
                           <div className="flex items-center gap-3">
                             {temModulo ? (
-                              <CheckCircle2 size={16} className="text-emerald-500 shrink-0" />
+                              <CheckCircle2 size={18} className="text-emerald-600 dark:text-emerald-500 shrink-0 transition-colors" />
                             ) : (
-                              <Lock size={16} className="text-zinc-600 shrink-0" />
+                              <Lock size={18} className="text-zinc-400 dark:text-zinc-600 shrink-0 transition-colors" />
                             )}
-                            <span className={`text-sm font-medium truncate max-w-[150px] sm:max-w-[180px] ${temModulo ? "text-emerald-100" : "text-zinc-500"}`}>
+                            <span className={`text-sm font-bold truncate max-w-[150px] sm:max-w-[170px] transition-colors ${temModulo ? "text-emerald-900 dark:text-emerald-100" : "text-zinc-500 dark:text-zinc-500"}`}>
                               {modulo.nome}
                             </span>
                           </div>
                           
                           {!temModulo && (
-                            <button className="text-[10px] font-bold uppercase tracking-wider bg-purple-600/20 text-purple-400 hover:bg-purple-600/40 px-2 py-1 rounded-md transition-colors flex items-center gap-1 shrink-0">
+                            <button className="text-[10px] font-black uppercase tracking-wider bg-purple-100 dark:bg-purple-600/20 text-purple-700 dark:text-purple-400 hover:bg-purple-200 dark:hover:bg-purple-600/40 px-2.5 py-1.5 rounded-lg transition-colors flex items-center gap-1 shrink-0">
                               Upgrade
                             </button>
                           )}

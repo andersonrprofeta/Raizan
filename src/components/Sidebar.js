@@ -27,7 +27,7 @@ export default function Sidebar() {
     const path = pathname || "";
     return {
       comercial: ["/pedidos", "/promocoes", "/xml", "/financeiro", "/relatorios", "/b2b-pedidos"].includes(path),
-      gestao: ["/produtos", "/produtos/cadastro", "/clientes", "/pdv"].includes(path),
+      gestao: ["/produtos", "/cadastros/produtos", "/clientes", "/pdv"].includes(path),
       marketing: ["/crm", "/whatsapp", "/catalogo", "/website", "/ads"].includes(path),
       sistema: ["/configuracoes", "/host", "/sistema"].includes(path)
     };
@@ -54,7 +54,7 @@ export default function Sidebar() {
     setOpenMenus(prev => {
       const newState = { ...prev };
       if (["/pedidos", "/promocoes", "/xml", "/financeiro", "/relatorios", "/b2b-pedidos"].includes(pathname)) newState.comercial = true;
-      if (["/produtos", "/produtos/cadastro", "/clientes", "/pdv"].includes(pathname)) newState.gestao = true;
+      if (["/produtos", "/cadastros/produtos", "/clientes", "/pdv"].includes(pathname)) newState.gestao = true;
       if (["/crm", "/whatsapp", "/catalogo", "/website", "/ads"].includes(pathname)) newState.marketing = true;
       if (["/configuracoes", "/host", "/sistema"].includes(pathname)) newState.sistema = true;
       return newState;
@@ -277,7 +277,7 @@ export default function Sidebar() {
           {userRole === "admin" && (
             <>
               <div className="space-y-1">
-                <NavLink href="/" icon={LayoutDashboard} label="Dashboard Principal" />
+                <NavLink href="/" icon={LayoutDashboard} label="Dashboard Admin" />
               </div>
 
               {hasComercial && !licencaExpirada && (
@@ -309,7 +309,7 @@ export default function Sidebar() {
                     <div className="mt-1 ml-2 space-y-1 border-l border-zinc-200 dark:border-zinc-800 pl-2 sm:ml-3 sm:pl-3 animate-in slide-in-from-top-2">
                       {tem("produtos") && <NavLink href="/produtos" icon={Package} label="Produtos SYNC" />}
                       {tem("clientes") && <NavLink href="/clientes" icon={Users} label="Base de Clientes" />}
-                      {tem("produtos") && <NavLink href="/produtos/cadastro" icon={Boxes} label="Cadastro de Produtos" />}
+                      {tem("produtos") && <NavLink href="/cadastros/produtos" icon={Boxes} label="Cadastro de Produtos" />}
                       {tem("pdv") && <NavLink href="/pdv" icon={MonitorSmartphone} label="PDV Frente de Caixa" />}
                     </div>
                   )}

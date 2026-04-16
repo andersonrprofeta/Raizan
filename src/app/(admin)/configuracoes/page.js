@@ -133,29 +133,29 @@ export default function Configuracoes() {
     }
   };
 
-  if (loadingLock) return <div className="h-screen bg-[#09090b]"></div>;
+  if (loadingLock) return <div className="h-screen bg-white dark:bg-[#09090b] transition-colors duration-300"></div>;
 
   return (
-    <div className="flex min-h-screen bg-[#09090b] text-zinc-200 font-sans">
+    <div className="flex min-h-screen bg-zinc-50 dark:bg-[#09090b] text-zinc-900 dark:text-zinc-200 font-sans transition-colors duration-300">
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
         <Header />
-        <main className="flex-1 p-8 overflow-y-auto custom-scrollbar relative">
+        <main className="flex-1 p-4 sm:p-8 overflow-y-auto custom-scrollbar relative">
           
           <div className="max-w-3xl mx-auto space-y-8 pb-10 relative">
             
-            <div className="flex justify-between items-start">
+            <div className="flex flex-col sm:flex-row sm:justify-between items-start sm:items-center gap-4">
               <div>
-                <h1 className="text-2xl font-bold text-zinc-100 tracking-tight flex items-center gap-3">
+                <h1 className="text-xl sm:text-2xl font-black text-zinc-900 dark:text-zinc-100 tracking-tight flex items-center gap-3 transition-colors">
                   Configurações de Integração
-                  {isLocked && <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs px-2 py-1 rounded-md flex items-center gap-1"><Lock size={12}/> Máquina Lacrada</span>}
+                  {isLocked && <span className="bg-emerald-100 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20 text-xs px-2.5 py-1 rounded-md flex items-center gap-1.5 font-bold transition-colors"><Lock size={12}/> Máquina Lacrada</span>}
                 </h1>
-                <p className="text-sm text-zinc-400 mt-1">Configure os acessos ao ERP, Canais de Venda e Automações.</p>
+                <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400 mt-1 transition-colors">Configure os acessos ao ERP, Canais de Venda e Automações.</p>
               </div>
 
               {isLocked && (
-                <button type="button" onClick={handleRevogarLacre} className="flex items-center gap-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 px-4 py-2 rounded-xl text-sm font-bold transition-all shadow-[0_0_15px_rgba(244,63,94,0.1)]">
-                  <ShieldAlert size={16} /> Revogar Licença da Máquina
+                <button type="button" onClick={handleRevogarLacre} className="w-full sm:w-auto flex items-center justify-center gap-2 bg-rose-100 dark:bg-rose-500/10 hover:bg-rose-200 dark:hover:bg-rose-500/20 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-500/20 px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow-sm dark:shadow-[0_0_15px_rgba(244,63,94,0.1)] active:scale-95">
+                  <ShieldAlert size={18} /> Revogar Licença
                 </button>
               )}
             </div>
@@ -163,52 +163,54 @@ export default function Configuracoes() {
             <form onSubmit={handleTestConnection} className="space-y-6 relative">
               
               {isLocked && (
-                <div className="absolute inset-0 z-20 bg-[#09090b]/40 backdrop-blur-[2px] rounded-2xl cursor-not-allowed border border-emerald-500/10" />
+                <div className="absolute inset-0 z-20 bg-white/50 dark:bg-[#09090b]/40 backdrop-blur-[2px] rounded-2xl cursor-not-allowed border border-emerald-500/10 transition-colors" />
               )}
 
-              <div className="border border-emerald-500/30 bg-emerald-500/5 rounded-2xl p-6 relative overflow-hidden">
-                 <div className="flex items-center gap-3 mb-4 border-b border-emerald-500/20 pb-4">
-                  <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center border border-emerald-500/30">
-                    <Lock size={20} className="text-emerald-400" />
+              {/* IDENTIDADE DA MÁQUINA */}
+              <div className="border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/5 rounded-3xl p-6 sm:p-8 relative overflow-hidden shadow-sm dark:shadow-none transition-colors">
+                 <div className="flex items-center gap-4 mb-6 border-b border-emerald-200 dark:border-emerald-500/20 pb-6 transition-colors">
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-500/20 flex items-center justify-center border border-emerald-200 dark:border-emerald-500/30 transition-colors">
+                    <Lock size={24} className="text-emerald-600 dark:text-emerald-400 transition-colors" />
                   </div>
                   <div>
-                    <h2 className="text-lg font-semibold text-emerald-100">Identidade da Máquina</h2>
-                    <p className="text-xs text-emerald-300/70">A qual subdomínio este motor local pertence?</p>
+                    <h2 className="text-lg font-black text-emerald-900 dark:text-emerald-100 transition-colors">Identidade da Máquina</h2>
+                    <p className="text-xs font-medium text-emerald-700 dark:text-emerald-300/70 transition-colors">A qual subdomínio este motor local pertence?</p>
                   </div>
                 </div>
-                <div className="space-y-1.5">
+                <div className="space-y-2">
                   <input 
                     type="text" 
                     value={formData.tenantId} 
                     onChange={(e) => setFormData({...formData, tenantId: e.target.value})} 
                     placeholder="ex: rafany"
                     disabled={isLocked}
-                    className="w-full bg-zinc-950 border border-emerald-500/30 text-emerald-100 px-4 py-3 rounded-lg text-sm outline-none focus:border-emerald-500 font-bold uppercase tracking-widest disabled:opacity-50" 
+                    className="w-full bg-white dark:bg-zinc-950 border border-emerald-300 dark:border-emerald-500/30 text-emerald-800 dark:text-emerald-100 px-5 py-3.5 rounded-xl text-base outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 font-black uppercase tracking-widest disabled:opacity-50 transition-all placeholder:text-emerald-300 dark:placeholder:text-emerald-900/50 shadow-sm dark:shadow-none" 
                   />
                 </div>
               </div>
 
-              <div className="border border-blue-500/30 bg-blue-500/5 rounded-2xl p-6 relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
-                  <Server size={100} />
+              {/* SERVIDOR CORE */}
+              <div className="border border-blue-200 dark:border-blue-500/30 bg-blue-50 dark:bg-blue-500/5 rounded-3xl p-6 sm:p-8 relative overflow-hidden shadow-sm dark:shadow-none transition-colors">
+                <div className="absolute top-0 right-0 p-4 opacity-5 dark:opacity-10 pointer-events-none transition-opacity">
+                  <Server size={120} className="text-blue-900 dark:text-blue-100" />
                 </div>
-                <div className="flex items-center gap-3 mb-6 pb-6 border-b border-zinc-800/60 relative z-10">
-                  <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center border border-blue-500/30">
-                    <Server size={20} className="text-blue-400" />
+                <div className="flex items-center gap-4 mb-6 pb-6 border-b border-blue-200 dark:border-zinc-800/60 relative z-10 transition-colors">
+                  <div className="w-12 h-12 rounded-2xl bg-blue-100 dark:bg-blue-500/20 flex items-center justify-center border border-blue-200 dark:border-blue-500/30 transition-colors">
+                    <Server size={24} className="text-blue-600 dark:text-blue-400 transition-colors" />
                   </div>
                   <div>
-                    <h2 className="text-lg font-semibold text-blue-100">Servidor Core (Backend)</h2>
-                    <p className="text-xs text-blue-300/70">Onde o motor do Raizan está rodando?</p>
+                    <h2 className="text-lg font-black text-blue-900 dark:text-blue-100 transition-colors">Servidor Core (Backend)</h2>
+                    <p className="text-xs font-medium text-blue-700 dark:text-blue-300/70 transition-colors">Onde o motor do Raizan está rodando?</p>
                   </div>
                 </div>
 
-                <div className="space-y-3 relative z-10">
-                  <div className="flex gap-3">
-                    <button type="button" disabled={isLocked} onClick={() => setCoreUrl("http://localhost:3001")} className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium border transition-all ${coreUrl.includes("localhost") ? "bg-blue-600 text-white border-blue-500" : "bg-zinc-900 border-zinc-700 text-zinc-400"} disabled:opacity-50`}>
-                      <Laptop size={16} /> Modo Servidor Local
+                <div className="space-y-4 relative z-10">
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <button type="button" disabled={isLocked} onClick={() => setCoreUrl("http://localhost:3001")} className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold border transition-all ${coreUrl.includes("localhost") ? "bg-blue-600 text-white border-blue-500 shadow-md shadow-blue-500/20" : "bg-white dark:bg-zinc-900 border-blue-200 dark:border-zinc-700 text-blue-800 dark:text-zinc-400 hover:bg-blue-50 dark:hover:bg-zinc-800"} disabled:opacity-50`}>
+                      <Laptop size={18} /> Modo Servidor Local
                     </button>
-                    <button type="button" disabled={isLocked} onClick={() => setCoreUrl("http://192.168.1.200:3001")} className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium border transition-all ${!coreUrl.includes("localhost") ? "bg-blue-600 text-white border-blue-500" : "bg-zinc-900 border-zinc-700 text-zinc-400"} disabled:opacity-50`}>
-                      <Globe size={16} /> Modo Acesso Remoto
+                    <button type="button" disabled={isLocked} onClick={() => setCoreUrl("http://192.168.1.200:3001")} className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold border transition-all ${!coreUrl.includes("localhost") ? "bg-blue-600 text-white border-blue-500 shadow-md shadow-blue-500/20" : "bg-white dark:bg-zinc-900 border-blue-200 dark:border-zinc-700 text-blue-800 dark:text-zinc-400 hover:bg-blue-50 dark:hover:bg-zinc-800"} disabled:opacity-50`}>
+                      <Globe size={18} /> Modo Acesso Remoto
                     </button>
                   </div>
                   <input 
@@ -217,55 +219,57 @@ export default function Configuracoes() {
                     onChange={(e) => setCoreUrl(e.target.value)} 
                     placeholder="ex: http://localhost:3001 ou http://SEU_IP:3001"
                     disabled={isLocked}
-                    className="w-full bg-zinc-950 border border-zinc-800 text-blue-100 px-4 py-3 rounded-lg text-sm outline-none focus:border-blue-500 font-mono disabled:opacity-50" 
+                    className="w-full bg-white dark:bg-zinc-950 border border-blue-300 dark:border-zinc-800 text-blue-900 dark:text-blue-100 px-5 py-3.5 rounded-xl text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 font-mono font-bold disabled:opacity-50 transition-all placeholder:text-blue-300 dark:placeholder:text-blue-900/50 shadow-sm dark:shadow-none" 
                   />
                 </div>
               </div>
 
-              <div className="border border-zinc-800/60 bg-zinc-900/40 rounded-2xl p-6">
-                <div className="flex items-center gap-3 mb-6 pb-6 border-b border-zinc-800/60">
-                  <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center border border-red-500/20">
-                    <Database size={20} className="text-red-500" />
+              {/* BANCO DE DADOS ORACLE */}
+              <div className="border border-zinc-200 dark:border-zinc-800/60 bg-white dark:bg-zinc-900/40 rounded-3xl p-6 sm:p-8 shadow-sm dark:shadow-none transition-colors">
+                <div className="flex items-center gap-4 mb-6 pb-6 border-b border-zinc-200 dark:border-zinc-800/60 transition-colors">
+                  <div className="w-12 h-12 rounded-2xl bg-red-50 dark:bg-red-500/10 flex items-center justify-center border border-red-200 dark:border-red-500/20 transition-colors">
+                    <Database size={24} className="text-red-600 dark:text-red-500 transition-colors" />
                   </div>
                   <div>
-                    <h2 className="text-lg font-semibold text-zinc-100">Banco de Dados Oracle (ERP)</h2>
+                    <h2 className="text-lg font-black text-zinc-900 dark:text-zinc-100 transition-colors">Banco de Dados Oracle (ERP)</h2>
+                    <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 transition-colors">Conexão direta com a base local do cliente.</p>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-5">
-                  <div className="md:col-span-2 space-y-1.5">
-                    <label className="text-sm font-medium text-zinc-300">Host / IP</label>
-                    <input disabled={isLocked} type="text" value={formData.host} onChange={(e) => setFormData({...formData, host: e.target.value})} className="w-full bg-zinc-950 border border-zinc-800 text-zinc-200 px-4 py-2.5 rounded-lg text-sm outline-none focus:border-purple-500 disabled:opacity-50" placeholder="localhost" />
+                  <div className="md:col-span-2 space-y-2">
+                    <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300 transition-colors">Host / IP</label>
+                    <input disabled={isLocked} type="text" value={formData.host} onChange={(e) => setFormData({...formData, host: e.target.value})} className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-200 px-5 py-3 rounded-xl text-sm outline-none focus:border-purple-500 disabled:opacity-50 transition-all font-medium placeholder:text-zinc-400 dark:placeholder:text-zinc-600 shadow-sm dark:shadow-none" placeholder="localhost" />
                   </div>
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-zinc-300">Porta</label>
-                    <input disabled={isLocked} type="text" value={formData.port} onChange={(e) => setFormData({...formData, port: e.target.value})} className="w-full bg-zinc-950 border border-zinc-800 text-zinc-200 px-4 py-2.5 rounded-lg text-sm outline-none focus:border-purple-500 disabled:opacity-50" />
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300 transition-colors">Porta</label>
+                    <input disabled={isLocked} type="text" value={formData.port} onChange={(e) => setFormData({...formData, port: e.target.value})} className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-200 px-5 py-3 rounded-xl text-sm outline-none focus:border-purple-500 disabled:opacity-50 transition-all font-medium placeholder:text-zinc-400 dark:placeholder:text-zinc-600 shadow-sm dark:shadow-none" />
                   </div>
                 </div>
                 
-                <div className="space-y-1.5 mb-5">
-                  <label className="text-sm font-medium text-zinc-300">Service Name / SID</label>
-                  <input disabled={isLocked} type="text" value={formData.serviceName} onChange={(e) => setFormData({...formData, serviceName: e.target.value})} className="w-full bg-zinc-950 border border-zinc-800 text-zinc-200 px-4 py-2.5 rounded-lg text-sm outline-none focus:border-purple-500 disabled:opacity-50" />
+                <div className="space-y-2 mb-5">
+                  <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300 transition-colors">Service Name / SID</label>
+                  <input disabled={isLocked} type="text" value={formData.serviceName} onChange={(e) => setFormData({...formData, serviceName: e.target.value})} className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-200 px-5 py-3 rounded-xl text-sm outline-none focus:border-purple-500 disabled:opacity-50 transition-all font-medium placeholder:text-zinc-400 dark:placeholder:text-zinc-600 shadow-sm dark:shadow-none" />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-zinc-300">Usuário</label>
-                    <input disabled={isLocked} type="text" value={formData.user} onChange={(e) => setFormData({...formData, user: e.target.value})} className="w-full bg-zinc-950 border border-zinc-800 text-zinc-200 px-4 py-2.5 rounded-lg text-sm outline-none focus:border-purple-500 disabled:opacity-50" />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300 transition-colors">Usuário</label>
+                    <input disabled={isLocked} type="text" value={formData.user} onChange={(e) => setFormData({...formData, user: e.target.value})} className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-200 px-5 py-3 rounded-xl text-sm outline-none focus:border-purple-500 disabled:opacity-50 transition-all font-medium placeholder:text-zinc-400 dark:placeholder:text-zinc-600 shadow-sm dark:shadow-none" />
                   </div>
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-zinc-300">Senha</label>
-                    <input disabled={isLocked} type="password" value={formData.password} onChange={(e) => setFormData({...formData, password: e.target.value})} className="w-full bg-zinc-950 border border-zinc-800 text-zinc-200 px-4 py-2.5 rounded-lg text-sm outline-none focus:border-purple-500 disabled:opacity-50" />
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300 transition-colors">Senha</label>
+                    <input disabled={isLocked} type="password" value={formData.password} onChange={(e) => setFormData({...formData, password: e.target.value})} className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-200 px-5 py-3 rounded-xl text-sm outline-none focus:border-purple-500 disabled:opacity-50 transition-all font-medium shadow-sm dark:shadow-none" />
                   </div>
                 </div>
 
-                <div className="space-y-1.5 p-4 bg-zinc-950/50 border border-zinc-800 rounded-xl">
-                  <label className="text-sm font-medium text-zinc-300">Tabela de Preço (Integração)</label>
+                <div className="space-y-2 p-5 bg-purple-50 dark:bg-zinc-950/50 border border-purple-200 dark:border-zinc-800 rounded-2xl transition-colors">
+                  <label className="text-sm font-bold text-purple-900 dark:text-zinc-300 transition-colors">Tabela de Preço (Integração Principal)</label>
                   <select 
                     disabled={isLocked}
                     value={formData.tabelaPreco} 
                     onChange={(e) => setFormData({...formData, tabelaPreco: e.target.value})} 
-                    className="w-full bg-zinc-900 border border-zinc-700 text-zinc-200 px-4 py-2.5 rounded-lg text-sm outline-none focus:border-purple-500 cursor-pointer disabled:opacity-50"
+                    className="w-full bg-white dark:bg-zinc-900 border border-purple-300 dark:border-zinc-700 text-purple-900 dark:text-zinc-200 px-5 py-3.5 rounded-xl text-sm outline-none focus:border-purple-600 focus:ring-1 focus:ring-purple-600 cursor-pointer disabled:opacity-50 font-bold transition-all shadow-sm dark:shadow-none"
                   >
                     <option value="PDPRECO">Tabela 1 - Padrão / Revenda</option>
                     <option value="PDPRECO2">Tabela 2 - Atacado / Hospitais</option>
@@ -274,109 +278,115 @@ export default function Configuracoes() {
                 </div>
               </div>
 
-              <div className="border border-zinc-800/60 bg-zinc-900/40 rounded-2xl p-6">
-                <div className="flex items-center gap-3 mb-6 pb-6 border-b border-zinc-800/60">
-                  <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center border border-purple-500/20">
-                    <ShoppingCart size={20} className="text-purple-500" />
+              {/* WOOCOMMERCE */}
+              <div className="border border-zinc-200 dark:border-zinc-800/60 bg-white dark:bg-zinc-900/40 rounded-3xl p-6 sm:p-8 shadow-sm dark:shadow-none transition-colors">
+                <div className="flex items-center gap-4 mb-6 pb-6 border-b border-zinc-200 dark:border-zinc-800/60 transition-colors">
+                  <div className="w-12 h-12 rounded-2xl bg-purple-100 dark:bg-purple-500/10 flex items-center justify-center border border-purple-200 dark:border-purple-500/20 transition-colors">
+                    <ShoppingCart size={24} className="text-purple-600 dark:text-purple-500 transition-colors" />
                   </div>
                   <div>
-                    <h2 className="text-lg font-semibold text-zinc-100">WooCommerce (Loja Virtual)</h2>
+                    <h2 className="text-lg font-black text-zinc-900 dark:text-zinc-100 transition-colors">WooCommerce (Loja Virtual)</h2>
+                    <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 transition-colors">Credenciais para espelhamento de catálogo e pedidos.</p>
                   </div>
                 </div>
 
-                <div className="space-y-1.5 mb-5">
-                  <label className="text-sm font-medium text-zinc-300">URL do Site</label>
-                  <input disabled={isLocked} type="text" value={formData.wooUrl} onChange={(e) => setFormData({...formData, wooUrl: e.target.value})} className="w-full bg-zinc-950 border border-zinc-800 text-zinc-200 px-4 py-2.5 rounded-lg text-sm outline-none focus:border-purple-500 disabled:opacity-50" />
+                <div className="space-y-2 mb-5">
+                  <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300 transition-colors">URL do Site</label>
+                  <input disabled={isLocked} type="text" value={formData.wooUrl} onChange={(e) => setFormData({...formData, wooUrl: e.target.value})} className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-200 px-5 py-3 rounded-xl text-sm outline-none focus:border-purple-500 disabled:opacity-50 transition-all font-medium placeholder:text-zinc-400 dark:placeholder:text-zinc-600 shadow-sm dark:shadow-none" />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-zinc-300">Consumer Key (ck_...)</label>
-                    <input disabled={isLocked} type="text" value={formData.wooKey} onChange={(e) => setFormData({...formData, wooKey: e.target.value})} className="w-full bg-zinc-950 border border-zinc-800 text-zinc-200 px-4 py-2.5 rounded-lg text-sm outline-none focus:border-purple-500 disabled:opacity-50" />
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300 transition-colors">Consumer Key (ck_...)</label>
+                    <input disabled={isLocked} type="text" value={formData.wooKey} onChange={(e) => setFormData({...formData, wooKey: e.target.value})} className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-200 px-5 py-3 rounded-xl text-sm outline-none focus:border-purple-500 disabled:opacity-50 transition-all font-medium placeholder:text-zinc-400 dark:placeholder:text-zinc-600 shadow-sm dark:shadow-none" />
                   </div>
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-zinc-300">Consumer Secret (cs_...)</label>
-                    <input disabled={isLocked} type="password" value={formData.wooSecret} onChange={(e) => setFormData({...formData, wooSecret: e.target.value})} className="w-full bg-zinc-950 border border-zinc-800 text-zinc-200 px-4 py-2.5 rounded-lg text-sm outline-none focus:border-purple-500 disabled:opacity-50" />
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300 transition-colors">Consumer Secret (cs_...)</label>
+                    <input disabled={isLocked} type="password" value={formData.wooSecret} onChange={(e) => setFormData({...formData, wooSecret: e.target.value})} className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-200 px-5 py-3 rounded-xl text-sm outline-none focus:border-purple-500 disabled:opacity-50 transition-all font-medium shadow-sm dark:shadow-none" />
                   </div>
                 </div>
               </div>
 
-              <div className="border border-sky-500/30 bg-sky-500/5 rounded-2xl p-6 relative overflow-hidden">
-                <div className="flex items-center gap-3 mb-6 pb-6 border-b border-zinc-800/60">
-                  <div className="w-10 h-10 rounded-xl bg-sky-500/10 flex items-center justify-center border border-sky-500/20">
-                    <CreditCard size={20} className="text-sky-400" />
+              {/* MERCADO PAGO */}
+              <div className="border border-sky-200 dark:border-sky-500/30 bg-sky-50 dark:bg-sky-500/5 rounded-3xl p-6 sm:p-8 relative overflow-hidden shadow-sm dark:shadow-none transition-colors">
+                <div className="flex items-center gap-4 mb-6 pb-6 border-b border-sky-200 dark:border-zinc-800/60 transition-colors">
+                  <div className="w-12 h-12 rounded-2xl bg-sky-100 dark:bg-sky-500/10 flex items-center justify-center border border-sky-200 dark:border-sky-500/20 transition-colors">
+                    <CreditCard size={24} className="text-sky-600 dark:text-sky-400 transition-colors" />
                   </div>
                   <div>
-                    <h2 className="text-lg font-semibold text-sky-100">Mercado Pago (PIX e Cartões)</h2>
-                    <p className="text-xs text-sky-300/70">Credenciais para recebimento no B2B.</p>
+                    <h2 className="text-lg font-black text-sky-900 dark:text-sky-100 transition-colors">Mercado Pago (PIX e Cartões)</h2>
+                    <p className="text-xs font-medium text-sky-700 dark:text-sky-300/70 transition-colors">Credenciais para recebimento no B2B.</p>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-zinc-300">Production Access Token</label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-sky-900 dark:text-zinc-300 transition-colors">Production Access Token</label>
                     <input 
                       disabled={isLocked}
                       type="password" 
                       value={formData.mpAccessToken} 
                       onChange={(e) => setFormData({...formData, mpAccessToken: e.target.value})} 
                       placeholder="APP_USR-123456789..."
-                      className="w-full bg-zinc-950 border border-zinc-800 text-zinc-200 px-4 py-2.5 rounded-lg text-sm outline-none focus:border-sky-500 disabled:opacity-50 font-mono" 
+                      className="w-full bg-white dark:bg-zinc-950 border border-sky-300 dark:border-zinc-800 text-sky-900 dark:text-zinc-200 px-5 py-3 rounded-xl text-sm outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 disabled:opacity-50 font-mono transition-all shadow-sm dark:shadow-none" 
                     />
-                    <p className="text-[11px] text-zinc-500 mt-1.5 flex items-center gap-1">
-                      <QrCode size={12} className="text-sky-500/50" /> Obrigatório para Webhook e Pix.
+                    <p className="text-[11px] font-medium text-sky-700 dark:text-zinc-500 mt-2 flex items-center gap-1.5 transition-colors">
+                      <QrCode size={14} className="text-sky-600 dark:text-sky-500/50" /> Obrigatório para Webhook e Pix.
                     </p>
                   </div>
                   
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-zinc-300">Public Key</label>
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-sky-900 dark:text-zinc-300 transition-colors">Public Key</label>
                     <input 
                       disabled={isLocked}
                       type="text" 
                       value={formData.mpPublicKey} 
                       onChange={(e) => setFormData({...formData, mpPublicKey: e.target.value})} 
                       placeholder="APP_USR-..."
-                      className="w-full bg-zinc-950 border border-zinc-800 text-zinc-200 px-4 py-2.5 rounded-lg text-sm outline-none focus:border-sky-500 disabled:opacity-50 font-mono" 
+                      className="w-full bg-white dark:bg-zinc-950 border border-sky-300 dark:border-zinc-800 text-sky-900 dark:text-zinc-200 px-5 py-3 rounded-xl text-sm outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 disabled:opacity-50 font-mono transition-all shadow-sm dark:shadow-none" 
                     />
-                    <p className="text-[11px] text-zinc-500 mt-1.5 flex items-center gap-1">
-                      <CreditCard size={12} className="text-sky-500/50" /> Usado no frontend (Cartões).
+                    <p className="text-[11px] font-medium text-sky-700 dark:text-zinc-500 mt-2 flex items-center gap-1.5 transition-colors">
+                      <CreditCard size={14} className="text-sky-600 dark:text-sky-500/50" /> Usado no frontend (Cartões).
                     </p>
                   </div>
                 </div>
               </div>
 
-              <div className="border border-zinc-800/60 bg-zinc-900/40 rounded-2xl p-6">
-                <div className="flex items-center gap-3 mb-6 pb-6 border-b border-zinc-800/60">
-                  <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20">
-                    <Timer size={20} className="text-emerald-500" />
+              {/* AUTOMAÇÃO */}
+              <div className="border border-zinc-200 dark:border-zinc-800/60 bg-white dark:bg-zinc-900/40 rounded-3xl p-6 sm:p-8 shadow-sm dark:shadow-none transition-colors">
+                <div className="flex items-center gap-4 mb-6 pb-6 border-b border-zinc-200 dark:border-zinc-800/60 transition-colors">
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-500/10 flex items-center justify-center border border-emerald-200 dark:border-emerald-500/20 transition-colors">
+                    <Timer size={24} className="text-emerald-600 dark:text-emerald-500 transition-colors" />
                   </div>
                   <div>
-                    <h2 className="text-lg font-semibold text-zinc-100">Automação (Fila Fantasma)</h2>
+                    <h2 className="text-lg font-black text-zinc-900 dark:text-zinc-100 transition-colors">Automação (Fila Fantasma)</h2>
+                    <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 transition-colors">De quanto em quanto tempo o motor deve subir atualizações de estoque/preço?</p>
                   </div>
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-zinc-300">Intervalo de Sincronização (Minutos)</label>
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300 transition-colors">Intervalo de Sincronização (Minutos)</label>
                   <input 
                     disabled={isLocked}
                     type="number" 
                     min="1" max="60" 
                     value={formData.cronInterval} 
                     onChange={(e) => setFormData({...formData, cronInterval: Number(e.target.value)})} 
-                    className="w-full md:w-1/2 bg-zinc-950 border border-zinc-800 text-zinc-200 px-4 py-2.5 rounded-lg text-sm outline-none focus:border-purple-500 disabled:opacity-50" 
+                    className="w-full md:w-1/3 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-200 px-5 py-3 rounded-xl text-base font-black outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 disabled:opacity-50 transition-all shadow-sm dark:shadow-none" 
                   />
                 </div>
               </div>
 
+              {/* BOTÃO FLUTUANTE DE SALVAR */}
               {!isLocked && (
-                <div className="flex items-center justify-between p-4 bg-zinc-900 border border-zinc-800 rounded-xl sticky bottom-4 z-30">
-                  <div className="flex items-center gap-2">
-                      {status === "idle" && <span className="text-sm text-zinc-500">Pronto para salvar e lacrar máquina.</span>}
-                      {status === "testing" && <><Loader2 size={16} className="text-purple-500 animate-spin" /><span className="text-sm text-purple-400">Lacrando e reiniciando automação...</span></>}
-                      {status === "error" && <><AlertCircle size={16} className="text-rose-500" /><span className="text-sm text-rose-400">Falha ao salvar.</span></>}
+                <div className="flex flex-col sm:flex-row items-center justify-between p-5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl sticky bottom-4 z-30 shadow-2xl shadow-zinc-200/50 dark:shadow-none transition-colors gap-4">
+                  <div className="flex items-center gap-3 w-full sm:w-auto justify-center sm:justify-start">
+                      {status === "idle" && <span className="text-sm font-bold text-zinc-500 dark:text-zinc-400 transition-colors">Pronto para salvar e lacrar máquina.</span>}
+                      {status === "testing" && <><Loader2 size={18} className="text-purple-600 dark:text-purple-500 animate-spin transition-colors" /><span className="text-sm font-bold text-purple-700 dark:text-purple-400 transition-colors">Lacrando e reiniciando automação...</span></>}
+                      {status === "error" && <><AlertCircle size={18} className="text-rose-600 dark:text-rose-500 transition-colors" /><span className="text-sm font-bold text-rose-700 dark:text-rose-400 transition-colors">Falha ao salvar.</span></>}
                   </div>
-                  <button type="submit" disabled={status === "testing"} className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg text-sm font-medium transition-all shadow-lg shadow-purple-500/20 active:scale-95 disabled:opacity-50 flex items-center gap-2">
-                    <Lock size={16} /> Salvar e Lacrar Motor
+                  <button type="submit" disabled={status === "testing"} className="w-full sm:w-auto bg-purple-600 hover:bg-purple-500 text-white px-8 py-3.5 rounded-xl text-sm font-bold transition-all shadow-lg shadow-purple-500/20 active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2">
+                    <Lock size={18} /> Salvar e Lacrar Motor
                   </button>
                 </div>
               )}

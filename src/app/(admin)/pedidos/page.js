@@ -3,8 +3,8 @@
 import { useState, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
-import { Download, CheckCircle2, Store, ShoppingBag, Smartphone, Monitor, Loader2, FileDown, ChevronLeft, ChevronRight, X, User, MapPin, FileText, Package, Phone, Mail, Calendar, Building2, Edit } from "lucide-react"; // 🟢 ADD: Edit
-import Link from "next/link"; // 🟢 ADD: Import do Link do Next
+import { Download, CheckCircle2, Store, ShoppingBag, Smartphone, Monitor, Loader2, FileDown, ChevronLeft, ChevronRight, X, User, MapPin, FileText, Package, Phone, Mail, Calendar, Building2, Edit } from "lucide-react"; 
+import Link from "next/link"; 
 import toast from 'react-hot-toast';
 import { getApiUrl } from "@/components/utils/api";
 
@@ -28,7 +28,7 @@ export function ModalDetalhesPedido({ pedido, onClose, activeTab, onUpdateStatus
   const cpfCnpj = getMetaValue(pedido.meta_data, ['_billing_cpf', '_billing_cnpj', 'billing_cpf', 'billing_cnpj']);
   const ie = getMetaValue(pedido.meta_data, ['_billing_ie', 'billing_ie']);
 
-  // 🟢 OPÇÕES DE STATUS BASEADO NA PLATAFORMA
+  // 🟢 OPÇÕES DE STATUS BASEADO DA PLATAFORMA
   const statusOpcoes = activeTab === 'b2b' 
     ? [
         { value: 'aguardando-pagamento', label: 'Aguardando Pagamento' },
@@ -46,13 +46,13 @@ export function ModalDetalhesPedido({ pedido, onClose, activeTab, onUpdateStatus
       ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-all" onClick={onClose}>
-      <div className="bg-[#0c0c0e] border border-zinc-800/80 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-900/40 dark:bg-black/60 backdrop-blur-sm transition-all" onClick={onClose}>
+      <div className="bg-white dark:bg-[#0c0c0e] border border-zinc-200 dark:border-zinc-800/80 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200 transition-colors" onClick={(e) => e.stopPropagation()}>
         
         {/* Cabeçalho com o Seletor de Status Mágico */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800/80 bg-zinc-900/40">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 dark:border-zinc-800/80 bg-zinc-50 dark:bg-zinc-900/40 transition-colors">
           <div>
-            <h2 className="text-xl font-bold text-zinc-100 flex items-center gap-2">
+            <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
               Pedido #{pedido.id}
             </h2>
             <div className="flex items-center gap-2 mt-2">
@@ -60,7 +60,7 @@ export function ModalDetalhesPedido({ pedido, onClose, activeTab, onUpdateStatus
               <select 
                 value={pedido.status}
                 onChange={(e) => onUpdateStatus(pedido.id, e.target.value)}
-                className="bg-zinc-950 border border-zinc-700 text-zinc-200 text-xs px-2 py-1 rounded-md outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all cursor-pointer font-medium"
+                className="bg-white dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-200 text-xs px-2 py-1 rounded-md outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all cursor-pointer font-medium"
               >
                 {!statusOpcoes.find(o => o.value === pedido.status) && (
                   <option value={pedido.status}>{pedido.status}</option>
@@ -71,7 +71,7 @@ export function ModalDetalhesPedido({ pedido, onClose, activeTab, onUpdateStatus
               {/* 🟢 O BOTÃO DE EDITAR CORRIGIDO */}
               {['aguardando-pagamento', 'pending', 'processing', 'on-hold', 'pago'].includes(pedido.status) && (
                 <Link href={`/editar-pedido/${pedido.id}`}>
-                  <button className="bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 ml-2">
+                  <button className="bg-amber-100 dark:bg-amber-500/10 hover:bg-amber-200 dark:hover:bg-amber-500/20 border border-amber-200 dark:border-amber-500/30 text-amber-700 dark:text-amber-400 px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 ml-2 shadow-sm dark:shadow-none">
                     <Edit size={14} /> Editar
                   </button>
                 </Link>
@@ -80,7 +80,7 @@ export function ModalDetalhesPedido({ pedido, onClose, activeTab, onUpdateStatus
           </div>
           
           <div className="flex flex-col items-end">
-            <button onClick={onClose} className="p-2 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-xl transition-colors mb-1">
+            <button onClick={onClose} className="p-2 text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl transition-colors mb-1">
               <X size={20} />
             </button>
             <p className="text-xs text-zinc-500 flex items-center gap-1">
@@ -95,27 +95,27 @@ export function ModalDetalhesPedido({ pedido, onClose, activeTab, onUpdateStatus
             
             {/* Coluna Esquerda: Dados do Cliente */}
             <div className="space-y-6">
-              <div className="bg-zinc-900/30 border border-zinc-800/50 rounded-xl p-5">
-                <h3 className="text-sm font-semibold text-zinc-100 flex items-center gap-2 mb-4 border-b border-zinc-800 pb-2">
-                  <User size={16} className="text-purple-400" /> Informações do Cliente
+              <div className="bg-zinc-50 dark:bg-zinc-900/30 border border-zinc-200 dark:border-zinc-800/50 rounded-xl p-5 transition-colors">
+                <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2 mb-4 border-b border-zinc-200 dark:border-zinc-800 pb-2">
+                  <User size={16} className="text-purple-600 dark:text-purple-400" /> Informações do Cliente
                 </h3>
                 <div className="space-y-3 text-sm">
-                  <p><span className="text-zinc-500">Razão/Nome:</span> <span className="text-zinc-200 font-medium">{pedido.billing.first_name} {pedido.billing.last_name}</span></p>
-                  <p><span className="text-zinc-500">CPF/CNPJ:</span> <span className="text-zinc-200">{cpfCnpj}</span></p>
-                  <p><span className="text-zinc-500">Inscrição Est.:</span> <span className="text-zinc-200">{ie}</span></p>
-                  <p className="flex items-center gap-2 mt-2"><Mail size={14} className="text-zinc-500" /> <span className="text-zinc-200 truncate">{pedido.billing.email}</span></p>
-                  <p className="flex items-center gap-2"><Phone size={14} className="text-zinc-500" /> <span className="text-zinc-200">{pedido.billing.phone || "Não informado"}</span></p>
+                  <p><span className="text-zinc-500">Razão/Nome:</span> <span className="text-zinc-800 dark:text-zinc-200 font-medium">{pedido.billing.first_name} {pedido.billing.last_name}</span></p>
+                  <p><span className="text-zinc-500">CPF/CNPJ:</span> <span className="text-zinc-800 dark:text-zinc-200">{cpfCnpj}</span></p>
+                  <p><span className="text-zinc-500">Inscrição Est.:</span> <span className="text-zinc-800 dark:text-zinc-200">{ie}</span></p>
+                  <p className="flex items-center gap-2 mt-2"><Mail size={14} className="text-zinc-500" /> <span className="text-zinc-800 dark:text-zinc-200 truncate">{pedido.billing.email}</span></p>
+                  <p className="flex items-center gap-2"><Phone size={14} className="text-zinc-500" /> <span className="text-zinc-800 dark:text-zinc-200">{pedido.billing.phone || "Não informado"}</span></p>
                 </div>
               </div>
             </div>
 
             {/* Coluna Direita: Endereço e Notas */}
             <div className="space-y-6">
-              <div className="bg-zinc-900/30 border border-zinc-800/50 rounded-xl p-5">
-                <h3 className="text-sm font-semibold text-zinc-100 flex items-center gap-2 mb-4 border-b border-zinc-800 pb-2">
-                  <MapPin size={16} className="text-blue-400" /> Cobrança / Entrega
+              <div className="bg-zinc-50 dark:bg-zinc-900/30 border border-zinc-200 dark:border-zinc-800/50 rounded-xl p-5 transition-colors">
+                <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2 mb-4 border-b border-zinc-200 dark:border-zinc-800 pb-2">
+                  <MapPin size={16} className="text-blue-600 dark:text-blue-400" /> Cobrança / Entrega
                 </h3>
-                <div className="space-y-1 text-sm text-zinc-300">
+                <div className="space-y-1 text-sm text-zinc-700 dark:text-zinc-300">
                   <p>{pedido.billing.address_1}{pedido.billing.address_2 ? `, ${pedido.billing.address_2}` : ''}</p>
                   <p>{pedido.billing.neighborhood || pedido.billing.city} - {pedido.billing.state}</p>
                   <p>CEP: {pedido.billing.postcode}</p>
@@ -123,25 +123,25 @@ export function ModalDetalhesPedido({ pedido, onClose, activeTab, onUpdateStatus
               </div>
 
               {pedido.customer_note && (
-                <div className="bg-orange-500/5 border border-orange-500/20 rounded-xl p-5">
-                  <h3 className="text-sm font-semibold text-orange-400 flex items-center gap-2 mb-2">
+                <div className="bg-orange-50 dark:bg-orange-500/5 border border-orange-200 dark:border-orange-500/20 rounded-xl p-5 transition-colors">
+                  <h3 className="text-sm font-semibold text-orange-600 dark:text-orange-400 flex items-center gap-2 mb-2">
                     <FileText size={16} /> Observação do Cliente
                   </h3>
-                  <p className="text-sm text-zinc-300 italic">{pedido.customer_note}</p>
+                  <p className="text-sm text-zinc-700 dark:text-zinc-300 italic">{pedido.customer_note}</p>
                 </div>
               )}
             </div>
           </div>
 
           {/* Produtos do Pedido */}
-          <div className="mt-6 bg-zinc-900/30 border border-zinc-800/50 rounded-xl p-5">
-            <h3 className="text-sm font-semibold text-zinc-100 flex items-center gap-2 mb-4 border-b border-zinc-800 pb-2">
-              <Package size={16} className="text-emerald-400" /> Itens do Pedido
+          <div className="mt-6 bg-zinc-50 dark:bg-zinc-900/30 border border-zinc-200 dark:border-zinc-800/50 rounded-xl p-5 transition-colors">
+            <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2 mb-4 border-b border-zinc-200 dark:border-zinc-800 pb-2">
+              <Package size={16} className="text-emerald-600 dark:text-emerald-400" /> Itens do Pedido
             </h3>
             
             <div className="overflow-x-auto">
               <table className="w-full text-sm text-left">
-                <thead className="text-xs text-zinc-500 uppercase bg-zinc-900/50">
+                <thead className="text-xs text-zinc-500 dark:text-zinc-400 uppercase bg-zinc-100 dark:bg-zinc-900/50">
                   <tr>
                     <th className="px-4 py-3 rounded-l-lg">Produto</th>
                     <th className="px-4 py-3 text-center">Qtd</th>
@@ -149,13 +149,13 @@ export function ModalDetalhesPedido({ pedido, onClose, activeTab, onUpdateStatus
                     <th className="px-4 py-3 text-right rounded-r-lg">Total</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-zinc-800/50">
+                <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800/50">
                   {pedido.line_items?.map((item) => (
-                    <tr key={item.id || item.sku} className="hover:bg-zinc-800/20 transition-colors">
-                      <td className="px-4 py-3 font-medium text-zinc-200">{item.name} <br/><span className="text-xs text-zinc-500 font-normal">SKU: {item.sku || 'N/A'}</span></td>
-                      <td className="px-4 py-3 text-center text-zinc-300">{item.quantity}</td>
-                      <td className="px-4 py-3 text-right text-zinc-300">{formatarMoeda(item.price)}</td>
-                      <td className="px-4 py-3 text-right text-emerald-400 font-medium">{formatarMoeda(item.total)}</td>
+                    <tr key={item.id || item.sku} className="hover:bg-zinc-100 dark:hover:bg-zinc-800/20 transition-colors">
+                      <td className="px-4 py-3 font-medium text-zinc-900 dark:text-zinc-200">{item.name} <br/><span className="text-xs text-zinc-500 font-normal">SKU: {item.sku || 'N/A'}</span></td>
+                      <td className="px-4 py-3 text-center text-zinc-700 dark:text-zinc-300">{item.quantity}</td>
+                      <td className="px-4 py-3 text-right text-zinc-700 dark:text-zinc-300">{formatarMoeda(item.price)}</td>
+                      <td className="px-4 py-3 text-right text-emerald-600 dark:text-emerald-400 font-medium">{formatarMoeda(item.total)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -163,18 +163,18 @@ export function ModalDetalhesPedido({ pedido, onClose, activeTab, onUpdateStatus
             </div>
 
             {/* Totais do Pedido */}
-            <div className="mt-4 pt-4 border-t border-zinc-800 flex flex-col items-end space-y-2 text-sm">
-              <div className="flex justify-between w-56 text-zinc-400">
+            <div className="mt-4 pt-4 border-t border-zinc-200 dark:border-zinc-800 flex flex-col items-end space-y-2 text-sm transition-colors">
+              <div className="flex justify-between w-56 text-zinc-500 dark:text-zinc-400">
                 <span>Subtotal:</span>
                 <span>{formatarMoeda(pedido.total - (pedido.shipping_total || 0))}</span>
               </div>
-              <div className="flex justify-between w-56 text-zinc-400">
+              <div className="flex justify-between w-56 text-zinc-500 dark:text-zinc-400">
                 <span>Frete:</span>
                 <span>{formatarMoeda(pedido.shipping_total || 0)}</span>
               </div>
-              <div className="flex justify-between w-56 text-lg font-bold text-zinc-100 mt-2 pt-2 border-t border-zinc-800">
+              <div className="flex justify-between w-56 text-lg font-bold text-zinc-900 dark:text-zinc-100 mt-2 pt-2 border-t border-zinc-200 dark:border-zinc-800 transition-colors">
                 <span>Total:</span>
-                <span className="text-emerald-400">{formatarMoeda(pedido.total)}</span>
+                <span className="text-emerald-600 dark:text-emerald-400">{formatarMoeda(pedido.total)}</span>
               </div>
             </div>
 
@@ -318,20 +318,20 @@ export default function Pedidos() {
 
   const renderStatus = (status) => {
     const styles = {
-      'processing': 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-      'completed': 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-      'on-hold': 'bg-amber-500/10 text-amber-400 border-amber-500/20',
-      'cancelled': 'bg-red-500/10 text-red-400 border-red-500/20',
-      'aguardando-pagamento': 'bg-orange-500/10 text-orange-400 border-orange-500/20',
-      'pago': 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-      'enviado': 'bg-purple-500/10 text-purple-400 border-purple-500/20',
-      'entregue': 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+      'processing': 'bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-500/20',
+      'completed': 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/20',
+      'on-hold': 'bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-500/20',
+      'cancelled': 'bg-rose-50 dark:bg-red-500/10 text-rose-700 dark:text-red-400 border-rose-200 dark:border-red-500/20',
+      'aguardando-pagamento': 'bg-orange-50 dark:bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-200 dark:border-orange-500/20',
+      'pago': 'bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-500/20',
+      'enviado': 'bg-purple-50 dark:bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-200 dark:border-purple-500/20',
+      'entregue': 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/20'
     };
     const labels = {
       'processing': 'Processando', 'completed': 'Concluído', 'on-hold': 'Aguardando', 'cancelled': 'Cancelado',
       'aguardando-pagamento': 'Aguard. Pag.', 'pago': 'Pago', 'enviado': 'Enviado', 'entregue': 'Entregue'
     };
-    const style = styles[status] || 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20';
+    const style = styles[status] || 'bg-zinc-100 dark:bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-300 dark:border-zinc-500/20';
     return <span className={`inline-flex px-2.5 py-1 rounded-md text-xs font-medium border ${style}`}>{labels[status] || status}</span>;
   };
 
@@ -341,23 +341,23 @@ export default function Pedidos() {
     { id: "shopee", label: "Shopee", icon: <ShoppingBag size={16} />, theme: "orange" },
     { id: "meli", label: "Mercado Livre", icon: <Store size={16} />, theme: "yellow" },
     { id: "magalu", label: "Magalu", icon: <Smartphone size={16} />, theme: "blue" },
-    { id: "tiktok", label: "Tik-tok Shop", icon: <Smartphone size={16} />, theme: "red" }, // 🟢 TIKTOK CORRIGIDO
+    { id: "tiktok", label: "Tik-tok Shop", icon: <Smartphone size={16} />, theme: "red" }, 
   ];
 
   const getTabClasses = (theme, isActive) => {
-    if (!isActive) return "border-transparent text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/30";
+    if (!isActive) return "border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800/30";
     switch (theme) {
-      case "emerald": return "border-emerald-500 text-emerald-400 bg-emerald-500/10";
-      case "orange": return "border-orange-500 text-orange-400 bg-orange-500/10";
-      case "yellow": return "border-amber-400 text-amber-300 bg-amber-400/10"; 
-      case "blue": return "border-blue-500 text-blue-400 bg-blue-500/10";
-      case "red": return "border-rose-500 text-rose-400 bg-rose-500/10"; // 🟢 COR DO TIKTOK
-      case "purple": default: return "border-purple-500 text-purple-400 bg-purple-500/10";
+      case "emerald": return "border-emerald-500 text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-500/10";
+      case "orange": return "border-orange-500 text-orange-600 dark:text-orange-400 bg-orange-100 dark:bg-orange-500/10";
+      case "yellow": return "border-amber-400 text-amber-600 dark:text-amber-300 bg-amber-100 dark:bg-amber-400/10"; 
+      case "blue": return "border-blue-500 text-blue-700 dark:text-blue-400 bg-blue-100 dark:bg-blue-500/10";
+      case "red": return "border-rose-500 text-rose-600 dark:text-rose-400 bg-rose-100 dark:bg-rose-500/10"; 
+      case "purple": default: return "border-purple-500 text-purple-700 dark:text-purple-400 bg-purple-100 dark:bg-purple-500/10";
     }
   };
 
   return (
-    <div className="flex min-h-screen bg-[#09090b] text-zinc-200 font-sans">
+    <div className="flex min-h-screen bg-zinc-50 dark:bg-[#09090b] text-zinc-900 dark:text-zinc-200 font-sans transition-colors duration-300">
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
         <Header />
@@ -366,16 +366,16 @@ export default function Pedidos() {
             
             <div className="flex justify-between items-end">
               <div>
-                <h1 className="text-2xl font-bold text-zinc-100 tracking-tight">Gerenciador de Pedidos</h1>
-                <p className="text-sm text-zinc-400 mt-1">Gerencie status e exporte as vendas para o ERP.</p>
+                <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 tracking-tight transition-colors">Gerenciador de Pedidos</h1>
+                <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1 transition-colors">Gerencie status e exporte as vendas para o ERP.</p>
               </div>
               
               <div className="flex items-center gap-3">
-                <span className="text-sm text-zinc-500">Exibir:</span>
+                <span className="text-sm text-zinc-500 dark:text-zinc-400">Exibir:</span>
                 <select 
                   value={limit} 
                   onChange={(e) => { setLimit(e.target.value); setPage(1); }} 
-                  className="bg-zinc-950 border border-zinc-800 text-zinc-300 px-3 py-1.5 rounded-lg text-sm outline-none focus:border-purple-500 cursor-pointer"
+                  className="bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 px-3 py-1.5 rounded-lg text-sm outline-none focus:border-purple-500 cursor-pointer transition-colors shadow-sm dark:shadow-none"
                 >
                   <option value="10">10 por pág</option>
                   <option value="20">20 por pág</option>
@@ -385,7 +385,7 @@ export default function Pedidos() {
               </div>
             </div>
 
-            <div className="flex gap-2 border-b border-zinc-800/60 pb-px overflow-x-auto no-scrollbar">
+            <div className="flex gap-2 border-b border-zinc-200 dark:border-zinc-800/60 pb-px overflow-x-auto no-scrollbar">
               {tabs.map(tab => (
                 <button
                   key={tab.id}
@@ -397,17 +397,17 @@ export default function Pedidos() {
               ))}
             </div>
 
-            <div className="border border-zinc-800/60 bg-zinc-900/40 rounded-2xl overflow-hidden backdrop-blur-sm relative flex flex-col">
+            <div className="border border-zinc-200 dark:border-zinc-800/60 bg-white dark:bg-zinc-900/40 rounded-2xl overflow-hidden backdrop-blur-sm relative flex flex-col shadow-sm dark:shadow-none transition-colors duration-300">
               
               {loading && (
-                <div className="absolute inset-0 z-10 bg-zinc-900/50 backdrop-blur-sm flex items-center justify-center">
-                  <Loader2 size={24} className="text-purple-500 animate-spin" />
+                <div className="absolute inset-0 z-10 bg-white/60 dark:bg-zinc-900/50 backdrop-blur-sm flex items-center justify-center">
+                  <Loader2 size={24} className="text-purple-600 dark:text-purple-500 animate-spin" />
                 </div>
               )}
 
               <div className="overflow-x-auto flex-1">
                 <table className="w-full text-sm text-left">
-                  <thead className="bg-zinc-800/30 text-zinc-400 font-medium">
+                  <thead className="bg-zinc-50 dark:bg-zinc-800/30 text-zinc-500 dark:text-zinc-400 font-medium transition-colors">
                     <tr>
                       <th className="px-5 py-4 w-20">ID</th>
                       <th className="px-5 py-4 w-full">Cliente</th>
@@ -417,11 +417,11 @@ export default function Pedidos() {
                       <th className="px-5 py-4 text-center">Ação</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-zinc-800/60">
+                  <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800/60 transition-colors">
                     
                     {pedidos.length === 0 && !loading && (
                       <tr>
-                        <td colSpan="6" className="px-5 py-12 text-center text-zinc-500">
+                        <td colSpan="6" className="px-5 py-12 text-center text-zinc-500 dark:text-zinc-400">
                           Nenhum pedido encontrado nesta plataforma.
                         </td>
                       </tr>
@@ -434,17 +434,17 @@ export default function Pedidos() {
                         <tr 
                           key={pedido.id} 
                           onClick={() => setPedidoSelecionado(pedido)}
-                          className="hover:bg-zinc-800/30 transition-colors cursor-pointer"
+                          className="hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors cursor-pointer group"
                         >
-                          <td className="px-5 py-4 text-zinc-300 font-mono font-medium">#{pedido.id}</td>
-                          <td className="px-5 py-4 font-medium text-zinc-200">
+                          <td className="px-5 py-4 text-zinc-600 dark:text-zinc-300 font-mono font-medium">#{pedido.id}</td>
+                          <td className="px-5 py-4 font-medium text-zinc-900 dark:text-zinc-200">
                             {pedido.billing.first_name} {pedido.billing.last_name}
-                            <div className="text-xs text-zinc-500 font-normal mt-0.5">{pedido.billing.city} - {pedido.billing.state}</div>
+                            <div className="text-xs text-zinc-500 dark:text-zinc-500 font-normal mt-0.5">{pedido.billing.city} - {pedido.billing.state}</div>
                           </td>
-                          <td className="px-5 py-4 text-zinc-400 whitespace-nowrap">
+                          <td className="px-5 py-4 text-zinc-500 dark:text-zinc-400 whitespace-nowrap">
                             {new Date(pedido.date_created).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute:'2-digit' })}
                           </td>
-                          <td className="px-5 py-4 text-zinc-200 font-medium text-right whitespace-nowrap">
+                          <td className="px-5 py-4 text-zinc-900 dark:text-zinc-200 font-medium text-right whitespace-nowrap">
                             {formatarMoeda(pedido.total)}
                           </td>
                           <td className="px-5 py-4 text-center">
@@ -455,10 +455,10 @@ export default function Pedidos() {
                               <button 
                                 onClick={(e) => { e.stopPropagation(); handleBaixarCSV(pedido); }}
                                 title={foiBaixado ? "Baixar Novamente" : "Baixar CSV do Pedido"}
-                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all shadow-sm active:scale-95 ${
+                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all shadow-sm dark:shadow-none active:scale-95 ${
                                   foiBaixado 
-                                    ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20" 
-                                    : "bg-amber-500/10 text-amber-400 border border-amber-500/20 hover:bg-amber-500/20"
+                                    ? "bg-emerald-100 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20 hover:bg-emerald-200 dark:hover:bg-emerald-500/20" 
+                                    : "bg-amber-100 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-500/20 hover:bg-amber-200 dark:hover:bg-amber-500/20"
                                 }`}
                               >
                                 {foiBaixado ? <CheckCircle2 size={16} /> : <FileDown size={16} />}
@@ -473,14 +473,14 @@ export default function Pedidos() {
                 </table>
               </div>
 
-              <div className="p-4 border-t border-zinc-800/60 bg-zinc-800/10 flex items-center justify-between text-sm">
-                <span className="text-zinc-500">
-                  Mostrando pág <span className="text-zinc-300 font-medium">{page}</span> de <span className="text-zinc-300 font-medium">{totalPages || 1}</span>
+              <div className="p-4 border-t border-zinc-200 dark:border-zinc-800/60 bg-zinc-50 dark:bg-zinc-800/10 flex items-center justify-between text-sm transition-colors">
+                <span className="text-zinc-500 dark:text-zinc-400">
+                  Mostrando pág <span className="text-zinc-800 dark:text-zinc-300 font-medium">{page}</span> de <span className="text-zinc-800 dark:text-zinc-300 font-medium">{totalPages || 1}</span>
                   <span className="ml-2 hidden sm:inline">({totalItems} pedidos no total)</span>
                 </span>
                 <div className="flex items-center gap-2">
-                  <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="bg-zinc-800 px-3 py-1.5 rounded-lg text-zinc-300 hover:bg-zinc-700 disabled:opacity-50 transition-all"><ChevronLeft size={16} /></button>
-                  <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages || totalPages === 0} className="bg-zinc-800 px-3 py-1.5 rounded-lg text-zinc-300 hover:bg-zinc-700 disabled:opacity-50 transition-all"><ChevronRight size={16} /></button>
+                  <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="bg-white dark:bg-zinc-800 px-3 py-1.5 rounded-lg text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-transparent shadow-sm dark:shadow-none hover:bg-zinc-50 dark:hover:bg-zinc-700 disabled:opacity-50 transition-all"><ChevronLeft size={16} /></button>
+                  <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages || totalPages === 0} className="bg-white dark:bg-zinc-800 px-3 py-1.5 rounded-lg text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-transparent shadow-sm dark:shadow-none hover:bg-zinc-50 dark:hover:bg-zinc-700 disabled:opacity-50 transition-all"><ChevronRight size={16} /></button>
                 </div>
               </div>
 

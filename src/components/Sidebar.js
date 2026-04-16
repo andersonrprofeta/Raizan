@@ -21,11 +21,16 @@ export default function Sidebar() {
 
   const [userRole, setUserRole] = useState(null); 
   const [userName, setUserName] = useState("Carregando...");
-  const [openMenus, setOpenMenus] = useState({
-    vendas: true,
-    gestao: false,
-    marketing: false,
-    sistema: false
+  
+  // 🟢 INTELIGÊNCIA DE ROTAS: O menu já "nasce" com a gaveta certa aberta, sem piscar
+  const [openMenus, setOpenMenus] = useState(() => {
+    const path = pathname || "";
+    return {
+      comercial: ["/pedidos", "/promocoes", "/xml", "/financeiro", "/relatorios", "/b2b-pedidos"].includes(path),
+      gestao: ["/produtos", "/produtos/cadastro", "/clientes", "/pdv"].includes(path),
+      marketing: ["/crm", "/whatsapp", "/catalogo", "/website", "/ads"].includes(path),
+      sistema: ["/configuracoes", "/host", "/sistema"].includes(path)
+    };
   });
 
   const [textoPedido, setTextoPedido] = useState("Novo Pedido");
@@ -42,6 +47,19 @@ export default function Sidebar() {
   const closeMobileSidebar = () => {
     setIsMobileOpen(false);
   };
+
+  // Garante que a gaveta correta se abra automaticamente ao navegar pelo sistema
+  useEffect(() => {
+    if (!pathname) return;
+    setOpenMenus(prev => {
+      const newState = { ...prev };
+      if (["/pedidos", "/promocoes", "/xml", "/financeiro", "/relatorios", "/b2b-pedidos"].includes(pathname)) newState.comercial = true;
+      if (["/produtos", "/produtos/cadastro", "/clientes", "/pdv"].includes(pathname)) newState.gestao = true;
+      if (["/crm", "/whatsapp", "/catalogo", "/website", "/ads"].includes(pathname)) newState.marketing = true;
+      if (["/configuracoes", "/host", "/sistema"].includes(pathname)) newState.sistema = true;
+      return newState;
+    });
+  }, [pathname]);
 
   useEffect(() => {
     const b2bUser = localStorage.getItem("raizan_user");
@@ -152,23 +170,36 @@ export default function Sidebar() {
   const isActive = (path) => pathname === path;
   const tem = (id) => modulosLiberados.includes(id);
 
-  const NavLink = ({ href, icon: Icon, label }) => (
-    <Link 
-      href={href} 
-      onClick={closeMobileSidebar}
-      className={`flex w-full min-w-0 items-center gap-3 rounded-lg px-2.5 py-2 text-xs transition-all sm:px-3 sm:text-sm ${
-        isActive(href) 
-          ? "bg-purple-500/10 text-purple-600 dark:text-purple-400 font-medium border border-purple-500/20" 
-          : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800/50 hover:text-zinc-900 dark:hover:text-zinc-200 border border-transparent"
-      }`}
-    >
-      <Icon size={18} className={`shrink-0 ${isActive(href) ? "text-purple-600 dark:text-purple-400" : "text-zinc-400 dark:text-zinc-500"}`} />
-      <span className="min-w-0 truncate">{label}</span>
-    </Link>
-  );
+  // ==========================================
+  // NAVLINK PADRÃO SOU BÁSICA PREMIUM
+  // ==========================================
+  const NavLink = ({ href, icon: Icon, label }) => {
+    const active = isActive(href);
+    const isLojista = userRole === "lojista";
+    
+    const activeClass = isLojista 
+      ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/20 font-bold" 
+      : "bg-purple-600 text-white shadow-md shadow-purple-600/20 font-bold";
+      
+    const hoverClass = isLojista
+      ? "text-zinc-600 dark:text-zinc-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 hover:text-emerald-700 dark:hover:text-emerald-400"
+      : "text-zinc-600 dark:text-zinc-400 hover:bg-purple-50 dark:hover:bg-purple-500/10 hover:text-purple-700 dark:hover:text-purple-400";
 
-  const hasVendas = ["pedidos", "mercado-livre", "shopee", "magalu", "pdv"].some(tem);
-  const hasGestao = ["produtos", "estoque", "clientes", "financeiro", "notas", "relatorios", "xml"].some(tem);
+    return (
+      <Link 
+        href={href} 
+        onClick={closeMobileSidebar}
+        className={`flex w-full min-w-0 items-center gap-3 rounded-xl px-3 py-2.5 text-xs transition-all duration-300 sm:text-sm relative overflow-hidden group ${active ? activeClass : hoverClass}`}
+      >
+        {active && <div className="absolute left-0 top-1/2 -translate-y-1/2 h-1/2 w-1 bg-white/40 rounded-r-full" />}
+        <Icon size={18} className={`shrink-0 transition-colors duration-300 ${active ? "text-white" : "text-zinc-400 dark:text-zinc-500 group-hover:text-inherit"}`} />
+        <span className="min-w-0 truncate">{label}</span>
+      </Link>
+    );
+  };
+
+  const hasComercial = ["pedidos", "promocoes", "xml", "financeiro", "relatorios", "portal-b2b"].some(tem);
+  const hasGestao = ["produtos", "clientes", "pdv"].some(tem);
   const hasMkt = ["crm", "whatsapp", "website", "catalogo", "ads"].some(tem);
   const hasSys = ["host", "configuracoes", "sistema"].some(tem);
 
@@ -224,15 +255,16 @@ export default function Sidebar() {
               <Link 
                 href="/b2b-pedidos" 
                 onClick={closeMobileSidebar}
-                className={`flex w-full min-w-0 items-center gap-3 rounded-lg px-2.5 py-2 text-xs transition-all sm:px-3 sm:text-sm ${
+                className={`flex w-full min-w-0 items-center gap-3 rounded-xl px-3 py-2.5 text-xs transition-all duration-300 sm:text-sm relative overflow-hidden group ${
                   temPedidoAberto 
-                    ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium border border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.15)]" 
+                    ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold border border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.15)]" 
                     : isActive("/b2b-pedidos")
-                      ? "bg-purple-50 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400 font-medium border border-purple-500/20" 
-                      : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800/50 hover:text-zinc-900 dark:hover:text-zinc-200 border border-transparent"
+                      ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/20 font-bold border border-transparent" 
+                      : "text-zinc-600 dark:text-zinc-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 hover:text-emerald-700 dark:hover:text-emerald-400 border border-transparent"
                 }`}
               >
-                <Store size={18} className={`shrink-0 ${temPedidoAberto ? "text-emerald-600 dark:text-emerald-400" : isActive("/b2b-pedidos") ? "text-purple-600 dark:text-purple-400" : "text-zinc-400 dark:text-zinc-500"}`} />
+                {isActive("/b2b-pedidos") && !temPedidoAberto && <div className="absolute left-0 top-1/2 -translate-y-1/2 h-1/2 w-1 bg-white/40 rounded-r-full" />}
+                <Store size={18} className={`shrink-0 transition-colors duration-300 ${temPedidoAberto ? "text-emerald-600 dark:text-emerald-400" : isActive("/b2b-pedidos") ? "text-white" : "text-zinc-400 dark:text-zinc-500 group-hover:text-inherit"}`} />
                 <span className="min-w-0 truncate">{textoPedido}</span>
               </Link>
               
@@ -248,28 +280,20 @@ export default function Sidebar() {
                 <NavLink href="/" icon={LayoutDashboard} label="Dashboard Principal" />
               </div>
 
-              {tem("portal-b2b") && (
-                <div className="space-y-1 pb-2 border-b border-zinc-200 dark:border-zinc-800/50">
-                  <div className="mt-4 mb-2 px-2 text-[10px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-600 sm:text-xs">Atacado B2B</div>
-                  <NavLink href="/b2b-pedidos" icon={Building2} label="Simular Catálogo" />
-                  <NavLink href="/pedidos" icon={ShoppingBag} label="Gestão de Pedidos" />
-                  <NavLink href="/promocoes" icon={Tag} label="Gestão de Promoções" />
-                </div>
-              )}
-
-              {hasVendas && !licencaExpirada && (
+              {hasComercial && !licencaExpirada && (
                 <div className="pt-2">
-                  <button onClick={() => toggleMenu('vendas')} className={`flex w-full items-center justify-between rounded-lg px-2 py-2 text-xs transition-colors sm:text-sm ${openMenus.vendas ? 'text-zinc-900 dark:text-zinc-200' : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'}`}>
-                    <div className="flex min-w-0 items-center gap-2 sm:gap-3"><TrendingUp size={16} className={`shrink-0 ${openMenus.vendas ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-400 dark:text-zinc-500'}`} /><span className="truncate text-[10px] font-semibold uppercase tracking-wide sm:text-xs">Vendas & Canais</span></div>
-                    {openMenus.vendas ? <ChevronDown size={14} className="text-zinc-400 dark:text-zinc-500"/> : <ChevronRight size={14} className="text-zinc-400 dark:text-zinc-500"/>}
+                  <button onClick={() => toggleMenu('comercial')} className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-xs transition-all duration-300 sm:text-sm ${openMenus.comercial ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-bold' : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 hover:text-zinc-900 dark:hover:text-zinc-200'}`}>
+                    <div className="flex min-w-0 items-center gap-2 sm:gap-3"><TrendingUp size={16} className={`shrink-0 ${openMenus.comercial ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-400 dark:text-zinc-500'}`} /><span className="truncate text-[10px] font-semibold uppercase tracking-wide sm:text-xs">Comercial</span></div>
+                    {openMenus.comercial ? <ChevronDown size={14} className="text-emerald-500 dark:text-emerald-400"/> : <ChevronRight size={14} className="text-zinc-400 dark:text-zinc-500"/>}
                   </button>
-                  {openMenus.vendas && (
+                  {openMenus.comercial && (
                     <div className="mt-1 ml-2 space-y-1 border-l border-zinc-200 dark:border-zinc-800 pl-2 sm:ml-3 sm:pl-3 animate-in slide-in-from-top-2">
-                      {tem("pedidos") && <NavLink href="/pedidos" icon={ShoppingBag} label="WooCommerce" />}
-                      {tem("mercado-livre") && <NavLink href="/mercado-livre" icon={Store} label="Mercado Livre" />}
-                      {tem("shopee") && <NavLink href="/shopee" icon={ShoppingCart} label="Shopee" />}
-                      {tem("magalu") && <NavLink href="/magalu" icon={Store} label="Magalu" />}
-                      {tem("pdv") && <NavLink href="/pdv" icon={MonitorSmartphone} label="PDV Frente de Caixa" />}
+                      {tem("portal-b2b") && <NavLink href="/b2b-pedidos" icon={Building2} label="Simular Catálogo B2B" />}
+                      {tem("pedidos") && <NavLink href="/pedidos" icon={ShoppingBag} label="Gestão de Pedidos" />}
+                      {(tem("promocoes") || tem("portal-b2b")) && <NavLink href="/promocoes" icon={Tag} label="Gestão de Promoções" />}
+                      {tem("xml") && <NavLink href="/xml" icon={Receipt} label="XML e Boletos" />}
+                      {tem("financeiro") && <NavLink href="/financeiro" icon={CircleDollarSign} label="Financeiro" />}
+                      {tem("relatorios") && <NavLink href="/relatorios" icon={BarChart3} label="Relatórios" />}
                     </div>
                   )}
                 </div>
@@ -277,19 +301,16 @@ export default function Sidebar() {
 
               {hasGestao && !licencaExpirada && (
                 <div className="pt-2">
-                  <button onClick={() => toggleMenu('gestao')} className={`flex w-full items-center justify-between rounded-lg px-2 py-2 text-xs transition-colors sm:text-sm ${openMenus.gestao ? 'text-zinc-900 dark:text-zinc-200' : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'}`}>
-                    <div className="flex min-w-0 items-center gap-2 sm:gap-3"><Package size={16} className={`shrink-0 ${openMenus.gestao ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-400 dark:text-zinc-500'}`} /><span className="truncate text-[10px] font-semibold uppercase tracking-wide sm:text-xs">Gestão & ERP</span></div>
-                    {openMenus.gestao ? <ChevronDown size={14} className="text-zinc-400 dark:text-zinc-500"/> : <ChevronRight size={14} className="text-zinc-400 dark:text-zinc-500"/>}
+                  <button onClick={() => toggleMenu('gestao')} className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-xs transition-all duration-300 sm:text-sm ${openMenus.gestao ? 'bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 font-bold' : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 hover:text-zinc-900 dark:hover:text-zinc-200'}`}>
+                    <div className="flex min-w-0 items-center gap-2 sm:gap-3"><Package size={16} className={`shrink-0 ${openMenus.gestao ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-400 dark:text-zinc-500'}`} /><span className="truncate text-[10px] font-semibold uppercase tracking-wide sm:text-xs">Gestão do ERP</span></div>
+                    {openMenus.gestao ? <ChevronDown size={14} className="text-blue-500 dark:text-blue-400"/> : <ChevronRight size={14} className="text-zinc-400 dark:text-zinc-500"/>}
                   </button>
                   {openMenus.gestao && (
                     <div className="mt-1 ml-2 space-y-1 border-l border-zinc-200 dark:border-zinc-800 pl-2 sm:ml-3 sm:pl-3 animate-in slide-in-from-top-2">
-                      {tem("produtos") && <NavLink href="/produtos" icon={Package} label="Produtos (Sinc)" />}
-                      {tem("xml") && <NavLink href="/xml" icon={Receipt} label="XML e Boletos" />}
-                      {tem("estoque") && <NavLink href="/estoque" icon={Boxes} label="Controle de Estoque" />}
+                      {tem("produtos") && <NavLink href="/produtos" icon={Package} label="Produtos SYNC" />}
                       {tem("clientes") && <NavLink href="/clientes" icon={Users} label="Base de Clientes" />}
-                      {tem("financeiro") && <NavLink href="/financeiro" icon={CircleDollarSign} label="Financeiro" />}
-                      {tem("notas") && <NavLink href="/notas" icon={FileText} label="Emissão de Notas" />}
-                      {tem("relatorios") && <NavLink href="/relatorios" icon={BarChart3} label="Relatórios" />}
+                      {tem("produtos") && <NavLink href="/produtos/cadastro" icon={Boxes} label="Cadastro de Produtos" />}
+                      {tem("pdv") && <NavLink href="/pdv" icon={MonitorSmartphone} label="PDV Frente de Caixa" />}
                     </div>
                   )}
                 </div>
@@ -297,9 +318,9 @@ export default function Sidebar() {
 
               {hasMkt && !licencaExpirada && (
                 <div className="pt-2">
-                  <button onClick={() => toggleMenu('marketing')} className={`flex w-full items-center justify-between rounded-lg px-2 py-2 text-xs transition-colors sm:text-sm ${openMenus.marketing ? 'text-zinc-900 dark:text-zinc-200' : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'}`}>
+                  <button onClick={() => toggleMenu('marketing')} className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-xs transition-all duration-300 sm:text-sm ${openMenus.marketing ? 'bg-orange-50 dark:bg-orange-500/10 text-orange-700 dark:text-orange-400 font-bold' : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 hover:text-zinc-900 dark:hover:text-zinc-200'}`}>
                     <div className="flex min-w-0 items-center gap-2 sm:gap-3"><Megaphone size={16} className={`shrink-0 ${openMenus.marketing ? 'text-orange-500 dark:text-orange-400' : 'text-zinc-400 dark:text-zinc-500'}`} /><span className="truncate text-[10px] font-semibold uppercase tracking-wide sm:text-xs">Marketing & CRM</span></div>
-                    {openMenus.marketing ? <ChevronDown size={14} className="text-zinc-400 dark:text-zinc-500"/> : <ChevronRight size={14} className="text-zinc-400 dark:text-zinc-500"/>}
+                    {openMenus.marketing ? <ChevronDown size={14} className="text-orange-500 dark:text-orange-400"/> : <ChevronRight size={14} className="text-zinc-400 dark:text-zinc-500"/>}
                   </button>
                   {openMenus.marketing && (
                     <div className="mt-1 ml-2 space-y-1 border-l border-zinc-200 dark:border-zinc-800 pl-2 sm:ml-3 sm:pl-3 animate-in slide-in-from-top-2">
@@ -315,9 +336,9 @@ export default function Sidebar() {
 
               {hasSys && !licencaExpirada && (
                 <div className="pt-2">
-                  <button onClick={() => toggleMenu('sistema')} className={`flex w-full items-center justify-between rounded-lg px-2 py-2 text-xs transition-colors sm:text-sm ${openMenus.sistema ? 'text-zinc-900 dark:text-zinc-200' : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'}`}>
+                  <button onClick={() => toggleMenu('sistema')} className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-xs transition-all duration-300 sm:text-sm ${openMenus.sistema ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-200 font-bold' : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 hover:text-zinc-900 dark:hover:text-zinc-200'}`}>
                     <div className="flex min-w-0 items-center gap-2 sm:gap-3"><Settings size={16} className={`shrink-0 ${openMenus.sistema ? 'text-zinc-700 dark:text-zinc-300' : 'text-zinc-400 dark:text-zinc-500'}`} /><span className="truncate text-[10px] font-semibold uppercase tracking-wide sm:text-xs">Sistema</span></div>
-                    {openMenus.sistema ? <ChevronDown size={14} className="text-zinc-400 dark:text-zinc-500"/> : <ChevronRight size={14} className="text-zinc-400 dark:text-zinc-500"/>}
+                    {openMenus.sistema ? <ChevronDown size={14} className="text-zinc-500"/> : <ChevronRight size={14} className="text-zinc-400 dark:text-zinc-500"/>}
                   </button>
                   {openMenus.sistema && (
                     <div className="mt-1 ml-2 space-y-1 border-l border-zinc-200 dark:border-zinc-800 pl-2 sm:ml-3 sm:pl-3 animate-in slide-in-from-top-2">
@@ -345,7 +366,7 @@ export default function Sidebar() {
           
           <button 
             onClick={handleSairDoApp}
-            className="flex w-full items-center justify-center gap-2 rounded-lg border border-transparent py-2 text-xs text-zinc-500 dark:text-zinc-400 transition-colors hover:border-rose-500/20 hover:bg-rose-50 dark:hover:bg-rose-500/10 hover:text-rose-600 dark:hover:text-rose-400 sm:text-sm"
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-transparent py-2.5 text-xs text-zinc-500 dark:text-zinc-400 transition-colors hover:border-rose-500/20 hover:bg-rose-50 dark:hover:bg-rose-500/10 hover:text-rose-600 dark:hover:text-rose-400 sm:text-sm"
           >
             <LogOut size={16} /> {userRole === "admin" ? "Fechar App" : "Sair da Conta"}
           </button>

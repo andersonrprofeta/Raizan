@@ -1,5 +1,6 @@
 import { Package, DollarSign, Archive, Box } from "lucide-react";
 
+
 export default function AbaBasico({ produto, atualizarCampo }) {
   return (
     <div className="space-y-10 animate-in fade-in slide-in-from-right-4 duration-300">

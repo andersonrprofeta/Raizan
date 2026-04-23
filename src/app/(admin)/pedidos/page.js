@@ -70,12 +70,12 @@ export function ModalDetalhesPedido({ pedido, onClose, activeTab, onUpdateStatus
 
               {/* 🟢 O BOTÃO DE EDITAR CORRIGIDO */}
               {['aguardando-pagamento', 'pending', 'processing', 'on-hold', 'pago'].includes(pedido.status) && (
-                <Link href={`/editar-pedido/${pedido.id}`}>
-                  <button className="bg-amber-100 dark:bg-amber-500/10 hover:bg-amber-200 dark:hover:bg-amber-500/20 border border-amber-200 dark:border-amber-500/30 text-amber-700 dark:text-amber-400 px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 ml-2 shadow-sm dark:shadow-none">
-                    <Edit size={14} /> Editar
-                  </button>
-                </Link>
-              )}
+                  <Link href={`/editar-pedido?id=${pedido.id}`}>
+                    <button className="bg-amber-100 dark:bg-amber-500/10 hover:bg-amber-200 dark:hover:bg-amber-500/20 border border-amber-200 dark:border-amber-500/30 text-amber-700 dark:text-amber-400 px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 ml-2 shadow-sm dark:shadow-none">
+                      <Edit size={14} /> Editar
+                    </button>
+                  </Link>
+                )}
             </div>
           </div>
           

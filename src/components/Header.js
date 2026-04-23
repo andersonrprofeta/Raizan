@@ -199,6 +199,7 @@ export default function Header() {
   const [isOfertasModalOpen, setIsOfertasModalOpen] = useState(false);
   const [listaOfertas, setListaOfertas] = useState([]);
   const [isCarrinhoModalOpen, setIsCarrinhoModalOpen] = useState(false);
+  
 
   const gerarIniciais = (nome) => {
     if (!nome) return "R";
@@ -211,7 +212,12 @@ export default function Header() {
     window.dispatchEvent(new Event('toggleMobileSidebar'));
   };
 
-  // 🟢 NOVA REGRA: Define Tema Padrão Baseado no Role (Somente no primeiro acesso)
+  useEffect(() => {
+  if (typeof window !== 'undefined' && window.electronAPI && window.electronAPI.mudarTemaElectron) {
+    window.electronAPI.mudarTemaElectron(theme === 'system' ? 'dark' : theme); 
+  }
+}, [theme]);
+
   useEffect(() => {
     setMontado(true);
     if (userRole && montado) {
@@ -440,11 +446,13 @@ export default function Header() {
     window.dispatchEvent(new Event('storage')); 
   };
 
-  if (!userRole) return <header className="sticky top-0 z-30 w-full h-16 md:mt-8 bg-white/80 dark:bg-[#09090b]/80 backdrop-blur-md border-b border-zinc-200 dark:border-zinc-800/60 overflow-x-hidden" style={{ WebkitAppRegion: 'drag' }}></header>;
+  // 🟢 Voltei o header para z-30 (o normal era z-30 ou z-40 pra ficar debaixo dos modais z-50)
+  if (!userRole) return <header className="sticky top-0 z-30 w-full h-16 md:mt-8 bg-white/80 dark:bg-[#09090b]/80 backdrop-blur-md border-b border-zinc-200 dark:border-zinc-800/60" style={{ WebkitAppRegion: 'drag' }}></header>;
 
   return (
     <>
-      <header className="sticky top-0 z-30 w-full min-h-16 md:h-16 md:mt-8 bg-white/90 dark:bg-[#09090b]/90 backdrop-blur-md border-b border-zinc-200 dark:border-zinc-800/60 flex items-center justify-between px-3 sm:px-4 md:px-8 lg:pr-40 py-2 md:py-0 gap-2 sm:gap-3 overflow-x-hidden transition-colors duration-300" style={{ WebkitAppRegion: 'drag' }}>
+      {/* 🟢 Voltei o Header principal para z-30 */}
+      <header className="sticky top-0 z-30 w-full min-h-16 md:h-16 md:mt-8 bg-white/90 dark:bg-[#09090b]/90 backdrop-blur-md border-b border-zinc-200 dark:border-zinc-800/60 flex items-center justify-between px-3 sm:px-4 md:px-8 lg:pr-40 py-2 md:py-0 gap-2 sm:gap-3 transition-colors duration-300" style={{ WebkitAppRegion: 'drag' }}>
         
         <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1" style={{ WebkitAppRegion: 'no-drag' }}>
           <button onClick={toggleMobileMenu} className="lg:hidden shrink-0 p-2 bg-zinc-100 dark:bg-zinc-900 rounded-lg text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors border border-zinc-200 dark:border-zinc-800/60">
@@ -463,7 +471,6 @@ export default function Header() {
 
         <div className="flex items-center justify-end gap-2 sm:gap-3 md:gap-5 min-w-0 shrink-0" style={{ WebkitAppRegion: 'no-drag' }}>
           
-          {/* 🟢 BOTÃO DE TEMA (APARECE PARA AMBOS, MAS COM DEFAULTS DIFERENTES) */}
           {montado && (
             <button 
               onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
@@ -518,7 +525,8 @@ export default function Header() {
                 )}
               </Link>
 
-              <div className="hidden lg:block absolute right-0 top-full mt-3 w-64 invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-2 group-hover:translate-y-0 z-50">
+              {/* O tooltip continuou com z-[100] livre para sobrepor tudo se o mouse passar por cima! */}
+              <div className="hidden lg:block absolute right-0 top-full mt-3 w-64 invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-2 group-hover:translate-y-0 z-[100]">
                 <div className="bg-white/95 dark:bg-[#0c0c0e]/95 backdrop-blur-xl border border-zinc-200 dark:border-zinc-800 rounded-2xl p-4 shadow-2xl ring-1 ring-black/5 dark:ring-white/5">
                   <h4 className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest mb-3 border-b border-zinc-100 dark:border-zinc-800 pb-2">Resumo Pendente</h4>
                   <div className="space-y-4">

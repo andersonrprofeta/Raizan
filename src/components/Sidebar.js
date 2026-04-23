@@ -8,7 +8,7 @@ import {
   Settings, Database, LogOut, Store, ShoppingCart, 
   Globe, BookOpen, Megaphone, MessageCircle, Server, 
   FileText, Boxes, AlertTriangle, ChevronDown, ChevronRight,
-  TrendingUp, Building2, Receipt, Tag, X
+  TrendingUp, Building2, Receipt, Tag, X, FolderTree, Archive
 } from "lucide-react";
 import packageJson from "../../package.json";
 import toast from 'react-hot-toast';
@@ -22,12 +22,11 @@ export default function Sidebar() {
   const [userRole, setUserRole] = useState(null); 
   const [userName, setUserName] = useState("Carregando...");
   
-  // 🟢 INTELIGÊNCIA DE ROTAS: O menu já "nasce" com a gaveta certa aberta, sem piscar
   const [openMenus, setOpenMenus] = useState(() => {
     const path = pathname || "";
     return {
       comercial: ["/pedidos", "/promocoes", "/xml", "/financeiro", "/relatorios", "/b2b-pedidos"].includes(path),
-      gestao: ["/produtos", "/cadastros/produtos", "/clientes", "/pdv"].includes(path),
+      gestao: ["/produtos", "/cadastros/produtos", "/cadastros/categorias", "/cadastros/marcas", "/cadastros/embalagens", "/cadastros/vendedores", "/clientes", "/pdv"].includes(path),
       marketing: ["/crm", "/whatsapp", "/catalogo", "/website", "/ads"].includes(path),
       sistema: ["/configuracoes", "/host", "/sistema"].includes(path)
     };
@@ -48,13 +47,12 @@ export default function Sidebar() {
     setIsMobileOpen(false);
   };
 
-  // Garante que a gaveta correta se abra automaticamente ao navegar pelo sistema
   useEffect(() => {
     if (!pathname) return;
     setOpenMenus(prev => {
       const newState = { ...prev };
       if (["/pedidos", "/promocoes", "/xml", "/financeiro", "/relatorios", "/b2b-pedidos"].includes(pathname)) newState.comercial = true;
-      if (["/produtos", "/cadastros/produtos", "/clientes", "/pdv"].includes(pathname)) newState.gestao = true;
+      if (["/produtos", "/cadastros/produtos", "/cadastros/categorias", "/cadastros/embalagens", "/cadastros/vendedores", "/clientes", "/pdv"].includes(pathname)) newState.gestao = true;
       if (["/crm", "/whatsapp", "/catalogo", "/website", "/ads"].includes(pathname)) newState.marketing = true;
       if (["/configuracoes", "/host", "/sistema"].includes(pathname)) newState.sistema = true;
       return newState;
@@ -171,9 +169,11 @@ export default function Sidebar() {
   const tem = (id) => modulosLiberados.includes(id);
 
   // ==========================================
-  // NAVLINK PADRÃO SOU BÁSICA PREMIUM
+  // COMPONENTES DE MENU DINÂMICOS
   // ==========================================
-  const NavLink = ({ href, icon: Icon, label }) => {
+
+  // NavLink exclusivo para os módulos do B2B e Dashboard Admin
+  const DashboardNavLink = ({ href, icon: Icon, label }) => {
     const active = isActive(href);
     const isLojista = userRole === "lojista";
     
@@ -193,6 +193,44 @@ export default function Sidebar() {
       >
         {active && <div className="absolute left-0 top-1/2 -translate-y-1/2 h-1/2 w-1 bg-white/40 rounded-r-full" />}
         <Icon size={18} className={`shrink-0 transition-colors duration-300 ${active ? "text-white" : "text-zinc-400 dark:text-zinc-500 group-hover:text-inherit"}`} />
+        <span className="min-w-0 truncate">{label}</span>
+      </Link>
+    );
+  };
+
+  // NavLink Especializado para Submenus (Com Lógica de Cores por Seção)
+  const SubNavLink = ({ href, icon: Icon, label, colorTheme }) => {
+    const active = isActive(href);
+    
+    // Configurações de cores baseadas no módulo pai
+    const themes = {
+      emerald: {
+        active: "bg-emerald-600 text-white shadow-md shadow-emerald-600/20 font-bold",
+        hover: "text-zinc-600 dark:text-zinc-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 hover:text-emerald-700 dark:hover:text-emerald-400"
+      },
+      purple: {
+        active: "bg-purple-600 text-white shadow-md shadow-purple-600/20 font-bold",
+        hover: "text-zinc-600 dark:text-zinc-400 hover:bg-purple-50 dark:hover:bg-purple-500/10 hover:text-purple-700 dark:hover:text-purple-400"
+      },
+      orange: {
+        active: "bg-orange-500 text-white shadow-md shadow-orange-500/20 font-bold",
+        hover: "text-zinc-600 dark:text-zinc-400 hover:bg-orange-50 dark:hover:bg-orange-500/10 hover:text-orange-700 dark:hover:text-orange-400"
+      },
+      zinc: {
+        active: "bg-zinc-800 dark:bg-zinc-200 text-white dark:text-zinc-900 shadow-md shadow-zinc-800/20 font-bold",
+        hover: "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 hover:text-zinc-900 dark:hover:text-zinc-200"
+      }
+    };
+
+    const currentTheme = themes[colorTheme] || themes.purple;
+
+    return (
+      <Link 
+        href={href} 
+        onClick={closeMobileSidebar}
+        className={`flex w-full min-w-0 items-center gap-3 rounded-xl px-3 py-2.5 text-xs transition-all duration-300 sm:text-sm relative overflow-hidden group ${active ? currentTheme.active : currentTheme.hover}`}
+      >
+        <Icon size={18} className={`shrink-0 transition-colors duration-300 ${active ? "text-white dark:text-zinc-900" : "text-zinc-400 dark:text-zinc-500 group-hover:text-inherit"}`} />
         <span className="min-w-0 truncate">{label}</span>
       </Link>
     );
@@ -237,10 +275,10 @@ export default function Sidebar() {
           </button>
         </div>
 
-        <nav className="custom-scrollbar flex-1 space-y-5 overflow-x-hidden overflow-y-auto px-2 py-4 sm:px-3 sm:py-5" style={{ WebkitAppRegion: 'no-drag' }}>
+        <nav className="custom-scrollbar flex-1 space-y-2 overflow-x-hidden overflow-y-auto px-2 py-4 sm:px-3 sm:py-5" style={{ WebkitAppRegion: 'no-drag' }}>
           
           {licencaExpirada && userRole === "admin" && (
-            <div className="flex animate-pulse flex-col items-center rounded-xl border border-red-500/20 bg-red-50 dark:bg-red-500/10 p-3 text-center">
+            <div className="flex animate-pulse flex-col items-center rounded-xl border border-red-500/20 bg-red-50 dark:bg-red-500/10 p-3 text-center mb-4">
               <AlertTriangle size={24} className="text-red-500 dark:text-red-400 mb-2" />
               <span className="text-xs font-bold uppercase tracking-wider text-red-600 dark:text-red-400">Licença Expirada</span>
               <span className="text-[10px] text-zinc-500 mt-1">Sincronize ou renove seu plano.</span>
@@ -248,9 +286,9 @@ export default function Sidebar() {
           )}
 
           {userRole === "lojista" && (
-            <div className="space-y-1">
+            <div className="space-y-1 mb-4">
               <div className="mb-3 px-2 text-[10px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-600 sm:text-xs">Portal de Compras</div>
-              <NavLink href="/b2b-inicio" icon={LayoutDashboard} label="Dashboard" />
+              <DashboardNavLink href="/b2b-inicio" icon={LayoutDashboard} label="Dashboard" />
               
               <Link 
                 href="/b2b-pedidos" 
@@ -268,83 +306,106 @@ export default function Sidebar() {
                 <span className="min-w-0 truncate">{textoPedido}</span>
               </Link>
               
-              <NavLink href="/b2b-historico" icon={Package} label="Meus Pedidos" />
-              <NavLink href="/b2b-xml" icon={FileText} label="XML/NF-e" />
-              <NavLink href="/b2b-financeiro" icon={Receipt} label="Financeiro" />
+              <DashboardNavLink href="/b2b-historico" icon={Package} label="Meus Pedidos" />
+              <DashboardNavLink href="/b2b-xml" icon={FileText} label="XML/NF-e" />
+              <DashboardNavLink href="/b2b-financeiro" icon={Receipt} label="Financeiro" />
             </div>
           )}
 
           {userRole === "admin" && (
             <>
-              <div className="space-y-1">
-                <NavLink href="/" icon={LayoutDashboard} label="Dashboard Admin" />
+              <div className="space-y-1 pb-2">
+                <DashboardNavLink href="/" icon={LayoutDashboard} label="Dashboard Admin" />
               </div>
 
+              {/* MÓDULO COMERCIAL - COR VERDE (EMERALD) */}
               {hasComercial && !licencaExpirada && (
-                <div className="pt-2">
-                  <button onClick={() => toggleMenu('comercial')} className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-xs transition-all duration-300 sm:text-sm ${openMenus.comercial ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-bold' : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 hover:text-zinc-900 dark:hover:text-zinc-200'}`}>
-                    <div className="flex min-w-0 items-center gap-2 sm:gap-3"><TrendingUp size={16} className={`shrink-0 ${openMenus.comercial ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-400 dark:text-zinc-500'}`} /><span className="truncate text-[10px] font-semibold uppercase tracking-wide sm:text-xs">Comercial</span></div>
+                <div>
+                  <button onClick={() => toggleMenu('comercial')} className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-xs transition-all duration-300 sm:text-sm ${openMenus.comercial ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-bold shadow-[0_0_12px_rgba(16,185,129,0.15)] border border-emerald-200 dark:border-emerald-500/30' : 'border border-transparent text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 hover:text-zinc-900 dark:hover:text-zinc-200'}`}>
+                    <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+                      <TrendingUp size={16} className={`shrink-0 transition-colors ${openMenus.comercial ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-400 dark:text-zinc-500'}`} />
+                      <span className="truncate text-[10px] font-semibold uppercase tracking-wide sm:text-xs">Comercial</span>
+                    </div>
                     {openMenus.comercial ? <ChevronDown size={14} className="text-emerald-500 dark:text-emerald-400"/> : <ChevronRight size={14} className="text-zinc-400 dark:text-zinc-500"/>}
                   </button>
                   {openMenus.comercial && (
-                    <div className="mt-1 ml-2 space-y-1 border-l border-zinc-200 dark:border-zinc-800 pl-2 sm:ml-3 sm:pl-3 animate-in slide-in-from-top-2">
-                      {tem("portal-b2b") && <NavLink href="/b2b-pedidos" icon={Building2} label="Simular Catálogo B2B" />}
-                      {tem("pedidos") && <NavLink href="/pedidos" icon={ShoppingBag} label="Gestão de Pedidos" />}
-                      {(tem("promocoes") || tem("portal-b2b")) && <NavLink href="/promocoes" icon={Tag} label="Gestão de Promoções" />}
-                      {tem("xml") && <NavLink href="/xml" icon={Receipt} label="XML e Boletos" />}
-                      {tem("financeiro") && <NavLink href="/financeiro" icon={CircleDollarSign} label="Financeiro" />}
-                      {tem("relatorios") && <NavLink href="/relatorios" icon={BarChart3} label="Relatórios" />}
+                    <div className="mt-1 ml-2 space-y-1 border-l border-zinc-200 dark:border-zinc-800 pl-2 sm:ml-3 sm:pl-3 animate-in slide-in-from-top-2 pb-1">
+                      {tem("portal-b2b") && <SubNavLink href="/b2b-pedidos" icon={Building2} label="Simular Catálogo B2B" colorTheme="emerald" />}
+                      {tem("pedidos") && <SubNavLink href="/pedidos" icon={ShoppingBag} label="Gestão de Pedidos" colorTheme="emerald" />}
+                      {(tem("promocoes") || tem("portal-b2b")) && <SubNavLink href="/promocoes" icon={Tag} label="Gestão de Promoções" colorTheme="emerald" />}
+                      {tem("xml") && <SubNavLink href="/xml" icon={Receipt} label="XML e Boletos" colorTheme="emerald" />}
+                      {tem("financeiro") && <SubNavLink href="/financeiro" icon={CircleDollarSign} label="Financeiro" colorTheme="emerald" />}
+                      {tem("relatorios") && <SubNavLink href="/relatorios" icon={BarChart3} label="Relatórios" colorTheme="emerald" />}
                     </div>
                   )}
                 </div>
               )}
 
+              {/* MÓDULO GESTÃO - COR ROXA (PURPLE) */}
               {hasGestao && !licencaExpirada && (
-                <div className="pt-2">
-                  <button onClick={() => toggleMenu('gestao')} className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-xs transition-all duration-300 sm:text-sm ${openMenus.gestao ? 'bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 font-bold' : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 hover:text-zinc-900 dark:hover:text-zinc-200'}`}>
-                    <div className="flex min-w-0 items-center gap-2 sm:gap-3"><Package size={16} className={`shrink-0 ${openMenus.gestao ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-400 dark:text-zinc-500'}`} /><span className="truncate text-[10px] font-semibold uppercase tracking-wide sm:text-xs">Gestão do ERP</span></div>
-                    {openMenus.gestao ? <ChevronDown size={14} className="text-blue-500 dark:text-blue-400"/> : <ChevronRight size={14} className="text-zinc-400 dark:text-zinc-500"/>}
+                <div>
+                  <button onClick={() => toggleMenu('gestao')} className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-xs transition-all duration-300 sm:text-sm ${openMenus.gestao ? 'bg-purple-50 dark:bg-purple-500/10 text-purple-700 dark:text-purple-400 font-bold shadow-[0_0_12px_rgba(147,51,234,0.15)] border border-purple-200 dark:border-purple-500/30' : 'border border-transparent text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 hover:text-zinc-900 dark:hover:text-zinc-200'}`}>
+                    <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+                      <Package size={16} className={`shrink-0 transition-colors ${openMenus.gestao ? 'text-purple-600 dark:text-purple-400' : 'text-zinc-400 dark:text-zinc-500'}`} />
+                      <span className="truncate text-[10px] font-semibold uppercase tracking-wide sm:text-xs">Gestão do ERP</span>
+                    </div>
+                    {openMenus.gestao ? <ChevronDown size={14} className="text-purple-500 dark:text-purple-400"/> : <ChevronRight size={14} className="text-zinc-400 dark:text-zinc-500"/>}
                   </button>
                   {openMenus.gestao && (
-                    <div className="mt-1 ml-2 space-y-1 border-l border-zinc-200 dark:border-zinc-800 pl-2 sm:ml-3 sm:pl-3 animate-in slide-in-from-top-2">
-                      {tem("produtos") && <NavLink href="/produtos" icon={Package} label="Produtos SYNC" />}
-                      {tem("clientes") && <NavLink href="/clientes" icon={Users} label="Base de Clientes" />}
-                      {tem("produtos") && <NavLink href="/cadastros/produtos" icon={Boxes} label="Cadastro de Produtos" />}
-                      {tem("pdv") && <NavLink href="/pdv" icon={MonitorSmartphone} label="PDV Frente de Caixa" />}
+                    <div className="mt-1 ml-2 space-y-1 border-l border-zinc-200 dark:border-zinc-800 pl-2 sm:ml-3 sm:pl-3 animate-in slide-in-from-top-2 pb-2">
+                      <div className="mt-2 mb-1.5 px-3 text-[10px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Cadastros Base</div>
+                      {tem("clientes") && <SubNavLink href="/clientes" icon={Users} label="Clientes e Fornecedores" colorTheme="purple" />}
+                      {tem("produtos") && <SubNavLink href="/cadastros/produtos" icon={Package} label="Produtos" colorTheme="purple" />}
+                      {tem("produtos") && <SubNavLink href="/cadastros/categorias" icon={FolderTree} label="Categorias" colorTheme="purple" />}
+                      {tem("produtos") && <SubNavLink href="/cadastros/marcas" icon={Tag} label="Marcas" colorTheme="purple" />}
+                      {tem("comercial") && <SubNavLink href="/cadastros/vendedores" icon={Briefcase} label="Vendedores" colorTheme="purple" />}
+                      {tem("produtos") && <SubNavLink href="/cadastros/embalagens" icon={Archive} label="Embalagens" colorTheme="purple" />}
+
+                      <div className="mt-3 mb-1.5 px-3 text-[10px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Operação & Hub</div>
+                      {tem("produtos") && <SubNavLink href="/produtos" icon={Boxes} label="Produtos SYNC" colorTheme="purple" />}
+                      {tem("pdv") && <SubNavLink href="/pdv" icon={MonitorSmartphone} label="PDV Frente de Caixa" colorTheme="purple" />}
                     </div>
                   )}
                 </div>
               )}
 
+              {/* MÓDULO MARKETING - COR LARANJA (ORANGE) */}
               {hasMkt && !licencaExpirada && (
-                <div className="pt-2">
-                  <button onClick={() => toggleMenu('marketing')} className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-xs transition-all duration-300 sm:text-sm ${openMenus.marketing ? 'bg-orange-50 dark:bg-orange-500/10 text-orange-700 dark:text-orange-400 font-bold' : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 hover:text-zinc-900 dark:hover:text-zinc-200'}`}>
-                    <div className="flex min-w-0 items-center gap-2 sm:gap-3"><Megaphone size={16} className={`shrink-0 ${openMenus.marketing ? 'text-orange-500 dark:text-orange-400' : 'text-zinc-400 dark:text-zinc-500'}`} /><span className="truncate text-[10px] font-semibold uppercase tracking-wide sm:text-xs">Marketing & CRM</span></div>
+                <div>
+                  <button onClick={() => toggleMenu('marketing')} className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-xs transition-all duration-300 sm:text-sm ${openMenus.marketing ? 'bg-orange-50 dark:bg-orange-500/10 text-orange-700 dark:text-orange-400 font-bold shadow-[0_0_12px_rgba(249,115,22,0.15)] border border-orange-200 dark:border-orange-500/30' : 'border border-transparent text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 hover:text-zinc-900 dark:hover:text-zinc-200'}`}>
+                    <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+                      <Megaphone size={16} className={`shrink-0 transition-colors ${openMenus.marketing ? 'text-orange-500 dark:text-orange-400' : 'text-zinc-400 dark:text-zinc-500'}`} />
+                      <span className="truncate text-[10px] font-semibold uppercase tracking-wide sm:text-xs">Marketing & CRM</span>
+                    </div>
                     {openMenus.marketing ? <ChevronDown size={14} className="text-orange-500 dark:text-orange-400"/> : <ChevronRight size={14} className="text-zinc-400 dark:text-zinc-500"/>}
                   </button>
                   {openMenus.marketing && (
-                    <div className="mt-1 ml-2 space-y-1 border-l border-zinc-200 dark:border-zinc-800 pl-2 sm:ml-3 sm:pl-3 animate-in slide-in-from-top-2">
-                      {tem("crm") && <NavLink href="/crm" icon={Briefcase} label="CRM de Vendas" />}
-                      {tem("whatsapp") && <NavLink href="/whatsapp" icon={MessageCircle} label="Auto WhatsApp" />}
-                      {tem("catalogo") && <NavLink href="/catalogo" icon={BookOpen} label="Vitrine Pública" />}
-                      {tem("website") && <NavLink href="/website" icon={Globe} label="Construtor de Site" />}
-                      {tem("ads") && <NavLink href="/ads" icon={Megaphone} label="Gestão Meta Ads" />}
+                    <div className="mt-1 ml-2 space-y-1 border-l border-zinc-200 dark:border-zinc-800 pl-2 sm:ml-3 sm:pl-3 animate-in slide-in-from-top-2 pb-1">
+                      {tem("crm") && <SubNavLink href="/crm" icon={Briefcase} label="CRM de Vendas" colorTheme="orange" />}
+                      {tem("whatsapp") && <SubNavLink href="/whatsapp" icon={MessageCircle} label="Auto WhatsApp" colorTheme="orange" />}
+                      {tem("catalogo") && <SubNavLink href="/catalogo" icon={BookOpen} label="Vitrine Pública" colorTheme="orange" />}
+                      {tem("website") && <SubNavLink href="/website" icon={Globe} label="Construtor de Site" colorTheme="orange" />}
+                      {tem("ads") && <SubNavLink href="/ads" icon={Megaphone} label="Gestão Meta Ads" colorTheme="orange" />}
                     </div>
                   )}
                 </div>
               )}
 
+              {/* MÓDULO SISTEMA - COR CINZA (ZINC) */}
               {hasSys && !licencaExpirada && (
-                <div className="pt-2">
-                  <button onClick={() => toggleMenu('sistema')} className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-xs transition-all duration-300 sm:text-sm ${openMenus.sistema ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-200 font-bold' : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 hover:text-zinc-900 dark:hover:text-zinc-200'}`}>
-                    <div className="flex min-w-0 items-center gap-2 sm:gap-3"><Settings size={16} className={`shrink-0 ${openMenus.sistema ? 'text-zinc-700 dark:text-zinc-300' : 'text-zinc-400 dark:text-zinc-500'}`} /><span className="truncate text-[10px] font-semibold uppercase tracking-wide sm:text-xs">Sistema</span></div>
+                <div>
+                  <button onClick={() => toggleMenu('sistema')} className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-xs transition-all duration-300 sm:text-sm ${openMenus.sistema ? 'bg-zinc-100 dark:bg-zinc-800/80 text-zinc-900 dark:text-zinc-200 font-bold shadow-[0_0_12px_rgba(39,39,42,0.15)] border border-zinc-200 dark:border-zinc-700' : 'border border-transparent text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 hover:text-zinc-900 dark:hover:text-zinc-200'}`}>
+                    <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+                      <Settings size={16} className={`shrink-0 transition-colors ${openMenus.sistema ? 'text-zinc-700 dark:text-zinc-300' : 'text-zinc-400 dark:text-zinc-500'}`} />
+                      <span className="truncate text-[10px] font-semibold uppercase tracking-wide sm:text-xs">Sistema</span>
+                    </div>
                     {openMenus.sistema ? <ChevronDown size={14} className="text-zinc-500"/> : <ChevronRight size={14} className="text-zinc-400 dark:text-zinc-500"/>}
                   </button>
                   {openMenus.sistema && (
-                    <div className="mt-1 ml-2 space-y-1 border-l border-zinc-200 dark:border-zinc-800 pl-2 sm:ml-3 sm:pl-3 animate-in slide-in-from-top-2">
-                      {tem("configuracoes") && <NavLink href="/configuracoes" icon={Settings} label="Ajustes do Motor" />}
-                      {tem("host") && <NavLink href="/host" icon={Server} label="Hospedagem" />}
-                      {tem("sistema") && <NavLink href="/sistema" icon={Terminal} label="Terminal Root" />}
+                    <div className="mt-1 ml-2 space-y-1 border-l border-zinc-200 dark:border-zinc-800 pl-2 sm:ml-3 sm:pl-3 animate-in slide-in-from-top-2 pb-1">
+                      {tem("configuracoes") && <SubNavLink href="/configuracoes" icon={Settings} label="Ajustes do Motor" colorTheme="zinc" />}
+                      {tem("host") && <SubNavLink href="/host" icon={Server} label="Hospedagem" colorTheme="zinc" />}
+                      {tem("sistema") && <SubNavLink href="/sistema" icon={Terminal} label="Terminal Root" colorTheme="zinc" />}
                     </div>
                   )}
                 </div>

@@ -91,6 +91,19 @@ ipcMain.on('instalar-atualizacao', () => {
   autoUpdater.quitAndInstall(false, true); // Fecha o app, instala o novo .exe e reabre!
 });
 
+// 🟢 ADICIONE ISSO NO SEU MAIN.JS
+ipcMain.on('mudar-tema', (event, tema) => {
+  if (mainWindow) {
+    if (tema === 'dark') {
+      // Cores do Modo Escuro (Fundo preto, ícones brancos)
+      mainWindow.setTitleBarOverlay({ color: '#09090b', symbolColor: '#e4e4e7' });
+    } else {
+      // Cores do Modo Claro (Fundo clarinho, ícones pretos)
+      mainWindow.setTitleBarOverlay({ color: '#fafafa', symbolColor: '#18181b' });
+    }
+  }
+});
+
 // ==========================================
 // INICIALIZAÇÃO DO APP
 // ==========================================

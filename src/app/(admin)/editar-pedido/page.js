@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation"; // 🟢 O hook mágico da URL!
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import { ArrowLeft, Save, Plus, Minus, Trash2, Package, Loader2, AlertTriangle, Calculator, MessageSquare } from "lucide-react";
@@ -8,19 +9,22 @@ import Link from "next/link";
 import { getApiUrl, getHeaders } from "@/components/utils/api";
 import toast from 'react-hot-toast';
 
-export default function EditarPedidoB2B({ params }) {
-  const unwrappedParams = use(params); // 🟢 Desempacota a Promessa
-  const id = unwrappedParams.id;       // 🟢 Agora sim pegamos o ID real!
+// 🟢 1. O SEU CÓDIGO ORIGINAL VEM PARA DENTRO DESTE COMPONENTE
+function EditarPedidoConteudo() {
+  const searchParams = useSearchParams();
+  const id = searchParams.get("id"); // 🟢 Pegando o ID direto da URL (?id=123)
+
   const [loading, setLoading] = useState(true);
   const [salvando, setSalvando] = useState(false);
   const [pedido, setPedido] = useState(null);
   const [itens, setItens] = useState([]);
-  // 🟢 NOVOS ESTADOS AQUI:
   const [motivo, setMotivo] = useState("");
   const [gerarCredito, setGerarCredito] = useState(true);
 
   useEffect(() => {
-    carregarPedido();
+    if (id) {
+      carregarPedido();
+    }
   }, [id]);
 
   const carregarPedido = async () => {
@@ -29,7 +33,6 @@ export default function EditarPedidoB2B({ params }) {
       const data = await res.json();
       if (data.success) {
         setPedido(data.pedido);
-        // Extraímos os itens do JSON do pedido
         setItens(data.pedido.line_items || []);
       }
     } catch (e) {
@@ -41,25 +44,21 @@ export default function EditarPedidoB2B({ params }) {
 
   const handleQtdChange = (index, novaQtd) => {
     const novosItens = [...itens];
-    // 🟢 Agora usamos .quantity em vez de .qtd
     novosItens[index].quantity = Math.max(0, novaQtd); 
     setItens(novosItens);
   };
 
   const totalOriginal = parseFloat(pedido?.subtotal || pedido?.total || 0);
-  // 🟢 Lemos o .price e .quantity (usando parseFloat para garantir que não dê erro com strings)
   const novoTotal = itens.reduce((acc, item) => acc + (parseFloat(item.price || 0) * (item.quantity || 0)), 0);
   const diferenca = totalOriginal - novoTotal;
 
   const salvarAlteracoes = async () => {
-    // 🟢 Validação rápida: exigir motivo se houve alteração
     if (diferenca !== 0 && motivo.trim() === "") {
       toast.error("Por favor, informe o motivo da edição.");
       return;
     }
 
     setSalvando(true);
-    // 🟢 Verifica se o pedido já estava pago para saber se manda o crédito
     const pedidoJaPago = ['pago', 'processing', 'completed'].includes(pedido?.status);
 
     try {
@@ -70,15 +69,15 @@ export default function EditarPedidoB2B({ params }) {
           pedidoId: id,
           novosItens: itens,
           novoSubtotal: novoTotal,
-          motivo: motivo, // 🟢 Mandando o motivo
-          gerarCredito: pedidoJaPago && diferenca > 0 ? gerarCredito : false, // 🟢 Manda o crédito só se já pagou
+          motivo: motivo, 
+          gerarCredito: pedidoJaPago && diferenca > 0 ? gerarCredito : false,
           valorCredito: diferenca
         })
       });
       const data = await res.json();
       if (data.success) {
         toast.success("Pedido atualizado e sincronizado com o ERP!");
-        window.location.href = "/pedidos"; // aqui ta errado não pode voltar para b2b pedidos se no painel admin é /pedidos
+        window.location.href = "/pedidos"; // 🟢 Mantido no painel de admin certinho!
       }
     } catch (e) {
       toast.error("Falha ao salvar edições.");
@@ -119,7 +118,7 @@ export default function EditarPedidoB2B({ params }) {
               </button>
             </div>
 
-            {/* 🟢 ALERTA INTELIGENTE E CAMPO DE MOTIVO */}
+            {/* ALERTA INTELIGENTE E CAMPO DE MOTIVO */}
             {diferenca > 0 && (
               <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 p-5 rounded-xl flex flex-col gap-4 transition-colors">
                 <div className="flex items-start gap-4 text-amber-600 dark:text-amber-400">
@@ -129,7 +128,6 @@ export default function EditarPedidoB2B({ params }) {
                       Ajuste de Valor: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(diferenca)} a menos
                     </h4>
                     
-                    {/* A lógica que você pediu: verifica se já pagou */}
                     {['pago', 'processing', 'completed'].includes(pedido?.status) ? (
                        <p className="text-sm text-amber-700 dark:text-amber-500/80 transition-colors">O cliente <b>já realizou o pagamento</b> deste pedido. Escolha como tratar a diferença financeira:</p>
                     ) : (
@@ -138,7 +136,6 @@ export default function EditarPedidoB2B({ params }) {
                   </div>
                 </div>
 
-                {/* Se já pagou, mostra a opção da carteira */}
                 {['pago', 'processing', 'completed'].includes(pedido?.status) && (
                    <label className="flex items-center gap-3 bg-white dark:bg-zinc-900/50 p-4 rounded-xl border border-amber-300 dark:border-amber-500/20 cursor-pointer w-fit transition-all hover:bg-zinc-50 dark:hover:bg-zinc-900/80 shadow-sm dark:shadow-none">
                      <input
@@ -155,7 +152,7 @@ export default function EditarPedidoB2B({ params }) {
               </div>
             )}
 
-            {/* 🟢 CAMPO DE MOTIVO DA EDIÇÃO (Sempre aparece para log) */}
+            {/* CAMPO DE MOTIVO DA EDIÇÃO */}
             <div className="bg-white dark:bg-zinc-900/30 border border-zinc-200 dark:border-zinc-800/60 rounded-2xl p-5 shadow-sm dark:shadow-none transition-colors">
               <label className="flex items-center gap-2 text-sm font-bold text-zinc-800 dark:text-zinc-200 mb-3 transition-colors">
                  <MessageSquare size={16} className="text-blue-600 dark:text-blue-400" />
@@ -183,13 +180,11 @@ export default function EditarPedidoB2B({ params }) {
                   </thead>
                   <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800/50 transition-colors">
                     {itens.map((item, index) => {
-                      // Extraímos e garantimos que são números
                       const preco = parseFloat(item.price || 0);
                       const quantidade = item.quantity || 0;
 
                       return (
                       <tr key={item.id || item.sku} className="hover:bg-zinc-50 dark:hover:bg-zinc-900/30 transition-colors">
-                        {/* 🟢 item.name em vez de PDNOME */}
                         <td className="px-6 py-4 font-medium text-zinc-900 dark:text-zinc-200 transition-colors">{item.name}</td>
                         
                         <td className="px-6 py-4 text-center text-zinc-500 dark:text-zinc-400 transition-colors">
@@ -200,7 +195,6 @@ export default function EditarPedidoB2B({ params }) {
                           <div className="flex items-center justify-center gap-3">
                             <button onClick={() => handleQtdChange(index, quantidade - 1)} className="p-1.5 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 rounded-lg transition-colors"><Minus size={14}/></button>
                             
-                            {/* 🟢 Mostra a quantidade nova */}
                             <span className="w-8 text-center font-bold text-emerald-600 dark:text-emerald-400 transition-colors">{quantidade}</span>
                             
                             <button onClick={() => handleQtdChange(index, quantidade + 1)} className="p-1.5 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 rounded-lg transition-colors"><Plus size={14}/></button>
@@ -208,7 +202,6 @@ export default function EditarPedidoB2B({ params }) {
                         </td>
                         
                         <td className="px-6 py-4 text-right font-bold text-zinc-900 dark:text-zinc-100 transition-colors">
-                          {/* 🟢 Calcula o subtotal da linha */}
                           {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(preco * quantidade)}
                         </td>
                       </tr>
@@ -237,5 +230,18 @@ export default function EditarPedidoB2B({ params }) {
         </main>
       </div>
     </div>
+  );
+}
+
+// 🟢 2. ESSE É O COMPONENTE EXPORTADO! ELE "EMBRULHA" A LÓGICA NO SUSPENSE
+export default function EditarPedidoB2B() {
+  return (
+    <Suspense fallback={
+      <div className="h-screen bg-zinc-50 dark:bg-[#09090b] flex items-center justify-center">
+        <Loader2 className="animate-spin text-emerald-500" />
+      </div>
+    }>
+      <EditarPedidoConteudo />
+    </Suspense>
   );
 }

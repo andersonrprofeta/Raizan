@@ -1,11 +1,10 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
-// 🟢 MUDANÇA AQUI: Usando useSearchParams para o Electron funcionar!
 import { useSearchParams, useRouter } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
-import { ArrowLeft, Save, Package, Layers, Box, FileText, Settings, Loader2, ClipboardList } from "lucide-react";
+import { ArrowLeft, Save, Package, Layers, Box, FileText, Settings, Loader2, ClipboardList, AlertTriangle } from "lucide-react";
 import Link from "next/link";
 import toast from 'react-hot-toast';
 
@@ -15,18 +14,19 @@ import AbaFichaTecnica from "@/components/produtos/AbaFichaTecnica";
 import AbaVariacoes from "@/components/produtos/AbaVariacoes";
 import AbaKit from "@/components/produtos/AbaKit";
 
-// 🟢 ENVOLVENDO EM UM COMPONENTE FILHO PARA O SUSPENSE DO NEXT.JS
 function FormularioInterno() {
   const router = useRouter();
   const searchParams = useSearchParams();
   
-  // Lê o ID da URL (?id=5)
   const idProduto = searchParams.get("id"); 
   const isEditMode = !!idProduto;
 
   const [salvando, setSalvando] = useState(false);
   const [carregandoDados, setCarregandoDados] = useState(isEditMode);
   const [abaAtiva, setAbaAtiva] = useState("basico");
+
+  // 🟢 ESTADO DA BARRA FLUTUANTE (No lugar certo!)
+  const [temAlteracoes, setTemAlteracoes] = useState(false);
 
   const [produto, setProduto] = useState({
     basico: { tipo_produto: "simples", nome: "", gtin: "", origem: "0", unidade: "UN", ncm: "", sku: "", cest: "" },
@@ -64,11 +64,12 @@ function FormularioInterno() {
   };
 
   const atualizarCampo = (sessao, campo, valor) => {
-    // Se "valor" não existir, significa que a aba mandou apenas (gaveta, dados_completos)
+    // 🟢 MÁGICA: Qualquer alteração em qualquer aba aciona a barra flutuante!
+    setTemAlteracoes(true); 
+
     if (valor === undefined) {
       setProduto(prev => ({ ...prev, [sessao]: campo }));
     } else {
-      // Se tiver os 3, atualiza linha por linha igual antes (ex: basico -> nome -> valor)
       setProduto(prev => ({ ...prev, [sessao]: { ...prev[sessao], [campo]: valor } }));
     }
   };
@@ -76,10 +77,8 @@ function FormularioInterno() {
   const salvarProduto = async () => {
     setSalvando(true);
     
-    // 🟢 GERADOR DE SKU AUTOMÁTICO COM ZEROS À ESQUERDA
     let produtoParaSalvar = { ...produto };
     if (!produtoParaSalvar.basico.sku || produtoParaSalvar.basico.sku.trim() === "") {
-       // Gera um SKU aleatório tipo "00142" se estiver vazio
        const skuAleatorio = Math.floor(Math.random() * 99999).toString().padStart(5, '0');
        produtoParaSalvar.basico.sku = skuAleatorio;
        toast.success(`SKU gerado automaticamente: ${skuAleatorio}`, { icon: '🔢' });
@@ -102,8 +101,8 @@ function FormularioInterno() {
       
       if (data.success) {
         toast.success(data.message);
+        setTemAlteracoes(false); // 🟢 Esconde a barra depois de salvar com sucesso
         
-        // Se for novo, vai pra tela de edição usando a Interrogação (Electron Friendly)
         if (!isEditMode && data.id) {
           router.push(`/cadastros/produtos/editar?id=${data.id}`);
         }
@@ -123,7 +122,7 @@ function FormularioInterno() {
     { id: "basico", label: "Dados Básicos", icon: <Package size={18} /> },
     { id: "complementares", label: "Dados Complementares", icon: <FileText size={18} /> },
     { id: "ficha_tecnica", label: "Ficha Técnica", icon: <ClipboardList size={18} /> },
-    ...(tipo === "variacoes" ? [{ id: "variacoes", label: "Variações (Grade)", icon: <Layers size={18} /> }] : []),
+    ...(tipo === "variacoes" || tipo === "variavel" ? [{ id: "variacoes", label: "Variações (Grade)", icon: <Layers size={18} /> }] : []),
     ...(tipo === "kit" ? [{ id: "kit", label: "Composição do Kit", icon: <Box size={18} /> }] : []),
     ...(tipo === "materia-prima" ? [{ id: "materia", label: "Ficha Técnica", icon: <Settings size={18} /> }] : []),
   ];
@@ -144,8 +143,8 @@ function FormularioInterno() {
       <Sidebar />
       <div className="flex-1 flex flex-col h-screen relative min-w-0">
         <Header />
-        <main className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-6 lg:p-8">
-          <div className="max-w-6xl mx-auto space-y-6">
+        <main className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-6 lg:p-8 relative">
+          <div className="max-w-6xl mx-auto space-y-6 pb-24"> {/* Adicionado pb-24 para a barra não cobrir conteúdo */}
             
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-white dark:bg-[#0c0c0e] p-5 sm:p-6 rounded-2xl border border-zinc-200 dark:border-zinc-800/60 shadow-sm dark:shadow-xl relative overflow-hidden transition-colors duration-300 gap-4">
               <div className="absolute -left-10 -top-10 w-40 h-40 bg-purple-100 dark:bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
@@ -163,13 +162,16 @@ function FormularioInterno() {
                 </div>
               </div>
 
-              <button 
-                onClick={salvarProduto} disabled={salvando}
-                className="w-full sm:w-auto relative z-10 bg-purple-600 hover:bg-purple-500 text-white px-8 py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 shadow-md transition-all active:scale-95 disabled:opacity-50"
-              >
-                {salvando ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
-                {isEditMode ? "Atualizar Produto" : "Salvar no Hub"}
-              </button>
+              {/* Botão original de cima mantido, mas escondemos se a barra flutuante estiver ativa para evitar cliques duplos confusos */}
+              {!temAlteracoes && (
+                <button 
+                  onClick={salvarProduto} disabled={salvando}
+                  className="w-full sm:w-auto relative z-10 bg-purple-600 hover:bg-purple-500 text-white px-8 py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 shadow-md transition-all active:scale-95 disabled:opacity-50"
+                >
+                  {salvando ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                  {isEditMode ? "Atualizar Produto" : "Salvar no Hub"}
+                </button>
+              )}
             </div>
 
             <div className="flex flex-col gap-6">
@@ -190,13 +192,56 @@ function FormularioInterno() {
               </div>
             </div>
           </div>
+
+          {/* ==========================================
+              BARRA FLUTUANTE DE ALTERAÇÕES NÃO SALVAS
+          ========================================== */}
+          {temAlteracoes && (
+            <div className="fixed bottom-0 left-0 lg:left-[260px] right-0 z-[100] p-4 sm:p-6 animate-in slide-in-from-bottom-10 fade-in duration-300 pointer-events-none">
+              <div className="max-w-5xl mx-auto bg-zinc-900/95 dark:bg-white/95 backdrop-blur-md shadow-[0_-10px_40px_rgba(0,0,0,0.1)] border border-zinc-800 dark:border-zinc-200 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-4 pointer-events-auto">
+                
+                <div className="flex items-center gap-4 w-full sm:w-auto">
+                  <div className="w-12 h-12 rounded-full bg-rose-500/20 dark:bg-rose-500/10 flex items-center justify-center shrink-0 border border-rose-500/30">
+                    <AlertTriangle size={24} className="text-rose-500 dark:text-rose-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-zinc-100 dark:text-zinc-900 font-black text-sm sm:text-base">Alterações não salvas</h3>
+                    <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5">
+                      Você modificou dados, imagens ou variações deste produto.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+                  <button 
+                    onClick={() => {
+                      setTemAlteracoes(false);
+                      router.push('/cadastros/produtos'); // Volta pro catálogo descartando tudo
+                    }} 
+                    className="px-5 py-2.5 text-xs sm:text-sm font-bold text-zinc-400 hover:text-white dark:text-zinc-500 dark:hover:text-zinc-900 transition-colors"
+                  >
+                    Descartar
+                  </button>
+                  
+                  <button 
+                    onClick={salvarProduto} // 🟢 Conectado à sua função principal de salvar!
+                    disabled={salvando}
+                    className="bg-purple-600 hover:bg-purple-500 text-white px-6 md:px-8 py-2.5 rounded-xl font-bold shadow-lg shadow-purple-600/20 transition-all active:scale-95 text-xs sm:text-sm flex items-center gap-2 disabled:opacity-50"
+                  >
+                    {salvando ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                    Salvar Alterações
+                  </button>
+                </div>
+
+              </div>
+            </div>
+          )}
         </main>
       </div>
     </div>
   );
 }
 
-// 🟢 EXPORTAÇÃO ENVOLVIDA EM SUSPENSE PARA EVITAR ERROS NO BUILD DO NEXT.JS
 export default function FormularioProdutoHub() {
   return (
     <Suspense fallback={<div className="h-screen flex items-center justify-center"><Loader2 size={32} className="animate-spin text-purple-600" /></div>}>

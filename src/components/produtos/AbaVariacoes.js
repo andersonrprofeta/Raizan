@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Layers, Plus, Trash2, Image as ImageIcon, Settings2, Palette, Type, X, Hash, Repeat } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -22,37 +22,66 @@ export default function AbaVariacoes({ produto, atualizarCampo }) {
   const [variacoes, setVariacoes] = useState(Array.isArray(produto?.variacoes) ? produto.variacoes : []);
   const [inputsTermos, setInputsTermos] = useState({});
 
+  // 🟢 NOVO: Rastreador de alterações para o aviso de saída!
+  const [teveAlteracao, setTeveAlteracao] = useState(false); 
+
+  // ==========================================
+  // 🛡️ TRAVA DE SEGURANÇA (FECHAR ABA / F5)
+  // ==========================================
+  useEffect(() => {
+    if (!teveAlteracao) return;
+
+    const avisarAntesDeSair = (e) => {
+      e.preventDefault();
+      e.returnValue = "Atenção: Você tem alterações na grade de variações que não foram salvas. Se sair agora, perderá o trabalho. Deseja sair?";
+      return e.returnValue;
+    };
+
+    window.addEventListener("beforeunload", avisarAntesDeSair);
+    return () => window.removeEventListener("beforeunload", avisarAntesDeSair);
+  }, [teveAlteracao]);
+
   // ==========================================
   // 🔄 SINCRONIZADORES E CONVERSÃO
   // ==========================================
   const salvarAtributos = (novaLista) => {
     setAtributos(novaLista);
     atualizarCampo('ficha_tecnica', { ...(produto?.ficha_tecnica || {}), atributos: novaLista });
+    setTeveAlteracao(true); // Marca que o usuário mexeu
   };
 
   const salvarVariacoes = (novaLista) => {
     setVariacoes(novaLista);
+    // 🟢 CORREÇÃO DO BUG: Atualizamos APENAS a variação aqui. O React parou de bater cabeça!
     atualizarCampo('variacoes', novaLista);
-    
-    if (novaLista.length > 0) {
-      if (produto?.basico) atualizarCampo('basico', { ...produto.basico, tipo_produto: 'variavel' });
-      else atualizarCampo('tipo_produto', 'variavel'); 
-    } else {
-      if (produto?.basico) atualizarCampo('basico', { ...produto.basico, tipo_produto: 'simples' });
-      else atualizarCampo('tipo_produto', 'simples'); 
-    }
+    setTeveAlteracao(true); // Marca que o usuário mexeu
   };
 
   const converterParaSimples = () => {
     const estoqueTotal = variacoes.reduce((acc, curr) => acc + (Number(curr.estoque) || 0), 0);
-    if (produto?.estoque) atualizarCampo('estoque', { ...produto.estoque, inicial: estoqueTotal });
-
-    salvarVariacoes([]);
-    salvarAtributos([]);
     
-    if (produto?.basico) atualizarCampo('basico', { ...produto.basico, tipo_produto: 'simples' });
-    else atualizarCampo('tipo_produto', 'simples'); 
+    // 🟢 CORREÇÃO DO BUG: Criamos uma fila organizada (Cascata) com pequenos delays 
+    // para evitar a "Condição de Corrida" no estado da tela principal.
+    if (produto?.estoque) {
+      atualizarCampo('estoque', { ...produto.estoque, inicial: estoqueTotal });
+    }
 
+    setTimeout(() => {
+      setVariacoes([]);
+      atualizarCampo('variacoes', []);
+    }, 50);
+
+    setTimeout(() => {
+      setAtributos([]);
+      atualizarCampo('ficha_tecnica', { ...(produto?.ficha_tecnica || {}), atributos: [] });
+    }, 100);
+
+    setTimeout(() => {
+      if (produto?.basico) atualizarCampo('basico', { ...produto.basico, tipo_produto: 'simples' });
+      else atualizarCampo('tipo_produto', 'simples'); 
+    }, 150);
+
+    setTeveAlteracao(true);
     toast.success("Convertido para Produto Simples! Estoque consolidado.", { icon: "🧹" });
   };
 
@@ -67,7 +96,6 @@ export default function AbaVariacoes({ produto, atualizarCampo }) {
     setInputsTermos(prev => ({ ...prev, [attrId]: { ...prev[attrId], [campo]: valor } }));
   };
 
-  // 🟢 FUNDAMENTAL: Atualiza tanto a Cor Hex quanto o Base64 da Imagem!
   const atualizarValorDoTermoExistente = (attrId, termoNome, novoValor) => {
     salvarAtributos(atributos.map(attr => {
       if (attr.id === attrId) {
@@ -384,7 +412,6 @@ export default function AbaVariacoes({ produto, atualizarCampo }) {
                       </button>
                     </td>
 
-                    {/* 🟢 UPLOAD REAL PARA A FOTO DA VARIAÇÃO (FOTO GRANDE) */}
                     <td className="p-3 text-center align-middle">
                       <label className="w-10 h-10 bg-zinc-100 dark:bg-zinc-900 border border-dashed border-zinc-300 dark:border-zinc-700 hover:border-purple-500 rounded-xl flex items-center justify-center text-zinc-400 hover:text-purple-500 transition-all mx-auto group relative cursor-pointer overflow-hidden shadow-sm">
                         <input 
@@ -411,15 +438,13 @@ export default function AbaVariacoes({ produto, atualizarCampo }) {
                       </label>
                     </td>
 
-                    {/* 🟢 A MÁGICA VISUAL DO RAIO-X BLINDADO PARA ESPAÇOS */}
                     <td className="p-3 align-middle font-bold text-zinc-800 dark:text-zinc-200">
                       <div className="flex flex-wrap items-center gap-1.5">
                         {varItem.nome.split('-').map((parteCrua, i) => {
-                          const parte = parteCrua.trim(); // Limpa os espaços!
+                          const parte = parteCrua.trim();
                           let corHex = null;
                           let imgUrl = null;
 
-                          // Procura a cor ou textura ignorando letras maiúsculas/minúsculas
                           atributos.forEach(a => {
                             const termoEncontrado = (Array.isArray(a.termos) ? a.termos : []).find(t => t.nome.trim().toLowerCase() === parte.toLowerCase());
                             if (termoEncontrado) {

@@ -8,7 +8,7 @@ import {
   Settings, Database, LogOut, Store, ShoppingCart, 
   Globe, BookOpen, Megaphone, MessageCircle, Server, 
   FileText, Boxes, AlertTriangle, ChevronDown, ChevronRight,
-  TrendingUp, Building2, Receipt, Tag, X, FolderTree, Archive
+  TrendingUp, Building2, Receipt, Tag, X, FolderTree, Archive, Plug
 } from "lucide-react";
 import packageJson from "../../package.json";
 import toast from 'react-hot-toast';
@@ -28,7 +28,7 @@ export default function Sidebar() {
       comercial: ["/pedidos", "/promocoes", "/xml", "/financeiro", "/relatorios", "/b2b-pedidos"].includes(path),
       gestao: ["/produtos", "/cadastros/produtos", "/cadastros/categorias", "/cadastros/marcas", "/cadastros/embalagens", "/cadastros/vendedores", "/clientes", "/pdv"].includes(path),
       marketing: ["/crm", "/whatsapp", "/catalogo", "/website", "/ads"].includes(path),
-      sistema: ["/configuracoes", "/host", "/sistema"].includes(path)
+      sistema: ["/configuracoes", "/host", "/sistema", "/integracoes"].includes(path) // <-- Adicionado aqui
     };
   });
 
@@ -54,7 +54,7 @@ export default function Sidebar() {
       if (["/pedidos", "/promocoes", "/xml", "/financeiro", "/relatorios", "/b2b-pedidos"].includes(pathname)) newState.comercial = true;
       if (["/produtos", "/cadastros/produtos", "/cadastros/categorias", "/cadastros/embalagens", "/cadastros/vendedores", "/clientes", "/pdv"].includes(pathname)) newState.gestao = true;
       if (["/crm", "/whatsapp", "/catalogo", "/website", "/ads"].includes(pathname)) newState.marketing = true;
-      if (["/configuracoes", "/host", "/sistema"].includes(pathname)) newState.sistema = true;
+      if (["/configuracoes", "/host", "/sistema", "/integracoes"].includes(pathname)) newState.sistema = true; // <-- Adicionado aqui
       return newState;
     });
   }, [pathname]);
@@ -172,7 +172,6 @@ export default function Sidebar() {
   // COMPONENTES DE MENU DINÂMICOS
   // ==========================================
 
-  // NavLink exclusivo para os módulos do B2B e Dashboard Admin
   const DashboardNavLink = ({ href, icon: Icon, label }) => {
     const active = isActive(href);
     const isLojista = userRole === "lojista";
@@ -198,11 +197,9 @@ export default function Sidebar() {
     );
   };
 
-  // NavLink Especializado para Submenus (Com Lógica de Cores por Seção)
   const SubNavLink = ({ href, icon: Icon, label, colorTheme }) => {
     const active = isActive(href);
     
-    // Configurações de cores baseadas no módulo pai
     const themes = {
       emerald: {
         active: "bg-emerald-600 text-white shadow-md shadow-emerald-600/20 font-bold",
@@ -239,7 +236,7 @@ export default function Sidebar() {
   const hasComercial = ["pedidos", "promocoes", "xml", "financeiro", "relatorios", "portal-b2b"].some(tem);
   const hasGestao = ["produtos", "clientes", "pdv"].some(tem);
   const hasMkt = ["crm", "whatsapp", "website", "catalogo", "ads"].some(tem);
-  const hasSys = ["host", "configuracoes", "sistema"].some(tem);
+  const hasSys = ["host", "configuracoes", "sistema", "integracoes"].some(tem); // <-- Adicionada verificação
 
   if (!userRole) {
     return <aside className="hidden h-screen sticky top-0 w-[260px] max-w-full shrink-0 flex-col overflow-x-hidden border-r border-zinc-200 dark:border-zinc-800/80 bg-white dark:bg-[#0c0c0e] z-20 lg:flex transition-colors duration-300"></aside>;
@@ -404,6 +401,10 @@ export default function Sidebar() {
                   {openMenus.sistema && (
                     <div className="mt-1 ml-2 space-y-1 border-l border-zinc-200 dark:border-zinc-800 pl-2 sm:ml-3 sm:pl-3 animate-in slide-in-from-top-2 pb-1">
                       {tem("configuracoes") && <SubNavLink href="/configuracoes" icon={Settings} label="Ajustes do Motor" colorTheme="zinc" />}
+                      
+                      {/* O Menu Integrações Foi Adicionado Aqui! */}
+                      <SubNavLink href="/cadastros/integracoes" icon={Plug} label="Canais e Integrações" colorTheme="zinc" />
+                      
                       {tem("host") && <SubNavLink href="/host" icon={Server} label="Hospedagem" colorTheme="zinc" />}
                       {tem("sistema") && <SubNavLink href="/sistema" icon={Terminal} label="Terminal Root" colorTheme="zinc" />}
                     </div>
@@ -414,28 +415,35 @@ export default function Sidebar() {
           )}
         </nav>
 
-        <div className="shrink-0 border-t border-zinc-200 dark:border-zinc-800/80 bg-zinc-50 dark:bg-zinc-900/30 p-3 sm:p-4 transition-colors duration-300" style={{ WebkitAppRegion: 'no-drag' }}>
-          <div className="mb-4 flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800">
-              <Users size={18} className={userRole === "admin" ? "text-purple-600 dark:text-purple-400" : "text-emerald-600 dark:text-emerald-400"} />
+        {/* RODAPÉ PREMIUM REDESENHADO */}
+        <div className="shrink-0 border-t border-zinc-200 dark:border-zinc-800/80 bg-white dark:bg-[#0c0c0e] p-4 transition-colors duration-300" style={{ WebkitAppRegion: 'no-drag' }}>
+          <div className="flex items-center justify-between rounded-2xl bg-zinc-50 dark:bg-zinc-900/50 p-2 border border-zinc-100 dark:border-zinc-800/60 shadow-sm transition-all hover:border-purple-200 dark:hover:border-purple-500/30">
+            
+            <div className="flex items-center gap-3 min-w-0">
+              <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${userRole === "admin" ? "from-purple-100 to-indigo-50 dark:from-purple-500/20 dark:to-indigo-500/10 border-purple-200 dark:border-purple-500/30" : "from-emerald-100 to-teal-50 dark:from-emerald-500/20 dark:to-teal-500/10 border-emerald-200 dark:border-emerald-500/30"} border shadow-inner`}>
+                <Users size={16} className={userRole === "admin" ? "text-purple-600 dark:text-purple-400" : "text-emerald-600 dark:text-emerald-400"} />
+              </div>
+              <div className="min-w-0 overflow-hidden">
+                <p className="truncate text-sm font-bold text-zinc-800 dark:text-zinc-200 leading-tight">{userName}</p>
+                <p className={`text-[9px] uppercase tracking-wider font-black mt-0.5 ${userRole === "admin" ? "text-purple-600 dark:text-purple-400" : "text-emerald-600 dark:text-emerald-400"}`}>{userRole}</p>
+              </div>
             </div>
-            <div className="min-w-0 overflow-hidden">
-              <p className="truncate text-sm font-bold text-zinc-800 dark:text-zinc-200">{userName}</p>
-              <p className={`text-xs capitalize font-medium ${userRole === "admin" ? "text-purple-600 dark:text-purple-400" : "text-emerald-600 dark:text-emerald-400"}`}>{userRole}</p>
-            </div>
+            
+            <button 
+              onClick={handleSairDoApp}
+              title={userRole === "admin" ? "Fechar App" : "Sair da Conta"}
+              className="mr-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-rose-100 hover:text-rose-600 dark:hover:bg-rose-500/20 dark:hover:text-rose-400"
+            >
+              <LogOut size={16} />
+            </button>
           </div>
           
-          <button 
-            onClick={handleSairDoApp}
-            className="flex w-full items-center justify-center gap-2 rounded-xl border border-transparent py-2.5 text-xs text-zinc-500 dark:text-zinc-400 transition-colors hover:border-rose-500/20 hover:bg-rose-50 dark:hover:bg-rose-500/10 hover:text-rose-600 dark:hover:text-rose-400 sm:text-sm"
-          >
-            <LogOut size={16} /> {userRole === "admin" ? "Fechar App" : "Sair da Conta"}
-          </button>
-          
           {userRole === "admin" && (
-            <p className="mt-3 text-[10px] text-zinc-400 dark:text-zinc-600 text-center uppercase tracking-widest font-bold">
-              v{packageJson.version}
-            </p>
+            <div className="mt-3 flex items-center justify-center gap-2 text-[10px] text-zinc-400 dark:text-zinc-600 font-bold tracking-widest uppercase">
+              <span>Raizan OS</span>
+              <span className="h-1 w-1 rounded-full bg-zinc-300 dark:bg-zinc-700"></span>
+              <span>v{packageJson.version}</span>
+            </div>
           )}
         </div>
       </aside>

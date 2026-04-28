@@ -8,7 +8,7 @@ import {
   Package, Search, Plus, Edit, Trash2, 
   Image as ImageIcon, Loader2, Filter,
   MoreHorizontal, PackageOpen, Layers, Box, X,
-  ChevronLeft, ChevronRight, TrendingUp, Barcode
+  ChevronLeft, ChevronRight, TrendingUp, Barcode, AlertTriangle
 } from "lucide-react";
 import Link from "next/link";
 import toast from 'react-hot-toast';
@@ -124,7 +124,7 @@ export default function ListaProdutosHub() {
       const data = await res.json();
       
       if (data.success) {
-        toast.success(`Enviado para a NUEV com sucesso!`, { id: toastId });
+        toast.success(`Enviado para a loja com sucesso!`, { id: toastId });
         setModalEnvio({ open: false, produto: null, categoriasWoo: [], categoriaSelecionada: "", loadingCategorias: false });
         
         // Acende o ícone do WooCommerce visualmente
@@ -328,8 +328,9 @@ export default function ListaProdutosHub() {
                             const varString = typeof produto.variacoes === 'string' ? produto.variacoes : JSON.stringify(produto.variacoes || []);
                             const isVar = produto.tipo_produto === 'variavel' || (produto.tipo_produto !== 'kit' && varString.length > 5);
 
-                            let valorExibicao = produto.preco_venda;
                             const temPromo = produto.preco_promocional && Number(produto.preco_promocional) > 0;
+                            const valorExibicao = temPromo ? produto.preco_promocional : produto.preco_venda;
+                            const valorAntigo = temPromo ? produto.preco_venda : null;
 
                             const canaisAtivos = Array.isArray(produto.canais_ativos) ? produto.canais_ativos : []; 
 
@@ -349,19 +350,22 @@ export default function ListaProdutosHub() {
                                     </div>
                                     
                                     <div className="flex flex-wrap items-center gap-1.5">
-                                      {/* Tags de Estrutura */}
                                       {isVar && <span className="shrink-0 flex items-center gap-1 text-[10px] bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400 px-2 py-0.5 rounded font-black uppercase border border-indigo-200 dark:border-indigo-500/30"><Layers size={10} /> Variação</span>}
                                       {produto.tipo_produto === 'kit' && <span className="shrink-0 flex items-center gap-1 text-[10px] bg-fuchsia-50 text-fuchsia-600 dark:bg-fuchsia-500/10 dark:text-fuchsia-400 px-2 py-0.5 rounded font-black uppercase border border-fuchsia-200 dark:border-fuchsia-500/30"><Box size={10} /> Kit</span>}
                                       
-                                      {/* Código SKU */}
                                       <span className="flex items-center text-[10px] bg-zinc-100 dark:bg-zinc-800/80 text-zinc-600 dark:text-zinc-400 px-2 py-0.5 rounded font-bold border border-zinc-200 dark:border-zinc-700 shadow-sm">
                                         SKU: {produto.sku || "N/A"}
                                       </span>
 
-                                      {/* Código EAN / GTIN */}
                                       {produto.gtin && (
                                         <span className="flex items-center gap-1 text-[10px] bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 px-2 py-0.5 rounded font-bold border border-emerald-200 dark:border-emerald-500/30 shadow-sm">
                                           <Barcode size={10} /> EAN: {produto.gtin}
+                                        </span>
+                                      )}
+
+                                      {temPromo && (
+                                        <span className="flex items-center gap-1 text-[10px] bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 px-2 py-0.5 rounded font-black uppercase tracking-wider border border-rose-200 dark:border-rose-500/30 shadow-sm">
+                                          🔥 Oferta
                                         </span>
                                       )}
                                     </div>
@@ -369,8 +373,8 @@ export default function ListaProdutosHub() {
                                 </td>
                                 
                                 <td className="px-5 py-3 text-right">
-                                  <p className="font-black text-base">{formatarMoeda(valorExibicao)}</p>
-                                  {temPromo && <p className="text-[10px] text-zinc-400 line-through">{formatarMoeda(produto.preco_promocional)}</p>}
+                                  <p className="font-black text-base text-zinc-900 dark:text-zinc-100">{formatarMoeda(valorExibicao)}</p>
+                                  {temPromo && <p className="text-[10px] text-zinc-400 line-through font-medium">{formatarMoeda(valorAntigo)}</p>}
                                 </td>
                                 
                                 <td className="px-5 py-3 text-center">
@@ -430,9 +434,6 @@ export default function ListaProdutosHub() {
                     </table>
                   </div>
 
-                  {/* ==========================================
-                      PAGINAÇÃO VIVA E FUNCIONAL
-                  ========================================== */}
                   {totalPaginas > 1 && (
                     <div className="flex flex-col sm:flex-row justify-between items-center gap-4 px-6 py-4 border-t border-zinc-200 dark:border-zinc-800/60 mt-auto relative z-0 bg-zinc-50/50 dark:bg-[#0c0c0e]/50 rounded-b-2xl">
                       <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium text-center sm:text-left">
@@ -466,12 +467,11 @@ export default function ListaProdutosHub() {
               )}
             </div>
 
-            {/* MODAL DE MAPEAMENTO E ENVIO (Estilo Olist) */}
+            {/* MODAL DE MAPEAMENTO E ENVIO */}
             {modalEnvio.open && (
               <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
                 <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-2xl w-full max-w-2xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
                   
-                  {/* Cabeçalho do Modal */}
                   <div className="flex items-center justify-between p-6 border-b border-zinc-200 dark:border-zinc-800/60 bg-zinc-50 dark:bg-[#0c0c0e]">
                     <div>
                       <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">Enviar para o e-commerce</h2>
@@ -482,9 +482,7 @@ export default function ListaProdutosHub() {
                     </button>
                   </div>
 
-                  {/* Corpo do Modal */}
                   <div className="p-6 space-y-6">
-                    {/* Info do Produto Pai */}
                     <div className="flex items-center gap-4 p-4 bg-purple-50 dark:bg-purple-900/10 rounded-xl border border-purple-100 dark:border-purple-800/30">
                       <div className="w-12 h-12 bg-white dark:bg-zinc-900 rounded-lg flex items-center justify-center shadow-sm border border-purple-100 dark:border-purple-800/30">
                         <PackageOpen size={24} className="text-purple-600" />
@@ -496,29 +494,22 @@ export default function ListaProdutosHub() {
                       </div>
                     </div>
 
-                    {/* Seção de Mapeamento */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
-                      
-                      {/* Categoria Raizan */}
                       <div className="space-y-2 relative">
                         <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Categoria no ERP (Raizan)</label>
                         <div className="p-3 bg-zinc-100 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 rounded-xl text-zinc-700 dark:text-zinc-300 font-medium">
                           {modalEnvio.produto?.categoria || "Sem Categoria"}
                         </div>
-                        
-                        {/* Seta ligando os dois */}
                         <div className="hidden md:flex absolute -right-4 top-1/2 translate-x-1/2 items-center justify-center w-8 h-8 bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-full z-10 shadow-sm">
                           <ChevronRight size={16} className="text-zinc-400" />
                         </div>
                       </div>
 
-                      {/* Categoria WooCommerce */}
                       <div className="space-y-2">
                         <label className="text-xs font-bold text-purple-600 dark:text-purple-400 uppercase tracking-wider flex items-center gap-2">
                           <img src="/woocommerce.svg" alt="Woo" className="w-4 h-4 object-contain" /> 
                           Categoria na Loja
                         </label>
-                        
                         {modalEnvio.loadingCategorias ? (
                           <div className="flex items-center gap-3 p-3 border border-zinc-200 dark:border-zinc-700 rounded-xl bg-zinc-50 dark:bg-zinc-900/50 text-sm text-zinc-500">
                             <Loader2 size={16} className="animate-spin" /> Buscando categorias...
@@ -536,11 +527,9 @@ export default function ListaProdutosHub() {
                           </select>
                         )}
                       </div>
-
                     </div>
                   </div>
 
-                  {/* Rodapé do Modal */}
                   <div className="p-6 border-t border-zinc-200 dark:border-zinc-800/60 bg-zinc-50 dark:bg-[#0c0c0e] flex justify-end gap-3">
                     <button 
                       onClick={() => setModalEnvio({ ...modalEnvio, open: false })}
@@ -571,7 +560,6 @@ export default function ListaProdutosHub() {
               <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
                 <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-2xl w-full max-w-2xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
                   
-                  {/* Cabeçalho */}
                   <div className="flex items-center justify-between p-6 border-b border-zinc-200 dark:border-zinc-800/60 bg-zinc-50 dark:bg-[#0c0c0e]">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-purple-100 dark:bg-purple-500/10 rounded-xl flex items-center justify-center border border-purple-200 dark:border-purple-500/20">
@@ -587,11 +575,9 @@ export default function ListaProdutosHub() {
                     </button>
                   </div>
 
-                  {/* Corpo do Modal */}
                   <div className="p-6 overflow-y-auto max-h-[60vh] custom-scrollbar">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       
-                      {/* Status */}
                       <div className="space-y-2">
                         <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Status do Produto</label>
                         <select 
@@ -604,7 +590,6 @@ export default function ListaProdutosHub() {
                         </select>
                       </div>
 
-                      {/* Tipo de Produto */}
                       <div className="space-y-2">
                         <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Estrutura</label>
                         <select 
@@ -618,7 +603,6 @@ export default function ListaProdutosHub() {
                         </select>
                       </div>
 
-                      {/* Situação do Estoque */}
                       <div className="space-y-2">
                         <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Estoque Atual</label>
                         <select 
@@ -631,7 +615,6 @@ export default function ListaProdutosHub() {
                         </select>
                       </div>
 
-                      {/* Categoria */}
                       <div className="space-y-2">
                         <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Categoria</label>
                         <select 
@@ -645,7 +628,6 @@ export default function ListaProdutosHub() {
                         </select>
                       </div>
 
-                      {/* Marca */}
                       <div className="space-y-2">
                         <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Marca</label>
                         <input 
@@ -655,7 +637,6 @@ export default function ListaProdutosHub() {
                         />
                       </div>
 
-                      {/* Buscar na Variação */}
                       <div className="space-y-2">
                         <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Termo de Variação</label>
                         <input 
@@ -668,7 +649,6 @@ export default function ListaProdutosHub() {
                     </div>
                   </div>
 
-                  {/* Rodapé do Modal */}
                   <div className="p-6 border-t border-zinc-200 dark:border-zinc-800/60 bg-zinc-50 dark:bg-[#0c0c0e] flex items-center justify-between gap-3">
                     <button 
                       onClick={limparFiltros}
@@ -689,7 +669,61 @@ export default function ListaProdutosHub() {
               </div>
             )}
 
-            
+            {/* ==========================================
+                MODAL DE EXCLUSÃO DE PRODUTO
+            ========================================== */}
+            {modalDelete.open && (
+              <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+                <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-3xl w-full max-w-md shadow-2xl p-8 text-center flex flex-col items-center relative overflow-hidden animate-in zoom-in-95 duration-200">
+                  
+                  {/* Faixa decorativa no topo do modal */}
+                  <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-rose-500 to-orange-500" />
+                  
+                  {/* Ícone Redondo */}
+                  <div className="w-20 h-20 bg-rose-100 dark:bg-rose-500/10 text-rose-600 rounded-full flex items-center justify-center mb-6 shadow-inner">
+                    {modalDelete.temVendas ? <AlertTriangle size={36} strokeWidth={2.5} /> : <Trash2 size={36} strokeWidth={2.5} />}
+                  </div>
+                  
+                  {/* Textos */}
+                  <h2 className="text-2xl font-black text-zinc-900 dark:text-zinc-100 mb-3">Excluir Produto?</h2>
+                  <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-8 leading-relaxed px-2">
+                    Tem certeza que deseja apagar o produto <strong className="text-zinc-800 dark:text-zinc-200">"{modalDelete.produto?.nome}"</strong>? <br />
+                    
+                    {modalDelete.temVendas 
+                      ? <span className="text-orange-600 font-medium mt-2 block">Cuidado: Este produto já possui vendas. Recomendamos inativá-lo para não perder o histórico financeiro.</span> 
+                      : <span className="mt-2 block">Esta ação é irreversível e o apagará completamente do seu Hub.</span>}
+                  </p>
+                  
+                  {/* Botões */}
+                  <div className="flex gap-3 w-full justify-center">
+                    <button 
+                      onClick={() => setModalDelete({ open: false, produto: null, temVendas: false })} 
+                      className="flex-1 py-3 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 dark:bg-zinc-900 dark:hover:bg-zinc-800 dark:text-zinc-300 rounded-xl font-bold transition-colors"
+                    >
+                      Cancelar
+                    </button>
+                    
+                    {modalDelete.temVendas ? (
+                      <button 
+                        onClick={inativarProduto} 
+                        className="flex-1 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-bold transition-colors shadow-md shadow-orange-500/20"
+                      >
+                        Inativar Produto
+                      </button>
+                    ) : (
+                      <button 
+                        onClick={confirmarExclusao} 
+                        className="flex-1 py-3 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold transition-colors shadow-md shadow-rose-500/20"
+                      >
+                        Sim, Excluir
+                      </button>
+                    )}
+                  </div>
+
+                </div>
+              </div>
+            )}
+
         </main>
       </div>
     </div>

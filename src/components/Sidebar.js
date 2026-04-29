@@ -8,7 +8,9 @@ import {
   Settings, Database, LogOut, Store, ShoppingCart, 
   Globe, BookOpen, Megaphone, MessageCircle, Server, 
   FileText, Boxes, AlertTriangle, ChevronDown, ChevronRight,
-  TrendingUp, Building2, Receipt, Tag, X, FolderTree, Archive, Plug
+  TrendingUp, Building2, Receipt, Tag, X, FolderTree, Archive, Plug,
+  // Novos ícones para o E-commerce
+  Palette, Image as ImageIcon, PanelTop, PanelBottom, Navigation, Headset, Fingerprint 
 } from "lucide-react";
 import packageJson from "../../package.json";
 import toast from 'react-hot-toast';
@@ -28,7 +30,9 @@ export default function Sidebar() {
       comercial: ["/pedidos", "/promocoes", "/xml", "/financeiro", "/relatorios", "/b2b-pedidos"].includes(path),
       gestao: ["/produtos", "/cadastros/produtos", "/cadastros/categorias", "/cadastros/marcas", "/cadastros/embalagens", "/cadastros/vendedores", "/clientes", "/pdv"].includes(path),
       marketing: ["/crm", "/whatsapp", "/catalogo", "/website", "/ads"].includes(path),
-      sistema: ["/configuracoes", "/host", "/sistema", "/integracoes"].includes(path) // <-- Adicionado aqui
+      // 🔥 Adicionado o estado do E-commerce
+      ecommerce: ["/admin/ecommerce/header", "/admin/ecommerce/menus", "/admin/ecommerce/banners", "/admin/ecommerce/cores", "/admin/ecommerce/footer", "/admin/ecommerce/logo", "/admin/ecommerce/sac"].includes(path),
+      sistema: ["/configuracoes", "/host", "/sistema", "/integracoes"].includes(path)
     };
   });
 
@@ -54,7 +58,9 @@ export default function Sidebar() {
       if (["/pedidos", "/promocoes", "/xml", "/financeiro", "/relatorios", "/b2b-pedidos"].includes(pathname)) newState.comercial = true;
       if (["/produtos", "/cadastros/produtos", "/cadastros/categorias", "/cadastros/embalagens", "/cadastros/vendedores", "/clientes", "/pdv"].includes(pathname)) newState.gestao = true;
       if (["/crm", "/whatsapp", "/catalogo", "/website", "/ads"].includes(pathname)) newState.marketing = true;
-      if (["/configuracoes", "/host", "/sistema", "/integracoes"].includes(pathname)) newState.sistema = true; // <-- Adicionado aqui
+      // 🔥 Adicionado ao listener de rotas
+      if (["/admin/ecommerce/header", "/admin/ecommerce/menus", "/admin/ecommerce/banners", "/admin/ecommerce/cores", "/admin/ecommerce/footer", "/admin/ecommerce/logo", "/admin/ecommerce/sac"].includes(pathname)) newState.ecommerce = true;
+      if (["/configuracoes", "/host", "/sistema", "/integracoes"].includes(pathname)) newState.sistema = true; 
       return newState;
     });
   }, [pathname]);
@@ -213,6 +219,11 @@ export default function Sidebar() {
         active: "bg-orange-500 text-white shadow-md shadow-orange-500/20 font-bold",
         hover: "text-zinc-600 dark:text-zinc-400 hover:bg-orange-50 dark:hover:bg-orange-500/10 hover:text-orange-700 dark:hover:text-orange-400"
       },
+      // 🔥 Novo tema Azul adicionado para a Loja
+      blue: {
+        active: "bg-blue-600 text-white shadow-md shadow-blue-600/20 font-bold",
+        hover: "text-zinc-600 dark:text-zinc-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 hover:text-blue-700 dark:hover:text-blue-400"
+      },
       zinc: {
         active: "bg-zinc-800 dark:bg-zinc-200 text-white dark:text-zinc-900 shadow-md shadow-zinc-800/20 font-bold",
         hover: "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 hover:text-zinc-900 dark:hover:text-zinc-200"
@@ -236,7 +247,9 @@ export default function Sidebar() {
   const hasComercial = ["pedidos", "promocoes", "xml", "financeiro", "relatorios", "portal-b2b"].some(tem);
   const hasGestao = ["produtos", "clientes", "pdv"].some(tem);
   const hasMkt = ["crm", "whatsapp", "website", "catalogo", "ads"].some(tem);
-  const hasSys = ["host", "configuracoes", "sistema", "integracoes"].some(tem); // <-- Adicionada verificação
+  // Deixando o E-commerce sempre visível no momento ou atrelado a um módulo se você tiver
+  const hasEcommerce = ["ecommerce", "e-commerce", "loja"].some(tem); 
+  const hasSys = ["host", "configuracoes", "sistema", "integracoes"].some(tem); 
 
   if (!userRole) {
     return <aside className="hidden h-screen sticky top-0 w-[260px] max-w-full shrink-0 flex-col overflow-x-hidden border-r border-zinc-200 dark:border-zinc-800/80 bg-white dark:bg-[#0c0c0e] z-20 lg:flex transition-colors duration-300"></aside>;
@@ -351,7 +364,7 @@ export default function Sidebar() {
                   {openMenus.gestao && (
                     <div className="mt-1 ml-2 space-y-1 border-l border-zinc-200 dark:border-zinc-800 pl-2 sm:ml-3 sm:pl-3 animate-in slide-in-from-top-2 pb-2">
                       <div className="mt-2 mb-1.5 px-3 text-[10px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Cadastros Base</div>
-                      {tem("clientes") && <SubNavLink href="/clientes" icon={Users} label="Clientes e Fornecedores" colorTheme="purple" />}
+                      {tem("clientes") && <SubNavLink href="/cadastros/clientes" icon={Users} label="Clientes" colorTheme="purple" />}
                       {tem("produtos") && <SubNavLink href="/cadastros/produtos" icon={Package} label="Produtos" colorTheme="purple" />}
                       {tem("produtos") && <SubNavLink href="/cadastros/categorias" icon={FolderTree} label="Categorias" colorTheme="purple" />}
                       {tem("produtos") && <SubNavLink href="/cadastros/marcas" icon={Tag} label="Marcas" colorTheme="purple" />}
@@ -388,6 +401,30 @@ export default function Sidebar() {
                 </div>
               )}
 
+              {/* 🔥 NOVO: MÓDULO E-COMMERCE - COR AZUL (BLUE) */}
+              {hasEcommerce && !licencaExpirada && (
+                <div>
+                  <button onClick={() => toggleMenu('ecommerce')} className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-xs transition-all duration-300 sm:text-sm ${openMenus.ecommerce ? 'bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 font-bold shadow-[0_0_12px_rgba(59,130,246,0.15)] border border-blue-200 dark:border-blue-500/30' : 'border border-transparent text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 hover:text-zinc-900 dark:hover:text-zinc-200'}`}>
+                    <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+                      <Store size={16} className={`shrink-0 transition-colors ${openMenus.ecommerce ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-400 dark:text-zinc-500'}`} />
+                      <span className="truncate text-[10px] font-semibold uppercase tracking-wide sm:text-xs">E-Commerce / Loja</span>
+                    </div>
+                    {openMenus.ecommerce ? <ChevronDown size={14} className="text-blue-500 dark:text-blue-400"/> : <ChevronRight size={14} className="text-zinc-400 dark:text-zinc-500"/>}
+                  </button>
+                  {openMenus.ecommerce && (
+                    <div className="mt-1 ml-2 space-y-1 border-l border-zinc-200 dark:border-zinc-800 pl-2 sm:ml-3 sm:pl-3 animate-in slide-in-from-top-2 pb-1">
+                      <SubNavLink href="/ecommerce/cores" icon={Palette} label="Cores do Tema" colorTheme="blue" />
+                      <SubNavLink href="/ecommerce/banners" icon={ImageIcon} label="Banners e Hero" colorTheme="blue" />
+                      <SubNavLink href="/ecommerce/header" icon={PanelTop} label="Cabeçalho (Header)" colorTheme="blue" />
+                      <SubNavLink href="/ecommerce/menus" icon={Navigation} label="Menus e Links" colorTheme="blue" />
+                      <SubNavLink href="/ecommerce/footer" icon={PanelBottom} label="Rodapé (Footer)" colorTheme="blue" />
+                      <SubNavLink href="/ecommerce/logo" icon={Fingerprint} label="Logo e Identidade" colorTheme="blue" />
+                      <SubNavLink href="/ecommerce/sac" icon={Headset} label="Atendimento (SAC)" colorTheme="blue" />
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* MÓDULO SISTEMA - COR CINZA (ZINC) */}
               {hasSys && !licencaExpirada && (
                 <div>
@@ -401,10 +438,7 @@ export default function Sidebar() {
                   {openMenus.sistema && (
                     <div className="mt-1 ml-2 space-y-1 border-l border-zinc-200 dark:border-zinc-800 pl-2 sm:ml-3 sm:pl-3 animate-in slide-in-from-top-2 pb-1">
                       {tem("configuracoes") && <SubNavLink href="/configuracoes" icon={Settings} label="Ajustes do Motor" colorTheme="zinc" />}
-                      
-                      {/* O Menu Integrações Foi Adicionado Aqui! */}
                       <SubNavLink href="/cadastros/integracoes" icon={Plug} label="Canais e Integrações" colorTheme="zinc" />
-                      
                       {tem("host") && <SubNavLink href="/host" icon={Server} label="Hospedagem" colorTheme="zinc" />}
                       {tem("sistema") && <SubNavLink href="/sistema" icon={Terminal} label="Terminal Root" colorTheme="zinc" />}
                     </div>

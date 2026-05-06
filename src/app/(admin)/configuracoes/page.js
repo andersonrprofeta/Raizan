@@ -15,6 +15,9 @@ export default function ConfiguracoesWizard() {
   const [loading, setLoading] = useState(false);
   const [testingConnection, setTestingConnection] = useState(false);
   
+  // --- CORREÇÃO HYDRATION MISMATCH ---
+  const [cnpjRender, setCnpjRender] = useState("");
+  
   // URL do Motor Local (PM2)
   const [coreUrl, setCoreUrl] = useState("http://localhost:3001");
 
@@ -24,12 +27,12 @@ export default function ConfiguracoesWizard() {
     sync_interval_min: 5
   });
 
-  // Mapeamento Dinâmico Separado
+  // Mapeamento Dinâmico Separado (COM STATUS E EAN)
   const [tabelasOracle, setTabelasOracle] = useState([]);
   const [colunasProdutos, setColunasProdutos] = useState([]);
   const [colunasClientes, setColunasClientes] = useState([]);
   const [mapeamento, setMapeamento] = useState({
-    tabela_produtos: "", col_sku: "", col_nome: "", col_estoque: "", col_preco: "",
+    tabela_produtos: "", col_sku: "", col_cod_barras: "", col_nome: "", col_estoque: "", col_preco: "", col_status: "",
     tabela_clientes: "", col_cli_cod: "", col_cli_nome: "", col_cli_email: "", col_cli_doc: ""
   });
 
@@ -47,6 +50,7 @@ export default function ConfiguracoesWizard() {
   };
 
   useEffect(() => {
+    setCnpjRender(pegarCnpjLogado()); // Atualiza o CNPJ apenas no cliente
     carregarConfiguracoesDaNuvem();
     carregarIntegracoesAtivas();
   }, []);
@@ -133,7 +137,7 @@ export default function ConfiguracoesWizard() {
 
   // BUSCA COLUNAS DE PRODUTOS
   const handleSelecionarTabelaProdutos = async (nomeTabela) => {
-    setMapeamento({ ...mapeamento, tabela_produtos: nomeTabela, col_sku: "", col_nome: "", col_estoque: "", col_preco: "" });
+    setMapeamento({ ...mapeamento, tabela_produtos: nomeTabela, col_sku: "", col_cod_barras: "", col_nome: "", col_estoque: "", col_preco: "", col_status: "" });
     if (!nomeTabela) return setColunasProdutos([]);
     const urlLimpa = coreUrl.trim().replace(/\/$/, "");
     try {
@@ -177,7 +181,7 @@ export default function ConfiguracoesWizard() {
     setLoading(true);
     const payload = { 
       ...formData, 
-      mapeamento_tabelas: mapeamento,
+      mapeamento_tabelas: JSON.stringify(mapeamento),
       canais_venda: JSON.stringify(lojasSelecionadas),
       modulos_pagamento: JSON.stringify(pagamentosSelecionados)
     };
@@ -196,7 +200,9 @@ export default function ConfiguracoesWizard() {
 
   // Filtros para exibir nos passos 3 e 4
   const lojas = integracoesDisponiveis.filter(i => i.plataforma === 'woocommerce' || i.plataforma === 'raizan_commerce');
-  const pagamentos = integracoesDisponiveis.filter(i => i.plataforma === 'mercado_pago' || i.plataforma === 'pagseguro' || i.plataforma === 'frenet');
+  
+  // 🔥 O BUGS ESTAVA AQUI: Adicionado 'mercadopago' sem underline para bater certinho com o banco de dados
+  const pagamentos = integracoesDisponiveis.filter(i => i.plataforma === 'mercadopago' || i.plataforma === 'mercado_pago' || i.plataforma === 'pagseguro' || i.plataforma === 'frenet');
 
   return (
     <div className="flex h-screen bg-zinc-50 dark:bg-[#09090b] text-zinc-900 dark:text-zinc-100 overflow-hidden">
@@ -211,7 +217,8 @@ export default function ConfiguracoesWizard() {
               <h1 className="text-2xl font-black text-zinc-900 dark:text-zinc-100 flex items-center gap-3">
                 Setup de Integração Oracle
                 <span className="bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20 text-xs px-2.5 py-1 rounded-md font-bold flex items-center gap-1 uppercase tracking-wider">
-                  <Lock size={12}/> {pegarCnpjLogado()}
+                  {/* Usa a variável de estado para evitar Erro 500/Hydration Mismatch */}
+                  <Lock size={12}/> {cnpjRender ? cnpjRender : "Carregando..."}
                 </span>
               </h1>
               <p className="text-sm text-zinc-500 mt-1">Conecte o ERP aos seus canais de venda e módulos.</p>
@@ -281,8 +288,12 @@ export default function ConfiguracoesWizard() {
                     {colunasProdutos.length > 0 && (
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 p-4 border border-zinc-200 dark:border-zinc-800 rounded-xl bg-zinc-50/50 dark:bg-zinc-900/30">
                         {[
-                          { label: "Código / SKU", key: "col_sku" }, { label: "Nome do Produto", key: "col_nome" },
-                          { label: "Preço de Venda", key: "col_preco" }, { label: "Estoque Físico", key: "col_estoque" }
+                          { label: "Código / SKU", key: "col_sku" }, 
+                          { label: "Cód. Barras (EAN)", key: "col_cod_barras" }, 
+                          { label: "Nome do Produto", key: "col_nome" }, 
+                          { label: "Preço de Venda", key: "col_preco" }, 
+                          { label: "Estoque Físico", key: "col_estoque" }, 
+                          { label: "Status (Ativo/Inativo)", key: "col_status" }
                         ].map(campo => (
                           <div key={campo.key} className="space-y-1">
                             <label className="text-[10px] font-bold text-zinc-500 uppercase">{campo.label}</label>

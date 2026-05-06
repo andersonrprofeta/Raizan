@@ -51,7 +51,7 @@ export default function FinanceiroBI() {
 
   const agora = new Date();
 
-  // 🟢 AS REGRAS FINANCEIRAS DE STATUS
+  // 🟢 AS REGRAS FINANCEIRAS DE STATUS - INICIO
   const statusPagos = ['completed', 'pago', 'enviado', 'entregue'];
   const statusAbertos = ['aguardando-pagamento', 'processing', 'pending', 'on-hold'];
   const statusCancelados = ['cancelled', 'cancelado'];

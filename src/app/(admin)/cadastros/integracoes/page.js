@@ -6,7 +6,7 @@ import Header from "@/components/Header";
 import { 
   Plug, Plus, Globe, Settings, Key, Link as LinkIcon, 
   CheckCircle2, RefreshCw, Loader2, Store, Fingerprint, Database,
-  Server, Trash2, Pencil, AlertTriangle, CreditCard
+  Server, Trash2, Pencil, AlertTriangle, CreditCard, Truck
 } from "lucide-react";
 import toast from 'react-hot-toast';
 
@@ -42,6 +42,32 @@ export default function IntegracoesPage() {
     disponivel_b2b: true,
     disponivel_raizan: false
   });
+
+  // 🔥 Estado da Frenet Atualizado
+  const [formFrenet, setFormFrenet] = useState({
+    nome_integracao: "Frenet Oficial",
+    chave_frenet: "",
+    senha_frenet: "",
+    token_frenet: ""
+  });
+
+  // 🔥 Salvar Frenet na API Nuvem
+  const salvarFrenet = async (e) => {
+    e.preventDefault();
+    const cnpj = pegarCnpjLogado();
+    const loadingToast = toast.loading("Configurando Frenet...");
+    try {
+      const res = await fetch("https://api.raizan.com.br/api/hub/integracoes/frenet", {
+        method: "POST", headers: { "Content-Type": "application/json", "x-tenant-id": cnpj },
+        body: JSON.stringify(formFrenet)
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success("Frenet configurada com sucesso!", { id: loadingToast });
+        setInstalando(null); carregarIntegracoesEStatus(); 
+      } else { toast.error(data.message || "Erro ao salvar credenciais.", { id: loadingToast }); }
+    } catch (error) { toast.error("Erro de conexão.", { id: loadingToast }); }
+  };
 
   const pegarCnpjLogado = () => {
     if (typeof window !== 'undefined') {
@@ -189,6 +215,7 @@ export default function IntegracoesPage() {
     if (plataforma === 'woocommerce') return <img src="/woocommerce.svg" className={imgClass} />;
     if (plataforma === 'raizan_commerce') return <img src="/RaizanCommerce.png" className={imgClass} />;
     if (plataforma === 'mercadopago') return <img src="/Mercadopago.svg" className={imgClass} />;
+    if (plataforma === 'frenet') return <img src="/Frenet.svg" className={imgClass} />;
     if (plataforma === 'shopify') return <img src="/shopify.svg" className={imgClass} />;
     if (plataforma === 'mercadolivre') return <img src="/mercadolibre.svg" className={imgClass} />;
     if (plataforma === 'shopee') return <img src="/shopee.svg" className={imgClass} />;
@@ -372,6 +399,23 @@ export default function IntegracoesPage() {
                     </div>
                   </div>
 
+                  {/* CATEGORIA: LOGÍSTICA E FRETE */}
+                  <div>
+                    <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest mb-4 flex items-center gap-2 mt-8 border-t border-zinc-200 dark:border-zinc-800/60 pt-8">
+                      <Truck size={16} /> Logística e Frete
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                      <div className="border border-orange-200 dark:border-orange-500/30 rounded-2xl p-5 flex flex-col items-center text-center hover:border-orange-500 hover:shadow-xl transition-all cursor-pointer bg-gradient-to-b from-orange-50/50 to-white dark:from-orange-900/10 dark:to-[#0c0c0e] group relative overflow-hidden">
+                        <div className="w-16 h-16 bg-white dark:bg-[#121214] shadow-sm rounded-2xl flex items-center justify-center mb-4 border border-orange-100 dark:border-orange-500/20 group-hover:scale-110 transition-transform">
+                          <img src="/Frenet.svg" alt="Frenet" className="w-10 h-10 object-contain" />
+                        </div>
+                        <h3 className="font-bold text-base mb-1 text-zinc-900 dark:text-zinc-100">Frenet</h3>
+                        <p className="text-xs font-medium text-zinc-500 mb-5 h-8">Cálculo de fretes e transportadoras.</p>
+                        <button onClick={(e) => { e.stopPropagation(); setInstalando('frenet'); }} className="w-full py-2.5 bg-orange-500 rounded-xl text-sm font-bold text-white hover:bg-orange-400 shadow-md shadow-orange-500/20 transition-all">Configurar</button>
+                      </div>
+                    </div>
+                  </div>
+
                   {/* CATEGORIA 3: ERP E BANCOS DE DADOS */}
                   <div>
                     <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest mb-4 flex items-center gap-2 mt-8 border-t border-zinc-200 dark:border-zinc-800/60 pt-8">
@@ -468,6 +512,55 @@ export default function IntegracoesPage() {
                     <div className="pt-4 border-t border-zinc-100 dark:border-zinc-800">
                       <button type="submit" className="w-full sm:w-auto bg-sky-600 hover:bg-sky-500 text-white px-8 py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-sky-500/20 active:scale-95">
                         <CreditCard size={18} /> Salvar e Ativar Módulo
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+
+            {/* FORMULÁRIO FRENET */}
+            {instalando === 'frenet' && (
+              <div onClick={(e) => e.stopPropagation()} className="bg-white dark:bg-[#0c0c0e] border border-orange-200 dark:border-orange-500/30 rounded-3xl animate-in fade-in slide-in-from-right-4 shadow-2xl shadow-orange-500/5 overflow-hidden">
+                <div className="p-8 border-b border-orange-100 dark:border-orange-500/20 flex items-center justify-between bg-orange-50/50 dark:bg-orange-900/10">
+                  <div className="flex items-center gap-4">
+                    <div className="bg-white dark:bg-[#121214] p-3 rounded-2xl shadow-sm border border-orange-100 dark:border-orange-500/30">
+                      <img src="/Frenet.svg" className="w-8 h-8 object-contain" />
+                    </div>
+                    <div>
+                      <h2 className="text-2xl font-black text-orange-900 dark:text-orange-100 tracking-tight">Frenet Logística</h2>
+                      <p className="text-sm text-orange-600/80 dark:text-orange-400/80 font-medium mt-1">Cálculo de frete no checkout do portal.</p>
+                    </div>
+                  </div>
+                  <button onClick={() => setInstalando('catalogo')} className="text-sm font-bold text-zinc-500 hover:text-zinc-900 dark:hover:text-white bg-white dark:bg-zinc-900 px-4 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 transition-colors shadow-sm">Cancelar Configuração</button>
+                </div>
+
+                <div className="p-8 max-w-3xl">
+                  <form onSubmit={salvarFrenet} className="space-y-6">
+                    <div className="space-y-2">
+                      <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300">Identificação Interna</label>
+                      <input type="text" required value={formFrenet.nome_integracao} onChange={e => setFormFrenet({...formFrenet, nome_integracao: e.target.value})} className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 p-3.5 rounded-xl outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 font-medium transition-all" />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300">Chave (E-mail)</label>
+                        <input type="text" required value={formFrenet.chave_frenet} onChange={e => setFormFrenet({...formFrenet, chave_frenet: e.target.value})} placeholder="mkt@rafany.com.br" className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 p-3.5 rounded-xl text-sm outline-none focus:border-orange-500 transition-all" />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300">Senha</label>
+                        <input type="password" required value={formFrenet.senha_frenet} onChange={e => setFormFrenet({...formFrenet, senha_frenet: e.target.value})} placeholder="vZ3yi+RoZ..." className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 p-3.5 rounded-xl font-mono text-sm outline-none focus:border-orange-500 transition-all" />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300">Token</label>
+                      <input type="text" required value={formFrenet.token_frenet} onChange={e => setFormFrenet({...formFrenet, token_frenet: e.target.value})} placeholder="26F6D137R95BER..." className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 p-3.5 rounded-xl font-mono text-sm outline-none focus:border-orange-500 transition-all" />
+                    </div>
+
+                    <div className="pt-4 border-t border-zinc-100 dark:border-zinc-800 mt-8">
+                      <button type="submit" className="w-full sm:w-auto bg-orange-500 hover:bg-orange-400 text-white px-8 py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-orange-500/20 active:scale-95">
+                        <Truck size={18} /> Salvar e Ativar Transportadoras
                       </button>
                     </div>
                   </form>

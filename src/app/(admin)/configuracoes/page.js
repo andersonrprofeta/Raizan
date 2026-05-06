@@ -3,395 +3,449 @@
 import { useState, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
-import { Database, ShoppingCart, CheckCircle2, AlertCircle, Loader2, Timer, Server, Globe, Laptop, Lock, Unlock, ShieldAlert, CreditCard, QrCode } from "lucide-react";
-import { getApiUrl, getHeaders } from "@/components/utils/api"; 
+import { 
+  Database, ShoppingCart, CheckCircle2, Loader2, Timer, 
+  Server, CreditCard, Lock, ChevronRight, ChevronLeft, 
+  TableProperties, Columns3, Globe, Laptop, Users, Store, Box
+} from "lucide-react";
 import toast from 'react-hot-toast'; 
 
-export default function Configuracoes() {
-  const [status, setStatus] = useState("idle"); 
+export default function ConfiguracoesWizard() {
+  const [step, setStep] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [testingConnection, setTestingConnection] = useState(false);
   
+  // URL do Motor Local (PM2)
   const [coreUrl, setCoreUrl] = useState("http://localhost:3001");
-  const [isLocked, setIsLocked] = useState(false); 
-  const [loadingLock, setLoadingLock] = useState(true);
 
+  // Dados Básicos e Automação
   const [formData, setFormData] = useState({
-    tenantId: "",
-    host: "", port: "1521", serviceName: "", user: "", password: "",
-    wooUrl: "", wooKey: "", wooSecret: "",
-    cronInterval: 5,
-    tabelaPreco: "PDPRECO",
-    mpAccessToken: "", 
-    mpPublicKey: ""    
+    oracle_host: "", oracle_port: "1521", oracle_service: "", oracle_user: "", oracle_password: "",
+    sync_interval_min: 5
   });
 
-  useEffect(() => {
-    const dadosSalvos = localStorage.getItem("raizan_config_geral");
-    let currentTenant = "";
+  // Mapeamento Dinâmico Separado
+  const [tabelasOracle, setTabelasOracle] = useState([]);
+  const [colunasProdutos, setColunasProdutos] = useState([]);
+  const [colunasClientes, setColunasClientes] = useState([]);
+  const [mapeamento, setMapeamento] = useState({
+    tabela_produtos: "", col_sku: "", col_nome: "", col_estoque: "", col_preco: "",
+    tabela_clientes: "", col_cli_cod: "", col_cli_nome: "", col_cli_email: "", col_cli_doc: ""
+  });
 
-    if (dadosSalvos) {
-      const config = JSON.parse(dadosSalvos);
-      currentTenant = config.tenantId || ""; // Captura o tenant salvo
-      setFormData({ 
-        ...config, 
-        cronInterval: config.cronInterval || 5,
-        tabelaPreco: config.tabelaPreco || "PDPRECO",
-        mpAccessToken: config.mpAccessToken || "", 
-        mpPublicKey: config.mpPublicKey || "" 
-      });
+  // Integrações Puxadas da Nuvem
+  const [integracoesDisponiveis, setIntegracoesDisponiveis] = useState([]);
+  const [lojasSelecionadas, setLojasSelecionadas] = useState([]);
+  const [pagamentosSelecionados, setPagamentosSelecionados] = useState([]);
+
+  const pegarCnpjLogado = () => {
+    if (typeof window !== 'undefined') {
+      const storedUser = localStorage.getItem("@raizan:user");
+      if (storedUser) return JSON.parse(storedUser).tenant_id;
     }
+    return "";
+  };
 
-    const urlSalva = localStorage.getItem("raizan_core_url") || getApiUrl();
-    setCoreUrl(urlSalva);
-    
-    verificarLacreDaMaquina(urlSalva, currentTenant);
+  useEffect(() => {
+    carregarConfiguracoesDaNuvem();
+    carregarIntegracoesAtivas();
   }, []);
 
-  const verificarLacreDaMaquina = async (url, tenantFallback) => {
+  // 1. CARREGA CONFIGURAÇÕES DO ORACLE
+  const carregarConfiguracoesDaNuvem = async () => {
+    const tenantId = pegarCnpjLogado();
     try {
-      const customHeaders = {
-        ...getHeaders(),
-        "x-tenant-id": tenantFallback || "rafany" 
-      };
-
-      // Tira o cache do Electron para sempre ler o status real
-      const response = await fetch(`${url}/api/config/status?t=${Date.now()}`, {
-        headers: customHeaders,
-        cache: 'no-store'
+      const res = await fetch("https://api.raizan.com.br/api/hub/configuracoes", {
+        headers: { "x-tenant-id": tenantId }
       });
-      
-      const data = await response.json();
-      
-      setIsLocked(data.locked);
-      if (data.locked && data.tenantId) {
-        setFormData(prev => ({ ...prev, tenantId: data.tenantId }));
+      const data = await res.json();
+      if (data.success && data.configuracoes) {
+        const c = data.configuracoes;
+        setFormData({
+          oracle_host: c.oracle_host || "", oracle_port: c.oracle_port || "1521", 
+          oracle_service: c.oracle_service || "", oracle_user: c.oracle_user || "", oracle_password: c.oracle_password || "",
+          sync_interval_min: c.sync_interval_min || 5
+        });
+        if (c.mapeamento_tabelas) setMapeamento(c.mapeamento_tabelas);
+        if (c.canais_venda) setLojasSelecionadas(JSON.parse(c.canais_venda));
+        if (c.modulos_pagamento) setPagamentosSelecionados(JSON.parse(c.modulos_pagamento));
       }
     } catch (error) {
-      console.log("Motor offline ou indisponível.");
-      setIsLocked(false); // Se o motor estiver fora, garante tela destravada
-    } finally {
-      setLoadingLock(false);
+      console.log("Nenhuma configuração anterior encontrada.");
     }
   };
 
-  const handleTestConnection = async (e) => {
-    e.preventDefault();
-    if (isLocked) return toast.error("Máquina lacrada! Revogue a licença para editar.");
-    if (!formData.tenantId) return toast.error("Digite o subdomínio da empresa para lacrar a máquina!");
-
-    setStatus("testing");
-    const urlLimpa = coreUrl.trim().replace(/\/$/, "");
-    localStorage.setItem("raizan_core_url", urlLimpa);
-    setCoreUrl(urlLimpa);
-
+  // 2. CARREGA INTEGRAÇÕES (WOO, RAIZAN COMMERCE, MP)
+  const carregarIntegracoesAtivas = async () => {
+    const tenantId = pegarCnpjLogado();
     try {
-      const response = await fetch(`${urlLimpa}/api/config/salvar`, {
-        method: "POST",
-        headers: { ...getHeaders(), "x-tenant-id": formData.tenantId },
-        body: JSON.stringify(formData), 
+      const res = await fetch(`https://api.raizan.com.br/api/hub/integracoes?tenant=${tenantId}`, {
+        headers: { "x-tenant-id": tenantId }
       });
-
-      const data = await response.json();
-
+      const data = await res.json();
       if (data.success) {
-        setStatus("success"); 
-        localStorage.setItem("raizan_config_geral", JSON.stringify(formData));
-        toast.success("Máquina Lacrada e Configurações salvas!"); 
-        setIsLocked(true); 
-        setTimeout(() => setStatus("idle"), 3000);
-      } else {
-        setStatus("error"); 
-        toast.error("Erro ao salvar: " + (data.message || "Verifique os dados."));
+        setIntegracoesDisponiveis(data.integracoes);
       }
     } catch (error) {
-      setStatus("error");
-      toast.error("Motor offline. O Node.js está rodando?");
+      console.log("Erro ao carregar integrações.");
     }
   };
 
-  const handleRevogarLacre = async () => {
-    if (!confirm("CUIDADO: Isso vai desvincular o motor desta máquina da nuvem. O sistema será reiniciado. Continuar?")) return;
-    
-    // 🟢 A MÁGICA DA FORÇA BRUTA AQUI!
-    // A primeira coisa que fazemos é DESTRAVAR O REACT (setIsLocked=false).
-    // Não esperamos o servidor. Não apagamos o seu formulário. Apenas abrimos os cadeados.
-    setIsLocked(false);
-    toast.success("Lacre removido forçadamente da tela! Pode atualizar os dados.");
-    
+  const handleTestarConexao = async () => {
+    if (!formData.oracle_host || !formData.oracle_user || !formData.oracle_password) {
+      return toast.error("Preencha os dados do Oracle!");
+    }
+    setTestingConnection(true);
+    const urlLimpa = coreUrl.trim().replace(/\/$/, "");
     try {
-      await fetch(`${coreUrl}/api/config/revogar`, { 
-        method: "POST",
-        headers: { 
-          ...getHeaders(), 
-          "x-tenant-id": formData.tenantId || "rafany",
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({})
+      const res = await fetch(`${urlLimpa}/api/wizard/oracle/testar`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          host: formData.oracle_host, port: formData.oracle_port, serviceName: formData.oracle_service,
+          user: formData.oracle_user, password: formData.oracle_password
+        }),
       });
-      // Mesmo se a chamada falhar ou der erro 500 no Electron, a tela JÁ ESTÁ DESTRAVADA.
-    } catch (error) {
-      console.error("Erro silencioso ao revogar no backend. A tela já está liberada.", error);
-    }
+      const data = await res.json();
+      if (data.success) {
+        toast.success("Oracle Conectado com Sucesso!");
+        await buscarTabelasDoOracle(urlLimpa);
+        setStep(2); 
+      } else {
+        toast.error(data.message || "Falha ao conectar.");
+      }
+    } catch (error) { toast.error("Motor Local offline."); } 
+    finally { setTestingConnection(false); }
   };
 
-  if (loadingLock) return <div className="h-screen bg-white dark:bg-[#09090b] transition-colors duration-300"></div>;
+  const buscarTabelasDoOracle = async (urlLimpa) => {
+    try {
+      const res = await fetch(`${urlLimpa}/api/wizard/oracle/tabelas`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          host: formData.oracle_host, port: formData.oracle_port, serviceName: formData.oracle_service,
+          user: formData.oracle_user, password: formData.oracle_password
+        }),
+      });
+      const data = await res.json();
+      if (data.success) setTabelasOracle(data.tabelas);
+    } catch (error) { toast.error("Erro ao ler tabelas."); }
+  };
+
+  // BUSCA COLUNAS DE PRODUTOS
+  const handleSelecionarTabelaProdutos = async (nomeTabela) => {
+    setMapeamento({ ...mapeamento, tabela_produtos: nomeTabela, col_sku: "", col_nome: "", col_estoque: "", col_preco: "" });
+    if (!nomeTabela) return setColunasProdutos([]);
+    const urlLimpa = coreUrl.trim().replace(/\/$/, "");
+    try {
+      const res = await fetch(`${urlLimpa}/api/wizard/oracle/colunas`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          host: formData.oracle_host, port: formData.oracle_port, serviceName: formData.oracle_service,
+          user: formData.oracle_user, password: formData.oracle_password, tabelaEscolhida: nomeTabela
+        }),
+      });
+      const data = await res.json();
+      if (data.success) setColunasProdutos(data.colunas);
+    } catch (error) { toast.error("Erro ao ler colunas de produtos."); }
+  };
+
+  // BUSCA COLUNAS DE CLIENTES
+  const handleSelecionarTabelaClientes = async (nomeTabela) => {
+    setMapeamento({ ...mapeamento, tabela_clientes: nomeTabela, col_cli_cod: "", col_cli_nome: "", col_cli_email: "", col_cli_doc: "" });
+    if (!nomeTabela) return setColunasClientes([]);
+    const urlLimpa = coreUrl.trim().replace(/\/$/, "");
+    try {
+      const res = await fetch(`${urlLimpa}/api/wizard/oracle/colunas`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          host: formData.oracle_host, port: formData.oracle_port, serviceName: formData.oracle_service,
+          user: formData.oracle_user, password: formData.oracle_password, tabelaEscolhida: nomeTabela
+        }),
+      });
+      const data = await res.json();
+      if (data.success) setColunasClientes(data.colunas);
+    } catch (error) { toast.error("Erro ao ler colunas de clientes."); }
+  };
+
+  const toggleSelecao = (id, lista, setLista) => {
+    if (lista.includes(id)) setLista(lista.filter(item => item !== id));
+    else setLista([...lista, id]);
+  };
+
+  const handleSalvarTudo = async () => {
+    const tenantId = pegarCnpjLogado();
+    setLoading(true);
+    const payload = { 
+      ...formData, 
+      mapeamento_tabelas: mapeamento,
+      canais_venda: JSON.stringify(lojasSelecionadas),
+      modulos_pagamento: JSON.stringify(pagamentosSelecionados)
+    };
+
+    try {
+      const res = await fetch("https://api.raizan.com.br/api/hub/configuracoes/salvar", {
+        method: "POST", headers: { "Content-Type": "application/json", "x-tenant-id": tenantId },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (data.success) toast.success("Configurações salvas e máquina pronta!");
+      else toast.error("Erro ao salvar.");
+    } catch (error) { toast.error("Erro de conexão."); } 
+    finally { setLoading(false); }
+  };
+
+  // Filtros para exibir nos passos 3 e 4
+  const lojas = integracoesDisponiveis.filter(i => i.plataforma === 'woocommerce' || i.plataforma === 'raizan_commerce');
+  const pagamentos = integracoesDisponiveis.filter(i => i.plataforma === 'mercado_pago' || i.plataforma === 'pagseguro' || i.plataforma === 'frenet');
 
   return (
-    <div className="flex min-h-screen bg-zinc-50 dark:bg-[#09090b] text-zinc-900 dark:text-zinc-200 font-sans transition-colors duration-300">
+    <div className="flex h-screen bg-zinc-50 dark:bg-[#09090b] text-zinc-900 dark:text-zinc-100 overflow-hidden">
       <Sidebar />
-      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
+      <div className="flex-1 flex flex-col h-screen relative min-w-0">
         <Header />
-        <main className="flex-1 p-4 sm:p-8 overflow-y-auto custom-scrollbar relative">
-          
-          <div className="max-w-3xl mx-auto space-y-8 pb-10 relative">
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 custom-scrollbar">
+          <div className="max-w-3xl mx-auto space-y-8 pb-20">
             
-            <div className="flex flex-col sm:flex-row sm:justify-between items-start sm:items-center gap-4">
-              <div>
-                <h1 className="text-xl sm:text-2xl font-black text-zinc-900 dark:text-zinc-100 tracking-tight flex items-center gap-3 transition-colors">
-                  Configurações de Integração
-                  {isLocked && <span className="bg-emerald-100 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20 text-xs px-2.5 py-1 rounded-md flex items-center gap-1.5 font-bold transition-colors"><Lock size={12}/> Máquina Lacrada</span>}
-                </h1>
-                <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400 mt-1 transition-colors">Configure os acessos ao ERP, Canais de Venda e Automações.</p>
-              </div>
-
-              {isLocked && (
-                <button type="button" onClick={handleRevogarLacre} className="w-full sm:w-auto flex items-center justify-center gap-2 bg-rose-100 dark:bg-rose-500/10 hover:bg-rose-200 dark:hover:bg-rose-500/20 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-500/20 px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow-sm dark:shadow-[0_0_15px_rgba(244,63,94,0.1)] active:scale-95">
-                  <ShieldAlert size={18} /> Revogar Licença
-                </button>
-              )}
+            {/* TÍTULO */}
+            <div>
+              <h1 className="text-2xl font-black text-zinc-900 dark:text-zinc-100 flex items-center gap-3">
+                Setup de Integração Oracle
+                <span className="bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20 text-xs px-2.5 py-1 rounded-md font-bold flex items-center gap-1 uppercase tracking-wider">
+                  <Lock size={12}/> {pegarCnpjLogado()}
+                </span>
+              </h1>
+              <p className="text-sm text-zinc-500 mt-1">Conecte o ERP aos seus canais de venda e módulos.</p>
             </div>
 
-            <form onSubmit={handleTestConnection} className="space-y-6 relative">
+            {/* STEPPER VISUAL (5 PASSOS) */}
+            <div className="flex items-center justify-between relative before:absolute before:inset-0 before:top-1/2 before:-translate-y-1/2 before:h-0.5 before:bg-zinc-200 dark:before:bg-zinc-800 before:z-0">
+              {[
+                { num: 1, label: "Banco ERP", icon: Database },
+                { num: 2, label: "Tabelas", icon: TableProperties },
+                { num: 3, label: "Lojas", icon: ShoppingCart },
+                { num: 4, label: "Módulos", icon: CreditCard },
+                { num: 5, label: "Automação", icon: Timer }
+              ].map((s) => (
+                <div key={s.num} className="relative z-10 flex flex-col items-center gap-2 bg-zinc-50 dark:bg-[#09090b] px-2">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm transition-all border ${step >= s.num ? 'bg-purple-600 text-white border-purple-500 shadow-lg shadow-purple-500/30' : 'bg-white dark:bg-zinc-900 text-zinc-400 border-zinc-200 dark:border-zinc-800'}`}>
+                    {step > s.num ? <CheckCircle2 size={18} /> : s.num}
+                  </div>
+                  <span className={`text-[10px] font-bold uppercase tracking-wider ${step >= s.num ? 'text-purple-600 dark:text-purple-400' : 'text-zinc-400'}`}>{s.label}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* CONTEÚDO */}
+            <div className="bg-white dark:bg-[#0c0c0e] border border-zinc-200 dark:border-zinc-800/60 rounded-3xl p-6 sm:p-8 shadow-sm transition-all duration-300">
               
-              {isLocked && (
-                <div className="absolute inset-0 z-20 bg-white/50 dark:bg-[#09090b]/40 backdrop-blur-[2px] rounded-2xl cursor-not-allowed border border-emerald-500/10 transition-colors" />
+              {/* PASSO 1: CONEXÃO */}
+              {step === 1 && (
+                <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                  <div className="flex items-center gap-3 border-b border-zinc-100 dark:border-zinc-800/60 pb-4">
+                    <div className="w-10 h-10 rounded-xl bg-red-50 dark:bg-red-500/10 flex items-center justify-center border border-red-100 dark:border-red-500/20"><Database size={20} className="text-red-500" /></div>
+                    <div><h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">Conexão com o Oracle (ERP)</h2></div>
+                  </div>
+
+                  <div className="space-y-3 p-5 bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800 rounded-2xl">
+                    <label className="text-xs font-bold text-zinc-500 uppercase flex items-center gap-2"><Server size={14}/> Comunicação com o Motor Local</label>
+                    <div className="flex gap-3">
+                      <button onClick={() => setCoreUrl("http://localhost:3001")} className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold border transition-all ${coreUrl.includes("localhost") ? "bg-blue-600 text-white border-blue-500" : "bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 text-zinc-500"}`}><Laptop size={16} /> Servidor Local</button>
+                      <button onClick={() => setCoreUrl("https://api.rafany.com.br")} className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold border transition-all ${!coreUrl.includes("localhost") ? "bg-blue-600 text-white border-blue-500" : "bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 text-zinc-500"}`}><Globe size={16} /> Acesso Remoto</button>
+                    </div>
+                    <input type="text" value={coreUrl} onChange={(e) => setCoreUrl(e.target.value)} className="w-full bg-white dark:bg-[#0c0c0e] border border-zinc-200 dark:border-zinc-700 p-3 rounded-xl text-sm outline-none font-mono mt-1" />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                    <div className="md:col-span-2 space-y-1.5"><label className="text-xs font-bold text-zinc-500 uppercase">Host / IP</label><input type="text" value={formData.oracle_host} onChange={(e) => setFormData({...formData, oracle_host: e.target.value})} className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 p-3 rounded-lg text-sm outline-none focus:border-purple-500" /></div>
+                    <div className="space-y-1.5"><label className="text-xs font-bold text-zinc-500 uppercase">Porta</label><input type="text" value={formData.oracle_port} onChange={(e) => setFormData({...formData, oracle_port: e.target.value})} className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 p-3 rounded-lg text-sm outline-none focus:border-purple-500" /></div>
+                  </div>
+                  <div className="space-y-1.5"><label className="text-xs font-bold text-zinc-500 uppercase">Service Name / SID</label><input type="text" value={formData.oracle_service} onChange={(e) => setFormData({...formData, oracle_service: e.target.value})} className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 p-3 rounded-lg text-sm outline-none focus:border-purple-500" /></div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div className="space-y-1.5"><label className="text-xs font-bold text-zinc-500 uppercase">Usuário</label><input type="text" value={formData.oracle_user} onChange={(e) => setFormData({...formData, oracle_user: e.target.value})} className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 p-3 rounded-lg text-sm outline-none focus:border-purple-500" /></div>
+                    <div className="space-y-1.5"><label className="text-xs font-bold text-zinc-500 uppercase">Senha</label><input type="password" value={formData.oracle_password} onChange={(e) => setFormData({...formData, oracle_password: e.target.value})} className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 p-3 rounded-lg text-sm outline-none focus:border-purple-500" /></div>
+                  </div>
+                </div>
               )}
 
-              {/* IDENTIDADE DA MÁQUINA */}
-              <div className="border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/5 rounded-3xl p-6 sm:p-8 relative overflow-hidden shadow-sm dark:shadow-none transition-colors">
-                 <div className="flex items-center gap-4 mb-6 border-b border-emerald-200 dark:border-emerald-500/20 pb-6 transition-colors">
-                  <div className="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-500/20 flex items-center justify-center border border-emerald-200 dark:border-emerald-500/30 transition-colors">
-                    <Lock size={24} className="text-emerald-600 dark:text-emerald-400 transition-colors" />
-                  </div>
-                  <div>
-                    <h2 className="text-lg font-black text-emerald-900 dark:text-emerald-100 transition-colors">Identidade da Máquina</h2>
-                    <p className="text-xs font-medium text-emerald-700 dark:text-emerald-300/70 transition-colors">A qual subdomínio este motor local pertence?</p>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <input 
-                    type="text" 
-                    value={formData.tenantId} 
-                    onChange={(e) => setFormData({...formData, tenantId: e.target.value})} 
-                    placeholder="ex: rafany"
-                    disabled={isLocked}
-                    className="w-full bg-white dark:bg-zinc-950 border border-emerald-300 dark:border-emerald-500/30 text-emerald-800 dark:text-emerald-100 px-5 py-3.5 rounded-xl text-base outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 font-black uppercase tracking-widest disabled:opacity-50 transition-all placeholder:text-emerald-300 dark:placeholder:text-emerald-900/50 shadow-sm dark:shadow-none" 
-                  />
-                </div>
-              </div>
-
-              {/* SERVIDOR CORE */}
-              <div className="border border-blue-200 dark:border-blue-500/30 bg-blue-50 dark:bg-blue-500/5 rounded-3xl p-6 sm:p-8 relative overflow-hidden shadow-sm dark:shadow-none transition-colors">
-                <div className="absolute top-0 right-0 p-4 opacity-5 dark:opacity-10 pointer-events-none transition-opacity">
-                  <Server size={120} className="text-blue-900 dark:text-blue-100" />
-                </div>
-                <div className="flex items-center gap-4 mb-6 pb-6 border-b border-blue-200 dark:border-zinc-800/60 relative z-10 transition-colors">
-                  <div className="w-12 h-12 rounded-2xl bg-blue-100 dark:bg-blue-500/20 flex items-center justify-center border border-blue-200 dark:border-blue-500/30 transition-colors">
-                    <Server size={24} className="text-blue-600 dark:text-blue-400 transition-colors" />
-                  </div>
-                  <div>
-                    <h2 className="text-lg font-black text-blue-900 dark:text-blue-100 transition-colors">Servidor Core (Backend)</h2>
-                    <p className="text-xs font-medium text-blue-700 dark:text-blue-300/70 transition-colors">Onde o motor do Raizan está rodando?</p>
-                  </div>
-                </div>
-
-                <div className="space-y-4 relative z-10">
-                  <div className="flex flex-col sm:flex-row gap-3">
-                    <button type="button" disabled={isLocked} onClick={() => setCoreUrl("http://localhost:3001")} className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold border transition-all ${coreUrl.includes("localhost") ? "bg-blue-600 text-white border-blue-500 shadow-md shadow-blue-500/20" : "bg-white dark:bg-zinc-900 border-blue-200 dark:border-zinc-700 text-blue-800 dark:text-zinc-400 hover:bg-blue-50 dark:hover:bg-zinc-800"} disabled:opacity-50`}>
-                      <Laptop size={18} /> Modo Servidor Local
-                    </button>
-                    <button type="button" disabled={isLocked} onClick={() => setCoreUrl("http://192.168.1.200:3001")} className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold border transition-all ${!coreUrl.includes("localhost") ? "bg-blue-600 text-white border-blue-500 shadow-md shadow-blue-500/20" : "bg-white dark:bg-zinc-900 border-blue-200 dark:border-zinc-700 text-blue-800 dark:text-zinc-400 hover:bg-blue-50 dark:hover:bg-zinc-800"} disabled:opacity-50`}>
-                      <Globe size={18} /> Modo Acesso Remoto
-                    </button>
-                  </div>
-                  <input 
-                    type="text" 
-                    value={coreUrl} 
-                    onChange={(e) => setCoreUrl(e.target.value)} 
-                    placeholder="ex: http://localhost:3001 ou http://SEU_IP:3001"
-                    disabled={isLocked}
-                    className="w-full bg-white dark:bg-zinc-950 border border-blue-300 dark:border-zinc-800 text-blue-900 dark:text-blue-100 px-5 py-3.5 rounded-xl text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 font-mono font-bold disabled:opacity-50 transition-all placeholder:text-blue-300 dark:placeholder:text-blue-900/50 shadow-sm dark:shadow-none" 
-                  />
-                </div>
-              </div>
-
-              {/* BANCO DE DADOS ORACLE */}
-              <div className="border border-zinc-200 dark:border-zinc-800/60 bg-white dark:bg-zinc-900/40 rounded-3xl p-6 sm:p-8 shadow-sm dark:shadow-none transition-colors">
-                <div className="flex items-center gap-4 mb-6 pb-6 border-b border-zinc-200 dark:border-zinc-800/60 transition-colors">
-                  <div className="w-12 h-12 rounded-2xl bg-red-50 dark:bg-red-500/10 flex items-center justify-center border border-red-200 dark:border-red-500/20 transition-colors">
-                    <Database size={24} className="text-red-600 dark:text-red-500 transition-colors" />
-                  </div>
-                  <div>
-                    <h2 className="text-lg font-black text-zinc-900 dark:text-zinc-100 transition-colors">Banco de Dados Oracle (ERP)</h2>
-                    <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 transition-colors">Conexão direta com a base local do cliente.</p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-5">
-                  <div className="md:col-span-2 space-y-2">
-                    <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300 transition-colors">Host / IP</label>
-                    <input disabled={isLocked} type="text" value={formData.host} onChange={(e) => setFormData({...formData, host: e.target.value})} className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-200 px-5 py-3 rounded-xl text-sm outline-none focus:border-purple-500 disabled:opacity-50 transition-all font-medium placeholder:text-zinc-400 dark:placeholder:text-zinc-600 shadow-sm dark:shadow-none" placeholder="localhost" />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300 transition-colors">Porta</label>
-                    <input disabled={isLocked} type="text" value={formData.port} onChange={(e) => setFormData({...formData, port: e.target.value})} className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-200 px-5 py-3 rounded-xl text-sm outline-none focus:border-purple-500 disabled:opacity-50 transition-all font-medium placeholder:text-zinc-400 dark:placeholder:text-zinc-600 shadow-sm dark:shadow-none" />
-                  </div>
-                </div>
-                
-                <div className="space-y-2 mb-5">
-                  <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300 transition-colors">Service Name / SID</label>
-                  <input disabled={isLocked} type="text" value={formData.serviceName} onChange={(e) => setFormData({...formData, serviceName: e.target.value})} className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-200 px-5 py-3 rounded-xl text-sm outline-none focus:border-purple-500 disabled:opacity-50 transition-all font-medium placeholder:text-zinc-400 dark:placeholder:text-zinc-600 shadow-sm dark:shadow-none" />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
-                  <div className="space-y-2">
-                    <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300 transition-colors">Usuário</label>
-                    <input disabled={isLocked} type="text" value={formData.user} onChange={(e) => setFormData({...formData, user: e.target.value})} className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-200 px-5 py-3 rounded-xl text-sm outline-none focus:border-purple-500 disabled:opacity-50 transition-all font-medium placeholder:text-zinc-400 dark:placeholder:text-zinc-600 shadow-sm dark:shadow-none" />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300 transition-colors">Senha</label>
-                    <input disabled={isLocked} type="password" value={formData.password} onChange={(e) => setFormData({...formData, password: e.target.value})} className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-200 px-5 py-3 rounded-xl text-sm outline-none focus:border-purple-500 disabled:opacity-50 transition-all font-medium shadow-sm dark:shadow-none" />
-                  </div>
-                </div>
-
-                <div className="space-y-2 p-5 bg-purple-50 dark:bg-zinc-950/50 border border-purple-200 dark:border-zinc-800 rounded-2xl transition-colors">
-                  <label className="text-sm font-bold text-purple-900 dark:text-zinc-300 transition-colors">Tabela de Preço (Integração Principal)</label>
-                  <select 
-                    disabled={isLocked}
-                    value={formData.tabelaPreco} 
-                    onChange={(e) => setFormData({...formData, tabelaPreco: e.target.value})} 
-                    className="w-full bg-white dark:bg-zinc-900 border border-purple-300 dark:border-zinc-700 text-purple-900 dark:text-zinc-200 px-5 py-3.5 rounded-xl text-sm outline-none focus:border-purple-600 focus:ring-1 focus:ring-purple-600 cursor-pointer disabled:opacity-50 font-bold transition-all shadow-sm dark:shadow-none"
-                  >
-                    <option value="PDPRECO">Tabela 1 - Padrão / Revenda</option>
-                    <option value="PDPRECO2">Tabela 2 - Atacado / Hospitais</option>
-                    <option value="PDPRECO3">Tabela 3 - Consumidor final / Especial</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* WOOCOMMERCE */}
-              <div className="border border-zinc-200 dark:border-zinc-800/60 bg-white dark:bg-zinc-900/40 rounded-3xl p-6 sm:p-8 shadow-sm dark:shadow-none transition-colors">
-                <div className="flex items-center gap-4 mb-6 pb-6 border-b border-zinc-200 dark:border-zinc-800/60 transition-colors">
-                  <div className="w-12 h-12 rounded-2xl bg-purple-100 dark:bg-purple-500/10 flex items-center justify-center border border-purple-200 dark:border-purple-500/20 transition-colors">
-                    <ShoppingCart size={24} className="text-purple-600 dark:text-purple-500 transition-colors" />
-                  </div>
-                  <div>
-                    <h2 className="text-lg font-black text-zinc-900 dark:text-zinc-100 transition-colors">WooCommerce (Loja Virtual)</h2>
-                    <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 transition-colors">Credenciais para espelhamento de catálogo e pedidos.</p>
-                  </div>
-                </div>
-
-                <div className="space-y-2 mb-5">
-                  <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300 transition-colors">URL do Site</label>
-                  <input disabled={isLocked} type="text" value={formData.wooUrl} onChange={(e) => setFormData({...formData, wooUrl: e.target.value})} className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-200 px-5 py-3 rounded-xl text-sm outline-none focus:border-purple-500 disabled:opacity-50 transition-all font-medium placeholder:text-zinc-400 dark:placeholder:text-zinc-600 shadow-sm dark:shadow-none" />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  <div className="space-y-2">
-                    <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300 transition-colors">Consumer Key (ck_...)</label>
-                    <input disabled={isLocked} type="text" value={formData.wooKey} onChange={(e) => setFormData({...formData, wooKey: e.target.value})} className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-200 px-5 py-3 rounded-xl text-sm outline-none focus:border-purple-500 disabled:opacity-50 transition-all font-medium placeholder:text-zinc-400 dark:placeholder:text-zinc-600 shadow-sm dark:shadow-none" />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300 transition-colors">Consumer Secret (cs_...)</label>
-                    <input disabled={isLocked} type="password" value={formData.wooSecret} onChange={(e) => setFormData({...formData, wooSecret: e.target.value})} className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-200 px-5 py-3 rounded-xl text-sm outline-none focus:border-purple-500 disabled:opacity-50 transition-all font-medium shadow-sm dark:shadow-none" />
-                  </div>
-                </div>
-              </div>
-
-              {/* MERCADO PAGO */}
-              <div className="border border-sky-200 dark:border-sky-500/30 bg-sky-50 dark:bg-sky-500/5 rounded-3xl p-6 sm:p-8 relative overflow-hidden shadow-sm dark:shadow-none transition-colors">
-                <div className="flex items-center gap-4 mb-6 pb-6 border-b border-sky-200 dark:border-zinc-800/60 transition-colors">
-                  <div className="w-12 h-12 rounded-2xl bg-sky-100 dark:bg-sky-500/10 flex items-center justify-center border border-sky-200 dark:border-sky-500/20 transition-colors">
-                    <CreditCard size={24} className="text-sky-600 dark:text-sky-400 transition-colors" />
-                  </div>
-                  <div>
-                    <h2 className="text-lg font-black text-sky-900 dark:text-sky-100 transition-colors">Mercado Pago (PIX e Cartões)</h2>
-                    <p className="text-xs font-medium text-sky-700 dark:text-sky-300/70 transition-colors">Credenciais para recebimento no B2B.</p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-sm font-bold text-sky-900 dark:text-zinc-300 transition-colors">Production Access Token</label>
-                    <input 
-                      disabled={isLocked}
-                      type="password" 
-                      value={formData.mpAccessToken} 
-                      onChange={(e) => setFormData({...formData, mpAccessToken: e.target.value})} 
-                      placeholder="APP_USR-123456789..."
-                      className="w-full bg-white dark:bg-zinc-950 border border-sky-300 dark:border-zinc-800 text-sky-900 dark:text-zinc-200 px-5 py-3 rounded-xl text-sm outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 disabled:opacity-50 font-mono transition-all shadow-sm dark:shadow-none" 
-                    />
-                    <p className="text-[11px] font-medium text-sky-700 dark:text-zinc-500 mt-2 flex items-center gap-1.5 transition-colors">
-                      <QrCode size={14} className="text-sky-600 dark:text-sky-500/50" /> Obrigatório para Webhook e Pix.
-                    </p>
-                  </div>
+              {/* PASSO 2: MAPEAMENTO DUPLO */}
+              {step === 2 && (
+                <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
                   
-                  <div className="space-y-2">
-                    <label className="text-sm font-bold text-sky-900 dark:text-zinc-300 transition-colors">Public Key</label>
-                    <input 
-                      disabled={isLocked}
-                      type="text" 
-                      value={formData.mpPublicKey} 
-                      onChange={(e) => setFormData({...formData, mpPublicKey: e.target.value})} 
-                      placeholder="APP_USR-..."
-                      className="w-full bg-white dark:bg-zinc-950 border border-sky-300 dark:border-zinc-800 text-sky-900 dark:text-zinc-200 px-5 py-3 rounded-xl text-sm outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 disabled:opacity-50 font-mono transition-all shadow-sm dark:shadow-none" 
-                    />
-                    <p className="text-[11px] font-medium text-sky-700 dark:text-zinc-500 mt-2 flex items-center gap-1.5 transition-colors">
-                      <CreditCard size={14} className="text-sky-600 dark:text-sky-500/50" /> Usado no frontend (Cartões).
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* AUTOMAÇÃO */}
-              <div className="border border-zinc-200 dark:border-zinc-800/60 bg-white dark:bg-zinc-900/40 rounded-3xl p-6 sm:p-8 shadow-sm dark:shadow-none transition-colors">
-                <div className="flex items-center gap-4 mb-6 pb-6 border-b border-zinc-200 dark:border-zinc-800/60 transition-colors">
-                  <div className="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-500/10 flex items-center justify-center border border-emerald-200 dark:border-emerald-500/20 transition-colors">
-                    <Timer size={24} className="text-emerald-600 dark:text-emerald-500 transition-colors" />
-                  </div>
+                  {/* Produtos */}
                   <div>
-                    <h2 className="text-lg font-black text-zinc-900 dark:text-zinc-100 transition-colors">Automação (Fila Fantasma)</h2>
-                    <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 transition-colors">De quanto em quanto tempo o motor deve subir atualizações de estoque/preço?</p>
+                    <div className="flex items-center gap-3 border-b border-zinc-100 dark:border-zinc-800/60 pb-3 mb-4"><Box size={18} className="text-purple-500" /><h2 className="text-base font-bold text-zinc-900 dark:text-zinc-100">Base de Produtos</h2></div>
+                    <select value={mapeamento.tabela_produtos} onChange={(e) => handleSelecionarTabelaProdutos(e.target.value)} className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 p-3 rounded-lg text-sm outline-none focus:border-purple-500 cursor-pointer">
+                      <option value="">Selecione a tabela de Produtos...</option>
+                      {tabelasOracle.map((tb, idx) => <option key={idx} value={tb.NOME}>{tb.NOME} ({tb.TIPO})</option>)}
+                    </select>
+                    {colunasProdutos.length > 0 && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 p-4 border border-zinc-200 dark:border-zinc-800 rounded-xl bg-zinc-50/50 dark:bg-zinc-900/30">
+                        {[
+                          { label: "Código / SKU", key: "col_sku" }, { label: "Nome do Produto", key: "col_nome" },
+                          { label: "Preço de Venda", key: "col_preco" }, { label: "Estoque Físico", key: "col_estoque" }
+                        ].map(campo => (
+                          <div key={campo.key} className="space-y-1">
+                            <label className="text-[10px] font-bold text-zinc-500 uppercase">{campo.label}</label>
+                            <select value={mapeamento[campo.key]} onChange={(e) => setMapeamento({...mapeamento, [campo.key]: e.target.value})} className="w-full bg-white dark:bg-[#0c0c0e] border border-zinc-200 dark:border-zinc-700 p-2 rounded-md text-xs outline-none focus:border-purple-500">
+                              <option value="">Selecionar...</option>
+                              {colunasProdutos.map((col, idx) => <option key={idx} value={col.COLUNA}>{col.COLUNA}</option>)}
+                            </select>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                </div>
 
-                <div className="space-y-2">
-                  <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300 transition-colors">Intervalo de Sincronização (Minutos)</label>
-                  <input 
-                    disabled={isLocked}
-                    type="number" 
-                    min="1" max="60" 
-                    value={formData.cronInterval} 
-                    onChange={(e) => setFormData({...formData, cronInterval: Number(e.target.value)})} 
-                    className="w-full md:w-1/3 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-200 px-5 py-3 rounded-xl text-base font-black outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 disabled:opacity-50 transition-all shadow-sm dark:shadow-none" 
-                  />
-                </div>
-              </div>
-
-              {/* BOTÃO FLUTUANTE DE SALVAR */}
-              {!isLocked && (
-                <div className="flex flex-col sm:flex-row items-center justify-between p-5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl sticky bottom-4 z-30 shadow-2xl shadow-zinc-200/50 dark:shadow-none transition-colors gap-4">
-                  <div className="flex items-center gap-3 w-full sm:w-auto justify-center sm:justify-start">
-                      {status === "idle" && <span className="text-sm font-bold text-zinc-500 dark:text-zinc-400 transition-colors">Pronto para salvar e lacrar máquina.</span>}
-                      {status === "testing" && <><Loader2 size={18} className="text-purple-600 dark:text-purple-500 animate-spin transition-colors" /><span className="text-sm font-bold text-purple-700 dark:text-purple-400 transition-colors">Lacrando e reiniciando automação...</span></>}
-                      {status === "error" && <><AlertCircle size={18} className="text-rose-600 dark:text-rose-500 transition-colors" /><span className="text-sm font-bold text-rose-700 dark:text-rose-400 transition-colors">Falha ao salvar.</span></>}
+                  {/* Clientes */}
+                  <div>
+                    <div className="flex items-center gap-3 border-b border-zinc-100 dark:border-zinc-800/60 pb-3 mb-4"><Users size={18} className="text-blue-500" /><h2 className="text-base font-bold text-zinc-900 dark:text-zinc-100">Base de Clientes</h2></div>
+                    <select value={mapeamento.tabela_clientes} onChange={(e) => handleSelecionarTabelaClientes(e.target.value)} className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 p-3 rounded-lg text-sm outline-none focus:border-blue-500 cursor-pointer">
+                      <option value="">Selecione a tabela de Clientes...</option>
+                      {tabelasOracle.map((tb, idx) => <option key={idx} value={tb.NOME}>{tb.NOME} ({tb.TIPO})</option>)}
+                    </select>
+                    {colunasClientes.length > 0 && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 p-4 border border-zinc-200 dark:border-zinc-800 rounded-xl bg-zinc-50/50 dark:bg-zinc-900/30">
+                        {[
+                          { label: "Código Cliente", key: "col_cli_cod" }, { label: "Razão Social / Nome", key: "col_cli_nome" },
+                          { label: "E-mail", key: "col_cli_email" }, { label: "CNPJ / CPF", key: "col_cli_doc" }
+                        ].map(campo => (
+                          <div key={campo.key} className="space-y-1">
+                            <label className="text-[10px] font-bold text-zinc-500 uppercase">{campo.label}</label>
+                            <select value={mapeamento[campo.key]} onChange={(e) => setMapeamento({...mapeamento, [campo.key]: e.target.value})} className="w-full bg-white dark:bg-[#0c0c0e] border border-zinc-200 dark:border-zinc-700 p-2 rounded-md text-xs outline-none focus:border-blue-500">
+                              <option value="">Selecionar...</option>
+                              {colunasClientes.map((col, idx) => <option key={idx} value={col.COLUNA}>{col.COLUNA}</option>)}
+                            </select>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  <button type="submit" disabled={status === "testing"} className="w-full sm:w-auto bg-purple-600 hover:bg-purple-500 text-white px-8 py-3.5 rounded-xl text-sm font-bold transition-all shadow-lg shadow-purple-500/20 active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2">
-                    <Lock size={18} /> Salvar e Lacrar Motor
-                  </button>
+
                 </div>
               )}
 
-            </form>
+              {/* PASSO 3: CANAIS DE VENDA Puxados da Integração */}
+              {step === 3 && (
+                <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                  <div className="flex items-center gap-3 border-b border-zinc-100 dark:border-zinc-800/60 pb-4">
+                    <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center border border-blue-100 dark:border-blue-500/20"><Store size={20} className="text-blue-500" /></div>
+                    <div>
+                      <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">Canais de Venda</h2>
+                      <p className="text-xs font-medium text-zinc-500">Selecione para quais lojas o ERP vai enviar os dados.</p>
+                    </div>
+                  </div>
+
+                  {lojas.length === 0 ? (
+                    <div className="text-center p-8 border border-dashed border-zinc-300 dark:border-zinc-700 rounded-xl">
+                      <p className="text-sm text-zinc-500">Nenhuma loja ativa encontrada no menu "Integrações".</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {lojas.map(loja => (
+                        <div 
+                          key={loja.id} 
+                          onClick={() => toggleSelecao(loja.id, lojasSelecionadas, setLojasSelecionadas)}
+                          className={`p-4 border rounded-xl cursor-pointer transition-all flex items-center gap-4 ${lojasSelecionadas.includes(loja.id) ? 'border-blue-500 bg-blue-50 dark:bg-blue-500/10' : 'border-zinc-200 dark:border-zinc-800 hover:border-blue-300'}`}
+                        >
+                          <div className={`w-5 h-5 rounded-md border flex items-center justify-center ${lojasSelecionadas.includes(loja.id) ? 'bg-blue-500 border-blue-500 text-white' : 'border-zinc-300 dark:border-zinc-600'}`}>
+                            {lojasSelecionadas.includes(loja.id) && <CheckCircle2 size={14}/>}
+                          </div>
+                          <div>
+                            <p className="font-bold text-sm text-zinc-900 dark:text-zinc-100">{loja.nome_integracao}</p>
+                            <p className="text-xs text-zinc-500 capitalize">{loja.plataforma.replace('_', ' ')}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* PASSO 4: MÓDULOS DE PAGAMENTO / FRETE */}
+              {step === 4 && (
+                <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                  <div className="flex items-center gap-3 border-b border-zinc-100 dark:border-zinc-800/60 pb-4">
+                    <div className="w-10 h-10 rounded-xl bg-sky-50 dark:bg-sky-500/10 flex items-center justify-center border border-sky-100 dark:border-sky-500/20"><CreditCard size={20} className="text-sky-500" /></div>
+                    <div>
+                      <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">Módulos (Pagamento & Frete)</h2>
+                      <p className="text-xs font-medium text-zinc-500">Selecione os módulos ativos para uso no Portal B2B.</p>
+                    </div>
+                  </div>
+
+                  {pagamentos.length === 0 ? (
+                    <div className="text-center p-8 border border-dashed border-zinc-300 dark:border-zinc-700 rounded-xl">
+                      <p className="text-sm text-zinc-500">Nenhum módulo ativo (Ex: Mercado Pago, Frenet). Instale no menu Integrações.</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {pagamentos.map(mod => (
+                        <div 
+                          key={mod.id} 
+                          onClick={() => toggleSelecao(mod.id, pagamentosSelecionados, setPagamentosSelecionados)}
+                          className={`p-4 border rounded-xl cursor-pointer transition-all flex items-center gap-4 ${pagamentosSelecionados.includes(mod.id) ? 'border-sky-500 bg-sky-50 dark:bg-sky-500/10' : 'border-zinc-200 dark:border-zinc-800 hover:border-sky-300'}`}
+                        >
+                          <div className={`w-5 h-5 rounded-md border flex items-center justify-center ${pagamentosSelecionados.includes(mod.id) ? 'bg-sky-500 border-sky-500 text-white' : 'border-zinc-300 dark:border-zinc-600'}`}>
+                            {pagamentosSelecionados.includes(mod.id) && <CheckCircle2 size={14}/>}
+                          </div>
+                          <div>
+                            <p className="font-bold text-sm text-zinc-900 dark:text-zinc-100">{mod.nome_integracao}</p>
+                            <p className="text-xs text-zinc-500 capitalize">{mod.plataforma.replace('_', ' ')}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* PASSO 5: AUTOMAÇÃO */}
+              {step === 5 && (
+                <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                  <div className="flex items-center gap-3 border-b border-zinc-100 dark:border-zinc-800/60 pb-4">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 flex items-center justify-center border border-emerald-100 dark:border-emerald-500/20"><Timer size={20} className="text-emerald-500" /></div>
+                    <div>
+                      <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">Automação (Fila Fantasma)</h2>
+                      <p className="text-xs font-medium text-zinc-500">A cada quantos minutos o motor deve atualizar estoques/pedidos?</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5 flex flex-col items-center py-6">
+                    <input type="number" min="1" max="60" value={formData.sync_interval_min} onChange={(e) => setFormData({...formData, sync_interval_min: Number(e.target.value)})} className="w-32 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 p-4 rounded-2xl text-2xl outline-none focus:border-emerald-500 font-black text-center text-emerald-600 shadow-inner" />
+                    <label className="text-xs font-bold text-zinc-500 uppercase mt-3">Minutos</label>
+                  </div>
+                </div>
+              )}
+
+              {/* BOTÕES DE NAVEGAÇÃO LIVRE */}
+              <div className="mt-8 pt-6 border-t border-zinc-200 dark:border-zinc-800/60 flex items-center justify-between">
+                <button 
+                  onClick={() => setStep(step - 1)} 
+                  disabled={step === 1 || loading}
+                  className="px-5 py-2.5 rounded-xl text-sm font-bold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-center gap-2 disabled:opacity-30"
+                >
+                  <ChevronLeft size={16} /> Voltar
+                </button>
+
+                {step === 1 && (
+                  <button onClick={handleTestarConexao} disabled={testingConnection} className="bg-purple-600 hover:bg-purple-500 text-white px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 active:scale-95 disabled:opacity-50">
+                    {testingConnection ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />} Testar Conexão
+                  </button>
+                )}
+
+                {step > 1 && step < 5 && (
+                  <button onClick={() => setStep(step + 1)} className="bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-200 px-6 py-2.5 rounded-xl text-sm font-bold transition-all shadow-md flex items-center gap-2 active:scale-95">
+                    Avançar <ChevronRight size={16} />
+                  </button>
+                )}
+
+                {step === 5 && (
+                  <button onClick={handleSalvarTudo} disabled={loading} className="bg-emerald-600 hover:bg-emerald-500 text-white px-8 py-2.5 rounded-xl text-sm font-bold transition-all shadow-lg flex items-center gap-2 active:scale-95 disabled:opacity-50">
+                    {loading ? <Loader2 size={16} className="animate-spin" /> : <Lock size={16} />} Concluir Setup
+                  </button>
+                )}
+              </div>
+
+            </div>
           </div>
         </main>
       </div>

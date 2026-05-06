@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { Database, Lock, Mail, ArrowRight, AlertTriangle, ShieldCheck } from "lucide-react"; 
-import { getApiUrl, getHeaders } from "@/components/utils/api";
+// 🟢 MUDANÇA 1: Trocamos getApiUrl por getHubUrl para bater no Node.js
+import { getHubUrl, getHeaders } from "@/components/utils/api";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -16,44 +17,56 @@ export default function Login() {
     setErrorMsg(""); 
     
     try {
-      const response = await fetch(`${getApiUrl()}/api/auth/login`, {
+      // 🟢 MUDANÇA 2: Usando o getHubUrl() para bater na rota /api/auth/login do Node
+      const response = await fetch(`${getHubUrl()}/api/auth/login`, {
         method: "POST",
-        headers: getHeaders(), 
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        }, 
         body: JSON.stringify({ email, license })
       });
 
       const data = await response.json();
 
       // 🟢 O NOSSO RAIO-X: Isso vai imprimir no F12 tudo que o servidor mandou!
-      console.log("📦 PACOTE QUE CHEGOU DO SERVIDOR:", data);
+      console.log("📦 PACOTE QUE CHEGOU DA API NODE:", data);
 
-      if (!response.ok) {
-        setErrorMsg(data.error || "Falha na autenticação."); 
+      if (!response.ok || !data.success) { // Ajustado para ler o success padrão da sua API
+        setErrorMsg(data.error || data.message || "Falha na autenticação."); 
         setIsLoading(false);
         return;
       }
 
-      // 🟢 Tudo certo, salva no cofre
-      localStorage.setItem("@raizan:email", data.email);
+      // 🟢 Tudo certo, salva os dados básicos
+      localStorage.setItem("@raizan:token", data.token);
+      localStorage.setItem("@raizan:email", data.email || email);
       localStorage.setItem("@raizan:license", license);
-      localStorage.setItem("@raizan:expires_at", data.expires_at); 
-      localStorage.setItem("@raizan:modulos", JSON.stringify(data.modulos));
+      if (data.expires_at) localStorage.setItem("@raizan:expires_at", data.expires_at); 
+      if (data.modulos) localStorage.setItem("@raizan:modulos", JSON.stringify(data.modulos));
 
-      // 🟢 A CORREÇÃO DEFINITIVA: O Detetive de Nomes
-      // Ele tenta pegar o "nome", se não tiver, tenta o "first_name", se não tiver, usa "Administrador"
+      // 🟢 O Detetive de Nomes
       const nomeOficial = data.nome || 
-                          [data.first_name, data.last_name].filter(Boolean).join(" ") || 
-                          data.display_name || 
+                          data.first_name || 
                           "Administrador";
                           
       localStorage.setItem("@raizan:nome", nomeOficial);
+
+      // 🟢 MUDANÇA 3: A MÁGICA DO TENANT!
+      // Cria o "crachá" completo que as outras telas (Configurações, Clientes) vão usar.
+      const dadosDoUsuario = {
+        nome: nomeOficial,
+        email: data.email || email,
+        tenant_id: data.tenant_id || data.cnpj // Puxa o CNPJ/Tenant da sua API
+      };
+      localStorage.setItem("@raizan:user", JSON.stringify(dadosDoUsuario));
 
       setIsLoading(false);
       window.location.href = "/resumo"; 
       
     } catch (err) {
       console.error(err);
-      setErrorMsg("Erro ao conectar no servidor central. Verifique se o IP está correto nas configurações.");
+      setErrorMsg("Erro ao conectar no servidor central. Verifique se a API está online.");
       setIsLoading(false);
     }
   };

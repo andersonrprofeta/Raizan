@@ -32,6 +32,17 @@ export default function NovoClienteHub() {
     uf: ''
   });
 
+  // 🔥 Função para pegar o Tenant ID logado
+  const pegarCnpjLogado = () => {
+    if (typeof window !== 'undefined') {
+      const storedUser = localStorage.getItem("@raizan:user");
+      if (storedUser) {
+        return JSON.parse(storedUser).tenant_id;
+      }
+    }
+    return "";
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -85,6 +96,12 @@ export default function NovoClienteHub() {
       return toast.error("Nome e E-mail são obrigatórios!");
     }
 
+    // 🔥 Resgata o tenant antes de salvar
+    const tenantId = pegarCnpjLogado();
+    if (!tenantId) {
+      return toast.error("Erro: Empresa não identificada. Faça login novamente.");
+    }
+
     setLoading(true);
 
     // Empacotamos o endereço para o JSON que o backend espera
@@ -109,7 +126,10 @@ export default function NovoClienteHub() {
     try {
       const res = await fetch("https://api.raizan.com.br/api/hub/clientes", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "x-tenant-id": tenantId // 🔥 INJETAMOS O CRACHÁ AQUI!
+        },
         body: JSON.stringify(payload)
       });
       const data = await res.json();

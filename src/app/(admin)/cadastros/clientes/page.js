@@ -10,19 +10,29 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import toast from 'react-hot-toast';
+import { getHubUrl, getHeaders } from "@/components/utils/api"; 
 
 export default function ListaClientesHub() {
   const [clientes, setClientes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busca, setBusca] = useState("");
   
-  // 🟢 ESTADOS DA PAGINAÇÃO
   const [paginaAtual, setPaginaAtual] = useState(1);
   const itensPorPagina = 10; 
 
-  // 🟢 ESTADOS DO MODAL DE DELETE
   const [modalDelete, setModalDelete] = useState({ open: false, cliente: null });
-  const [excluirNoWoo, setExcluirNoWoo] = useState(false); // 🔥 NOVO ESTADO
+  const [excluirNoWoo, setExcluirNoWoo] = useState(false);
+
+  // 🟢 FUNÇÃO NOVA: Pega o CNPJ da sessão atual para mandar pra API
+  const pegarCnpjLogado = () => {
+    if (typeof window !== 'undefined') {
+      const storedUser = localStorage.getItem("@raizan:user");
+      if (storedUser) {
+        return JSON.parse(storedUser).tenant_id;
+      }
+    }
+    return "";
+  };
 
   useEffect(() => {
     carregarClientes();
@@ -30,7 +40,23 @@ export default function ListaClientesHub() {
 
   const carregarClientes = async () => {
     try {
-      const res = await fetch("https://api.raizan.com.br/api/hub/clientes");
+      const cnpj = pegarCnpjLogado();
+      
+      if (!cnpj) {
+        toast.error("Erro: CNPJ da empresa não encontrado na sessão.");
+        setLoading(false);
+        return;
+      }
+
+      // 🟢 CORRIGIDO: Agora enviamos o "x-tenant-id" no cabeçalho!
+      const res = await fetch(`${getHubUrl()}/api/hub/clientes`, {
+        method: "GET",
+        headers: {
+          ...getHeaders(),
+          "x-tenant-id": cnpj 
+        }
+      });
+      
       const data = await res.json();
       if (data.success) {
         setClientes(data.clientes);
@@ -46,11 +72,18 @@ export default function ListaClientesHub() {
 
   const confirmarExclusao = async () => {
     const id = modalDelete.cliente.id;
-    const loadingToast = toast.loading("Excluindo cliente..."); // Aviso de carregamento
+    const loadingToast = toast.loading("Excluindo cliente...");
+    const cnpj = pegarCnpjLogado();
 
     try {
-      // 🔥 Mandamos o parâmetro "?excluir_woo=true" para o back-end saber
-      const res = await fetch(`https://api.raizan.com.br/api/hub/clientes/${id}?excluir_woo=${excluirNoWoo}`, { method: "DELETE" });
+      // 🟢 CORRIGIDO: Enviando o "x-tenant-id" para deletar no banco certo
+      const res = await fetch(`${getHubUrl()}/api/hub/clientes/${id}?excluir_woo=${excluirNoWoo}`, { 
+        method: "DELETE",
+        headers: {
+          ...getHeaders(),
+          "x-tenant-id": cnpj
+        }
+      });
       const data = await res.json();
       
       if (data.success) {
@@ -62,7 +95,6 @@ export default function ListaClientesHub() {
     } catch (error) {
       toast.error("Erro de conexão ao tentar excluir.", { id: loadingToast });
     } finally {
-      // Limpa tudo ao fechar
       setModalDelete({ open: false, cliente: null });
       setExcluirNoWoo(false);
     }
@@ -236,7 +268,7 @@ export default function ListaClientesHub() {
                                   <button 
                                     onClick={() => {
                                       setModalDelete({ open: true, cliente });
-                                      setExcluirNoWoo(false); // Reseta o checkbox
+                                      setExcluirNoWoo(false); 
                                     }} 
                                     className="p-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 hover:bg-rose-50 dark:hover:bg-rose-500/10 text-zinc-500 hover:text-rose-600 rounded-lg shadow-sm transition-colors"
                                   >

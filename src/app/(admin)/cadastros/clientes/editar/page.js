@@ -25,14 +25,34 @@ function FormularioEdicao() {
     cep: '', logradouro: '', numero: '', complemento: '', bairro: '', cidade: '', uf: ''
   });
 
+  // 🔥 Função para pegar o Tenant ID logado
+  const pegarCnpjLogado = () => {
+    if (typeof window !== 'undefined') {
+      const storedUser = localStorage.getItem("@raizan:user");
+      if (storedUser) {
+        return JSON.parse(storedUser).tenant_id;
+      }
+    }
+    return "";
+  };
+
   useEffect(() => {
     if (idCliente) carregarCliente();
     else { toast.error("ID não encontrado"); router.push('/cadastros/clientes'); }
   }, [idCliente]);
 
   const carregarCliente = async () => {
+    const tenantId = pegarCnpjLogado();
+    if (!tenantId) {
+      toast.error("Sessão expirada. Faça login novamente.");
+      return router.push('/login');
+    }
+
     try {
-      const res = await fetch(`https://api.raizan.com.br/api/hub/clientes/${idCliente}`);
+      // 🔥 Injetamos o cabeçalho aqui para buscar os dados
+      const res = await fetch(`https://api.raizan.com.br/api/hub/clientes/${idCliente}`, {
+        headers: { "x-tenant-id": tenantId }
+      });
       const data = await res.json();
       
       if (data.success && data.cliente) {
@@ -93,6 +113,12 @@ function FormularioEdicao() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    const tenantId = pegarCnpjLogado();
+    if (!tenantId) {
+      return toast.error("Sessão expirada. Faça login novamente.");
+    }
+
     setLoading(true);
 
     const payload = {
@@ -102,15 +128,28 @@ function FormularioEdicao() {
     };
 
     try {
+      // 🔥 Injetamos o cabeçalho aqui também para salvar os dados
       const res = await fetch(`https://api.raizan.com.br/api/hub/clientes/${idCliente}`, {
-        method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)
+        method: "PUT", 
+        headers: { 
+          "Content-Type": "application/json",
+          "x-tenant-id": tenantId 
+        }, 
+        body: JSON.stringify(payload)
       });
       const data = await res.json();
+      
       if (data.success) {
         toast.success("Cadastro atualizado!");
         router.push("/cadastros/clientes"); 
-      } else toast.error(data.message || "Erro ao salvar.");
-    } catch (error) { toast.error("Falha de conexão."); } finally { setLoading(false); }
+      } else {
+        toast.error(data.message || "Erro ao salvar.");
+      }
+    } catch (error) { 
+      toast.error("Falha de conexão."); 
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   if (loadingInitial) {

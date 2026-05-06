@@ -24,14 +24,36 @@ function DashboardCliente() {
     pedidos: []
   });
 
+  // 🔥 Função para pegar o Tenant ID logado
+  const pegarCnpjLogado = () => {
+    if (typeof window !== 'undefined') {
+      const storedUser = localStorage.getItem("@raizan:user");
+      if (storedUser) {
+        return JSON.parse(storedUser).tenant_id;
+      }
+    }
+    return "";
+  };
+
   useEffect(() => {
     if (idCliente) carregarDashboard();
     else { toast.error("ID não encontrado"); router.push('/cadastros/clientes'); }
   }, [idCliente]);
 
   const carregarDashboard = async () => {
+    const tenantId = pegarCnpjLogado();
+    if (!tenantId) {
+      toast.error("Sessão expirada. Faça login novamente.");
+      return router.push('/login');
+    }
+
     try {
-      const res = await fetch(`https://api.raizan.com.br/api/hub/clientes/${idCliente}/dashboard`);
+      const res = await fetch(`https://api.raizan.com.br/api/hub/clientes/${idCliente}/dashboard`, {
+        headers: { 
+          "Content-Type": "application/json",
+          "x-tenant-id": tenantId // 🔥 INJETAMOS O CRACHÁ AQUI TAMBÉM!
+        }
+      });
       const data = await res.json();
       
       if (data.success) {
@@ -61,6 +83,11 @@ function DashboardCliente() {
 
   if (loading) {
     return <div className="flex-1 flex items-center justify-center"><Loader2 size={40} className="text-indigo-500 animate-spin" /></div>;
+  }
+
+  // 🔥 Segurança para não dar tela branca caso a API não retorne o cliente
+  if (!dados.cliente) {
+    return null; 
   }
 
   const { cliente, kpis, pedidos } = dados;
@@ -222,7 +249,6 @@ function DashboardCliente() {
                       </tr>
                     ) : (
                       pedidos.map((pedido) => {
-                        // Lógica para colapsar os produtos se tiver mais de 2
                         const itensVisiveis = pedido.itens ? pedido.itens.slice(0, 2) : [];
                         const itensOcultos = pedido.itens ? pedido.itens.length - 2 : 0;
 
@@ -242,7 +268,6 @@ function DashboardCliente() {
                               {formatarData(pedido.created_at)}
                             </td>
                             
-                            {/* 🔥 NOVA LISTA COMPACTA DE PRODUTOS 🔥 */}
                             <td className="px-6 py-4 min-w-[220px] max-w-[300px]">
                               {itensVisiveis.length > 0 ? (
                                 <div className="flex flex-col gap-2">

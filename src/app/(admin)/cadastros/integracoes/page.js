@@ -12,7 +12,7 @@ import toast from 'react-hot-toast';
 
 export default function IntegracoesPage() {
   const [integracoesAtivas, setIntegracoesAtivas] = useState([]);
-  const [oracleConfigurado, setOracleConfigurado] = useState(false); // 🔥 Novo estado pro Oracle
+  const [oracleConfigurado, setOracleConfigurado] = useState(false);
   const [loading, setLoading] = useState(true);
   const [sincronizando, setSincronizando] = useState(false);
   const [instalando, setInstalando] = useState(null); 
@@ -34,7 +34,6 @@ export default function IntegracoesPage() {
     api_token: crypto.randomUUID() 
   });
 
-  // 🔥 Estado do Mercado Pago
   const [formMP, setFormMP] = useState({
     nome_integracao: "Mercado Pago Oficial",
     access_token: "",
@@ -43,31 +42,12 @@ export default function IntegracoesPage() {
     disponivel_raizan: false
   });
 
-  // 🔥 Estado da Frenet Atualizado
   const [formFrenet, setFormFrenet] = useState({
     nome_integracao: "Frenet Oficial",
     chave_frenet: "",
     senha_frenet: "",
     token_frenet: ""
   });
-
-  // 🔥 Salvar Frenet na API Nuvem
-  const salvarFrenet = async (e) => {
-    e.preventDefault();
-    const cnpj = pegarCnpjLogado();
-    const loadingToast = toast.loading("Configurando Frenet...");
-    try {
-      const res = await fetch("https://api.raizan.com.br/api/hub/integracoes/frenet", {
-        method: "POST", headers: { "Content-Type": "application/json", "x-tenant-id": cnpj },
-        body: JSON.stringify(formFrenet)
-      });
-      const data = await res.json();
-      if (data.success) {
-        toast.success("Frenet configurada com sucesso!", { id: loadingToast });
-        setInstalando(null); carregarIntegracoesEStatus(); 
-      } else { toast.error(data.message || "Erro ao salvar credenciais.", { id: loadingToast }); }
-    } catch (error) { toast.error("Erro de conexão.", { id: loadingToast }); }
-  };
 
   const pegarCnpjLogado = () => {
     if (typeof window !== 'undefined') {
@@ -91,31 +71,58 @@ export default function IntegracoesPage() {
     const cnpj = pegarCnpjLogado();
     if (!cnpj) return;
 
+    // 🟢 TRUQUE DO CACHE: Carrega instantaneamente o que já tem na memória!
+    const cacheInt = localStorage.getItem(`@raizan:cache_integracoes_${cnpj}`);
+    const cacheOracle = localStorage.getItem(`@raizan:cache_oracle_${cnpj}`);
+    
+    if (cacheInt) setIntegracoesAtivas(JSON.parse(cacheInt));
+    if (cacheOracle) setOracleConfigurado(JSON.parse(cacheOracle));
+    if (cacheInt || cacheOracle) setLoading(false); // Já tira o loading se tiver cache
+
     try {
-      // 1. Busca integrações ativas
-      const resInt = await fetch("https://api.raizan.com.br/api/hub/integracoes", {
-        headers: { "x-tenant-id": cnpj }
-      });
+      // Faz as duas requisições ao mesmo tempo em background (silenciosamente)
+      const [resInt, resConf] = await Promise.all([
+        fetch("https://api.raizan.com.br/api/hub/integracoes", { headers: { "x-tenant-id": cnpj } }),
+        fetch("https://api.raizan.com.br/api/hub/configuracoes", { headers: { "x-tenant-id": cnpj } })
+      ]);
+
       const dataInt = await resInt.json();
+      const dataConf = await resConf.json();
+
       if (dataInt.success) {
         setIntegracoesAtivas(dataInt.integracoes);
+        localStorage.setItem(`@raizan:cache_integracoes_${cnpj}`, JSON.stringify(dataInt.integracoes)); // Atualiza o cache
       }
 
-      // 2. Busca configurações para saber se o Oracle tá online
-      const resConf = await fetch("https://api.raizan.com.br/api/hub/configuracoes", {
-        headers: { "x-tenant-id": cnpj }
-      });
-      const dataConf = await resConf.json();
       if (dataConf.success && dataConf.configuracoes?.oracle_host) {
         setOracleConfigurado(true);
+        localStorage.setItem(`@raizan:cache_oracle_${cnpj}`, JSON.stringify(true)); // Atualiza o cache
       } else {
         setOracleConfigurado(false);
+        localStorage.setItem(`@raizan:cache_oracle_${cnpj}`, JSON.stringify(false)); // Atualiza o cache
       }
     } catch (error) {
-      toast.error("Erro ao carregar dados do painel.");
+      console.log("Aviso: Falha ao sincronizar em background.");
     } finally {
       setLoading(false);
     }
+  };
+
+  const salvarFrenet = async (e) => {
+    e.preventDefault();
+    const cnpj = pegarCnpjLogado();
+    const loadingToast = toast.loading("Configurando Frenet...");
+    try {
+      const res = await fetch("https://api.raizan.com.br/api/hub/integracoes/frenet", {
+        method: "POST", headers: { "Content-Type": "application/json", "x-tenant-id": cnpj },
+        body: JSON.stringify(formFrenet)
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success("Frenet configurada com sucesso!", { id: loadingToast });
+        setInstalando(null); carregarIntegracoesEStatus(); 
+      } else { toast.error(data.message || "Erro ao salvar credenciais.", { id: loadingToast }); }
+    } catch (error) { toast.error("Erro de conexão.", { id: loadingToast }); }
   };
 
   const salvarWooCommerce = async (e) => {
@@ -152,7 +159,6 @@ export default function IntegracoesPage() {
     } catch (error) { toast.error("Erro de conexão com o Hub.", { id: loadingToast }); }
   };
 
-  // 🔥 Salvar Mercado Pago na API Nuvem
   const salvarMercadoPago = async (e) => {
     e.preventDefault();
     const cnpj = pegarCnpjLogado();
@@ -254,424 +260,465 @@ export default function IntegracoesPage() {
               )}
             </div>
 
-            {/* LISTA DE INTEGRAÇÕES ATIVAS */}
-            {!instalando && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                
-                <div onClick={(e) => { e.stopPropagation(); setInstalando('catalogo'); }} className="border-2 border-dashed border-zinc-300 dark:border-zinc-700 rounded-2xl p-6 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800/50 transition-colors min-h-[220px]">
-                  <Plus size={32} className="text-zinc-400 mb-2" />
-                  <p className="font-bold text-zinc-700 dark:text-zinc-300">Nova Integração</p>
-                  <p className="text-xs font-medium text-zinc-500 mt-1">Ver plataformas disponíveis</p>
-                </div>
-
-                {integracoesAtivas.map(int => (
-                  <div key={int.id} className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 flex flex-col justify-between shadow-sm hover:shadow-md transition-all min-h-[220px] relative group">
-                    <div className="absolute inset-0 overflow-hidden rounded-2xl pointer-events-none z-0">
-                      {int.plataforma === 'raizan_commerce' && <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/5 rounded-full blur-2xl group-hover:bg-purple-500/10 transition-colors" />}
-                      {int.plataforma === 'mercadopago' && <div className="absolute top-0 right-0 w-32 h-32 bg-sky-500/5 rounded-full blur-2xl group-hover:bg-sky-500/10 transition-colors" />}
-                    </div>
+            {/* LOADER INICIAL */}
+            {loading && integracoesAtivas.length === 0 && !oracleConfigurado ? (
+              <div className="flex flex-col items-center justify-center py-20">
+                <Loader2 size={40} className="animate-spin text-purple-600 mb-4" />
+                <p className="text-zinc-500 font-bold tracking-widest text-sm uppercase">Carregando integrações...</p>
+              </div>
+            ) : (
+              <>
+                {/* LISTA DE INTEGRAÇÕES ATIVAS */}
+                {!instalando && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-in fade-in duration-300">
                     
-                    <div className="flex items-start justify-between relative z-10">
-                      <div className="flex items-center justify-center">
-                        {getPlataformaIcon(int.plataforma)}
-                      </div>
-                      <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50 dark:bg-emerald-500/10 dark:text-emerald-400 px-2 py-1 rounded-md border border-emerald-200 dark:border-emerald-500/20">
-                        <CheckCircle2 size={12} /> Ativo
-                      </span>
+                    <div onClick={(e) => { e.stopPropagation(); setInstalando('catalogo'); }} className="border-2 border-dashed border-zinc-300 dark:border-zinc-700 rounded-2xl p-6 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800/50 transition-colors min-h-[220px]">
+                      <Plus size={32} className="text-zinc-400 mb-2" />
+                      <p className="font-bold text-zinc-700 dark:text-zinc-300">Nova Integração</p>
+                      <p className="text-xs font-medium text-zinc-500 mt-1">Ver plataformas disponíveis</p>
                     </div>
 
-                    <div className="mt-4 mb-5 relative z-10">
-                      <h3 className="font-bold text-lg truncate text-zinc-900 dark:text-zinc-100" title={int.nome_integracao}>{int.nome_integracao}</h3>
-                      <p className="text-xs font-medium text-zinc-500 mt-1 truncate flex items-center gap-1.5"><Globe size={12}/> {int.url_loja || 'Módulo Interno'}</p>
-                    </div>
-                    
-                    <div className="flex gap-2 w-full mt-auto relative z-10">
-                      {int.plataforma !== 'mercadopago' && (
-                        <button 
-                          onClick={(e) => { e.stopPropagation(); sincronizarDadosDaLoja(int.id); }}
-                          disabled={sincronizando === int.id}
-                          className="flex-1 py-2.5 bg-zinc-50 dark:bg-zinc-800/50 text-zinc-700 dark:text-zinc-300 font-bold rounded-xl text-xs hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-center justify-center gap-1.5 border border-zinc-200 dark:border-zinc-700 disabled:opacity-50"
-                        >
-                          {sincronizando === int.id ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-                          Sync Manual
-                        </button>
-                      )}
-                      
-                      <div className={`relative ${int.plataforma === 'mercadopago' ? 'w-full' : ''}`}>
-                        <button 
-                          onClick={(e) => { 
-                            e.stopPropagation(); 
-                            setMenuAberto(menuAberto === int.id ? null : int.id); 
-                          }}
-                          className={`${int.plataforma === 'mercadopago' ? 'w-full px-4' : 'px-4'} py-2.5 font-bold rounded-xl text-xs transition-colors flex items-center justify-center border ${menuAberto === int.id ? 'bg-zinc-200 dark:bg-zinc-700 border-zinc-300 dark:border-zinc-600 text-zinc-900 dark:text-white' : 'bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700'}`}
-                        >
-                          <Settings size={16} /> {int.plataforma === 'mercadopago' && <span className="ml-2">Configurações</span>}
-                        </button>
+                    {/* 🟢 CARD DO ORACLE ATIVO */}
+                    {oracleConfigurado && (
+                      <div className="bg-white dark:bg-[#121214] border border-red-200 dark:border-red-500/30 rounded-2xl p-6 flex flex-col justify-between shadow-sm hover:shadow-md transition-all min-h-[220px] relative group overflow-hidden">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/5 rounded-full blur-2xl group-hover:bg-red-500/10 transition-colors pointer-events-none" />
+                        
+                        <div className="flex items-start justify-between relative z-10">
+                          <div className="flex items-center justify-center">
+                            <img src="/oracle.svg" alt="Oracle" className="h-10 w-auto max-w-[140px] object-contain drop-shadow-sm" />
+                          </div>
+                          <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50 dark:bg-emerald-500/10 dark:text-emerald-400 px-2 py-1 rounded-md border border-emerald-200 dark:border-emerald-500/20">
+                            <CheckCircle2 size={12} /> Ativo
+                          </span>
+                        </div>
 
-                        {menuAberto === int.id && (
-                          <div 
-                            className={`absolute bottom-full mb-2 w-40 bg-white dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-xl overflow-hidden z-50 animate-in fade-in slide-in-from-bottom-2 ${int.plataforma === 'mercadopago' ? 'left-1/2 -translate-x-1/2' : 'right-0'}`}
-                            onClick={(e) => e.stopPropagation()}
+                        <div className="mt-4 mb-5 relative z-10">
+                          <h3 className="font-bold text-lg truncate text-zinc-900 dark:text-zinc-100">Oracle Database</h3>
+                          <p className="text-xs font-medium text-zinc-500 mt-1 truncate flex items-center gap-1.5"><Database size={12}/> Motor Local Vinculado</p>
+                        </div>
+                        
+                        <div className="flex w-full mt-auto relative z-10">
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); window.location.href = '/configuracoes'; }}
+                            className="w-full py-2.5 bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400 font-bold rounded-xl text-xs hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors flex items-center justify-center gap-1.5 border border-red-200 dark:border-red-500/30"
                           >
-                            <button onClick={() => editarIntegracao(int)} className="w-full text-left px-4 py-3 text-sm font-bold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors flex items-center gap-2 border-b border-zinc-100 dark:border-zinc-800/50">
-                              <Pencil size={14} /> Editar
+                            <Settings size={14} /> Ajustar Conexão
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {integracoesAtivas.map(int => (
+                      <div key={int.id} className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 flex flex-col justify-between shadow-sm hover:shadow-md transition-all min-h-[220px] relative group">
+                        <div className="absolute inset-0 overflow-hidden rounded-2xl pointer-events-none z-0">
+                          {int.plataforma === 'raizan_commerce' && <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/5 rounded-full blur-2xl group-hover:bg-purple-500/10 transition-colors" />}
+                          {int.plataforma === 'mercadopago' && <div className="absolute top-0 right-0 w-32 h-32 bg-sky-500/5 rounded-full blur-2xl group-hover:bg-sky-500/10 transition-colors" />}
+                        </div>
+                        
+                        <div className="flex items-start justify-between relative z-10">
+                          <div className="flex items-center justify-center">
+                            {getPlataformaIcon(int.plataforma)}
+                          </div>
+                          <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50 dark:bg-emerald-500/10 dark:text-emerald-400 px-2 py-1 rounded-md border border-emerald-200 dark:border-emerald-500/20">
+                            <CheckCircle2 size={12} /> Ativo
+                          </span>
+                        </div>
+
+                        <div className="mt-4 mb-5 relative z-10">
+                          <h3 className="font-bold text-lg truncate text-zinc-900 dark:text-zinc-100" title={int.nome_integracao}>{int.nome_integracao}</h3>
+                          <p className="text-xs font-medium text-zinc-500 mt-1 truncate flex items-center gap-1.5"><Globe size={12}/> {int.url_loja || 'Módulo Interno'}</p>
+                        </div>
+                        
+                        <div className="flex gap-2 w-full mt-auto relative z-10">
+                          {int.plataforma !== 'mercadopago' && (
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); sincronizarDadosDaLoja(int.id); }}
+                              disabled={sincronizando === int.id}
+                              className="flex-1 py-2.5 bg-zinc-50 dark:bg-zinc-800/50 text-zinc-700 dark:text-zinc-300 font-bold rounded-xl text-xs hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-center justify-center gap-1.5 border border-zinc-200 dark:border-zinc-700 disabled:opacity-50"
+                            >
+                              {sincronizando === int.id ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                              Sync Manual
                             </button>
-                            <button onClick={() => { setIntegracaoParaDeletar(int); setMenuAberto(null); }} className="w-full text-left px-4 py-3 text-sm font-bold text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors flex items-center gap-2">
-                              <Trash2 size={14} /> Excluir
+                          )}
+                          
+                          <div className={`relative ${int.plataforma === 'mercadopago' ? 'w-full' : ''}`}>
+                            <button 
+                              onClick={(e) => { 
+                                e.stopPropagation(); 
+                                setMenuAberto(menuAberto === int.id ? null : int.id); 
+                              }}
+                              className={`${int.plataforma === 'mercadopago' ? 'w-full px-4' : 'px-4'} py-2.5 font-bold rounded-xl text-xs transition-colors flex items-center justify-center border ${menuAberto === int.id ? 'bg-zinc-200 dark:bg-zinc-700 border-zinc-300 dark:border-zinc-600 text-zinc-900 dark:text-white' : 'bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700'}`}
+                            >
+                              <Settings size={16} /> {int.plataforma === 'mercadopago' && <span className="ml-2">Configurações</span>}
+                            </button>
+
+                            {menuAberto === int.id && (
+                              <div 
+                                className={`absolute bottom-full mb-2 w-40 bg-white dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-xl overflow-hidden z-50 animate-in fade-in slide-in-from-bottom-2 ${int.plataforma === 'mercadopago' ? 'left-1/2 -translate-x-1/2' : 'right-0'}`}
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <button onClick={() => editarIntegracao(int)} className="w-full text-left px-4 py-3 text-sm font-bold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors flex items-center gap-2 border-b border-zinc-100 dark:border-zinc-800/50">
+                                  <Pencil size={14} /> Editar
+                                </button>
+                                <button onClick={() => { setIntegracaoParaDeletar(int); setMenuAberto(null); }} className="w-full text-left px-4 py-3 text-sm font-bold text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors flex items-center gap-2">
+                                  <Trash2 size={14} /> Excluir
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* SEÇÃO 2: CATÁLOGO DE PLATAFORMAS */}
+                {instalando === 'catalogo' && (
+                  <div className="bg-white dark:bg-[#0c0c0e] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 sm:p-8 animate-in fade-in zoom-in-95 shadow-sm">
+                    <div className="flex items-center justify-between mb-8 pb-4 border-b border-zinc-100 dark:border-zinc-800/60">
+                      <div>
+                        <h2 className="text-xl font-black text-zinc-900 dark:text-zinc-100">Catálogo de Aplicativos</h2>
+                        <p className="text-sm font-medium text-zinc-500 mt-1">Selecione a plataforma para iniciar a configuração.</p>
+                      </div>
+                      <button onClick={() => setInstalando(null)} className="text-sm font-bold text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-300 bg-zinc-100 dark:bg-zinc-900 px-4 py-2 rounded-lg transition-colors">Cancelar</button>
+                    </div>
+                    
+                    <div className="space-y-10">
+                      
+                      {/* CATEGORIA 1: E-COMMERCE E MARKETPLACES */}
+                      <div>
+                        <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                          <Store size={16} /> E-commerce & Marketplaces
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                          
+                          <div className="border-2 border-purple-200 dark:border-purple-500/30 rounded-2xl p-5 flex flex-col items-center text-center hover:border-purple-500 hover:shadow-xl hover:shadow-purple-500/10 transition-all cursor-pointer bg-gradient-to-b from-purple-50/50 to-white dark:from-purple-900/10 dark:to-[#0c0c0e] relative overflow-hidden group">
+                            <div className="absolute top-0 right-0 bg-purple-600 text-white text-[9px] font-black uppercase px-2 py-1 rounded-bl-lg tracking-wider z-10">Nativo</div>
+                            <div className="w-16 h-16 bg-white dark:bg-[#121214] shadow-sm rounded-2xl flex items-center justify-center mb-4 border border-purple-100 dark:border-purple-500/20 group-hover:scale-110 transition-transform">
+                              <img src="/RaizanCommerce.png" alt="Raizan" className="w-10 h-10 object-contain drop-shadow-sm" />
+                            </div>
+                            <h3 className="font-bold text-base mb-1 text-zinc-900 dark:text-zinc-100">Raizan Commerce</h3>
+                            <p className="text-xs font-medium text-zinc-500 mb-5 h-8">Headless Store de altíssima performance.</p>
+                            <button onClick={(e) => { e.stopPropagation(); setInstalando('raizan'); }} className="w-full py-2.5 bg-purple-600 rounded-xl text-sm font-bold text-white hover:bg-purple-500 shadow-md shadow-purple-500/20 transition-all">Ativar Módulo</button>
+                          </div>
+
+                          <div className="border border-zinc-200 dark:border-zinc-800 rounded-2xl p-5 flex flex-col items-center text-center hover:border-zinc-300 dark:hover:border-zinc-700 hover:shadow-lg transition-all cursor-pointer bg-white dark:bg-[#121214] group">
+                            <div className="w-16 h-16 bg-zinc-50 dark:bg-zinc-900 rounded-2xl flex items-center justify-center mb-4 border border-zinc-100 dark:border-zinc-800 group-hover:scale-110 transition-transform">
+                              <img src="/woocommerce.svg" alt="Woo" className="w-10 h-10 object-contain" />
+                            </div>
+                            <h3 className="font-bold text-base mb-1 text-zinc-900 dark:text-zinc-100">WooCommerce</h3>
+                            <p className="text-xs font-medium text-zinc-500 mb-5 h-8">Sincronização de catálogo e pedidos WP.</p>
+                            <button onClick={(e) => { e.stopPropagation(); setInstalando('woocommerce'); }} className="w-full py-2.5 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl text-sm font-bold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors">Conectar</button>
+                          </div>
+
+                          {['shopify', 'mercadolibre', 'shopee', 'amazon', 'magalu', 'tiktok'].map(plataforma => (
+                            <div key={plataforma} className="border border-zinc-200 dark:border-zinc-800 rounded-2xl p-5 flex flex-col items-center text-center opacity-50 grayscale cursor-not-allowed bg-zinc-50/50 dark:bg-zinc-900/10">
+                              <div className="w-16 h-16 bg-white dark:bg-zinc-900 rounded-2xl flex items-center justify-center mb-4 border border-zinc-100 dark:border-zinc-800">
+                                <img src={`/${plataforma}.svg`} alt={plataforma} className="w-10 h-10 object-contain" />
+                              </div>
+                              <h3 className="font-bold text-base mb-1 capitalize">{plataforma.replace('mercadolibre', 'Mercado Livre')}</h3>
+                              <p className="text-xs font-medium text-zinc-500 mb-5 h-8">Integração em desenvolvimento.</p>
+                              <span className="w-full py-2.5 bg-zinc-200 dark:bg-zinc-800 rounded-xl text-xs font-bold text-zinc-500 uppercase tracking-widest">Em Breve</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* CATEGORIA 2: PAGAMENTOS */}
+                      <div>
+                        <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest mb-4 flex items-center gap-2 mt-8 border-t border-zinc-200 dark:border-zinc-800/60 pt-8">
+                          <CreditCard size={16} /> Meios de Pagamento
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                          
+                          <div className="border border-sky-200 dark:border-sky-500/30 rounded-2xl p-5 flex flex-col items-center text-center hover:border-sky-500 hover:shadow-xl transition-all cursor-pointer bg-gradient-to-b from-sky-50/50 to-white dark:from-sky-900/10 dark:to-[#0c0c0e] group relative overflow-hidden">
+                            <div className="w-16 h-16 bg-white dark:bg-[#121214] shadow-sm rounded-2xl flex items-center justify-center mb-4 border border-sky-100 dark:border-sky-500/20 group-hover:scale-110 transition-transform">
+                              <img src="/Mercadopago.svg" alt="Mercado Pago" className="w-10 h-10 object-contain" />
+                            </div>
+                            <h3 className="font-bold text-base mb-1 text-zinc-900 dark:text-zinc-100">Mercado Pago</h3>
+                            <p className="text-xs font-medium text-zinc-500 mb-5 h-8">Pix, Cartões e Boleto Transparente.</p>
+                            <button onClick={(e) => { e.stopPropagation(); setInstalando('mercadopago'); }} className="w-full py-2.5 bg-sky-600 rounded-xl text-sm font-bold text-white hover:bg-sky-500 shadow-md shadow-sky-500/20 transition-all">Configurar</button>
+                          </div>
+
+                        </div>
+                      </div>
+
+                      {/* CATEGORIA: LOGÍSTICA E FRETE */}
+                      <div>
+                        <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest mb-4 flex items-center gap-2 mt-8 border-t border-zinc-200 dark:border-zinc-800/60 pt-8">
+                          <Truck size={16} /> Logística e Frete
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                          <div className="border border-orange-200 dark:border-orange-500/30 rounded-2xl p-5 flex flex-col items-center text-center hover:border-orange-500 hover:shadow-xl transition-all cursor-pointer bg-gradient-to-b from-orange-50/50 to-white dark:from-orange-900/10 dark:to-[#0c0c0e] group relative overflow-hidden">
+                            <div className="w-16 h-16 bg-white dark:bg-[#121214] shadow-sm rounded-2xl flex items-center justify-center mb-4 border border-orange-100 dark:border-orange-500/20 group-hover:scale-110 transition-transform">
+                              <img src="/Frenet.svg" alt="Frenet" className="w-10 h-10 object-contain" />
+                            </div>
+                            <h3 className="font-bold text-base mb-1 text-zinc-900 dark:text-zinc-100">Frenet</h3>
+                            <p className="text-xs font-medium text-zinc-500 mb-5 h-8">Cálculo de fretes e transportadoras.</p>
+                            <button onClick={(e) => { e.stopPropagation(); setInstalando('frenet'); }} className="w-full py-2.5 bg-orange-500 rounded-xl text-sm font-bold text-white hover:bg-orange-400 shadow-md shadow-orange-500/20 transition-all">Configurar</button>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* CATEGORIA 3: ERP E BANCOS DE DADOS */}
+                      <div>
+                        <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest mb-4 flex items-center gap-2 mt-8 border-t border-zinc-200 dark:border-zinc-800/60 pt-8">
+                          <Server size={16} /> Bancos de Dados & ERPs
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                          
+                          {/* CARD DO ORACLE INTELIGENTE */}
+                          <div className={`border ${oracleConfigurado ? 'border-red-200 dark:border-red-500/40 bg-red-50/30 dark:bg-red-900/10' : 'border-zinc-200 dark:border-zinc-800 bg-white dark:bg-[#121214]'} rounded-2xl p-5 flex flex-col items-center text-center hover:border-red-500 hover:shadow-xl transition-all cursor-pointer group relative overflow-hidden`}>
+                            {oracleConfigurado && (
+                              <div className="absolute top-0 right-0 bg-red-600 text-white text-[9px] font-black uppercase px-2 py-1 rounded-bl-lg tracking-wider z-10">Conectado</div>
+                            )}
+                            <div className={`w-16 h-16 shadow-sm rounded-2xl flex items-center justify-center mb-4 border group-hover:scale-110 transition-transform ${oracleConfigurado ? 'bg-white dark:bg-zinc-900 border-red-200 dark:border-red-500/30' : 'bg-zinc-50 dark:bg-zinc-900 border-zinc-100 dark:border-zinc-800'}`}>
+                              <img src="/oracle.svg" alt="Oracle" className="w-12 h-12 object-contain" />
+                            </div>
+                            <h3 className="font-bold text-base mb-1 text-zinc-900 dark:text-zinc-100">Oracle Database</h3>
+                            <p className="text-xs font-medium text-zinc-500 mb-5 h-8">{oracleConfigurado ? 'Sincronização bidirecional ativa.' : 'Sincronização bidirecional do ERP.'}</p>
+                            <button onClick={(e) => { e.stopPropagation(); toast("Acesse o menu Configurações para ajustar os parâmetros do Oracle.", { icon: '⚙️' }); }} className={`w-full py-2.5 rounded-xl text-sm font-bold transition-all ${oracleConfigurado ? 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-500/20' : 'bg-red-600 text-white hover:bg-red-500 shadow-md shadow-red-500/20'}`}>Ajustar Conexão</button>
+                          </div>
+
+                          {['microsoft-sql', 'mysql'].map(db => (
+                            <div key={db} className="border border-zinc-200 dark:border-zinc-800 rounded-2xl p-5 flex flex-col items-center text-center opacity-50 grayscale cursor-not-allowed bg-zinc-50/50 dark:bg-zinc-900/10">
+                              <div className="w-16 h-16 bg-white dark:bg-zinc-900 rounded-2xl flex items-center justify-center mb-4 border border-zinc-100 dark:border-zinc-800">
+                                <img src={`/${db}.svg`} alt={db} className="w-10 h-10 object-contain" />
+                              </div>
+                              <h3 className="font-bold text-base mb-1">{db === 'mysql' ? 'MySQL' : 'SQL Server'}</h3>
+                              <p className="text-xs font-medium text-zinc-500 mb-5 h-8">Driver de banco de dados.</p>
+                              <span className="w-full py-2.5 bg-zinc-200 dark:bg-zinc-800 rounded-xl text-xs font-bold text-zinc-500 uppercase tracking-widest">Em Breve</span>
+                            </div>
+                          ))}
+
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
+                )}
+
+                {/* FORMULÁRIO MERCADO PAGO */}
+                {instalando === 'mercadopago' && (
+                  <div onClick={(e) => e.stopPropagation()} className="bg-white dark:bg-[#0c0c0e] border border-sky-200 dark:border-sky-500/30 rounded-3xl animate-in fade-in slide-in-from-right-4 shadow-2xl shadow-sky-500/5 overflow-hidden">
+                    <div className="p-8 border-b border-sky-100 dark:border-sky-500/20 flex items-center justify-between bg-sky-50/50 dark:bg-sky-900/10">
+                      <div className="flex items-center gap-4">
+                        <div className="bg-white dark:bg-[#121214] p-3 rounded-2xl shadow-sm border border-sky-100 dark:border-sky-500/30">
+                          <img src="/Mercadopago.svg" className="w-8 h-8 object-contain" />
+                        </div>
+                        <div>
+                          <h2 className="text-2xl font-black text-sky-900 dark:text-sky-100 tracking-tight">Mercado Pago</h2>
+                          <p className="text-sm text-sky-600/80 dark:text-sky-400/80 font-medium mt-1">Configuração de checkout transparente.</p>
+                        </div>
+                      </div>
+                      <button onClick={() => setInstalando('catalogo')} className="text-sm font-bold text-zinc-500 hover:text-zinc-900 dark:hover:text-white bg-white dark:bg-zinc-900 px-4 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 transition-colors shadow-sm">Cancelar Configuração</button>
+                    </div>
+
+                    <div className="p-8 max-w-3xl">
+                      <form onSubmit={salvarMercadoPago} className="space-y-6">
+                        <div className="space-y-2">
+                          <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300">Identificação Interna</label>
+                          <input type="text" required value={formMP.nome_integracao} onChange={e => setFormMP({...formMP, nome_integracao: e.target.value})} className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 p-3.5 rounded-xl outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 font-medium transition-all" />
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div className="space-y-2">
+                            <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300">Access Token (Produção)</label>
+                            <input type="password" required value={formMP.access_token} onChange={e => setFormMP({...formMP, access_token: e.target.value})} placeholder="APP_USR-..." className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 p-3.5 rounded-xl font-mono text-sm outline-none focus:border-sky-500 transition-all" />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300">Public Key (Produção)</label>
+                            <input type="text" required value={formMP.public_key} onChange={e => setFormMP({...formMP, public_key: e.target.value})} placeholder="APP_USR-..." className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 p-3.5 rounded-xl font-mono text-sm outline-none focus:border-sky-500 transition-all" />
+                          </div>
+                        </div>
+
+                        <div className="pt-6 pb-2">
+                          <h3 className="text-sm font-bold text-zinc-900 dark:text-white mb-4">Disponibilizar este meio de pagamento em:</h3>
+                          <div className="flex flex-col gap-3">
+                            <label className="flex items-center gap-3 cursor-pointer group">
+                              <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${formMP.disponivel_b2b ? 'bg-sky-500 border-sky-500 text-white' : 'bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-700'}`}>
+                                {formMP.disponivel_b2b && <CheckCircle2 size={14} />}
+                              </div>
+                              <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300 group-hover:text-zinc-900 dark:group-hover:text-white transition-colors">Portal B2B (Lojistas)</span>
+                              <input type="checkbox" className="hidden" checked={formMP.disponivel_b2b} onChange={(e) => setFormMP({...formMP, disponivel_b2b: e.target.checked})} />
+                            </label>
+
+                            <label className="flex items-center gap-3 cursor-pointer group">
+                              <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${formMP.disponivel_raizan ? 'bg-sky-500 border-sky-500 text-white' : 'bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-700'}`}>
+                                {formMP.disponivel_raizan && <CheckCircle2 size={14} />}
+                              </div>
+                              <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300 group-hover:text-zinc-900 dark:group-hover:text-white transition-colors">Raizan Commerce (Varejo)</span>
+                              <input type="checkbox" className="hidden" checked={formMP.disponivel_raizan} onChange={(e) => setFormMP({...formMP, disponivel_raizan: e.target.checked})} />
+                            </label>
+                          </div>
+                        </div>
+
+                        <div className="pt-4 border-t border-zinc-100 dark:border-zinc-800">
+                          <button type="submit" className="w-full sm:w-auto bg-sky-600 hover:bg-sky-500 text-white px-8 py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-sky-500/20 active:scale-95">
+                            <CreditCard size={18} /> Salvar e Ativar Módulo
+                          </button>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                )}
+
+                {/* FORMULÁRIO FRENET */}
+                {instalando === 'frenet' && (
+                  <div onClick={(e) => e.stopPropagation()} className="bg-white dark:bg-[#0c0c0e] border border-orange-200 dark:border-orange-500/30 rounded-3xl animate-in fade-in slide-in-from-right-4 shadow-2xl shadow-orange-500/5 overflow-hidden">
+                    <div className="p-8 border-b border-orange-100 dark:border-orange-500/20 flex items-center justify-between bg-orange-50/50 dark:bg-orange-900/10">
+                      <div className="flex items-center gap-4">
+                        <div className="bg-white dark:bg-[#121214] p-3 rounded-2xl shadow-sm border border-orange-100 dark:border-orange-500/30">
+                          <img src="/Frenet.svg" className="w-8 h-8 object-contain" />
+                        </div>
+                        <div>
+                          <h2 className="text-2xl font-black text-orange-900 dark:text-orange-100 tracking-tight">Frenet Logística</h2>
+                          <p className="text-sm text-orange-600/80 dark:text-orange-400/80 font-medium mt-1">Cálculo de frete no checkout do portal.</p>
+                        </div>
+                      </div>
+                      <button onClick={() => setInstalando('catalogo')} className="text-sm font-bold text-zinc-500 hover:text-zinc-900 dark:hover:text-white bg-white dark:bg-zinc-900 px-4 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 transition-colors shadow-sm">Cancelar Configuração</button>
+                    </div>
+
+                    <div className="p-8 max-w-3xl">
+                      <form onSubmit={salvarFrenet} className="space-y-6">
+                        <div className="space-y-2">
+                          <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300">Identificação Interna</label>
+                          <input type="text" required value={formFrenet.nome_integracao} onChange={e => setFormFrenet({...formFrenet, nome_integracao: e.target.value})} className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 p-3.5 rounded-xl outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 font-medium transition-all" />
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div className="space-y-2">
+                            <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300">Chave (E-mail)</label>
+                            <input type="text" required value={formFrenet.chave_frenet} onChange={e => setFormFrenet({...formFrenet, chave_frenet: e.target.value})} placeholder="mkt@rafany.com.br" className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 p-3.5 rounded-xl text-sm outline-none focus:border-orange-500 transition-all" />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300">Senha</label>
+                            <input type="password" required value={formFrenet.senha_frenet} onChange={e => setFormFrenet({...formFrenet, senha_frenet: e.target.value})} placeholder="vZ3yi+RoZ..." className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 p-3.5 rounded-xl font-mono text-sm outline-none focus:border-orange-500 transition-all" />
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300">Token</label>
+                          <input type="text" required value={formFrenet.token_frenet} onChange={e => setFormFrenet({...formFrenet, token_frenet: e.target.value})} placeholder="26F6D137R95BER..." className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 p-3.5 rounded-xl font-mono text-sm outline-none focus:border-orange-500 transition-all" />
+                        </div>
+
+                        <div className="pt-4 border-t border-zinc-100 dark:border-zinc-800 mt-8">
+                          <button type="submit" className="w-full sm:w-auto bg-orange-500 hover:bg-orange-400 text-white px-8 py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-orange-500/20 active:scale-95">
+                            <Truck size={18} /> Salvar e Ativar Transportadoras
+                          </button>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                )}
+
+                {/* FORMULÁRIO RAIZAN COMMERCE */}
+                {instalando === 'raizan' && (
+                  <div onClick={(e) => e.stopPropagation()} className="bg-white dark:bg-[#0c0c0e] border border-purple-200 dark:border-purple-500/30 rounded-3xl animate-in fade-in slide-in-from-right-4 shadow-2xl shadow-purple-500/5 overflow-hidden">
+                    <div className="p-8 border-b border-purple-100 dark:border-purple-500/20 flex items-center justify-between bg-purple-50/50 dark:bg-purple-900/10">
+                      <div className="flex items-center gap-4">
+                        <div className="bg-white dark:bg-[#121214] p-3 rounded-2xl shadow-sm border border-purple-100 dark:border-purple-500/30">
+                          <img src="/RaizanCommerce.png" className="w-8 h-8 object-contain" />
+                        </div>
+                        <div>
+                          <h2 className="text-2xl font-black text-purple-900 dark:text-purple-100 tracking-tight">Ativar Raizan Commerce</h2>
+                          <p className="text-sm text-purple-600/80 dark:text-purple-400/80 font-medium mt-1">Configuração inicial do ambiente Headless.</p>
+                        </div>
+                      </div>
+                      <button onClick={() => setInstalando('catalogo')} className="text-sm font-bold text-zinc-500 hover:text-zinc-900 dark:hover:text-white bg-white dark:bg-zinc-900 px-4 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 transition-colors shadow-sm">Cancelar Instalação</button>
+                    </div>
+
+                    <div className="p-8 grid grid-cols-1 lg:grid-cols-3 gap-10">
+                      <div className="lg:col-span-2">
+                        <form onSubmit={salvarRaizanCommerce} className="space-y-6">
+                          <div className="grid grid-cols-2 gap-6">
+                            <div className="space-y-2 col-span-2 sm:col-span-1">
+                              <label className="text-sm font-bold flex items-center gap-2 text-zinc-700 dark:text-zinc-300"><Settings size={14} className="text-purple-500"/> Nome da Vitrine</label>
+                              <input type="text" required value={formRaizan.nome_integracao} onChange={e => setFormRaizan({...formRaizan, nome_integracao: e.target.value})} className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 p-3.5 rounded-xl outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 font-medium transition-all" />
+                            </div>
+                            <div className="space-y-2 col-span-2 sm:col-span-1">
+                              <label className="text-sm font-bold flex items-center gap-2 text-zinc-700 dark:text-zinc-300"><LinkIcon size={14} className="text-purple-500"/> URL Oficial</label>
+                              <input type="url" required value={formRaizan.url_loja} onChange={e => setFormRaizan({...formRaizan, url_loja: e.target.value})} className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 p-3.5 rounded-xl outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 font-medium transition-all" />
+                            </div>
+                          </div>
+
+                          <div className="p-6 bg-purple-50 dark:bg-purple-500/5 border border-purple-100 dark:border-purple-500/20 rounded-2xl space-y-5 relative overflow-hidden">
+                            <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none"><Key size={80}/></div>
+                            <h3 className="text-sm font-black text-purple-900 dark:text-purple-300 flex items-center gap-2 relative z-10"><Fingerprint size={16} /> Credenciais de API</h3>
+                            <div className="space-y-2 relative z-10">
+                              <label className="text-xs font-bold text-purple-700 dark:text-purple-400 uppercase tracking-wider">Tenant ID</label>
+                              <input type="text" readOnly value={formRaizan.tenant_id} className="w-full bg-white dark:bg-zinc-900 border border-purple-200 dark:border-purple-500/30 p-3 rounded-xl font-mono font-bold text-sm text-zinc-600 dark:text-zinc-400 cursor-not-allowed opacity-80" />
+                            </div>
+                            <div className="space-y-2 relative z-10">
+                              <label className="text-xs font-bold text-purple-700 dark:text-purple-400 uppercase tracking-wider">API Token</label>
+                              <input type="text" readOnly value={formRaizan.api_token} className="w-full bg-white dark:bg-zinc-900 border border-purple-200 dark:border-purple-500/30 p-3 rounded-xl font-mono font-bold text-sm text-zinc-600 dark:text-zinc-400 select-all" />
+                            </div>
+                          </div>
+
+                          <div className="pt-4">
+                            <button type="submit" className="w-full sm:w-auto bg-purple-600 hover:bg-purple-500 text-white px-8 py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-purple-500/20 active:scale-95">
+                              <Store size={18} /> Confirmar e Instalar Raizan Commerce
                             </button>
                           </div>
-                        )}
+                        </form>
+                      </div>
+                      <div className="bg-zinc-50 dark:bg-zinc-900/30 p-8 rounded-2xl border border-zinc-200 dark:border-zinc-800 h-fit">
+                        <h3 className="font-black mb-4 flex items-center gap-2 text-zinc-800 dark:text-zinc-200 text-lg"><Globe size={18} className="text-purple-500"/> Como funciona?</h3>
+                        <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400 mb-6 leading-relaxed">O Raizan Commerce é nossa solução proprietária de e-commerce e catálogo B2B. A conexão no painel serve para gerar as chaves de segurança.</p>
+                        <ol className="list-decimal list-inside space-y-4 text-sm font-medium text-zinc-600 dark:text-zinc-400">
+                          <li>Revise o nome e a URL da sua vitrine.</li>
+                          <li>Clique em <b>Confirmar Instalação</b>.</li>
+                          <li>Copie o <b>Tenant ID</b> e o <b>API Token</b>.</li>
+                          <li>Cole essas variáveis no arquivo <code className="bg-zinc-200 dark:bg-zinc-800 px-2 py-1 rounded-md text-xs font-bold">.env</code> para autorizar as consultas.</li>
+                        </ol>
                       </div>
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
+                )}
 
-            {/* SEÇÃO 2: CATÁLOGO DE PLATAFORMAS */}
-            {instalando === 'catalogo' && (
-              <div className="bg-white dark:bg-[#0c0c0e] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 sm:p-8 animate-in fade-in zoom-in-95 shadow-sm">
-                <div className="flex items-center justify-between mb-8 pb-4 border-b border-zinc-100 dark:border-zinc-800/60">
-                  <div>
-                    <h2 className="text-xl font-black text-zinc-900 dark:text-zinc-100">Catálogo de Aplicativos</h2>
-                    <p className="text-sm font-medium text-zinc-500 mt-1">Selecione a plataforma para iniciar a configuração.</p>
-                  </div>
-                  <button onClick={() => setInstalando(null)} className="text-sm font-bold text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-300 bg-zinc-100 dark:bg-zinc-900 px-4 py-2 rounded-lg transition-colors">Cancelar</button>
-                </div>
-                
-                <div className="space-y-10">
-                  
-                  {/* CATEGORIA 1: E-COMMERCE E MARKETPLACES */}
-                  <div>
-                    <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                      <Store size={16} /> E-commerce & Marketplaces
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                      
-                      <div className="border-2 border-purple-200 dark:border-purple-500/30 rounded-2xl p-5 flex flex-col items-center text-center hover:border-purple-500 hover:shadow-xl hover:shadow-purple-500/10 transition-all cursor-pointer bg-gradient-to-b from-purple-50/50 to-white dark:from-purple-900/10 dark:to-[#0c0c0e] relative overflow-hidden group">
-                        <div className="absolute top-0 right-0 bg-purple-600 text-white text-[9px] font-black uppercase px-2 py-1 rounded-bl-lg tracking-wider z-10">Nativo</div>
-                        <div className="w-16 h-16 bg-white dark:bg-[#121214] shadow-sm rounded-2xl flex items-center justify-center mb-4 border border-purple-100 dark:border-purple-500/20 group-hover:scale-110 transition-transform">
-                          <img src="/RaizanCommerce.png" alt="Raizan" className="w-10 h-10 object-contain drop-shadow-sm" />
+                {/* FORMULÁRIO DO WOOCOMMERCE */}
+                {instalando === 'woocommerce' && (
+                  <div onClick={(e) => e.stopPropagation()} className="bg-white dark:bg-[#0c0c0e] border border-zinc-200 dark:border-zinc-800 rounded-3xl animate-in fade-in slide-in-from-right-4 shadow-xl overflow-hidden">
+                     <div className="p-8 border-b border-zinc-100 dark:border-zinc-800/60 flex items-center justify-between bg-zinc-50 dark:bg-zinc-900/30">
+                      <div className="flex items-center gap-4">
+                        <div className="bg-white dark:bg-[#121214] p-3 rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-800">
+                          <img src="/woocommerce.svg" alt="Woo" className="w-8 h-8 object-contain" />
                         </div>
-                        <h3 className="font-bold text-base mb-1 text-zinc-900 dark:text-zinc-100">Raizan Commerce</h3>
-                        <p className="text-xs font-medium text-zinc-500 mb-5 h-8">Headless Store de altíssima performance.</p>
-                        <button onClick={(e) => { e.stopPropagation(); setInstalando('raizan'); }} className="w-full py-2.5 bg-purple-600 rounded-xl text-sm font-bold text-white hover:bg-purple-500 shadow-md shadow-purple-500/20 transition-all">Ativar Módulo</button>
-                      </div>
-
-                      <div className="border border-zinc-200 dark:border-zinc-800 rounded-2xl p-5 flex flex-col items-center text-center hover:border-zinc-300 dark:hover:border-zinc-700 hover:shadow-lg transition-all cursor-pointer bg-white dark:bg-[#121214] group">
-                        <div className="w-16 h-16 bg-zinc-50 dark:bg-zinc-900 rounded-2xl flex items-center justify-center mb-4 border border-zinc-100 dark:border-zinc-800 group-hover:scale-110 transition-transform">
-                          <img src="/woocommerce.svg" alt="Woo" className="w-10 h-10 object-contain" />
+                        <div>
+                          <h2 className="text-2xl font-black text-zinc-900 dark:text-white tracking-tight">Conectar WooCommerce</h2>
+                          <p className="text-sm text-zinc-500 font-medium mt-1">Insira as credenciais REST API da loja WordPress.</p>
                         </div>
-                        <h3 className="font-bold text-base mb-1 text-zinc-900 dark:text-zinc-100">WooCommerce</h3>
-                        <p className="text-xs font-medium text-zinc-500 mb-5 h-8">Sincronização de catálogo e pedidos WP.</p>
-                        <button onClick={(e) => { e.stopPropagation(); setInstalando('woocommerce'); }} className="w-full py-2.5 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl text-sm font-bold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors">Conectar</button>
                       </div>
-
-                      {['shopify', 'mercadolibre', 'shopee', 'amazon', 'magalu', 'tiktok'].map(plataforma => (
-                        <div key={plataforma} className="border border-zinc-200 dark:border-zinc-800 rounded-2xl p-5 flex flex-col items-center text-center opacity-50 grayscale cursor-not-allowed bg-zinc-50/50 dark:bg-zinc-900/10">
-                          <div className="w-16 h-16 bg-white dark:bg-zinc-900 rounded-2xl flex items-center justify-center mb-4 border border-zinc-100 dark:border-zinc-800">
-                            <img src={`/${plataforma}.svg`} alt={plataforma} className="w-10 h-10 object-contain" />
+                      <button onClick={() => setInstalando('catalogo')} className="text-sm font-bold text-zinc-500 hover:text-zinc-900 dark:hover:text-white bg-white dark:bg-zinc-900 px-4 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 transition-colors shadow-sm">Cancelar</button>
+                    </div>
+                    
+                    <div className="p-8">
+                      <form onSubmit={salvarWooCommerce} className="space-y-6 max-w-xl mx-auto">
+                        <div className="space-y-2">
+                          <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300">URL da Loja</label>
+                          <input type="url" required value={formWoo.url_loja} onChange={e => setFormWoo({...formWoo, url_loja: e.target.value})} placeholder="https://sualoja.com.br" className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 p-3.5 rounded-xl font-medium outline-none focus:border-zinc-400 dark:focus:border-zinc-600 transition-all" />
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                          <div className="space-y-2">
+                            <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300">Consumer Key (ck_...)</label>
+                            <input type="text" required value={formWoo.consumer_key} onChange={e => setFormWoo({...formWoo, consumer_key: e.target.value})} placeholder="ck_xxxxxxxxxxxxxxxx" className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 p-3.5 rounded-xl font-mono text-sm outline-none focus:border-zinc-400 dark:focus:border-zinc-600 transition-all" />
                           </div>
-                          <h3 className="font-bold text-base mb-1 capitalize">{plataforma.replace('mercadolibre', 'Mercado Livre')}</h3>
-                          <p className="text-xs font-medium text-zinc-500 mb-5 h-8">Integração em desenvolvimento.</p>
-                          <span className="w-full py-2.5 bg-zinc-200 dark:bg-zinc-800 rounded-xl text-xs font-bold text-zinc-500 uppercase tracking-widest">Em Breve</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* CATEGORIA 2: PAGAMENTOS */}
-                  <div>
-                    <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest mb-4 flex items-center gap-2 mt-8 border-t border-zinc-200 dark:border-zinc-800/60 pt-8">
-                      <CreditCard size={16} /> Meios de Pagamento
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                      
-                      <div className="border border-sky-200 dark:border-sky-500/30 rounded-2xl p-5 flex flex-col items-center text-center hover:border-sky-500 hover:shadow-xl transition-all cursor-pointer bg-gradient-to-b from-sky-50/50 to-white dark:from-sky-900/10 dark:to-[#0c0c0e] group relative overflow-hidden">
-                        <div className="w-16 h-16 bg-white dark:bg-[#121214] shadow-sm rounded-2xl flex items-center justify-center mb-4 border border-sky-100 dark:border-sky-500/20 group-hover:scale-110 transition-transform">
-                          <img src="/Mercadopago.svg" alt="Mercado Pago" className="w-10 h-10 object-contain" />
-                        </div>
-                        <h3 className="font-bold text-base mb-1 text-zinc-900 dark:text-zinc-100">Mercado Pago</h3>
-                        <p className="text-xs font-medium text-zinc-500 mb-5 h-8">Pix, Cartões e Boleto Transparente.</p>
-                        <button onClick={(e) => { e.stopPropagation(); setInstalando('mercadopago'); }} className="w-full py-2.5 bg-sky-600 rounded-xl text-sm font-bold text-white hover:bg-sky-500 shadow-md shadow-sky-500/20 transition-all">Configurar</button>
-                      </div>
-
-                    </div>
-                  </div>
-
-                  {/* CATEGORIA: LOGÍSTICA E FRETE */}
-                  <div>
-                    <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest mb-4 flex items-center gap-2 mt-8 border-t border-zinc-200 dark:border-zinc-800/60 pt-8">
-                      <Truck size={16} /> Logística e Frete
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                      <div className="border border-orange-200 dark:border-orange-500/30 rounded-2xl p-5 flex flex-col items-center text-center hover:border-orange-500 hover:shadow-xl transition-all cursor-pointer bg-gradient-to-b from-orange-50/50 to-white dark:from-orange-900/10 dark:to-[#0c0c0e] group relative overflow-hidden">
-                        <div className="w-16 h-16 bg-white dark:bg-[#121214] shadow-sm rounded-2xl flex items-center justify-center mb-4 border border-orange-100 dark:border-orange-500/20 group-hover:scale-110 transition-transform">
-                          <img src="/Frenet.svg" alt="Frenet" className="w-10 h-10 object-contain" />
-                        </div>
-                        <h3 className="font-bold text-base mb-1 text-zinc-900 dark:text-zinc-100">Frenet</h3>
-                        <p className="text-xs font-medium text-zinc-500 mb-5 h-8">Cálculo de fretes e transportadoras.</p>
-                        <button onClick={(e) => { e.stopPropagation(); setInstalando('frenet'); }} className="w-full py-2.5 bg-orange-500 rounded-xl text-sm font-bold text-white hover:bg-orange-400 shadow-md shadow-orange-500/20 transition-all">Configurar</button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* CATEGORIA 3: ERP E BANCOS DE DADOS */}
-                  <div>
-                    <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest mb-4 flex items-center gap-2 mt-8 border-t border-zinc-200 dark:border-zinc-800/60 pt-8">
-                      <Server size={16} /> Bancos de Dados & ERPs
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                      
-                      {/* CARD DO ORACLE INTELIGENTE */}
-                      <div className={`border ${oracleConfigurado ? 'border-red-200 dark:border-red-500/40 bg-red-50/30 dark:bg-red-900/10' : 'border-zinc-200 dark:border-zinc-800 bg-white dark:bg-[#121214]'} rounded-2xl p-5 flex flex-col items-center text-center hover:border-red-500 hover:shadow-xl transition-all cursor-pointer group relative overflow-hidden`}>
-                        {oracleConfigurado && (
-                          <div className="absolute top-0 right-0 bg-red-600 text-white text-[9px] font-black uppercase px-2 py-1 rounded-bl-lg tracking-wider z-10">Conectado</div>
-                        )}
-                        <div className={`w-16 h-16 shadow-sm rounded-2xl flex items-center justify-center mb-4 border group-hover:scale-110 transition-transform ${oracleConfigurado ? 'bg-white dark:bg-zinc-900 border-red-200 dark:border-red-500/30' : 'bg-zinc-50 dark:bg-zinc-900 border-zinc-100 dark:border-zinc-800'}`}>
-                          <img src="/oracle.svg" alt="Oracle" className="w-12 h-12 object-contain" />
-                        </div>
-                        <h3 className="font-bold text-base mb-1 text-zinc-900 dark:text-zinc-100">Oracle Database</h3>
-                        <p className="text-xs font-medium text-zinc-500 mb-5 h-8">{oracleConfigurado ? 'Sincronização bidirecional ativa.' : 'Sincronização bidirecional do ERP.'}</p>
-                        <button onClick={(e) => { e.stopPropagation(); toast("Acesse o menu Configurações para ajustar os parâmetros do Oracle.", { icon: '⚙️' }); }} className={`w-full py-2.5 rounded-xl text-sm font-bold transition-all ${oracleConfigurado ? 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-500/20' : 'bg-red-600 text-white hover:bg-red-500 shadow-md shadow-red-500/20'}`}>Ajustar Conexão</button>
-                      </div>
-
-                      {['microsoft-sql', 'mysql'].map(db => (
-                        <div key={db} className="border border-zinc-200 dark:border-zinc-800 rounded-2xl p-5 flex flex-col items-center text-center opacity-50 grayscale cursor-not-allowed bg-zinc-50/50 dark:bg-zinc-900/10">
-                          <div className="w-16 h-16 bg-white dark:bg-zinc-900 rounded-2xl flex items-center justify-center mb-4 border border-zinc-100 dark:border-zinc-800">
-                            <img src={`/${db}.svg`} alt={db} className="w-10 h-10 object-contain" />
+                          <div className="space-y-2">
+                            <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300">Consumer Secret (cs_...)</label>
+                            <input type="password" required value={formWoo.consumer_secret} onChange={e => setFormWoo({...formWoo, consumer_secret: e.target.value})} placeholder="cs_xxxxxxxxxxxxxxxx" className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 p-3.5 rounded-xl font-mono text-sm outline-none focus:border-zinc-400 dark:focus:border-zinc-600 transition-all" />
                           </div>
-                          <h3 className="font-bold text-base mb-1">{db === 'mysql' ? 'MySQL' : 'SQL Server'}</h3>
-                          <p className="text-xs font-medium text-zinc-500 mb-5 h-8">Driver de banco de dados.</p>
-                          <span className="w-full py-2.5 bg-zinc-200 dark:bg-zinc-800 rounded-xl text-xs font-bold text-zinc-500 uppercase tracking-widest">Em Breve</span>
                         </div>
-                      ))}
-
-                    </div>
-                  </div>
-
-                </div>
-              </div>
-            )}
-
-            {/* FORMULÁRIO MERCADO PAGO */}
-            {instalando === 'mercadopago' && (
-              <div onClick={(e) => e.stopPropagation()} className="bg-white dark:bg-[#0c0c0e] border border-sky-200 dark:border-sky-500/30 rounded-3xl animate-in fade-in slide-in-from-right-4 shadow-2xl shadow-sky-500/5 overflow-hidden">
-                <div className="p-8 border-b border-sky-100 dark:border-sky-500/20 flex items-center justify-between bg-sky-50/50 dark:bg-sky-900/10">
-                  <div className="flex items-center gap-4">
-                    <div className="bg-white dark:bg-[#121214] p-3 rounded-2xl shadow-sm border border-sky-100 dark:border-sky-500/30">
-                      <img src="/Mercadopago.svg" className="w-8 h-8 object-contain" />
-                    </div>
-                    <div>
-                      <h2 className="text-2xl font-black text-sky-900 dark:text-sky-100 tracking-tight">Mercado Pago</h2>
-                      <p className="text-sm text-sky-600/80 dark:text-sky-400/80 font-medium mt-1">Configuração de checkout transparente.</p>
-                    </div>
-                  </div>
-                  <button onClick={() => setInstalando('catalogo')} className="text-sm font-bold text-zinc-500 hover:text-zinc-900 dark:hover:text-white bg-white dark:bg-zinc-900 px-4 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 transition-colors shadow-sm">Cancelar Configuração</button>
-                </div>
-
-                <div className="p-8 max-w-3xl">
-                  <form onSubmit={salvarMercadoPago} className="space-y-6">
-                    <div className="space-y-2">
-                      <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300">Identificação Interna</label>
-                      <input type="text" required value={formMP.nome_integracao} onChange={e => setFormMP({...formMP, nome_integracao: e.target.value})} className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 p-3.5 rounded-xl outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 font-medium transition-all" />
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-2">
-                        <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300">Access Token (Produção)</label>
-                        <input type="password" required value={formMP.access_token} onChange={e => setFormMP({...formMP, access_token: e.target.value})} placeholder="APP_USR-..." className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 p-3.5 rounded-xl font-mono text-sm outline-none focus:border-sky-500 transition-all" />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300">Public Key (Produção)</label>
-                        <input type="text" required value={formMP.public_key} onChange={e => setFormMP({...formMP, public_key: e.target.value})} placeholder="APP_USR-..." className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 p-3.5 rounded-xl font-mono text-sm outline-none focus:border-sky-500 transition-all" />
-                      </div>
-                    </div>
-
-                    <div className="pt-6 pb-2">
-                      <h3 className="text-sm font-bold text-zinc-900 dark:text-white mb-4">Disponibilizar este meio de pagamento em:</h3>
-                      <div className="flex flex-col gap-3">
-                        <label className="flex items-center gap-3 cursor-pointer group">
-                          <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${formMP.disponivel_b2b ? 'bg-sky-500 border-sky-500 text-white' : 'bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-700'}`}>
-                            {formMP.disponivel_b2b && <CheckCircle2 size={14} />}
-                          </div>
-                          <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300 group-hover:text-zinc-900 dark:group-hover:text-white transition-colors">Portal B2B (Lojistas)</span>
-                          <input type="checkbox" className="hidden" checked={formMP.disponivel_b2b} onChange={(e) => setFormMP({...formMP, disponivel_b2b: e.target.checked})} />
-                        </label>
-
-                        <label className="flex items-center gap-3 cursor-pointer group">
-                          <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${formMP.disponivel_raizan ? 'bg-sky-500 border-sky-500 text-white' : 'bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-700'}`}>
-                            {formMP.disponivel_raizan && <CheckCircle2 size={14} />}
-                          </div>
-                          <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300 group-hover:text-zinc-900 dark:group-hover:text-white transition-colors">Raizan Commerce (Varejo)</span>
-                          <input type="checkbox" className="hidden" checked={formMP.disponivel_raizan} onChange={(e) => setFormMP({...formMP, disponivel_raizan: e.target.checked})} />
-                        </label>
-                      </div>
-                    </div>
-
-                    <div className="pt-4 border-t border-zinc-100 dark:border-zinc-800">
-                      <button type="submit" className="w-full sm:w-auto bg-sky-600 hover:bg-sky-500 text-white px-8 py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-sky-500/20 active:scale-95">
-                        <CreditCard size={18} /> Salvar e Ativar Módulo
-                      </button>
-                    </div>
-                  </form>
-                </div>
-              </div>
-            )}
-
-            {/* FORMULÁRIO FRENET */}
-            {instalando === 'frenet' && (
-              <div onClick={(e) => e.stopPropagation()} className="bg-white dark:bg-[#0c0c0e] border border-orange-200 dark:border-orange-500/30 rounded-3xl animate-in fade-in slide-in-from-right-4 shadow-2xl shadow-orange-500/5 overflow-hidden">
-                <div className="p-8 border-b border-orange-100 dark:border-orange-500/20 flex items-center justify-between bg-orange-50/50 dark:bg-orange-900/10">
-                  <div className="flex items-center gap-4">
-                    <div className="bg-white dark:bg-[#121214] p-3 rounded-2xl shadow-sm border border-orange-100 dark:border-orange-500/30">
-                      <img src="/Frenet.svg" className="w-8 h-8 object-contain" />
-                    </div>
-                    <div>
-                      <h2 className="text-2xl font-black text-orange-900 dark:text-orange-100 tracking-tight">Frenet Logística</h2>
-                      <p className="text-sm text-orange-600/80 dark:text-orange-400/80 font-medium mt-1">Cálculo de frete no checkout do portal.</p>
-                    </div>
-                  </div>
-                  <button onClick={() => setInstalando('catalogo')} className="text-sm font-bold text-zinc-500 hover:text-zinc-900 dark:hover:text-white bg-white dark:bg-zinc-900 px-4 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 transition-colors shadow-sm">Cancelar Configuração</button>
-                </div>
-
-                <div className="p-8 max-w-3xl">
-                  <form onSubmit={salvarFrenet} className="space-y-6">
-                    <div className="space-y-2">
-                      <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300">Identificação Interna</label>
-                      <input type="text" required value={formFrenet.nome_integracao} onChange={e => setFormFrenet({...formFrenet, nome_integracao: e.target.value})} className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 p-3.5 rounded-xl outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 font-medium transition-all" />
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-2">
-                        <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300">Chave (E-mail)</label>
-                        <input type="text" required value={formFrenet.chave_frenet} onChange={e => setFormFrenet({...formFrenet, chave_frenet: e.target.value})} placeholder="mkt@rafany.com.br" className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 p-3.5 rounded-xl text-sm outline-none focus:border-orange-500 transition-all" />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300">Senha</label>
-                        <input type="password" required value={formFrenet.senha_frenet} onChange={e => setFormFrenet({...formFrenet, senha_frenet: e.target.value})} placeholder="vZ3yi+RoZ..." className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 p-3.5 rounded-xl font-mono text-sm outline-none focus:border-orange-500 transition-all" />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300">Token</label>
-                      <input type="text" required value={formFrenet.token_frenet} onChange={e => setFormFrenet({...formFrenet, token_frenet: e.target.value})} placeholder="26F6D137R95BER..." className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 p-3.5 rounded-xl font-mono text-sm outline-none focus:border-orange-500 transition-all" />
-                    </div>
-
-                    <div className="pt-4 border-t border-zinc-100 dark:border-zinc-800 mt-8">
-                      <button type="submit" className="w-full sm:w-auto bg-orange-500 hover:bg-orange-400 text-white px-8 py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-orange-500/20 active:scale-95">
-                        <Truck size={18} /> Salvar e Ativar Transportadoras
-                      </button>
-                    </div>
-                  </form>
-                </div>
-              </div>
-            )}
-
-            {/* FORMULÁRIO RAIZAN COMMERCE */}
-            {instalando === 'raizan' && (
-              <div onClick={(e) => e.stopPropagation()} className="bg-white dark:bg-[#0c0c0e] border border-purple-200 dark:border-purple-500/30 rounded-3xl animate-in fade-in slide-in-from-right-4 shadow-2xl shadow-purple-500/5 overflow-hidden">
-                <div className="p-8 border-b border-purple-100 dark:border-purple-500/20 flex items-center justify-between bg-purple-50/50 dark:bg-purple-900/10">
-                  <div className="flex items-center gap-4">
-                    <div className="bg-white dark:bg-[#121214] p-3 rounded-2xl shadow-sm border border-purple-100 dark:border-purple-500/30">
-                      <img src="/RaizanCommerce.png" className="w-8 h-8 object-contain" />
-                    </div>
-                    <div>
-                      <h2 className="text-2xl font-black text-purple-900 dark:text-purple-100 tracking-tight">Ativar Raizan Commerce</h2>
-                      <p className="text-sm text-purple-600/80 dark:text-purple-400/80 font-medium mt-1">Configuração inicial do ambiente Headless.</p>
-                    </div>
-                  </div>
-                  <button onClick={() => setInstalando('catalogo')} className="text-sm font-bold text-zinc-500 hover:text-zinc-900 dark:hover:text-white bg-white dark:bg-zinc-900 px-4 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 transition-colors shadow-sm">Cancelar Instalação</button>
-                </div>
-
-                <div className="p-8 grid grid-cols-1 lg:grid-cols-3 gap-10">
-                  <div className="lg:col-span-2">
-                    <form onSubmit={salvarRaizanCommerce} className="space-y-6">
-                      <div className="grid grid-cols-2 gap-6">
-                        <div className="space-y-2 col-span-2 sm:col-span-1">
-                          <label className="text-sm font-bold flex items-center gap-2 text-zinc-700 dark:text-zinc-300"><Settings size={14} className="text-purple-500"/> Nome da Vitrine</label>
-                          <input type="text" required value={formRaizan.nome_integracao} onChange={e => setFormRaizan({...formRaizan, nome_integracao: e.target.value})} className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 p-3.5 rounded-xl outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 font-medium transition-all" />
+                        <div className="pt-4 border-t border-zinc-100 dark:border-zinc-800 mt-8">
+                          <button type="submit" className="w-full bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-900 px-6 py-4 rounded-xl font-bold transition-all shadow-md active:scale-95 text-base">
+                            Salvar Credenciais WooCommerce
+                          </button>
                         </div>
-                        <div className="space-y-2 col-span-2 sm:col-span-1">
-                          <label className="text-sm font-bold flex items-center gap-2 text-zinc-700 dark:text-zinc-300"><LinkIcon size={14} className="text-purple-500"/> URL Oficial</label>
-                          <input type="url" required value={formRaizan.url_loja} onChange={e => setFormRaizan({...formRaizan, url_loja: e.target.value})} className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 p-3.5 rounded-xl outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 font-medium transition-all" />
-                        </div>
-                      </div>
-
-                      <div className="p-6 bg-purple-50 dark:bg-purple-500/5 border border-purple-100 dark:border-purple-500/20 rounded-2xl space-y-5 relative overflow-hidden">
-                        <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none"><Key size={80}/></div>
-                        <h3 className="text-sm font-black text-purple-900 dark:text-purple-300 flex items-center gap-2 relative z-10"><Fingerprint size={16} /> Credenciais de API</h3>
-                        <div className="space-y-2 relative z-10">
-                          <label className="text-xs font-bold text-purple-700 dark:text-purple-400 uppercase tracking-wider">Tenant ID</label>
-                          <input type="text" readOnly value={formRaizan.tenant_id} className="w-full bg-white dark:bg-zinc-900 border border-purple-200 dark:border-purple-500/30 p-3 rounded-xl font-mono font-bold text-sm text-zinc-600 dark:text-zinc-400 cursor-not-allowed opacity-80" />
-                        </div>
-                        <div className="space-y-2 relative z-10">
-                          <label className="text-xs font-bold text-purple-700 dark:text-purple-400 uppercase tracking-wider">API Token</label>
-                          <input type="text" readOnly value={formRaizan.api_token} className="w-full bg-white dark:bg-zinc-900 border border-purple-200 dark:border-purple-500/30 p-3 rounded-xl font-mono font-bold text-sm text-zinc-600 dark:text-zinc-400 select-all" />
-                        </div>
-                      </div>
-
-                      <div className="pt-4">
-                        <button type="submit" className="w-full sm:w-auto bg-purple-600 hover:bg-purple-500 text-white px-8 py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-purple-500/20 active:scale-95">
-                          <Store size={18} /> Confirmar e Instalar Raizan Commerce
-                        </button>
-                      </div>
-                    </form>
-                  </div>
-                  <div className="bg-zinc-50 dark:bg-zinc-900/30 p-8 rounded-2xl border border-zinc-200 dark:border-zinc-800 h-fit">
-                    <h3 className="font-black mb-4 flex items-center gap-2 text-zinc-800 dark:text-zinc-200 text-lg"><Globe size={18} className="text-purple-500"/> Como funciona?</h3>
-                    <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400 mb-6 leading-relaxed">O Raizan Commerce é nossa solução proprietária de e-commerce e catálogo B2B. A conexão no painel serve para gerar as chaves de segurança.</p>
-                    <ol className="list-decimal list-inside space-y-4 text-sm font-medium text-zinc-600 dark:text-zinc-400">
-                      <li>Revise o nome e a URL da sua vitrine.</li>
-                      <li>Clique em <b>Confirmar Instalação</b>.</li>
-                      <li>Copie o <b>Tenant ID</b> e o <b>API Token</b>.</li>
-                      <li>Cole essas variáveis no arquivo <code className="bg-zinc-200 dark:bg-zinc-800 px-2 py-1 rounded-md text-xs font-bold">.env</code> para autorizar as consultas.</li>
-                    </ol>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* FORMULÁRIO DO WOOCOMMERCE */}
-            {instalando === 'woocommerce' && (
-              <div onClick={(e) => e.stopPropagation()} className="bg-white dark:bg-[#0c0c0e] border border-zinc-200 dark:border-zinc-800 rounded-3xl animate-in fade-in slide-in-from-right-4 shadow-xl overflow-hidden">
-                 <div className="p-8 border-b border-zinc-100 dark:border-zinc-800/60 flex items-center justify-between bg-zinc-50 dark:bg-zinc-900/30">
-                  <div className="flex items-center gap-4">
-                    <div className="bg-white dark:bg-[#121214] p-3 rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-800">
-                      <img src="/woocommerce.svg" alt="Woo" className="w-8 h-8 object-contain" />
-                    </div>
-                    <div>
-                      <h2 className="text-2xl font-black text-zinc-900 dark:text-white tracking-tight">Conectar WooCommerce</h2>
-                      <p className="text-sm text-zinc-500 font-medium mt-1">Insira as credenciais REST API da loja WordPress.</p>
+                      </form>
                     </div>
                   </div>
-                  <button onClick={() => setInstalando('catalogo')} className="text-sm font-bold text-zinc-500 hover:text-zinc-900 dark:hover:text-white bg-white dark:bg-zinc-900 px-4 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 transition-colors shadow-sm">Cancelar</button>
-                </div>
-                
-                <div className="p-8">
-                  <form onSubmit={salvarWooCommerce} className="space-y-6 max-w-xl mx-auto">
-                    <div className="space-y-2">
-                      <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300">URL da Loja</label>
-                      <input type="url" required value={formWoo.url_loja} onChange={e => setFormWoo({...formWoo, url_loja: e.target.value})} placeholder="https://sualoja.com.br" className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 p-3.5 rounded-xl font-medium outline-none focus:border-zinc-400 dark:focus:border-zinc-600 transition-all" />
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                      <div className="space-y-2">
-                        <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300">Consumer Key (ck_...)</label>
-                        <input type="text" required value={formWoo.consumer_key} onChange={e => setFormWoo({...formWoo, consumer_key: e.target.value})} placeholder="ck_xxxxxxxxxxxxxxxx" className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 p-3.5 rounded-xl font-mono text-sm outline-none focus:border-zinc-400 dark:focus:border-zinc-600 transition-all" />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300">Consumer Secret (cs_...)</label>
-                        <input type="password" required value={formWoo.consumer_secret} onChange={e => setFormWoo({...formWoo, consumer_secret: e.target.value})} placeholder="cs_xxxxxxxxxxxxxxxx" className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 p-3.5 rounded-xl font-mono text-sm outline-none focus:border-zinc-400 dark:focus:border-zinc-600 transition-all" />
-                      </div>
-                    </div>
-                    <div className="pt-4 border-t border-zinc-100 dark:border-zinc-800 mt-8">
-                      <button type="submit" className="w-full bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-900 px-6 py-4 rounded-xl font-bold transition-all shadow-md active:scale-95 text-base">
-                        Salvar Credenciais WooCommerce
-                      </button>
-                    </div>
-                  </form>
-                </div>
-              </div>
+                )}
+
+              </>
             )}
 
           </div>

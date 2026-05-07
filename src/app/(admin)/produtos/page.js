@@ -3,10 +3,9 @@
 import { useState, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
-// 🟢 Removido o import do Card genérico. Vamos usar cards ultra-vibrantes inline!
 import { RefreshCw, PackageX, Beaker, PackageCheck, Search, ChevronLeft, ChevronRight, CloudUpload, Loader2, ShoppingBag, ShoppingCart, Zap, Radar, Image as ImageIcon, Barcode, DollarSign, Database, AlertTriangle, Layers } from "lucide-react";
 import toast from 'react-hot-toast';
-import { getApiUrl, getHeaders } from "@/components/utils/api";
+import { getApiUrl } from "@/components/utils/api";
 
 const BASE_URL_IMAGENS = "https://portalseller.com.br/img_pro/";
 
@@ -32,9 +31,27 @@ export default function Dashboard() {
   const [tamanhoFila, setTamanhoFila] = useState(0); 
   const [tabelaAtiva, setTabelaAtiva] = useState("PDPRECO");
 
+  // 🟢 HELPER DE SEGURANÇA: Busca o CNPJ do cliente logado
+  const pegarCnpjLogado = () => {
+    if (typeof window !== 'undefined') {
+      const storedUser = localStorage.getItem("@raizan:user");
+      if (storedUser) return JSON.parse(storedUser).tenant_id;
+    }
+    return "";
+  };
+
+  // 🟢 CABEÇALHOS BLINDADOS: Injeta o tenant_id em todas as chamadas pro Motor
+  const getHeadersComTenant = () => {
+    return {
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+      "x-tenant-id": pegarCnpjLogado()
+    };
+  };
+
   const carregarFila = async () => {
     try {
-      const res = await fetch(`${getApiUrl()}/api/fila`, { headers: getHeaders() });
+      const res = await fetch(`${getApiUrl()}/api/fila`, { headers: getHeadersComTenant() });
       const data = await res.json();
       if (data.fila !== undefined) setTamanhoFila(data.fila);
     } catch (e) { console.error("Erro ao carregar fila."); }
@@ -48,7 +65,7 @@ export default function Dashboard() {
       const payload = { search, hideBlocked, hideSamples, page, limit: Number(limit) };
       const response = await fetch(`${getApiUrl()}/api/produtos`, {
         method: "POST", 
-        headers: getHeaders(),
+        headers: getHeadersComTenant(),
         body: JSON.stringify(payload),
       });
       const data = await response.json();
@@ -84,7 +101,7 @@ export default function Dashboard() {
     try {
       const response = await fetch(`${getApiUrl()}/api/woo/sync`, {
         method: "POST", 
-        headers: getHeaders(),
+        headers: getHeadersComTenant(),
         body: JSON.stringify({ produto: produtoCorrigido }),
       });
       const data = await response.json();
@@ -103,7 +120,7 @@ export default function Dashboard() {
     try {
       const response = await fetch(`${getApiUrl()}/api/woo/sync-batch`, {
         method: "POST", 
-        headers: getHeaders(),
+        headers: getHeadersComTenant(),
         body: JSON.stringify({ produtos: produtosCorrigidos }),
       });
       const data = await response.json();
@@ -119,7 +136,7 @@ export default function Dashboard() {
     const toastId = toast.loading("Escaneando WooCommerce..."); 
 
     try {
-      const response = await fetch(`${getApiUrl()}/api/woo/mapear`, { method: "POST", headers: getHeaders() });
+      const response = await fetch(`${getApiUrl()}/api/woo/mapear`, { method: "POST", headers: getHeadersComTenant() });
       const data = await response.json();
       if (data.success) {
         toast.success(data.message, { id: toastId }); carregarProdutos(); 
@@ -128,7 +145,6 @@ export default function Dashboard() {
     setIsMapping(false);
   };
 
-  // 🟢 BADGES VIBRANTES (Modo Claro e Escuro)
   const renderizarStatus = (status) => {
     if (status === 8) return <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-bold bg-rose-500/15 dark:bg-red-500/10 text-rose-600 dark:text-red-400 border border-rose-500/30 dark:border-red-500/20"><PackageX size={12} /> Bloqueado</span>;
     if (status === 6) return <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-bold bg-amber-500/15 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 dark:border-amber-500/20"><Beaker size={12} /> Amostra</span>;

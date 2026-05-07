@@ -1,14 +1,14 @@
 // Arquivo: src/components/utils/api.js
 
 // ==========================================
-// 1. O MOTOR (ORACLE / LEGADO) - PORTA 3001
-// Não quebra nada que você já tem em produção!
+// 1. O MOTOR (ORACLE / LEGADO) 
 // ==========================================
 export function getApiUrl() {
   if (process.env.NEXT_PUBLIC_API_URL) {
     return process.env.NEXT_PUBLIC_API_URL.replace(/\/$/, "");
   }
-  return "http://api.rafany.com.br";
+  // 🟢 CORREÇÃO: Forçando HTTPS e tirando a porta 3001 (o túnel resolve isso)
+  return "https://api.rafany.com.br";
 }
 
 // ==========================================

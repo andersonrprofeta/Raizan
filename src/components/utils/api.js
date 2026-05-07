@@ -8,7 +8,7 @@ export function getApiUrl() {
   if (process.env.NEXT_PUBLIC_API_URL) {
     return process.env.NEXT_PUBLIC_API_URL.replace(/\/$/, "");
   }
-  return "http://digital.rafany.com.br:3001";
+  return "http://api.rafany.com.br:3001";
 }
 
 // ==========================================

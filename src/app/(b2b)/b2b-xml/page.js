@@ -6,14 +6,38 @@ import Header from "@/components/Header";
 import { 
   FileText, Search, Download, Clock, AlertCircle, FileCheck, RefreshCw, Loader2
 } from "lucide-react";
-import { getApiUrl, getHeaders } from "@/components/utils/api";
+import { getHubUrl, getHeaders } from "@/components/utils/api";
 import toast from 'react-hot-toast';
+
+// 🟢 FUNÇÃO DE IDENTIDADE SEGURA
+const obterTenantSeguro = () => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const userRaw = localStorage.getItem("@raizan:user");
+    if (userRaw) {
+      const userObj = JSON.parse(userRaw);
+      if (userObj.tenant_id) return userObj.tenant_id;
+      if (userObj.cnpj) return userObj.cnpj;
+    }
+  } catch(e) {}
+  try {
+    const configRaw = localStorage.getItem("raizan_config_geral");
+    if (configRaw) {
+      const configObj = JSON.parse(configRaw);
+      if (configObj.tenantId) return configObj.tenantId;
+    }
+  } catch(e) {}
+  const tenantLegado = localStorage.getItem("@raizan:tenant");
+  if (tenantLegado && tenantLegado !== "localhost" && tenantLegado !== "-" && tenantLegado !== "127") return tenantLegado;
+  if (process.env.NEXT_PUBLIC_TENANT_ID) return process.env.NEXT_PUBLIC_TENANT_ID;
+  return null;
+};
 
 export default function CofreXMLB2B() {
   const [user, setUser] = useState(null);
   const [pedidos, setPedidos] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [processandoId, setProcessandoId] = useState(null); // Controle de loading por botão
+  const [processandoId, setProcessandoId] = useState(null); 
 
   useEffect(() => {
     const savedUser = localStorage.getItem("raizan_user");
@@ -26,17 +50,21 @@ export default function CofreXMLB2B() {
   const carregarDocumentos = async () => {
     setLoading(true);
     try {
-      // Puxamos os pedidos normais
+      const tenantId = obterTenantSeguro();
+      const customHeaders = getHeaders();
+      if (tenantId) customHeaders["x-tenant-id"] = tenantId;
+
       const payload = { page: 1, limit: 50, clienteEmail: user.email };
-      const response = await fetch(`${getApiUrl()}/api/b2b/pedidos`, { 
+      
+      // 🟢 BATE NA HOSTINGER PARA PUXAR SÓ OS PEDIDOS DESSE EMAIL
+      const response = await fetch(`${getHubUrl()}/api/hub/pedidos/b2b`, { 
         method: "POST", 
-        headers: { "Content-Type": "application/json" }, 
+        headers: { ...customHeaders, "Content-Type": "application/json" }, 
         body: JSON.stringify(payload) 
       });
       const data = await response.json();
       
       if (data.success) { 
-        // 🟢 FILTRO MÁGICO DO COFRE: Só mostra pedidos que já foram pagos/enviados/concluídos
         const pedidosElegiveis = data.pedidos.filter(p => 
           p.status !== 'aguardando-pagamento' && 
           p.status !== 'cancelled' && 
@@ -52,15 +80,20 @@ export default function CofreXMLB2B() {
   const solicitarDocumento = async (pedidoId) => {
     setProcessandoId(pedidoId);
     try {
-      const res = await fetch(`${getApiUrl()}/api/b2b/solicitar-documentos`, {
+      const tenantId = obterTenantSeguro();
+      const customHeaders = getHeaders();
+      if (tenantId) customHeaders["x-tenant-id"] = tenantId;
+
+      // 🟢 BATE NA HOSTINGER PARA AVISAR QUE QUER O DOCUMENTO
+      const res = await fetch(`${getHubUrl()}/api/hub/pedidos/solicitar-documentos`, {
         method: "POST",
-        headers: { ...getHeaders(), "Content-Type": "application/json" },
+        headers: { ...customHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({ pedidoId })
       });
       const data = await res.json();
       if (data.success) {
         toast.success("Solicitação enviada! A equipe vai anexar os arquivos em breve.");
-        carregarDocumentos(); // Recarrega a lista para o botão ficar amarelo
+        carregarDocumentos(); 
       } else {
         toast.error(data.message || "Erro ao solicitar.");
       }
@@ -88,7 +121,6 @@ export default function CofreXMLB2B() {
         <main className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar p-4 sm:p-6 lg:p-8">
           <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6">
             
-            {/* CABEÇALHO DA PÁGINA */}
             <div className="bg-white dark:bg-[#0c0c0e] p-4 sm:p-6 lg:p-8 rounded-2xl border border-zinc-200 dark:border-zinc-800/60 shadow-sm dark:shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6 relative overflow-hidden transition-colors duration-300">
               <div className="absolute right-0 top-0 w-44 h-44 sm:w-64 sm:h-64 bg-blue-600/5 dark:bg-blue-600/10 rounded-full blur-[80px] pointer-events-none" />
               <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between w-full gap-4">
@@ -107,7 +139,6 @@ export default function CofreXMLB2B() {
               </div>
             </div>
 
-            {/* LISTA DE DOCUMENTOS */}
             <div className="border border-zinc-200 dark:border-zinc-800/60 bg-white dark:bg-[#0c0c0e] rounded-2xl overflow-hidden relative shadow-md dark:shadow-xl min-h-[320px] sm:min-h-[400px] transition-colors duration-300">
               {loading && (
                 <div className="absolute inset-0 z-10 bg-white/60 dark:bg-[#0c0c0e]/60 backdrop-blur-sm flex items-center justify-center">
@@ -174,8 +205,6 @@ export default function CofreXMLB2B() {
                             )}
                           </td>
                           <td className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 text-left sm:text-right">
-                            
-                            {/* BOTÕES DE AÇÃO INTELIGENTES */}
                             {linkDoc !== "Não informado" ? (
                               <a href={linkDoc} target="_blank" rel="noreferrer" className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-[11px] sm:text-xs font-bold transition-all shadow-md dark:shadow-[0_0_15px_rgba(37,99,235,0.2)] whitespace-nowrap">
                                 <Download size={14} /> Baixar Arquivos
@@ -194,7 +223,6 @@ export default function CofreXMLB2B() {
                                 Solicitar 2ª Via / XML
                               </button>
                             )}
-
                           </td>
                         </tr>
                       );

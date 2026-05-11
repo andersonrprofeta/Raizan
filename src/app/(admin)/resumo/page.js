@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
-import { getHubUrl, getApiUrl } from "@/components/utils/api";
+import { getHubUrl, getApiUrl, getHeaders } from "@/components/utils/api";
 import { TrendingUp, Users, ShoppingCart, DollarSign, Package, Loader2, Database, AlertTriangle } from "lucide-react";
 import { AreaChart, Area, ResponsiveContainer, Tooltip, XAxis, CartesianGrid } from 'recharts';
 
@@ -12,31 +12,70 @@ export default function DashboardAnalitico() {
   const [loading, setLoading] = useState(true);
   const [fila, setFila] = useState(0);
   const [statusMotor, setStatusMotor] = useState("conectando"); 
+  const [meuTenant, setMeuTenant] = useState(""); 
 
   const mesAtual = new Intl.DateTimeFormat('pt-BR', { month: 'long' }).format(new Date());
   const mesFormatado = mesAtual.charAt(0).toUpperCase() + mesAtual.slice(1);
 
-  const pegarCnpjLogado = () => {
-    if (typeof window !== 'undefined') {
-      const storedUser = localStorage.getItem("@raizan:user");
-      if (storedUser) return JSON.parse(storedUser).tenant_id;
+  // 🟢 NOVA BLINDAGEM: Acha a empresa vasculhando apenas o cache seguro, sem olhar pra URL!
+  const obterTenantSeguro = () => {
+    if (typeof window === 'undefined') return "rafany";
+
+    // 1. Busca no login novo (@raizan:user)
+    try {
+      const userRaw = localStorage.getItem("@raizan:user");
+      if (userRaw) {
+        const userObj = JSON.parse(userRaw);
+        if (userObj.tenant_id) return userObj.tenant_id;
+        if (userObj.cnpj) return userObj.cnpj;
+      }
+    } catch(e) {}
+
+    // 2. Busca nas configurações do Wizard (raizan_config_geral)
+    try {
+      const configRaw = localStorage.getItem("raizan_config_geral");
+      if (configRaw) {
+        const configObj = JSON.parse(configRaw);
+        if (configObj.tenantId) return configObj.tenantId;
+      }
+    } catch(e) {}
+
+    // 3. Busca no padrão legado (@raizan:tenant)
+    const tenantLegado = localStorage.getItem("@raizan:tenant");
+    if (tenantLegado && tenantLegado !== "localhost" && tenantLegado !== "-" && tenantLegado !== "127") {
+      return tenantLegado;
     }
-    return "";
+
+    // 4. Último recurso (Variável de Ambiente)
+    if (process.env.NEXT_PUBLIC_TENANT_ID) {
+      return process.env.NEXT_PUBLIC_TENANT_ID;
+    }
+
+    return "rafany";
   };
 
   useEffect(() => {
     async function carregarDados() {
-      const tenantId = pegarCnpjLogado();
-      if(!tenantId) return;
-
       try {
+        const tenantId = obterTenantSeguro();
+        setMeuTenant(tenantId); // Salva na tela pra gente ver!
+
+        if(!tenantId) {
+          throw new Error("Aguardando identificação do Tenant...");
+        }
+
+        const customHeaders = getHeaders();
+        customHeaders["x-tenant-id"] = tenantId;
+
         const res = await fetch(`${getHubUrl()}/api/dashboard/resumo`, {
-          headers: { "x-tenant-id": tenantId }
+          method: "GET",
+          headers: customHeaders
         });
+        
         const json = await res.json();
         if (json.sucesso) setDados(json);
       } catch (error) {
-        console.error("Erro ao carregar dashboard:", error);
+        console.warn("Status do Dashboard:", error.message || error);
       } finally {
         setLoading(false);
       }
@@ -46,12 +85,14 @@ export default function DashboardAnalitico() {
 
   useEffect(() => {
     async function checarFila() {
-      const tenantId = pegarCnpjLogado();
-      if(!tenantId) return;
-
       try {
+        const tenantId = obterTenantSeguro();
+        const customHeaders = getHeaders();
+        if(tenantId) customHeaders["x-tenant-id"] = tenantId;
+
         const res = await fetch(`${getApiUrl()}/api/fila`, {
-          headers: { "x-tenant-id": tenantId }
+          method: "GET",
+          headers: customHeaders
         });
         
         if (!res.ok) throw new Error("Sem comunicação com o motor");
@@ -105,7 +146,13 @@ export default function DashboardAnalitico() {
             
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
               <div>
-                <h1 className="text-xl md:text-2xl font-bold text-zinc-900 dark:text-zinc-100 tracking-tight transition-colors">Painel de Performance</h1>
+                {/* 🟢 O RASTREADOR ATUALIZADO PARA "EMPRESA" */}
+                <h1 className="text-xl md:text-2xl font-bold text-zinc-900 dark:text-zinc-100 tracking-tight transition-colors flex items-center gap-3">
+                  Painel de Performance 
+                  <span className="text-[10px] bg-purple-100 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 px-2 py-1 rounded-full border border-purple-200 dark:border-purple-500/30 uppercase tracking-widest font-black flex items-center gap-1 shadow-sm">
+                    <Database size={10} /> Empresa: {meuTenant || "DESCONHECIDA"}
+                  </span>
+                </h1>
                 <p className="text-xs md:text-sm text-zinc-500 dark:text-zinc-400 mt-1 transition-colors">Visão omnichannel: WooCommerce e Portal B2B.</p>
               </div>
             </div>
@@ -166,7 +213,7 @@ export default function DashboardAnalitico() {
 
                 <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 items-stretch">
                   
-                  {/* GRÁFICO PRINCIPAL DE VENDAS (MANTIDO ELÁSTICO) */}
+                  {/* GRÁFICO PRINCIPAL DE VENDAS */}
                   <div className="xl:col-span-2 bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800/80 rounded-2xl p-4 md:p-6 w-full flex flex-col shadow-sm transition-colors overflow-hidden relative">
                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-4 relative z-10">
                       <h2 className="text-sm md:text-base font-semibold text-zinc-900 dark:text-zinc-100 transition-colors">Visão de Vendas ({mesFormatado})</h2>
@@ -176,9 +223,9 @@ export default function DashboardAnalitico() {
                       </div>
                     </div>
                     
-                    <div className="flex-1 w-full min-h-[300px] relative z-10">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={dados?.graficoVendas || []} margin={{ top: 10, right: 15, left: -25, bottom: 10 }}>
+                    <div className="w-full min-w-0 relative z-10 mt-4" style={{ height: 260 }}>
+                      <ResponsiveContainer width="99%" height={260} minHeight={260}>
+                        <AreaChart data={dados?.graficoVendas || []} margin={{ top: 10, right: 15, left: -25, bottom: 0 }}>
                           <defs>
                             <linearGradient id="corVendasWoo" x1="0" y1="0" x2="0" y2="1">
                               <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.4}/>
@@ -241,7 +288,6 @@ export default function DashboardAnalitico() {
                                 {textoBadge}
                               </span>
                               
-                              {/* A MÁGICA DO LOTE: Animação limpa e sutil quando a fila é processada */}
                               {fila > 0 && (
                                 <div className="flex items-center justify-center gap-2 mt-4 bg-purple-50 dark:bg-purple-500/10 border border-purple-200 dark:border-purple-500/30 px-5 py-2.5 rounded-xl animate-in fade-in zoom-in-95 w-full max-w-[220px] mx-auto">
                                   <div className="relative flex h-2.5 w-2.5 shrink-0">

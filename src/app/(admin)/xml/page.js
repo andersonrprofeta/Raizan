@@ -4,8 +4,32 @@ import { useState, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import { FileText, Search, Clock, CheckCircle2, Link as LinkIcon, Save, Loader2, AlertCircle } from "lucide-react";
-import { getApiUrl, getHeaders } from "@/components/utils/api";
+import { getHubUrl, getHeaders } from "@/components/utils/api";
 import toast from 'react-hot-toast';
+
+// 🟢 FUNÇÃO DE IDENTIDADE SEGURA
+const obterTenantSeguro = () => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const userRaw = localStorage.getItem("@raizan:user");
+    if (userRaw) {
+      const userObj = JSON.parse(userRaw);
+      if (userObj.tenant_id) return userObj.tenant_id;
+      if (userObj.cnpj) return userObj.cnpj;
+    }
+  } catch(e) {}
+  try {
+    const configRaw = localStorage.getItem("raizan_config_geral");
+    if (configRaw) {
+      const configObj = JSON.parse(configRaw);
+      if (configObj.tenantId) return configObj.tenantId;
+    }
+  } catch(e) {}
+  const tenantLegado = localStorage.getItem("@raizan:tenant");
+  if (tenantLegado && tenantLegado !== "localhost" && tenantLegado !== "-" && tenantLegado !== "127") return tenantLegado;
+  if (process.env.NEXT_PUBLIC_TENANT_ID) return process.env.NEXT_PUBLIC_TENANT_ID;
+  return null;
+};
 
 export default function GestaoXMLAdmin() {
   const [pedidos, setPedidos] = useState([]);
@@ -20,16 +44,19 @@ export default function GestaoXMLAdmin() {
   const carregarPedidos = async () => {
     setLoading(true);
     try {
-      // Puxa TODOS os pedidos (sem filtrar por email, pois somos Admin)
-      const res = await fetch(`${getApiUrl()}/api/b2b/pedidos`, { 
+      const tenantId = obterTenantSeguro();
+      const customHeaders = getHeaders();
+      if (tenantId) customHeaders["x-tenant-id"] = tenantId;
+
+      // 🟢 BATE NA ROTA DE PEDIDOS B2B DA HOSTINGER
+      const res = await fetch(`${getHubUrl()}/api/hub/pedidos/b2b`, { 
         method: "POST", 
-        headers: { ...getHeaders(), "Content-Type": "application/json" }, 
-        body: JSON.stringify({ page: 1, limit: 100 }) // Traz os últimos 100
+        headers: { ...customHeaders, "Content-Type": "application/json" }, 
+        body: JSON.stringify({ page: 1, limit: 100 }) 
       });
       const data = await res.json();
       
       if (data.success) {
-        // Ordenação Inteligente: Joga quem pediu documento pro TOPO da lista
         const pedidosOrdenados = data.pedidos.sort((a, b) => {
           const pediouA = getMeta(a, 'solicitacao_documentos') === 'pendente';
           const pediouB = getMeta(b, 'solicitacao_documentos') === 'pendente';
@@ -40,7 +67,6 @@ export default function GestaoXMLAdmin() {
         
         setPedidos(pedidosOrdenados);
         
-        // Preenche os inputs com os links que já existem no banco
         const linksIniciais = {};
         pedidosOrdenados.forEach(p => {
           const linkSalvo = getMeta(p, 'link_xml_boleto');
@@ -58,15 +84,20 @@ export default function GestaoXMLAdmin() {
 
     setSalvandoId(pedidoId);
     try {
-      const res = await fetch(`${getApiUrl()}/api/admin/anexar-documento`, {
+      const tenantId = obterTenantSeguro();
+      const customHeaders = getHeaders();
+      if (tenantId) customHeaders["x-tenant-id"] = tenantId;
+
+      // 🟢 BATE NA NOVA ROTA DE ANEXAR DA HOSTINGER
+      const res = await fetch(`${getHubUrl()}/api/hub/pedidos/anexar-documento`, {
         method: "POST",
-        headers: { ...getHeaders(), "Content-Type": "application/json" },
+        headers: { ...customHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({ pedidoId, link })
       });
       const data = await res.json();
       if (data.success) {
         toast.success("Link anexado com sucesso!");
-        carregarPedidos(); // Atualiza a tela pra tirar a cor amarela
+        carregarPedidos(); 
       } else {
         toast.error(data.message || "Erro ao salvar.");
       }
@@ -90,7 +121,6 @@ export default function GestaoXMLAdmin() {
         <main className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-6 lg:p-8">
           <div className="max-w-6xl mx-auto space-y-6">
             
-            {/* CABEÇALHO */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-white dark:bg-[#0c0c0e] p-6 rounded-2xl border border-zinc-200 dark:border-zinc-800/60 shadow-sm dark:shadow-lg relative overflow-hidden transition-colors duration-300">
               <div className="absolute right-0 top-0 w-64 h-64 bg-emerald-600/5 dark:bg-emerald-600/10 rounded-full blur-[80px] pointer-events-none" />
               <div className="relative z-10 flex items-center gap-4 w-full">
@@ -104,7 +134,6 @@ export default function GestaoXMLAdmin() {
               </div>
             </div>
 
-            {/* LISTAGEM DE PEDIDOS */}
             <div className="border border-zinc-200 dark:border-zinc-800/60 bg-white dark:bg-[#0c0c0e] rounded-2xl overflow-hidden relative shadow-md dark:shadow-xl min-h-[400px] transition-colors duration-300">
               {loading && (
                 <div className="absolute inset-0 z-10 bg-white/60 dark:bg-[#0c0c0e]/60 backdrop-blur-sm flex items-center justify-center">

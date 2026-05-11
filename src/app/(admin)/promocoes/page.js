@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import { Tag, Calendar, DollarSign, Package, Plus, Trash2, Loader2, Percent, Layers } from "lucide-react";
-import { getApiUrl, getHeaders } from "@/components/utils/api";
+import { getApiUrl, getHubUrl, getHeaders } from "@/components/utils/api";
 import toast from 'react-hot-toast';
 
 export default function GestaoPromocoes() {
@@ -17,9 +17,32 @@ export default function GestaoPromocoes() {
   // Form states
   const [sku, setSku] = useState("");
   const [preco, setPreco] = useState("");
-  const [qtdMinima, setQtdMinima] = useState("1"); // 🟢 NOVO ESTADO
+  const [qtdMinima, setQtdMinima] = useState("1");
   const [dataInicio, setDataInicio] = useState("");
   const [dataFim, setDataFim] = useState("");
+
+  const obterTenantSeguro = () => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const userRaw = localStorage.getItem("@raizan:user");
+      if (userRaw) {
+        const userObj = JSON.parse(userRaw);
+        if (userObj.tenant_id) return userObj.tenant_id;
+        if (userObj.cnpj) return userObj.cnpj;
+      }
+    } catch(e) {}
+    try {
+      const configRaw = localStorage.getItem("raizan_config_geral");
+      if (configRaw) {
+        const configObj = JSON.parse(configRaw);
+        if (configObj.tenantId) return configObj.tenantId;
+      }
+    } catch(e) {}
+    const tenantLegado = localStorage.getItem("@raizan:tenant");
+    if (tenantLegado && tenantLegado !== "localhost" && tenantLegado !== "-" && tenantLegado !== "127") return tenantLegado;
+    if (process.env.NEXT_PUBLIC_TENANT_ID) return process.env.NEXT_PUBLIC_TENANT_ID;
+    return null;
+  };
 
   useEffect(() => {
     carregarPromocoes();
@@ -27,7 +50,12 @@ export default function GestaoPromocoes() {
 
   const carregarPromocoes = async () => {
     try {
-      const res = await fetch(`${getApiUrl()}/api/admin/promocoes`, { headers: getHeaders() });
+      const tenantId = obterTenantSeguro();
+      const customHeaders = getHeaders();
+      if (tenantId) customHeaders["x-tenant-id"] = tenantId;
+
+      // 🟢 MÁGICA: Bate na API LOCAL (PM2) para buscar os nomes do Oracle!
+      const res = await fetch(`${getApiUrl()}/api/admin/promocoes`, { headers: customHeaders });
       const data = await res.json();
       if (data.success) setPromocoes(data.promocoes);
     } catch (error) {
@@ -43,13 +71,18 @@ export default function GestaoPromocoes() {
     const precoFormatado = preco.replace(',', '.');
 
     try {
-      const res = await fetch(`${getApiUrl()}/api/admin/promocoes`, {
+      const tenantId = obterTenantSeguro();
+      const customHeaders = getHeaders();
+      if (tenantId) customHeaders["x-tenant-id"] = tenantId;
+
+      // 🟢 MÁGICA: Bate na HOSTINGER para salvar direto no banco da nuvem!
+      const res = await fetch(`${getHubUrl()}/api/admin/promocoes`, {
         method: "POST",
-        headers: getHeaders(),
+        headers: customHeaders,
         body: JSON.stringify({
           sku,
           preco_promocional: precoFormatado,
-          qtd_minima: parseInt(qtdMinima) || 1, // 🟢 ENVIANDO PARA O SERVIDOR
+          qtd_minima: parseInt(qtdMinima) || 1,
           data_inicio: dataInicio,
           data_fim: dataFim
         })
@@ -57,9 +90,9 @@ export default function GestaoPromocoes() {
       
       const data = await res.json();
       if (data.success) {
-        toast.success(data.message);
+        toast.success(data.message || "Promoção ativada!");
         setSku(""); setPreco(""); setQtdMinima("1"); setDataInicio(""); setDataFim("");
-        carregarPromocoes();
+        carregarPromocoes(); // Recarrega a lista do local
       } else {
         toast.error(data.message);
       }
@@ -74,14 +107,19 @@ export default function GestaoPromocoes() {
     const toastId = toast.loading("Removendo promoção...");
     
     try {
-      const res = await fetch(`${getApiUrl()}/api/admin/promocoes/${skuRemover}`, {
+      const tenantId = obterTenantSeguro();
+      const customHeaders = getHeaders();
+      if (tenantId) customHeaders["x-tenant-id"] = tenantId;
+
+      // 🟢 MÁGICA: Bate na HOSTINGER para deletar direto da nuvem!
+      const res = await fetch(`${getHubUrl()}/api/admin/promocoes/${skuRemover}`, {
         method: "DELETE",
-        headers: getHeaders()
+        headers: customHeaders
       });
       const data = await res.json();
       if (data.success) {
         toast.success("Promoção removida com sucesso!", { id: toastId });
-        carregarPromocoes();
+        carregarPromocoes(); // Recarrega a lista do local
       } else {
         toast.error(data.message || "Erro ao remover.", { id: toastId });
       }
@@ -147,7 +185,6 @@ export default function GestaoPromocoes() {
                       </div>
                     </div>
                     <div>
-                      {/* 🟢 NOVO INPUT: QUANTIDADE MÍNIMA */}
                       <label className="text-xs font-semibold text-amber-600 dark:text-amber-400/80 uppercase transition-colors">Qtd. Mínima</label>
                       <div className="relative mt-1">
                         <Layers size={16} className="absolute left-3 top-3 text-amber-500" />
@@ -221,7 +258,6 @@ export default function GestaoPromocoes() {
                                   <span className="text-[10px] text-purple-700 dark:text-purple-400 font-mono font-bold tracking-wider px-2 py-0.5 bg-purple-100 dark:bg-purple-500/10 rounded border border-purple-200 dark:border-purple-500/20 transition-colors">
                                     SKU {promo.sku}
                                   </span>
-                                  {/* 🟢 SELO DE QUANTIDADE MÍNIMA */}
                                   <span className="text-[10px] text-amber-700 dark:text-amber-400 font-bold px-2 py-0.5 bg-amber-100 dark:bg-amber-500/10 rounded border border-amber-200 dark:border-amber-500/20 flex items-center gap-1 transition-colors">
                                     <Layers size={10} /> Mínimo: {promo.qtd_minima || 1} un
                                   </span>

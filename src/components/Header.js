@@ -335,7 +335,8 @@ export default function Header() {
 
     const checarRadar = async () => {
       try {
-        const res = await fetch(`${getApiUrl()}/api/admin/notificacoes`, { headers: getHeaders() });
+        // 🟢 CORREÇÃO: Trocamos getApiUrl() por getHubUrl() para bater na Hostinger!
+        const res = await fetch(`${getHubUrl()}/api/admin/notificacoes`, { headers: getHeaders() });
         const data = await res.json();
 
         if (data.success) {

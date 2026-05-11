@@ -8,9 +8,33 @@ import {
   CheckCircle2, AlertCircle, Calendar, X, FileText, Loader2, ChevronLeft, ChevronRight, RefreshCw, Truck,
   CreditCard, QrCode, CalendarDays 
 } from "lucide-react";
-import { getApiUrl, getHeaders } from "@/components/utils/api";
+import { getHubUrl, getHeaders } from "@/components/utils/api";
 import toast from 'react-hot-toast';
 import { initMercadoPago, Payment } from '@mercadopago/sdk-react';
+
+// 🟢 FUNÇÃO DE IDENTIDADE SEGURA (GLOBAL)
+const obterTenantSeguro = () => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const userRaw = localStorage.getItem("@raizan:user");
+    if (userRaw) {
+      const userObj = JSON.parse(userRaw);
+      if (userObj.tenant_id) return userObj.tenant_id;
+      if (userObj.cnpj) return userObj.cnpj;
+    }
+  } catch(e) {}
+  try {
+    const configRaw = localStorage.getItem("raizan_config_geral");
+    if (configRaw) {
+      const configObj = JSON.parse(configRaw);
+      if (configObj.tenantId) return configObj.tenantId;
+    }
+  } catch(e) {}
+  const tenantLegado = localStorage.getItem("@raizan:tenant");
+  if (tenantLegado && tenantLegado !== "localhost" && tenantLegado !== "-" && tenantLegado !== "127") return tenantLegado;
+  if (process.env.NEXT_PUBLIC_TENANT_ID) return process.env.NEXT_PUBLIC_TENANT_ID;
+  return null;
+};
 
 // ==========================================
 // COMPONENTE: BADGE DE STATUS DINÂMICO
@@ -38,7 +62,7 @@ const StatusBadge = ({ status }) => {
 };
 
 // ==========================================
-// 🟢 NOVO COMPONENTE: MODAL DE RETENTATIVA DE PAGAMENTO
+// COMPONENTE: MODAL DE RETENTATIVA DE PAGAMENTO
 // ==========================================
 function ModalPagamentoRetentativa({ isOpen, onClose, pedido, user, onSucesso }) {
   const [metodoPagamento, setMetodoPagamento] = useState('pix');
@@ -58,7 +82,12 @@ function ModalPagamentoRetentativa({ isOpen, onClose, pedido, user, onSucesso })
       
       const buscarChave = async () => {
         try {
-          const res = await fetch(`${getApiUrl()}/api/config/status`, { headers: getHeaders() });
+          const tenantId = obterTenantSeguro();
+          const customHeaders = getHeaders();
+          if (tenantId) customHeaders["x-tenant-id"] = tenantId;
+
+          // Bate na Nuvem para puxar as configs de MP
+          const res = await fetch(`${getHubUrl()}/api/hub/configuracoes/status`, { headers: customHeaders });
           const data = await res.json();
           if (data.mpPublicKey && data.mpPublicKey.trim() !== "") {
             initMercadoPago(data.mpPublicKey, { locale: 'pt-BR' });
@@ -84,9 +113,13 @@ function ModalPagamentoRetentativa({ isOpen, onClose, pedido, user, onSucesso })
     };
 
     try {
-      const res = await fetch(`${getApiUrl()}/api/b2b/pagar-pedido`, {
+      const tenantId = obterTenantSeguro();
+      const customHeaders = getHeaders();
+      if (tenantId) customHeaders["x-tenant-id"] = tenantId;
+
+      const res = await fetch(`${getHubUrl()}/api/b2b/pagar-pedido`, {
         method: "POST", 
-        headers: { "Content-Type": "application/json" }, 
+        headers: { ...customHeaders, "Content-Type": "application/json" }, 
         body: JSON.stringify(payload)
       });
       
@@ -211,9 +244,14 @@ function ModalDetalhes({ pedido, onClose, onPagarAgora }) {
   const handleSolicitarDocs = async () => {
     const toastId = toast.loading("Enviando solicitação para a equipe...");
     try {
-      const res = await fetch(`${getApiUrl()}/api/b2b/solicitar-documentos`, {
+      const tenantId = obterTenantSeguro();
+      const customHeaders = getHeaders();
+      if (tenantId) customHeaders["x-tenant-id"] = tenantId;
+
+      // 🟢 BATE DIRETO NA HOSTINGER
+      const res = await fetch(`${getHubUrl()}/api/hub/pedidos/solicitar-documentos`, {
         method: "POST",
-        headers: { ...getHeaders(), "Content-Type": "application/json" },
+        headers: { ...customHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({ pedidoId: pedido.id })
       });
       
@@ -257,9 +295,6 @@ function ModalDetalhes({ pedido, onClose, onPagarAgora }) {
             </div>
           </div>
 
-          {/* ========================================== */}
-          {/* 🟢 HISTÓRICO DE EDIÇÕES / AJUSTES DO PEDIDO */}
-          {/* ========================================== */}
           {pedido.historico_edicoes && pedido.historico_edicoes.length > 0 && (
             <div className="bg-amber-50 dark:bg-amber-500/5 border border-amber-200 dark:border-amber-500/20 rounded-xl p-4 shrink-0 shadow-inner">
               <h3 className="text-sm font-bold text-amber-600 dark:text-amber-500 flex items-center gap-2 mb-3">
@@ -275,7 +310,6 @@ function ModalDetalhes({ pedido, onClose, onPagarAgora }) {
                       {hist.motivo}
                     </p>
                     
-                    {/* Se a edição gerou crédito na carteira, mostra em destaque! */}
                     {hist.gerou_credito && hist.valor_abatido > 0 && (
                       <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400 mt-1.5 flex items-center gap-1.5 bg-emerald-100 dark:bg-emerald-500/10 w-fit px-2 py-1 rounded-md">
                         + {formatarMoeda(hist.valor_abatido)} adicionados como crédito em sua Carteira!
@@ -311,19 +345,14 @@ function ModalDetalhes({ pedido, onClose, onPagarAgora }) {
                 <span className="text-lg sm:text-xl font-bold text-emerald-600 dark:text-emerald-400">{formatarMoeda(pedido.total)}</span>
               </div>
               
-              {/* ========================================== */}
-              {/* 🟢 ÁREA DOS BOTÕES DE AÇÃO DO PEDIDO */}
-              {/* ========================================== */}
               <div className="p-4 bg-white dark:bg-zinc-950 border-t border-zinc-200 dark:border-zinc-800 shrink-0 flex flex-col gap-3">
                 
-                {/* 1. BOTÃO PAGAR AGORA */}
                 {pedido.status === 'aguardando-pagamento' && (
                   <button onClick={() => { onClose(); onPagarAgora(pedido); }} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-3.5 rounded-xl font-bold shadow-[0_0_20px_rgba(16,185,129,0.2)] transition-all flex items-center justify-center gap-2">
                     <CreditCard size={18} /> Pagar Agora
                   </button>
                 )}
 
-                {/* 2. LÓGICA DE XML / BOLETOS */}
                 {getMeta('link_xml_boleto') !== "Não informado" ? (
                   <a href={getMeta('link_xml_boleto')} target="_blank" rel="noreferrer" className="w-full bg-blue-600 hover:bg-blue-500 text-white py-3.5 rounded-xl font-bold transition-all flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(37,99,235,0.2)]">
                     <FileText size={18} /> Baixar XML / Boleto Anexado
@@ -347,6 +376,7 @@ function ModalDetalhes({ pedido, onClose, onPagarAgora }) {
     </div>
   );
 }
+
 // ==========================================
 // TELA PRINCIPAL
 // ==========================================
@@ -371,10 +401,24 @@ export default function HistoricoPedidosB2B() {
   const carregarPedidos = async () => {
     setLoading(true);
     try {
+      const tenantId = obterTenantSeguro();
+      const customHeaders = getHeaders();
+      if (tenantId) customHeaders["x-tenant-id"] = tenantId;
+
       const payload = { page, limit: 15, clienteEmail: user.email };
-      const response = await fetch(`${getApiUrl()}/api/b2b/pedidos`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      
+      // 🟢 BATE NA HOSTINGER (A mesma rota blindada com filtro de email que acabamos de testar!)
+      const response = await fetch(`${getHubUrl()}/api/hub/pedidos/b2b`, { 
+        method: "POST", 
+        headers: { ...customHeaders, "Content-Type": "application/json" }, 
+        body: JSON.stringify(payload) 
+      });
       const data = await response.json();
-      if (data.success) { setPedidos(data.pedidos); setTotalPages(data.totalPages); } 
+      
+      if (data.success) { 
+        setPedidos(data.pedidos); 
+        setTotalPages(data.totalPages); 
+      } 
       else { toast.error("Erro ao carregar histórico."); }
     } catch (error) { toast.error("Erro de conexão."); }
     setLoading(false);

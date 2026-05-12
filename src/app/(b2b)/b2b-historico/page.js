@@ -86,7 +86,7 @@ function ModalPagamentoRetentativa({ isOpen, onClose, pedido, user, onSucesso })
           const customHeaders = getHeaders();
           if (tenantId) customHeaders["x-tenant-id"] = tenantId;
 
-          // 🟢 Bate na Nuvem para puxar a chave pública do Mercado Pago
+          // Bate na Nuvem para puxar as configs de MP
           const res = await fetch(`${getHubUrl()}/api/hub/configuracoes/status`, { headers: customHeaders });
           const data = await res.json();
           if (data.mpPublicKey && data.mpPublicKey.trim() !== "") {
@@ -117,7 +117,6 @@ function ModalPagamentoRetentativa({ isOpen, onClose, pedido, user, onSucesso })
       const customHeaders = getHeaders();
       if (tenantId) customHeaders["x-tenant-id"] = tenantId;
 
-      // 🟢 Rota de pagamento na Nuvem
       const res = await fetch(`${getHubUrl()}/api/b2b/pagar-pedido`, {
         method: "POST", 
         headers: { ...customHeaders, "Content-Type": "application/json" }, 
@@ -127,8 +126,8 @@ function ModalPagamentoRetentativa({ isOpen, onClose, pedido, user, onSucesso })
       const contentType = res.headers.get("content-type");
       if (!contentType || !contentType.includes("application/json")) {
          const textoErro = await res.text();
-         console.error("❌ Erro bruto do servidor:", textoErro);
-         toast.error("Falha no servidor. Verifique o console.");
+         console.error("❌ O Motor não devolveu JSON! Erro bruto do servidor:", textoErro);
+         toast.error("Falha no servidor. Verifique o console (F12).");
          setIsProcessando(false);
          return;
       }
@@ -249,7 +248,7 @@ function ModalDetalhes({ pedido, onClose, onPagarAgora }) {
       const customHeaders = getHeaders();
       if (tenantId) customHeaders["x-tenant-id"] = tenantId;
 
-      // 🟢 BATE NA HOSTINGER PARA SOLICITAR A 2ª VIA
+      // 🟢 BATE DIRETO NA HOSTINGER
       const res = await fetch(`${getHubUrl()}/api/hub/pedidos/solicitar-documentos`, {
         method: "POST",
         headers: { ...customHeaders, "Content-Type": "application/json" },
@@ -379,7 +378,7 @@ function ModalDetalhes({ pedido, onClose, onPagarAgora }) {
 }
 
 // ==========================================
-// TELA PRINCIPAL (Nuvem Ativada e Buscando!)
+// TELA PRINCIPAL
 // ==========================================
 export default function HistoricoPedidosB2B() {
   const [user, setUser] = useState(null);
@@ -408,7 +407,7 @@ export default function HistoricoPedidosB2B() {
 
       const payload = { page, limit: 15, clienteEmail: user.email };
       
-      // 🟢 BATE NA HOSTINGER (Trazendo o Histórico todo blindado com LIKE)
+      // 🟢 BATE NA HOSTINGER (A mesma rota blindada com filtro de email que acabamos de testar!)
       const response = await fetch(`${getHubUrl()}/api/hub/pedidos/b2b`, { 
         method: "POST", 
         headers: { ...customHeaders, "Content-Type": "application/json" }, 

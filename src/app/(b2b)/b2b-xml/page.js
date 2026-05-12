@@ -65,11 +65,11 @@ export default function CofreXMLB2B() {
       const data = await response.json();
       
       if (data.success) { 
-        const pedidosElegiveis = data.pedidos.filter(p => 
-          p.status !== 'aguardando-pagamento' && 
-          p.status !== 'cancelled' && 
-          p.status !== 'cancelado'
-        );
+        // 🟢 FILTRO BLINDADO: Fica minúsculo e limpa espaços antes de checar!
+        const pedidosElegiveis = data.pedidos.filter(p => {
+          const s = String(p.status || '').toLowerCase().trim();
+          return !s.includes('aguardando') && !s.includes('cancel') && !s.includes('pendente');
+        });
         setPedidos(pedidosElegiveis); 
       } 
       else { toast.error("Erro ao carregar documentos."); }

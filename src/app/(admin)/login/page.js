@@ -61,6 +61,26 @@ export default function Login() {
       };
       localStorage.setItem("@raizan:user", JSON.stringify(dadosDoUsuario));
 
+
+      // ======================================================================
+      // 🟢 O GRANDE FINAL (FASE 3): O DOWNLOAD DA URL DO TÚNEL CLOUDFLARE
+      // ======================================================================
+      try {
+        const resConfig = await fetch(`${getHubUrl()}/api/hub/integracoes/b2b/config`, {
+          headers: { "x-tenant-id": dadosDoUsuario.tenant_id }
+        });
+        const configData = await resConfig.json();
+        
+        if (configData.success && configData.url_api_local) {
+          // Salva na memória para o seu arquivo api.js (getApiUrl) usar automaticamente!
+          localStorage.setItem("@raizan:b2b_api_url", configData.url_api_local);
+          console.log("🔥 Motor Local Dinâmico configurado com sucesso:", configData.url_api_local);
+        }
+      } catch (e) {
+        console.error("Aviso: Não foi possível carregar a URL do Motor Local no login.");
+      }
+      // ======================================================================
+
       setIsLoading(false);
       window.location.href = "/resumo"; 
       

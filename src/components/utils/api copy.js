@@ -4,13 +4,6 @@
 // 1. O MOTOR (ORACLE / LEGADO) 
 // ==========================================
 export function getApiUrl() {
-  // 🟢 MÁGICA (FASE 3): Agora o Motor Local é dinâmico e vem da memória do Login!
-  if (typeof window !== 'undefined') {
-    const urlDinamica = localStorage.getItem("@raizan:b2b_api_url");
-    if (urlDinamica) return urlDinamica.replace(/\/$/, "");
-  }
-
-  // Plano B: Se não achar na memória, segue a sua lógica original do .env
   if (process.env.NEXT_PUBLIC_API_URL) {
     return process.env.NEXT_PUBLIC_API_URL.replace(/\/$/, "");
   }

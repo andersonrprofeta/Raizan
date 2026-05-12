@@ -9,17 +9,12 @@ import {
 import { getHubUrl, getHeaders } from "@/components/utils/api";
 import toast from 'react-hot-toast';
 
-// 🟢 FUNÇÃO DE IDENTIDADE SEGURA
+// 🟢 FUNÇÃO DE IDENTIDADE SEGURA (COM MODO SALVA-VIDAS)
 const obterTenantSeguro = () => {
-  if (typeof window === 'undefined') return null;
-  try {
-    const userRaw = localStorage.getItem("@raizan:user");
-    if (userRaw) {
-      const userObj = JSON.parse(userRaw);
-      if (userObj.tenant_id) return userObj.tenant_id;
-      if (userObj.cnpj) return userObj.cnpj;
-    }
-  } catch(e) {}
+  // 1. Tenta pegar do ambiente (O jeito padrão SaaS)
+  if (process.env.NEXT_PUBLIC_TENANT_ID) return process.env.NEXT_PUBLIC_TENANT_ID;
+
+  // 2. Tenta pegar do storage caso seja acessado pelo Admin
   try {
     const configRaw = localStorage.getItem("raizan_config_geral");
     if (configRaw) {
@@ -27,10 +22,11 @@ const obterTenantSeguro = () => {
       if (configObj.tenantId) return configObj.tenantId;
     }
   } catch(e) {}
-  const tenantLegado = localStorage.getItem("@raizan:tenant");
-  if (tenantLegado && tenantLegado !== "localhost" && tenantLegado !== "-" && tenantLegado !== "127") return tenantLegado;
-  if (process.env.NEXT_PUBLIC_TENANT_ID) return process.env.NEXT_PUBLIC_TENANT_ID;
-  return null;
+
+  // 🟢 3. MODO SALVA-VIDAS (O Fura-Bloqueio):
+  // Como o servidor ignorou seu arquivo .env no deploy, isso garante que o CNPJ seja enviado!
+  // Quando for colocar o cliente 2 (Nuev), é só você configurar a variável lá no painel da Hospedagem dele.
+  return "28389424000109"; 
 };
 
 export default function CofreXMLB2B() {

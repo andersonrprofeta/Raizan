@@ -1,6 +1,6 @@
 {
   "name": "raizan-core",
-  "version": "0.3.7",
+  "version": "0.3.9",
   "private": true,
   "main": "main.js",
   "scripts": {

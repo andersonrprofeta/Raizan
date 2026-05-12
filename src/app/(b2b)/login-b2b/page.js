@@ -1,17 +1,54 @@
 "use client";
 
-import { useState } from "react";
+// 🟢 MUDANÇA 1: Adicionamos o useEffect
+import { useState, useEffect } from "react";
 import Image from "next/image"; 
 import { Mail, Lock, ArrowRight, AlertTriangle, Loader2, ShieldCheck } from "lucide-react"; 
 import toast from "react-hot-toast";
 import packageJson from "../../../../package.json";
-import { getApiUrl, getHeaders } from "@/components/utils/api";
+// 🟢 MUDANÇA 2: Importamos o getHubUrl para falar com a Nuvem
+import { getApiUrl, getHubUrl, getHeaders } from "@/components/utils/api";
+
+// 🟢 MUDANÇA 3: Função para ler a placa da fachada (Variável de Ambiente)
+const obterTenantSeguro = () => {
+  if (process.env.NEXT_PUBLIC_TENANT_ID) return process.env.NEXT_PUBLIC_TENANT_ID;
+  return null;
+};
 
 export default function LoginB2B() {
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+
+  // ======================================================================
+  // 🟢 MUDANÇA 4: O DOWNLOAD DO TÚNEL ASSIM QUE A TELA ABRE
+  // ======================================================================
+  useEffect(() => {
+    const carregarConfiguracaoB2B = async () => {
+      const tenantId = obterTenantSeguro();
+      if (!tenantId) return;
+
+      try {
+        // Bate na Hostinger e pergunta: "De qual túnel Cloudflare eu sou?"
+        const res = await fetch(`${getHubUrl()}/api/hub/integracoes/b2b/config`, {
+          headers: { "x-tenant-id": tenantId }
+        });
+        const data = await res.json();
+        
+        if (data.success && data.url_api_local) {
+          // Salva na memória. Daqui pra frente o getApiUrl() vai usar isso!
+          localStorage.setItem("@raizan:b2b_api_url", data.url_api_local);
+          console.log("🔥 Túnel Cloudflare dinâmico ativado:", data.url_api_local);
+        }
+      } catch (e) {
+        console.error("Falha ao buscar URL do Túnel na Nuvem.");
+      }
+    };
+
+    carregarConfiguracaoB2B();
+  }, []);
+  // ======================================================================
 
   const handleLogin = async (e) => {
     e.preventDefault();

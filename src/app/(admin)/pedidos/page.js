@@ -52,7 +52,7 @@ const renderStatus = (status) => {
 const getIcon = (iconType) => {
   if (iconType === 'oracle') return <img src="/oracle.svg" alt="Oracle" className="w-8 h-8 object-contain" />;
   if (iconType === 'woo') return <img src="/woocommerce.svg" alt="Woo" className="w-8 h-8 object-contain" />;
-  if (iconType === 'raizan') return <img src="/raizan.png" alt="Raizan" className="w-8 h-8 object-contain" />;
+  if (iconType === 'raizan') return <img src="/raizancommerce.png" alt="Raizan" className="w-8 h-8 object-contain" />;
   if (iconType === 'shopee') return <ShoppingBag size={24} className="text-orange-500" />;
   if (iconType === 'meli') return <Store size={24} className="text-amber-500" />;
   return <Globe size={24} className="text-zinc-500" />;

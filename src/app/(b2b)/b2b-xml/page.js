@@ -66,6 +66,7 @@ export default function CofreXMLB2B() {
       
       if (data.success) { 
         // 🟢 FILTRO BLINDADO: Fica minúsculo e limpa espaços antes de checar!
+        // Assim nenhum pedido some por causa de texto vindo do ERP.
         const pedidosElegiveis = data.pedidos.filter(p => {
           const s = String(p.status || '').toLowerCase().trim();
           return !s.includes('aguardando') && !s.includes('cancel') && !s.includes('pendente');

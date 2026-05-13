@@ -9,41 +9,6 @@ import {
 import { getHubUrl, getHeaders } from "@/components/utils/api";
 import toast from 'react-hot-toast';
 
-// ==========================================
-// 🟢 FUNÇÃO DE IDENTIDADE SEGURA (A DEFINITIVA)
-// ==========================================
-const obterTenantSeguro = () => {
-  // 1. Tenta pegar do ambiente
-  if (process.env.NEXT_PUBLIC_TENANT_ID) return process.env.NEXT_PUBLIC_TENANT_ID;
-
-  if (typeof window !== 'undefined') {
-    try {
-      // 2. 🟢 A GAVETA DO B2B (Lojista) - Lê o CNPJ do cliente logado
-      const lojistaRaw = localStorage.getItem("raizan_user");
-      if (lojistaRaw) {
-        const lojistaObj = JSON.parse(lojistaRaw);
-        if (lojistaObj.cnpj) return String(lojistaObj.cnpj).replace(/\D/g, '');
-      }
-
-      // 3. A GAVETA DO ADMIN (Matriz) - Lê o Tenant_ID do Admin logado
-      const adminRaw = localStorage.getItem("@raizan:user");
-      if (adminRaw) {
-        const adminObj = JSON.parse(adminRaw);
-        if (adminObj.tenant_id) return String(adminObj.tenant_id).replace(/\D/g, '');
-      }
-      
-      const configRaw = localStorage.getItem("raizan_config_geral");
-      if (configRaw) {
-        const configObj = JSON.parse(configRaw);
-        if (configObj.tenantId) return configObj.tenantId;
-      }
-    } catch(e) {}
-  }
-
-  // 4. MODO SALVA-VIDAS (O Fura-Bloqueio da Rafany)
-  return "28389424000109"; 
-};
-
 export default function CofreXMLB2B() {
   const [user, setUser] = useState(null);
   const [pedidos, setPedidos] = useState([]);
@@ -61,22 +26,17 @@ export default function CofreXMLB2B() {
   const carregarDocumentos = async () => {
     setLoading(true);
     try {
-      const tenantId = obterTenantSeguro();
-      const customHeaders = getHeaders();
-      if (tenantId) customHeaders["x-tenant-id"] = tenantId;
-
       const payload = { page: 1, limit: 50, clienteEmail: user.email };
       
-      // 🟢 BATE NA HOSTINGER PARA PUXAR SÓ OS PEDIDOS DESSE EMAIL
+      // 🟢 BATE NA HOSTINGER USANDO APENAS O getHeaders() LIMPO!
       const response = await fetch(`${getHubUrl()}/api/hub/pedidos/b2b`, { 
         method: "POST", 
-        headers: { ...customHeaders, "Content-Type": "application/json" }, 
+        headers: getHeaders(), 
         body: JSON.stringify(payload) 
       });
       const data = await response.json();
       
       if (data.success) { 
-        // 🟢 FILTRO BLINDADO: Fica minúsculo e limpa espaços antes de checar!
         const pedidosElegiveis = data.pedidos.filter(p => {
           const s = String(p.status || '').toLowerCase().trim();
           return !s.includes('aguardando') && !s.includes('cancel') && !s.includes('pendente');
@@ -91,14 +51,10 @@ export default function CofreXMLB2B() {
   const solicitarDocumento = async (pedidoId) => {
     setProcessandoId(pedidoId);
     try {
-      const tenantId = obterTenantSeguro();
-      const customHeaders = getHeaders();
-      if (tenantId) customHeaders["x-tenant-id"] = tenantId;
-
-      // 🟢 BATE NA HOSTINGER PARA AVISAR QUE QUER O DOCUMENTO
+      // 🟢 BATE NA HOSTINGER USANDO APENAS O getHeaders() LIMPO!
       const res = await fetch(`${getHubUrl()}/api/hub/pedidos/solicitar-documentos`, {
         method: "POST",
-        headers: { ...customHeaders, "Content-Type": "application/json" },
+        headers: getHeaders(),
         body: JSON.stringify({ pedidoId })
       });
       const data = await res.json();

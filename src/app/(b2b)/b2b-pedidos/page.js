@@ -5,7 +5,7 @@ import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 // 🟢 1. LIXEIRA IMPORTADA AQUI (Trash2)
 import { Search, ShoppingCart, CheckCircle2, AlertCircle, Package, Barcode, Loader2, DollarSign, Zap, ShoppingBag, X, FileText, QrCode, Building2, Truck, MapPin, CreditCard, CalendarDays, ChevronLeft, ChevronRight, Tag, Clock, ShieldCheck, RefreshCw, Trash2 } from "lucide-react";
-import { getApiUrl, getHeaders } from "@/components/utils/api";
+import { getApiUrl, getHubUrl, getHeaders } from "@/components/utils/api";
 import toast from 'react-hot-toast';
 import { initMercadoPago, Payment } from '@mercadopago/sdk-react';
 
@@ -56,17 +56,13 @@ function ModalCheckout({ isOpen, onClose, carrinho, produtos, tabelaAtiva, onFin
     if (savedUser) setUser(JSON.parse(savedUser));
   }, [isOpen]);
 
-  // 🟢 INICIALIZAÇÃO INTELIGENTE DOS MÉTODOS DE PAGAMENTO
+  // 🟢 INICIALIZAÇÃO INTELIGENTE DOS MÉTODOS DE PAGAMENTO (LIMPO)
   useEffect(() => {
     if (isOpen) {
       const buscarMetodos = async () => {
         try {
-          const tenantId = obterTenantSeguro();
-          const customHeaders = getHeaders();
-          if (tenantId) customHeaders["x-tenant-id"] = tenantId;
-
-          // Bate na nova rota de pagamentos!
-          const res = await fetch(`${getHubUrl()}/api/hub/pagamentos/metodos`, { headers: customHeaders });
+          // Bate na nova rota de pagamentos usando o getHeaders() limpo!
+          const res = await fetch(`${getHubUrl()}/api/hub/pagamentos/metodos-ativos`, { headers: getHeaders() });
           const data = await res.json();
           
           if (data.success) {
@@ -108,16 +104,13 @@ function ModalCheckout({ isOpen, onClose, carrinho, produtos, tabelaAtiva, onFin
     return `${m}:${s}`;
   };
 
+  // 🟢 RADAR DO PIX (LIMPO)
   useEffect(() => {
     let intervalo;
     if (step === 'sucesso_pix' && dadosPix?.pedidoId) {
       intervalo = setInterval(async () => {
         try {
-          const tenantId = obterTenantSeguro();
-          const customHeaders = getHeaders();
-          if (tenantId) customHeaders["x-tenant-id"] = tenantId;
-          
-          const res = await fetch(`${getHubUrl()}/api/hub/pedidos/status/${dadosPix.pedidoId}`, { headers: customHeaders });
+          const res = await fetch(`${getHubUrl()}/api/hub/pedidos/status/${dadosPix.pedidoId}`, { headers: getHeaders() });
           const data = await res.json();
           if (data.status === 'pago') setStep('concluido');
         } catch (e) {}
@@ -126,14 +119,11 @@ function ModalCheckout({ isOpen, onClose, carrinho, produtos, tabelaAtiva, onFin
     return () => clearInterval(intervalo);
   }, [step, dadosPix]);
 
+  // 🟢 VERIFICAÇÃO MANUAL (LIMPO)
   const verificarPagamentoManual = async () => {
     setIsVerificando(true);
     try {
-      const tenantId = obterTenantSeguro();
-      const customHeaders = getHeaders();
-      if (tenantId) customHeaders["x-tenant-id"] = tenantId;
-
-      const res = await fetch(`${getHubUrl()}/api/hub/pedidos/status/${dadosPix.pedidoId}`, { headers: customHeaders });
+      const res = await fetch(`${getHubUrl()}/api/hub/pedidos/status/${dadosPix.pedidoId}`, { headers: getHeaders() });
       const data = await res.json();
       
       if (data.status === 'pago') {
@@ -293,7 +283,7 @@ function ModalCheckout({ isOpen, onClose, carrinho, produtos, tabelaAtiva, onFin
               <div className="bg-zinc-50 dark:bg-zinc-900/30 border border-zinc-200 dark:border-zinc-800/50 rounded-xl p-5 space-y-4 shadow-sm dark:shadow-none">
                 <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 border-b border-zinc-200 dark:border-zinc-800 pb-2">Forma de Pagamento</h3>
                 
-                {/* 🟢 Renderização Inteligente dos Botões de Pagamento */}
+                {/* Renderização Inteligente dos Botões de Pagamento */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <button onClick={() => setMetodoPagamento('faturado')} className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all ${metodoPagamento === 'faturado' ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-500 text-emerald-600 dark:text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.1)]' : 'bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-700'}`}>
                     <FileText size={20} className="mb-1.5" />
@@ -359,7 +349,6 @@ function ModalCheckout({ isOpen, onClose, carrinho, produtos, tabelaAtiva, onFin
 
                   {metodoPagamento === 'cartao' && (
                     <div className="animate-in fade-in slide-in-from-top-2 mt-4">
-                      
                       {mpKeyMissing ? (
                         <div className="flex flex-col items-center justify-center p-6 text-center bg-zinc-50 dark:bg-zinc-900/50 rounded-xl border border-zinc-200 dark:border-zinc-800">
                           <AlertCircle size={32} className="text-rose-500 mb-3" />
@@ -386,7 +375,6 @@ function ModalCheckout({ isOpen, onClose, carrinho, produtos, tabelaAtiva, onFin
                           }}
                           onSubmit={async (param) => {
                             setIsProcessando(true);
-                            
                             const resultado = await onFinalizarPedido({ 
                               itens: itensComprados, 
                               subtotal, 
@@ -395,7 +383,6 @@ function ModalCheckout({ isOpen, onClose, carrinho, produtos, tabelaAtiva, onFin
                               metodoEnvio,
                               dadosCartaoMp: param.formData 
                             });
-                            
                             setIsProcessando(false);
                             if (resultado) setStep('concluido');
                           }}
@@ -517,12 +504,10 @@ export default function CatalogoB2B() {
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [tabelaAtiva, setTabelaAtiva] = useState("PDPRECO");
   
-  // ESTADOS DA PAGINAÇÃO
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20); 
   const [totalPages, setTotalPages] = useState(1);
 
-  // ESTADOS DAS OFERTAS
   const [somenteOfertas, setSomenteOfertas] = useState(false);
   const [listaOfertas, setListaOfertas] = useState([]);
 
@@ -536,14 +521,12 @@ export default function CatalogoB2B() {
     
     carregarCarrinhoEListners();
 
-    // 🟢 ESCUTA MUDANÇAS NO CARRINHO FEITAS PELA HEADER
     const syncCarrinho = () => {
       const c = localStorage.getItem("@raizan:carrinho");
       if(c) try { setCarrinho(JSON.parse(c)); } catch(e) {}
     };
     window.addEventListener('storage', syncCarrinho);
 
-    // 🟢 Busca as promoções na NUVEM assim que a página carrega!
     carregarListaOfertasGlobais();
 
     return () => window.removeEventListener('storage', syncCarrinho);
@@ -566,13 +549,11 @@ export default function CatalogoB2B() {
     } catch(e) { console.error("Erro ao buscar ofertas do modal"); }
   };
 
-  // 🟢 MÁGICA DA PAGINAÇÃO: O Hook escuta a mudança do Checkbox "somenteOfertas"
   useEffect(() => {
     carregarProdutos();
   }, [page, limit, somenteOfertas]); 
 
   const carregarProdutos = async () => {
-    // Se marcou o filtro de ofertas, mas não tem oferta cadastrada/ativa, não precisa nem chamar a API
     if (somenteOfertas && listaOfertas.length === 0) {
       setProdutos([]);
       setTotalPages(1);
@@ -587,13 +568,12 @@ export default function CatalogoB2B() {
         hideSamples: true, 
         page, 
         limit: Number(limit),
-        // 🟢 INJEÇÃO DOS SKUS: Se o checkbox tá marcado, manda a lista. Se não, manda vazio.
         skusFiltro: somenteOfertas ? listaOfertas.map(o => o.sku) : []
       };
       
       const response = await fetch(`${getApiUrl()}/api/produtos`, {
         method: "POST", 
-        headers: { "Content-Type": "application/json" }, 
+        headers: getHeaders(), 
         body: JSON.stringify(payload),
       });
       const data = await response.json();
@@ -619,7 +599,6 @@ export default function CatalogoB2B() {
     carregarProdutos();
   };
 
-  // Carimba a promoção nos produtos listados na tela para desenhar o desconto visualmente
   const produtosComPromocaoCarimbada = produtos.map(p => {
     const oferta = listaOfertas.find(o => o.sku === p.PDCODPRO.toString());
     if (oferta) {
@@ -627,7 +606,7 @@ export default function CatalogoB2B() {
         ...p, 
         em_promocao: true, 
         preco_promocional: oferta.preco_promocional,
-        qtd_minima_promocao: oferta.qtd_minima || 1 // 🟢 CARIMBANDO A QTD MÍNIMA AQUI!
+        qtd_minima_promocao: oferta.qtd_minima || 1 
       };
     }
     return { ...p, em_promocao: false };
@@ -643,13 +622,12 @@ export default function CatalogoB2B() {
       }
       localStorage.setItem("@raizan:carrinho", JSON.stringify(novo));
       
-      // 🟢 Avisa a Header que a quantidade no catálogo mudou!
       window.dispatchEvent(new Event('storage'));
       return novo;
     });
   };
 
-const handleFinalizarPedido = async (dadosDoPedido) => {
+  const handleFinalizarPedido = async (dadosDoPedido) => {
     const savedUser = localStorage.getItem("raizan_user");
     if (!savedUser) {
       toast.error("Sessão expirada. Faça login novamente.");
@@ -662,7 +640,7 @@ const handleFinalizarPedido = async (dadosDoPedido) => {
       ...dadosDoPedido, 
       cliente: {
         codigo: userLogado.codigo,
-        nome: userLogado.nome, // Enviando 'nome' pro MP usar no first_name
+        nome: userLogado.nome, 
         cnpj: userLogado.cnpj,
         email: userLogado.email, 
         telefone: userLogado.telefone
@@ -672,13 +650,9 @@ const handleFinalizarPedido = async (dadosDoPedido) => {
     const toastId = toast.loading("Gerando pedido na distribuidora..."); 
     
     try {
-      // Puxa o crachá limpo do api.js
-      const customHeaders = getHeaders();
-
-      // 1. CRIA O PEDIDO NO BANCO
       const response = await fetch(`${getHubUrl()}/api/hub/pedidos/b2b/criar-pedido`, {
         method: "POST",
-        headers: customHeaders,
+        headers: getHeaders(),
         body: JSON.stringify(payloadCompleto)
       });
       const data = await response.json();
@@ -688,19 +662,18 @@ const handleFinalizarPedido = async (dadosDoPedido) => {
         return null;
       }
 
-      // 2. PEDIDO CRIADO! AGORA CHAMA O SEU CONTROLLER DE PAGAMENTO 💸
       if (dadosDoPedido.metodoPagamento === 'pix' || dadosDoPedido.metodoPagamento === 'cartao') {
         toast.loading("Conectando com o Mercado Pago...", { id: toastId });
         
         const payRes = await fetch(`${getHubUrl()}/api/hub/pagamentos/gerar`, {
           method: "POST",
-          headers: customHeaders,
+          headers: getHeaders(),
           body: JSON.stringify({
             pedidoId: data.pedidoId,
             valor: dadosDoPedido.subtotal,
             metodo: dadosDoPedido.metodoPagamento,
             dadosCartao: dadosDoPedido.dadosCartaoMp,
-            cliente: payloadCompleto.cliente // Manda os dados do cliente pra gerar o Pix nominal
+            cliente: payloadCompleto.cliente 
           })
         });
         
@@ -709,20 +682,17 @@ const handleFinalizarPedido = async (dadosDoPedido) => {
         if (payData.success) {
           toast.success(`Pedido #${data.pedidoId} aguardando pagamento!`, { id: toastId });
           
-          // Limpa o carrinho
           setCarrinho({}); 
           localStorage.removeItem("@raizan:carrinho"); 
           window.dispatchEvent(new Event('storage'));
 
-          // Retorna a junção do Pedido + Dados do PIX pro Modal desenhar o QR Code!
           return { pedidoId: data.pedidoId, pagamento: payData };
         } else {
           toast.error("Pedido gerado, mas o pagamento falhou: " + payData.message, { id: toastId });
-          return null; // O modal não avança se o MP recusar
+          return null; 
         }
       }
 
-      // 3. SE FOR FATURADO (BOLETO ERP)
       toast.success(`Pedido #${data.pedidoId} gerado!`, { id: toastId });
       setCarrinho({}); 
       localStorage.removeItem("@raizan:carrinho"); 
@@ -770,7 +740,7 @@ const handleFinalizarPedido = async (dadosDoPedido) => {
                     checked={somenteOfertas} 
                     onChange={(e) => {
                       setSomenteOfertas(e.target.checked);
-                      setPage(1); // 🟢 Importante: volta para a página 1 ao ativar o filtro!
+                      setPage(1); 
                     }}
                     className="w-4 h-4 rounded border-zinc-300 dark:border-zinc-700 text-rose-500 focus:ring-rose-500 bg-white dark:bg-zinc-950 cursor-pointer"
                   />
@@ -834,7 +804,6 @@ const handleFinalizarPedido = async (dadosDoPedido) => {
                       const imageUrl = getProductImageUrl(produto.PDCODBARRA);
                       const temEstoque = produto.PDSALDO > 0;
                       
-                      // 🟢 NOVA LÓGICA DE PREÇO COM QUANTIDADE MÍNIMA
                       const precoOriginal = produto[tabelaAtiva] !== undefined ? parseFloat(produto[tabelaAtiva]) : parseFloat(produto.PDPRECO);
                       const minExigido = produto.qtd_minima_promocao || 1;
                       const atingiuMinimo = produto.em_promocao && qtdNoCarrinho >= minExigido;
@@ -876,14 +845,12 @@ const handleFinalizarPedido = async (dadosDoPedido) => {
                           <td className={`px-3 sm:px-5 py-3 sm:py-4 text-right text-sm sm:text-base whitespace-nowrap ${infoTabela.cor}`}>
                             {produto.em_promocao ? (
                               <div className="flex flex-col items-end">
-                                {/* O preço original riscado só aparece se o desconto ativar */}
                                 {atingiuMinimo && <span className="text-zinc-500 dark:text-zinc-500 line-through text-[11px] font-medium leading-none mb-0.5">{formatarMoeda(precoOriginal)}</span>}
                                 
                                 <span className={`font-bold ${atingiuMinimo ? 'text-emerald-600 dark:text-emerald-400 text-base sm:text-lg' : ''}`}>
                                   {formatarMoeda(precoExibicao)}
                                 </span>
 
-                                {/* 🟢 AVISO VISUAL DE QUANTIDADE */}
                                 {!atingiuMinimo ? (
                                    <span className="text-[9px] bg-rose-100 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 px-1.5 py-0.5 rounded border border-rose-200 dark:border-rose-500/20 mt-1 flex items-center gap-1 w-fit">
                                       <Tag size={10} /> Oferta a partir de {minExigido} un.

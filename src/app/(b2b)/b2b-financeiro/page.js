@@ -6,11 +6,36 @@ import Header from "@/components/Header";
 import {
   DollarSign, AlertTriangle, TrendingUp, Calendar, Printer
 } from "lucide-react";
-import { getApiUrl } from "@/components/utils/api";
+// 🟢 MUDANÇA 1: Adicionado o getHeaders para enviar o CNPJ pra API
+import { getHubUrl, getHeaders } from "@/components/utils/api";
 import {
   AreaChart, Area, ResponsiveContainer, Tooltip, XAxis, CartesianGrid
 } from "recharts";
 import toast from "react-hot-toast";
+
+// 🟢 MUDANÇA 2: Função de Identidade Segura (Padrão SaaS 100% limpo)
+const obterTenantSeguro = () => {
+  if (process.env.NEXT_PUBLIC_TENANT_ID) return process.env.NEXT_PUBLIC_TENANT_ID;
+
+  if (typeof window !== 'undefined') {
+    try {
+      const userRaw = localStorage.getItem("@raizan:user");
+      if (userRaw) {
+        const userObj = JSON.parse(userRaw);
+        if (userObj.tenant_id) return userObj.tenant_id;
+        if (userObj.cnpj) return userObj.cnpj;
+      }
+      
+      const configRaw = localStorage.getItem("raizan_config_geral");
+      if (configRaw) {
+        const configObj = JSON.parse(configRaw);
+        if (configObj.tenantId) return configObj.tenantId;
+      }
+    } catch(e) {}
+  }
+
+  return null; 
+};
 
 export default function FinanceiroBI() {
   const [user, setUser] = useState(null);
@@ -30,9 +55,14 @@ export default function FinanceiroBI() {
     if (!user?.email) return;
 
     try {
-      const res = await fetch(`${getApiUrl()}/api/b2b/pedidos`, {
+      const tenantId = obterTenantSeguro();
+      const customHeaders = getHeaders();
+      if (tenantId) customHeaders["x-tenant-id"] = tenantId;
+
+      // 🟢 CORREÇÃO: Apontando para o Hub na Hostinger, igualzinho à tela de Histórico!
+      const res = await fetch(`${getHubUrl()}/api/hub/pedidos/b2b`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { ...customHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({ limit: 999, clienteEmail: user.email })
       });
 

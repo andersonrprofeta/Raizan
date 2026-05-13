@@ -12,24 +12,31 @@ import { getHubUrl, getHeaders } from "@/components/utils/api";
 import toast from 'react-hot-toast';
 import { initMercadoPago, Payment } from '@mercadopago/sdk-react';
 
-// 🟢 FUNÇÃO DE IDENTIDADE SEGURA (COM MODO SALVA-VIDAS)
+// 🟢 FUNÇÃO DE IDENTIDADE SEGURA (Padrão SaaS - 0% Chumbado)
 const obterTenantSeguro = () => {
-  // 1. Tenta pegar do ambiente (O jeito padrão SaaS)
+  // 1. A Nuvem/Hospedagem injeta o CNPJ automaticamente aqui via Variável de Ambiente
   if (process.env.NEXT_PUBLIC_TENANT_ID) return process.env.NEXT_PUBLIC_TENANT_ID;
 
-  // 2. Tenta pegar do storage caso seja acessado pelo Admin
-  try {
-    const configRaw = localStorage.getItem("raizan_config_geral");
-    if (configRaw) {
-      const configObj = JSON.parse(configRaw);
-      if (configObj.tenantId) return configObj.tenantId;
-    }
-  } catch(e) {}
+  // 2. Busca no navegador (Storage) caso a variável falhe ou seja um Admin logado
+  if (typeof window !== 'undefined') {
+    try {
+      const userRaw = localStorage.getItem("@raizan:user");
+      if (userRaw) {
+        const userObj = JSON.parse(userRaw);
+        if (userObj.tenant_id) return userObj.tenant_id;
+        if (userObj.cnpj) return userObj.cnpj;
+      }
+      
+      const configRaw = localStorage.getItem("raizan_config_geral");
+      if (configRaw) {
+        const configObj = JSON.parse(configRaw);
+        if (configObj.tenantId) return configObj.tenantId;
+      }
+    } catch(e) {}
+  }
 
-  // 🟢 3. MODO SALVA-VIDAS (O Fura-Bloqueio):
-  // Como o servidor ignorou seu arquivo .env no deploy, isso garante que o CNPJ seja enviado!
-  // Quando for colocar o cliente 2 (Nuev), é só você configurar a variável lá no painel da Hospedagem dele.
-  return "28389424000109"; 
+  // 3. Se não achar nada, retorna nulo para o Back-end barrar (Segurança máxima)
+  return null; 
 };
 
 // ==========================================

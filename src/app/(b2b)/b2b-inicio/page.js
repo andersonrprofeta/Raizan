@@ -9,8 +9,32 @@ import {
   Zap, Tag, X, ShoppingCart 
 } from "lucide-react";
 import Link from "next/link";
-import { getApiUrl, getHeaders } from "@/components/utils/api";
+// 🟢 MUDANÇA 1: Importamos o getHubUrl para buscar a última compra na nuvem
+import { getApiUrl, getHubUrl, getHeaders } from "@/components/utils/api";
 import toast from 'react-hot-toast'; 
+
+// ==========================================
+// FUNÇÃO DE IDENTIDADE SEGURA
+// ==========================================
+const obterTenantSeguro = () => {
+  if (process.env.NEXT_PUBLIC_TENANT_ID) return process.env.NEXT_PUBLIC_TENANT_ID;
+  if (typeof window !== 'undefined') {
+    try {
+      const userRaw = localStorage.getItem("@raizan:user");
+      if (userRaw) {
+        const userObj = JSON.parse(userRaw);
+        if (userObj.tenant_id) return userObj.tenant_id;
+        if (userObj.cnpj) return userObj.cnpj;
+      }
+      const configRaw = localStorage.getItem("raizan_config_geral");
+      if (configRaw) {
+        const configObj = JSON.parse(configRaw);
+        if (configObj.tenantId) return configObj.tenantId;
+      }
+    } catch(e) {}
+  }
+  return null; 
+};
 
 // ==========================================
 // FUNÇÃO GLOBAL DE MOEDA (Para o modal enxergar)
@@ -90,14 +114,63 @@ export default function B2BInicio() {
   const [isOfertasModalOpen, setIsOfertasModalOpen] = useState(false);
   const [listaOfertas, setListaOfertas] = useState([]);
 
+  // 🟢 ESTADO PARA OS DADOS DINÂMICOS DA HOME
+  const [dadosDinamicos, setDadosDinamicos] = useState({
+    ultima_compra: null,
+    limite_credito: null,
+    prazos_liberados: null
+  });
+
   useEffect(() => {
     const savedUser = localStorage.getItem("raizan_user");
     if (savedUser) {
-      setUser(JSON.parse(savedUser));
+      const parsedUser = JSON.parse(savedUser);
+      setUser(parsedUser);
+      // Já carrega o que tem na memória para não dar "tela em branco"
+      setDadosDinamicos({
+        ultima_compra: parsedUser.ultima_compra,
+        limite_credito: parsedUser.limite_credito,
+        prazos_liberados: parsedUser.prazos_liberados
+      });
     } else {
       window.location.href = "/login-b2b";
     }
   }, []);
+
+  // 🟢 BUSCADOR SILENCIOSO DOS DADOS DINÂMICOS
+  useEffect(() => {
+    if (!user) return;
+
+    const buscarResumoAtualizado = async () => {
+      try {
+        const tenantId = obterTenantSeguro();
+        const customHeaders = getHeaders();
+        if (tenantId) customHeaders["x-tenant-id"] = tenantId;
+
+        // 1. Busca a Última Compra direto da Nuvem (Hostinger) que já temos rodando lisa!
+        const resPedidos = await fetch(`${getHubUrl()}/api/hub/pedidos/b2b`, {
+          method: "POST",
+          headers: { ...customHeaders, "Content-Type": "application/json" },
+          // Limite 1, pois só queremos ver a data do último pedido!
+          body: JSON.stringify({ page: 1, limit: 1, clienteEmail: user.email })
+        });
+        const dataPedidos = await resPedidos.json();
+
+        if (dataPedidos.success && dataPedidos.pedidos && dataPedidos.pedidos.length > 0) {
+          const ultimaData = dataPedidos.pedidos[0].date_created || dataPedidos.pedidos[0].data_criacao;
+          setDadosDinamicos(prev => ({ ...prev, ultima_compra: ultimaData }));
+        }
+
+        // 2. Futuro: Aqui você pode colocar um fetch pra buscar o limite de crédito do hub_clientes
+        // const resCliente = await fetch(`${getHubUrl()}/api/hub/clientes/me...`);
+
+      } catch (e) {
+        console.log("Aviso: Não foi possível atualizar os dados silenciosamente.");
+      }
+    };
+
+    buscarResumoAtualizado();
+  }, [user]);
 
   // 🟢 ESCUTADOR DO HEADER PARA ABRIR O MODAL
   useEffect(() => {
@@ -149,11 +222,11 @@ export default function B2BInicio() {
     localStorage.setItem("@raizan:carrinho", JSON.stringify(carrinhoAtual));
   };
 
-
   const formatarData = (dataString) => {
     if (!dataString) return "Sem compras recentes";
     try {
       const data = new Date(dataString);
+      if (isNaN(data.getTime())) return "Sem compras recentes"; // Tratamento extra de erro
       return data.toLocaleDateString("pt-BR");
     } catch {
       return dataString;
@@ -236,7 +309,8 @@ export default function B2BInicio() {
                 </div>
                 <p className="text-zinc-500 dark:text-zinc-400 text-xs sm:text-sm font-medium mb-1">Limite de Crédito</p>
                 <h2 className="text-2xl sm:text-3xl font-bold text-zinc-900 dark:text-zinc-100 tracking-tight h-8 sm:h-9 flex items-center truncate">
-                  {renderLimiteCredito(user.limite_credito)}
+                  {/* 🟢 Usando o Estado Dinâmico */}
+                  {renderLimiteCredito(dadosDinamicos.limite_credito)}
                 </h2>
                 <p className="text-[10px] sm:text-xs text-emerald-600 dark:text-emerald-500/70 mt-2 sm:mt-3 font-medium flex items-center gap-1">
                   <ArrowRight size={12} /> Status atual para faturamento
@@ -252,7 +326,8 @@ export default function B2BInicio() {
                 </div>
                 <p className="text-zinc-500 dark:text-zinc-400 text-xs sm:text-sm font-medium mb-1">Prazos Autorizados</p>
                 <h2 className="text-lg sm:text-xl font-bold text-zinc-900 dark:text-zinc-100 tracking-tight mt-1 sm:mt-2 line-clamp-2 h-7">
-                  {renderPrazos(user.prazos_liberados)}
+                  {/* 🟢 Usando o Estado Dinâmico */}
+                  {renderPrazos(dadosDinamicos.prazos_liberados)}
                 </h2>
               </div>
 
@@ -265,7 +340,8 @@ export default function B2BInicio() {
                 </div>
                 <p className="text-zinc-500 dark:text-zinc-400 text-xs sm:text-sm font-medium mb-1">Última Compra Realizada</p>
                 <h2 className="text-xl sm:text-2xl font-bold text-zinc-900 dark:text-zinc-100 tracking-tight mt-1 h-7 sm:h-8">
-                  {formatarData(user.ultima_compra)}
+                  {/* 🟢 A Mágica Acontece Aqui: Data puxada fresca da Nuvem */}
+                  {formatarData(dadosDinamicos.ultima_compra)}
                 </h2>
                 <Link href="/b2b-historico" className="text-[10px] sm:text-xs text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 mt-2 font-medium flex items-center gap-1 transition-colors w-max">
                   Ver histórico completo <ArrowRight size={12} />

@@ -1,71 +1,44 @@
 // Arquivo: src/components/utils/api.js
 
-// ==========================================
-// 1. O MOTOR (ORACLE / LEGADO) 
-// ==========================================
+export function getHubUrl() {
+  // A única URL que NUNCA muda. A nave-mãe.
+  return "https://api.raizan.com.br";
+}
+
 export function getApiUrl() {
-  // 🟢 MÁGICA (FASE 3): Agora o Motor Local é dinâmico e vem da memória do Login!
+  // A URL do motor local (túnel) será salva na memória assim que o cliente acessar a tela de Login!
   if (typeof window !== 'undefined') {
     const urlDinamica = localStorage.getItem("@raizan:b2b_api_url");
     if (urlDinamica) return urlDinamica.replace(/\/$/, "");
   }
-
-  // Plano B: Se não achar na memória, segue a sua lógica original do .env
-  if (process.env.NEXT_PUBLIC_API_URL) {
-    return process.env.NEXT_PUBLIC_API_URL.replace(/\/$/, "");
-  }
-  // 🟢 CORREÇÃO: Forçando HTTPS e tirando a porta 3001 (o túnel resolve isso)
-  return "https://api.rafany.com.br";
-}
-
-// ==========================================
-// 2. O HUB CENTRAL (NUVEM / HOSTINGER)
-// Usado APENAS nas telas novas: Clientes, Marcas, Categorias
-// ==========================================
-export function getHubUrl() {
-  if (process.env.NEXT_PUBLIC_HUB_URL) {
-    return process.env.NEXT_PUBLIC_HUB_URL.replace(/\/$/, "");
-  }
-  return "https://api.raizan.com.br";
-}
-
-// ==========================================
-// 3. IDENTIDADE DA EMPRESA (TENANT ID)
-// ==========================================
-export function getTenantId() {
-  if (typeof window === "undefined") return ""; 
-
-  try {
-    const configSalva = localStorage.getItem("raizan_config_geral");
-    if (configSalva) {
-      const parsed = JSON.parse(configSalva);
-      if (parsed.tenantId) return parsed.tenantId.toLowerCase();
-    }
-  } catch (e) {}
-
-  const tenantSalvo = localStorage.getItem("@raizan:tenant");
-  if (tenantSalvo) return tenantSalvo.toLowerCase();
-
-  const hostname = window.location.hostname;
-  if (hostname !== "localhost" && hostname !== "127.0.0.1" && !hostname.match(/^[0-9.]+$/)) {
-    const parts = hostname.split('.');
-    if (parts.length > 0 && parts[0] !== 'www' && parts[0] !== 'api' && parts[0] !== 'app') {
-      return parts[0].toLowerCase(); 
-    }
-  }
   return ""; 
 }
 
-// ==========================================
-// 4. O CRACHÁ BLINDADO (Com JWT)
-// ==========================================
+export function getTenantId() {
+  if (typeof window === "undefined") return ""; 
+  try {
+    // 1. Se for o Admin logado na Matriz:
+    const adminRaw = localStorage.getItem("@raizan:user");
+    if (adminRaw) {
+      const adminObj = JSON.parse(adminRaw);
+      if (adminObj.tenant_id) return String(adminObj.tenant_id).replace(/\D/g, '');
+    }
+
+    // 2. Se for o Lojista no Portal B2B, pega a identidade que o site "descobriu" na tela de Login!
+    const portalId = localStorage.getItem("@raizan:b2b_tenant_id");
+    if (portalId) return String(portalId).replace(/\D/g, '');
+    
+  } catch (e) {}
+  return ""; 
+}
+
 export function getHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('@raizan:token') : null;
   const tenantId = getTenantId();
 
   return {
     "Content-Type": "application/json",
-    ...(tenantId && { "x-tenant-id": tenantId }),
+    ...(tenantId && { "x-tenant-id": tenantId }), 
     ...(token && { "Authorization": `Bearer ${token}` }) 
   };
 }

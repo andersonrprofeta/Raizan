@@ -650,7 +650,7 @@ export default function CatalogoB2B() {
     const toastId = toast.loading("Gerando pedido na distribuidora..."); 
     
     try {
-      const response = await fetch(`${getHubUrl()}/api/hub/pedidos/b2b/criar-pedido`, {
+     const response = await fetch(`${getHubUrl()}/api/hub/pedidos/criar`, {
         method: "POST",
         headers: getHeaders(),
         body: JSON.stringify(payloadCompleto)

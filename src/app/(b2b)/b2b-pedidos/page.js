@@ -662,37 +662,73 @@ const handleFinalizarPedido = async (dadosDoPedido) => {
       ...dadosDoPedido, 
       cliente: {
         codigo: userLogado.codigo,
-        razao: userLogado.nome,
+        nome: userLogado.nome, // Enviando 'nome' pro MP usar no first_name
         cnpj: userLogado.cnpj,
         email: userLogado.email, 
         telefone: userLogado.telefone
       }
     };
 
-    const toastId = toast.loading("Gerando pedido na Rafany..."); 
+    const toastId = toast.loading("Gerando pedido na distribuidora..."); 
     
     try {
-      const response = await fetch(`${getApiUrl()}/api/b2b/criar-pedido`, {
+      // Puxa o crachá limpo do api.js
+      const customHeaders = getHeaders();
+
+      // 1. CRIA O PEDIDO NO BANCO
+      const response = await fetch(`${getHubUrl()}/api/hub/pedidos/b2b/criar-pedido`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: customHeaders,
         body: JSON.stringify(payloadCompleto)
       });
       const data = await response.json();
 
-      if (data.success) {
-        toast.success(`Pedido #${data.pedidoId} gerado!`, { id: toastId });
-        
-        // Limpa o carrinho silenciosamente
-        setCarrinho({}); 
-        localStorage.removeItem("@raizan:carrinho"); 
-        window.dispatchEvent(new Event('storage'));
-
-        // Retorna os dados para o Modal saber o que desenhar na tela (O QR Code)
-        return data; 
-      } else {
+      if (!data.success) {
         toast.error("Erro ao gerar pedido: " + data.message, { id: toastId });
         return null;
       }
+
+      // 2. PEDIDO CRIADO! AGORA CHAMA O SEU CONTROLLER DE PAGAMENTO 💸
+      if (dadosDoPedido.metodoPagamento === 'pix' || dadosDoPedido.metodoPagamento === 'cartao') {
+        toast.loading("Conectando com o Mercado Pago...", { id: toastId });
+        
+        const payRes = await fetch(`${getHubUrl()}/api/hub/pagamentos/gerar`, {
+          method: "POST",
+          headers: customHeaders,
+          body: JSON.stringify({
+            pedidoId: data.pedidoId,
+            valor: dadosDoPedido.subtotal,
+            metodo: dadosDoPedido.metodoPagamento,
+            dadosCartao: dadosDoPedido.dadosCartaoMp,
+            cliente: payloadCompleto.cliente // Manda os dados do cliente pra gerar o Pix nominal
+          })
+        });
+        
+        const payData = await payRes.json();
+
+        if (payData.success) {
+          toast.success(`Pedido #${data.pedidoId} aguardando pagamento!`, { id: toastId });
+          
+          // Limpa o carrinho
+          setCarrinho({}); 
+          localStorage.removeItem("@raizan:carrinho"); 
+          window.dispatchEvent(new Event('storage'));
+
+          // Retorna a junção do Pedido + Dados do PIX pro Modal desenhar o QR Code!
+          return { pedidoId: data.pedidoId, pagamento: payData };
+        } else {
+          toast.error("Pedido gerado, mas o pagamento falhou: " + payData.message, { id: toastId });
+          return null; // O modal não avança se o MP recusar
+        }
+      }
+
+      // 3. SE FOR FATURADO (BOLETO ERP)
+      toast.success(`Pedido #${data.pedidoId} gerado!`, { id: toastId });
+      setCarrinho({}); 
+      localStorage.removeItem("@raizan:carrinho"); 
+      window.dispatchEvent(new Event('storage'));
+      return data; 
+
     } catch (error) {
       toast.error("Erro de comunicação com o servidor.", { id: toastId });
       return null;

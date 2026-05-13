@@ -26,76 +26,74 @@ const formatarMoeda = (valor) => {
 // ==========================================
 // COMPONENTE: MODAL DE CHECKOUT B2B
 // ==========================================
-// 🟢 2. ADICIONEI "onRemoverItem" AQUI NAS PROPS
 function ModalCheckout({ isOpen, onClose, carrinho, produtos, tabelaAtiva, onFinalizarPedido, onRemoverItem }) {
   const [metodoPagamento, setMetodoPagamento] = useState('faturado');
   const [prazoBoleto, setPrazoBoleto] = useState('30'); 
   const [metodoEnvio, setMetodoEnvio] = useState('transportadora');
   const [isProcessando, setIsProcessando] = useState(false);
 
-  // 🟢 1. ADICIONE ESSA LINHA AQUI! (Estado do usuário)
   const [user, setUser] = useState(null);
   
-  // 🟢 ESTADOS DA TELA E PIX
-  const [step, setStep] = useState('resumo'); // 'resumo', 'sucesso_pix', ou 'concluido'
+  const [step, setStep] = useState('resumo'); 
   const [dadosPix, setDadosPix] = useState(null);
   const [copiado, setCopiado] = useState(false);
-  //alteração nova do anderson
   const [pedidoFinalizadoId, setPedidoFinalizadoId] = useState(null);
   
-  // 🟢 NOVOS ESTADOS: Cronômetro e Verificação Manual
-  const [tempoExpiracao, setTempoExpiracao] = useState(1800); // 30 minutos em segundos
+  const [tempoExpiracao, setTempoExpiracao] = useState(1800); 
   const [isVerificando, setIsVerificando] = useState(false);
 
-  // Zera as coisas quando o modal abre
-  useEffect(() => {
-    if (isOpen) {
-      setStep('resumo'); setDadosPix(null); setCopiado(false); setIsProcessando(false); setTempoExpiracao(1800);
-      setPedidoFinalizadoId(null); //remover se nao der certo kkkkkkkk
-    }
-    // 🟢 2. ADICIONE ESTE BLOCO AQUI! (Ele lê a memória do navegador)
-    const savedUser = localStorage.getItem("raizan_user");
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
-    }
-  }, [isOpen]);
-
-  //MARCAÇÃO PARA NÃO FAZER ERRADO
-  // 🟢 ESTADOS DE SEGURANÇA DO MERCADO PAGO
+  // 🟢 NOVO ESTADO: Controla o que aparece na tela!
+  const [metodosAtivos, setMetodosAtivos] = useState({ faturado: true, mercadopago: false });
   const [isMpReady, setIsMpReady] = useState(false);
   const [mpKeyMissing, setMpKeyMissing] = useState(false);
 
-  // 🟢 INICIALIZAÇÃO BLINDADA DO MERCADO PAGO (BUSCANDO DIRETO DO MOTOR)
   useEffect(() => {
     if (isOpen) {
-      const buscarChave = async () => {
+      setStep('resumo'); setDadosPix(null); setCopiado(false); setIsProcessando(false); setTempoExpiracao(1800);
+      setPedidoFinalizadoId(null); 
+    }
+    const savedUser = localStorage.getItem("raizan_user");
+    if (savedUser) setUser(JSON.parse(savedUser));
+  }, [isOpen]);
+
+  // 🟢 INICIALIZAÇÃO INTELIGENTE DOS MÉTODOS DE PAGAMENTO
+  useEffect(() => {
+    if (isOpen) {
+      const buscarMetodos = async () => {
         try {
-          // 1. O Front-end bate na porta do motor e pede o status/chaves
-          const res = await fetch(`${getApiUrl()}/api/config/status`, { headers: getHeaders() });
+          const tenantId = obterTenantSeguro();
+          const customHeaders = getHeaders();
+          if (tenantId) customHeaders["x-tenant-id"] = tenantId;
+
+          // Bate na nova rota de pagamentos!
+          const res = await fetch(`${getHubUrl()}/api/hub/pagamentos/metodos`, { headers: customHeaders });
           const data = await res.json();
           
-          // 2. Se o motor devolver a chave azul, a gente liga o Mercado Pago!
-          if (data.mpPublicKey && data.mpPublicKey.trim() !== "") {
-            initMercadoPago(data.mpPublicKey, { locale: 'pt-BR' });
-            setIsMpReady(true);
-            setMpKeyMissing(false);
-          } else {
-            setMpKeyMissing(true); // O motor não tem a chave
+          if (data.success) {
+            setMetodosAtivos({ faturado: data.faturado, mercadopago: data.mercadopago });
+
+            // Se tem Mercado Pago, liga o motor de segurança dele
+            if (data.mercadopago && data.mpPublicKey) {
+              initMercadoPago(data.mpPublicKey, { locale: 'pt-BR' });
+              setIsMpReady(true);
+              setMpKeyMissing(false);
+            } else {
+              setMpKeyMissing(true);
+              setMetodoPagamento('faturado'); // Força boleto se não tiver MP
+            }
           }
         } catch (e) {
-          console.log("Erro ao buscar a chave do MP", e);
+          console.log("Erro ao buscar métodos na Nuvem", e);
           setMpKeyMissing(true);
+          setMetodoPagamento('faturado');
         }
       };
       
-      buscarChave();
+      buscarMetodos();
     }
   }, [isOpen]);
-  //FIM DA MARCAÇÃO
 
 
-
-  // 🟢 EFEITO DO CRONÔMETRO (Desce 1 segundo a cada segundo)
   useEffect(() => {
     let timer;
     if (step === 'sucesso_pix' && tempoExpiracao > 0) {
@@ -104,33 +102,38 @@ function ModalCheckout({ isOpen, onClose, carrinho, produtos, tabelaAtiva, onFin
     return () => clearInterval(timer);
   }, [step, tempoExpiracao]);
 
-  // Formata os segundos para "MM:SS"
   const formatarTempo = (segundos) => {
     const m = Math.floor(segundos / 60).toString().padStart(2, '0');
     const s = (segundos % 60).toString().padStart(2, '0');
     return `${m}:${s}`;
   };
 
-  // O RADAR AUTOMÁTICO DO PIX (Mantemos ele aqui pro futuro)
   useEffect(() => {
     let intervalo;
     if (step === 'sucesso_pix' && dadosPix?.pedidoId) {
       intervalo = setInterval(async () => {
         try {
-          const res = await fetch(`${getApiUrl()}/api/b2b/status-pedido/${dadosPix.pedidoId}`, { headers: getHeaders() });
+          const tenantId = obterTenantSeguro();
+          const customHeaders = getHeaders();
+          if (tenantId) customHeaders["x-tenant-id"] = tenantId;
+          
+          const res = await fetch(`${getHubUrl()}/api/hub/pedidos/status/${dadosPix.pedidoId}`, { headers: customHeaders });
           const data = await res.json();
           if (data.status === 'pago') setStep('concluido');
-        } catch (e) { console.log("Radar falhou", e); }
+        } catch (e) {}
       }, 5000); 
     }
     return () => clearInterval(intervalo);
   }, [step, dadosPix]);
 
-  // 🟢 FUNÇÃO DE VERIFICAÇÃO MANUAL DO PIX
   const verificarPagamentoManual = async () => {
     setIsVerificando(true);
     try {
-      const res = await fetch(`${getApiUrl()}/api/b2b/status-pedido/${dadosPix.pedidoId}`, { headers: getHeaders() });
+      const tenantId = obterTenantSeguro();
+      const customHeaders = getHeaders();
+      if (tenantId) customHeaders["x-tenant-id"] = tenantId;
+
+      const res = await fetch(`${getHubUrl()}/api/hub/pedidos/status/${dadosPix.pedidoId}`, { headers: customHeaders });
       const data = await res.json();
       
       if (data.status === 'pago') {
@@ -139,26 +142,21 @@ function ModalCheckout({ isOpen, onClose, carrinho, produtos, tabelaAtiva, onFin
         toast.error("Pagamento não identificado. Se você já pagou, aguarde alguns segundos e tente novamente.", { duration: 4000 });
       }
     } catch (e) { 
-      toast.error("Erro ao comunicar com o servidor.");
+      toast.error("Erro ao comunicar com a Nuvem.");
     }
-    setTimeout(() => setIsVerificando(false), 1000); // Dá um tempinho visual na bolinha girando
+    setTimeout(() => setIsVerificando(false), 1000); 
   };
 
   if (!isOpen) return null;
 
   const itensComprados = Object.values(carrinho).map(p => {
     const precoOriginal = p[tabelaAtiva] !== undefined ? parseFloat(p[tabelaAtiva]) : parseFloat(p.PDPRECO);
-    
-    // 🟢 MATEMÁTICA CORRIGIDA NO CHECKOUT: Só aplica desconto se a quantidade bater a meta!
     const minExigido = p.qtd_minima_promocao || 1;
     const atingiuMinimo = p.em_promocao && p.qtd >= minExigido;
     const precoFinal = atingiuMinimo ? parseFloat(p.preco_promocional) : precoOriginal;
-    
-    // Guardamos a flag "atingiuMinimo" para poder pintar de verde lá embaixo
     return { ...p, precoUsado: precoFinal, totalItem: precoFinal * p.qtd, atingiuMinimo };
   });
 
-  // 🟢 FECHA O MODAL AUTOMATICAMENTE SE O USUÁRIO REMOVER O ÚLTIMO ITEM
   if (itensComprados.length === 0 && step === 'resumo') {
     onClose();
     return null;
@@ -176,12 +174,12 @@ function ModalCheckout({ isOpen, onClose, carrinho, produtos, tabelaAtiva, onFin
 
     if (resultado && resultado.pagamento?.tipo === 'pix') {
       setDadosPix({ ...resultado.pagamento, pedidoId: resultado.pedidoId });
-      setPedidoFinalizadoId(resultado.pedidoId); // 🟢 SALVA O ID AQUI
-      setTempoExpiracao(1800); //aguarda 30 minutos
+      setPedidoFinalizadoId(resultado.pedidoId);
+      setTempoExpiracao(1800); 
       setStep('sucesso_pix');
     } else if (resultado) {
-      setPedidoFinalizadoId(resultado.pedidoId); // 🟢 SALVA O ID AQUI
-      setStep('concluido'); // 🟢 AGORA O BOLETO TAMBÉM MOSTRA A TELA DE SUCESSO!
+      setPedidoFinalizadoId(resultado.pedidoId); 
+      setStep('concluido'); 
     }
   };
 
@@ -206,7 +204,7 @@ function ModalCheckout({ isOpen, onClose, carrinho, produtos, tabelaAtiva, onFin
           </button>
         </div>
 
-        {/* TELA 3: SUCESSO ABSOLUTO (PAGO!) */}
+        {/* TELA 3: SUCESSO ABSOLUTO */}
         {step === 'concluido' && (
           <div className="flex flex-col items-center justify-center p-6 sm:p-10 lg:p-16 text-center animate-in zoom-in-90 duration-500">
             <div className="w-24 h-24 bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center mb-6 shadow-[0_0_50px_rgba(16,185,129,0.2)]">
@@ -229,7 +227,7 @@ function ModalCheckout({ isOpen, onClose, carrinho, produtos, tabelaAtiva, onFin
           </div>
         )}
 
-        {/* 🟢 TELA 2: QR CODE PIX (REFORMULADA COM SEGURANÇA E CRONÔMETRO) */}
+        {/* TELA 2: QR CODE PIX */}
         {step === 'sucesso_pix' && dadosPix && (
           <div className="flex flex-col items-center justify-center p-4 sm:p-8 text-center animate-in slide-in-from-right-8 overflow-y-auto custom-scrollbar">
             <div className="w-12 h-12 bg-teal-100 dark:bg-teal-500/10 text-teal-600 dark:text-teal-400 rounded-full flex items-center justify-center mb-4 relative">
@@ -239,7 +237,6 @@ function ModalCheckout({ isOpen, onClose, carrinho, produtos, tabelaAtiva, onFin
             <h2 className="text-xl sm:text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-1">Pague via PIX para liberar o envio</h2>
             <p className="text-zinc-500 dark:text-zinc-400 text-sm mb-6 max-w-md">Abra o aplicativo do seu banco e escaneie o código abaixo.</p>
             
-            {/* 🟢 CRONÔMETRO */}
             <div className="bg-zinc-50 dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800/80 rounded-xl px-3 sm:px-4 py-2.5 mb-6 flex flex-wrap items-center justify-center gap-2 sm:gap-3 shadow-inner">
               <Clock size={18} className="text-teal-500 dark:text-teal-400" />
               <span className="text-sm font-medium text-zinc-600 dark:text-zinc-300">O código expira em:</span>
@@ -248,7 +245,6 @@ function ModalCheckout({ isOpen, onClose, carrinho, produtos, tabelaAtiva, onFin
               </span>
             </div>
             
-           {/* 🟢 CAIXA DO QR CODE BLINDADA */}
            <div className="w-full max-w-[260px] bg-white p-3 rounded-2xl mb-6 shadow-[0_0_30px_rgba(20,184,166,0.15)] border-4 border-teal-500/20 relative overflow-hidden group flex items-center justify-center min-h-[200px]">
               {dadosPix.qr_code_base64 && dadosPix.qr_code_base64.length > 50 ? (
                 <img src={`data:image/png;base64,${dadosPix.qr_code_base64}`} alt="QR Code PIX" className="w-48 h-48 relative z-10 object-contain" />
@@ -267,7 +263,6 @@ function ModalCheckout({ isOpen, onClose, carrinho, produtos, tabelaAtiva, onFin
               </div>
             </div>
 
-            {/* 🟢 BOTÃO DE CHECAGEM MANUAL */}
             <button 
               onClick={verificarPagamentoManual} 
               disabled={isVerificando}
@@ -277,7 +272,6 @@ function ModalCheckout({ isOpen, onClose, carrinho, produtos, tabelaAtiva, onFin
               {isVerificando ? "Verificando com o banco..." : "Já paguei, mas a tela não mudou"}
             </button>
 
-            {/* 🟢 RODAPÉ DE SEGURANÇA */}
             <div className="flex flex-col items-center gap-1.5 pt-6 border-t border-zinc-200 dark:border-zinc-800/60 w-full max-w-md">
               <div className="flex items-center gap-2 text-xs font-medium text-zinc-600 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-900/50 px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800/50">
                 <ShieldCheck size={14} className="text-emerald-500 shrink-0" />
@@ -298,57 +292,63 @@ function ModalCheckout({ isOpen, onClose, carrinho, produtos, tabelaAtiva, onFin
               
               <div className="bg-zinc-50 dark:bg-zinc-900/30 border border-zinc-200 dark:border-zinc-800/50 rounded-xl p-5 space-y-4 shadow-sm dark:shadow-none">
                 <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 border-b border-zinc-200 dark:border-zinc-800 pb-2">Forma de Pagamento</h3>
+                
+                {/* 🟢 Renderização Inteligente dos Botões de Pagamento */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <button onClick={() => setMetodoPagamento('faturado')} className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all ${metodoPagamento === 'faturado' ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-500 text-emerald-600 dark:text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.1)]' : 'bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-700'}`}>
                     <FileText size={20} className="mb-1.5" />
-                    <span className="text-xs font-semibold">Boleto</span>
+                    <span className="text-xs font-semibold">Boleto ERP</span>
                   </button>
-                  <button onClick={() => setMetodoPagamento('pix')} className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all ${metodoPagamento === 'pix' ? 'bg-teal-50 dark:bg-teal-500/10 border-teal-500 text-teal-600 dark:text-teal-400 shadow-[0_0_15px_rgba(20,184,166,0.1)]' : 'bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-700'}`}>
-                    <QrCode size={20} className="mb-1.5" />
-                    <span className="text-xs font-semibold">PIX (API)</span>
-                  </button>
-                  <button onClick={() => setMetodoPagamento('cartao')} className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all ${metodoPagamento === 'cartao' ? 'bg-blue-50 dark:bg-blue-500/10 border-blue-500 text-blue-600 dark:text-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.1)]' : 'bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-700'}`}>
-                    <CreditCard size={20} className="mb-1.5" />
-                    <span className="text-xs font-semibold">Cartão</span>
-                  </button>
+
+                  {metodosAtivos.mercadopago && (
+                    <>
+                      <button onClick={() => setMetodoPagamento('pix')} className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all ${metodoPagamento === 'pix' ? 'bg-teal-50 dark:bg-teal-500/10 border-teal-500 text-teal-600 dark:text-teal-400 shadow-[0_0_15px_rgba(20,184,166,0.1)]' : 'bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-700'}`}>
+                        <QrCode size={20} className="mb-1.5" />
+                        <span className="text-xs font-semibold">PIX (MP)</span>
+                      </button>
+                      <button onClick={() => setMetodoPagamento('cartao')} className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all ${metodoPagamento === 'cartao' ? 'bg-blue-50 dark:bg-blue-500/10 border-blue-500 text-blue-600 dark:text-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.1)]' : 'bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-700'}`}>
+                        <CreditCard size={20} className="mb-1.5" />
+                        <span className="text-xs font-semibold">Cartão</span>
+                      </button>
+                    </>
+                  )}
                 </div>
 
                 <div className="pt-2">
-                  {/* 🟢 SELEÇÃO DINÂMICA DE PRAZOS (VEM DO ERP) */}
-                        {metodoPagamento === 'faturado' && (
-                          <div className="animate-in fade-in slide-in-from-top-2 mt-4 space-y-3 bg-white dark:bg-zinc-900/30 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800">
-                            <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400 mb-3 flex items-center gap-2">
-                              <CalendarDays size={16} className="text-emerald-500" />
-                              Selecione um prazo de faturamento disponível para o seu CNPJ:
-                            </p>
+                  {metodoPagamento === 'faturado' && (
+                    <div className="animate-in fade-in slide-in-from-top-2 mt-4 space-y-3 bg-white dark:bg-zinc-900/30 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800">
+                      <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400 mb-3 flex items-center gap-2">
+                        <CalendarDays size={16} className="text-emerald-500" />
+                        Selecione um prazo de faturamento disponível para o seu CNPJ:
+                      </p>
 
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                              {user?.prazos_liberados && user.prazos_liberados.length > 0 ? (
-                                user.prazos_liberados.map((prazo, index) => (
-                                  <button
-                                    key={index}
-                                    onClick={() => setPrazoBoleto(prazo)}
-                                    className={`p-4 rounded-xl border text-left transition-all ${prazoBoleto === prazo ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-500/10 ring-1 ring-emerald-500/50' : 'border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/80 hover:border-zinc-300 dark:hover:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}
-                                  >
-                                    <div className="flex items-center gap-3">
-                                      <div className={`p-2 rounded-lg ${prazoBoleto === prazo ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' : 'bg-zinc-200 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400'}`}>
-                                        <CalendarDays size={20} />
-                                      </div>
-                                      <div>
-                                        <p className="font-bold text-zinc-900 dark:text-zinc-100">{prazo}</p>
-                                        <p className="text-[11px] text-zinc-500 uppercase tracking-wider">Aprovado ERP</p>
-                                      </div>
-                                    </div>
-                                  </button>
-                                ))
-                              ) : (
-                                <div className="col-span-2 p-4 text-center border border-dashed border-zinc-200 dark:border-zinc-800 rounded-xl bg-zinc-50 dark:bg-zinc-900/50">
-                                  <p className="text-zinc-500 text-sm">Nenhum prazo de faturamento especial localizado no seu cadastro.</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {user?.prazos_liberados && user.prazos_liberados.length > 0 ? (
+                          user.prazos_liberados.map((prazo, index) => (
+                            <button
+                              key={index}
+                              onClick={() => setPrazoBoleto(prazo)}
+                              className={`p-4 rounded-xl border text-left transition-all ${prazoBoleto === prazo ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-500/10 ring-1 ring-emerald-500/50' : 'border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/80 hover:border-zinc-300 dark:hover:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className={`p-2 rounded-lg ${prazoBoleto === prazo ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' : 'bg-zinc-200 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400'}`}>
+                                  <CalendarDays size={20} />
                                 </div>
-                              )}
-                            </div>
+                                <div>
+                                  <p className="font-bold text-zinc-900 dark:text-zinc-100">{prazo}</p>
+                                  <p className="text-[11px] text-zinc-500 uppercase tracking-wider">Aprovado ERP</p>
+                                </div>
+                              </div>
+                            </button>
+                          ))
+                        ) : (
+                          <div className="col-span-2 p-4 text-center border border-dashed border-zinc-200 dark:border-zinc-800 rounded-xl bg-zinc-50 dark:bg-zinc-900/50">
+                            <p className="text-zinc-500 text-sm">Nenhum prazo de faturamento especial localizado no seu cadastro.</p>
                           </div>
                         )}
+                      </div>
+                    </div>
+                  )}
 
                   {metodoPagamento === 'pix' && (
                     <div className="animate-in fade-in slide-in-from-top-2 p-3 bg-teal-50 dark:bg-teal-500/10 border border-teal-200 dark:border-teal-500/20 rounded-lg text-teal-600 dark:text-teal-400 text-sm flex items-start gap-2">
@@ -357,54 +357,53 @@ function ModalCheckout({ isOpen, onClose, carrinho, produtos, tabelaAtiva, onFin
                     </div>
                   )}
 
-                            {/* 🟢 O FORMULÁRIO DE CARTÃO DO MERCADO PAGO BLINDADO */}
-                            {metodoPagamento === 'cartao' && (
-                              <div className="animate-in fade-in slide-in-from-top-2 mt-4">
-                                
-                                {mpKeyMissing ? (
-                                  <div className="flex flex-col items-center justify-center p-6 text-center bg-zinc-50 dark:bg-zinc-900/50 rounded-xl border border-zinc-200 dark:border-zinc-800">
-                                    <AlertCircle size={32} className="text-rose-500 mb-3" />
-                                    <p className="text-zinc-900 dark:text-zinc-100 font-bold text-lg">Chave Pública Ausente</p>
-                                    <p className="text-zinc-500 dark:text-zinc-400 text-sm mt-1">Vá no painel de Configurações e adicione a <b>Public Key</b> do Mercado Pago.</p>
-                                  </div>
-                                ) : subtotal < 2 ? (
-                                  <div className="flex flex-col items-center justify-center p-6 text-center bg-zinc-50 dark:bg-zinc-900/50 rounded-xl border border-zinc-200 dark:border-zinc-800">
-                                    <AlertCircle size={32} className="text-amber-500 mb-3" />
-                                    <p className="text-zinc-900 dark:text-zinc-100 font-bold text-lg">Valor Mínimo Não Atingido</p>
-                                    <p className="text-zinc-500 dark:text-zinc-400 text-sm mt-1">As operadoras exigem um pedido mínimo de <b>R$ 2,00</b>.</p>
-                                  </div>
-                                ) : !isMpReady ? (
-                                  <div className="flex flex-col items-center justify-center p-8 text-zinc-500">
-                                    <Loader2 size={32} className="animate-spin mb-3 text-emerald-500" />
-                                    <p className="font-medium text-sm text-zinc-500 dark:text-zinc-400">Conectando ao cofre seguro...</p>
-                                  </div>
-                                ) : (
-                                  <Payment
-                                    initialization={{ amount: subtotal }}
-                                    customization={{ 
-                                      visual: { style: { theme: 'default' } }, // O MP vai se adaptar razoavelmente.
-                                      paymentMethods: { creditCard: 'all', debitCard: 'all' } 
-                                    }}
-                                    onSubmit={async (param) => {
-                                      setIsProcessando(true);
-                                      
-                                      const resultado = await onFinalizarPedido({ 
-                                        itens: itensComprados, 
-                                        subtotal, 
-                                        metodoPagamento: 'cartao', 
-                                        prazoBoleto: null, 
-                                        metodoEnvio,
-                                        dadosCartaoMp: param.formData 
-                                      });
-                                      
-                                      setIsProcessando(false);
-                                      if (resultado) setStep('concluido');
-                                    }}
-                                  />
-                                )}
-                              </div>
-                            )}
+                  {metodoPagamento === 'cartao' && (
+                    <div className="animate-in fade-in slide-in-from-top-2 mt-4">
+                      
+                      {mpKeyMissing ? (
+                        <div className="flex flex-col items-center justify-center p-6 text-center bg-zinc-50 dark:bg-zinc-900/50 rounded-xl border border-zinc-200 dark:border-zinc-800">
+                          <AlertCircle size={32} className="text-rose-500 mb-3" />
+                          <p className="text-zinc-900 dark:text-zinc-100 font-bold text-lg">Chave Pública Ausente</p>
+                          <p className="text-zinc-500 dark:text-zinc-400 text-sm mt-1">O Mercado Pago não está ativo para a sua conta no momento.</p>
+                        </div>
+                      ) : subtotal < 2 ? (
+                        <div className="flex flex-col items-center justify-center p-6 text-center bg-zinc-50 dark:bg-zinc-900/50 rounded-xl border border-zinc-200 dark:border-zinc-800">
+                          <AlertCircle size={32} className="text-amber-500 mb-3" />
+                          <p className="text-zinc-900 dark:text-zinc-100 font-bold text-lg">Valor Mínimo Não Atingido</p>
+                          <p className="text-zinc-500 dark:text-zinc-400 text-sm mt-1">As operadoras exigem um pedido mínimo de <b>R$ 2,00</b>.</p>
+                        </div>
+                      ) : !isMpReady ? (
+                        <div className="flex flex-col items-center justify-center p-8 text-zinc-500">
+                          <Loader2 size={32} className="animate-spin mb-3 text-emerald-500" />
+                          <p className="font-medium text-sm text-zinc-500 dark:text-zinc-400">Conectando ao cofre seguro...</p>
+                        </div>
+                      ) : (
+                        <Payment
+                          initialization={{ amount: subtotal }}
+                          customization={{ 
+                            visual: { style: { theme: 'default' } }, 
+                            paymentMethods: { creditCard: 'all', debitCard: 'all' } 
+                          }}
+                          onSubmit={async (param) => {
+                            setIsProcessando(true);
+                            
+                            const resultado = await onFinalizarPedido({ 
+                              itens: itensComprados, 
+                              subtotal, 
+                              metodoPagamento: 'cartao', 
+                              prazoBoleto: null, 
+                              metodoEnvio,
+                              dadosCartaoMp: param.formData 
+                            });
+                            
+                            setIsProcessando(false);
+                            if (resultado) setStep('concluido');
+                          }}
+                        />
+                      )}
                     </div>
+                  )}
+                </div>
               </div>
 
               <div className="bg-zinc-50 dark:bg-zinc-900/30 border border-zinc-200 dark:border-zinc-800/50 rounded-xl p-5 space-y-4 shadow-sm dark:shadow-none">
@@ -422,7 +421,7 @@ function ModalCheckout({ isOpen, onClose, carrinho, produtos, tabelaAtiva, onFin
                     <input type="radio" name="envio" checked={metodoEnvio === 'retirada'} onChange={() => setMetodoEnvio('retirada')} className="hidden" />
                     <div className={`p-2 rounded-lg ${metodoEnvio === 'retirada' ? 'bg-emerald-500 text-white dark:text-black' : 'bg-zinc-200 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400'}`}><MapPin size={18} /></div>
                     <div>
-                      <p className={`text-sm font-bold ${metodoEnvio === 'retirada' ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-700 dark:text-zinc-300'}`}>Retirada no CD Rafany</p>
+                      <p className={`text-sm font-bold ${metodoEnvio === 'retirada' ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-700 dark:text-zinc-300'}`}>Retirada no CD</p>
                       <p className="text-xs text-zinc-500">Isento de frete. Agendamento necessário.</p>
                     </div>
                   </label>
@@ -437,13 +436,11 @@ function ModalCheckout({ isOpen, onClose, carrinho, produtos, tabelaAtiva, onFin
               <div className="flex-1 overflow-y-auto custom-scrollbar p-2">
                 <ul className="divide-y divide-zinc-200 dark:divide-zinc-800/50 px-2">
                   {itensComprados.map(item => (
-                    // 🟢 3. ADICIONEI O BOTÃO DE REMOVER AQUI EMBAIXO
                     <li key={item.PDCODPRO} className="py-3 flex items-start justify-between gap-3 sm:gap-4 group">
                       <div className="flex-1">
                         <p className="text-sm sm:text-base font-medium text-zinc-800 dark:text-zinc-200 line-clamp-2 break-words">{item.PDNOME}</p>
                         <p className="text-xs text-zinc-500">
                           SKU: {item.PDCODPRO} | {item.qtd}x {formatarMoeda(item.precoUsado)} 
-                          {/* 🟢 Só mostra o texto de Oferta se ele realmente bateu a quantidade mínima */}
                           {item.atingiuMinimo && <span className="text-emerald-600 dark:text-emerald-400 font-bold ml-1">(Oferta Aplicada)</span>}
                         </p>
                       </div>
@@ -474,7 +471,6 @@ function ModalCheckout({ isOpen, onClose, carrinho, produtos, tabelaAtiva, onFin
                   <span className="text-base sm:text-lg font-bold text-zinc-900 dark:text-zinc-100">Total Previsto:</span>
                   <span className="text-xl sm:text-2xl font-black text-emerald-600 dark:text-emerald-400 whitespace-nowrap">{formatarMoeda(subtotal)}</span>
                 </div>
-                  {/* Só mostra o botão verde se NÃO for cartão */}
                   {metodoPagamento !== 'cartao' && (
                       <button onClick={handleConfirmar} disabled={isProcessando} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-3.5 rounded-xl font-bold shadow-[0_0_20px_rgba(16,185,129,0.2)] transition-all flex items-center justify-center gap-2 mt-4">
                         {isProcessando ? <><Loader2 size={18} className="animate-spin" /> Gerando Pedido...</> : 'Confirmar e Enviar Pedido'}

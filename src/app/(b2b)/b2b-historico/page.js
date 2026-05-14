@@ -58,7 +58,6 @@ function ModalPagamentoRetentativa({ isOpen, onClose, pedido, user, onSucesso })
       
       const buscarChave = async () => {
         try {
-          // 🟢 Bate na Rota Nova e Correta de Métodos!
           const res = await fetch(`${getHubUrl()}/api/hub/pagamentos/metodos-ativos`, { headers: getHeaders() });
           const data = await res.json();
           if (data.mercadopago && data.mpPublicKey) {
@@ -76,8 +75,20 @@ function ModalPagamentoRetentativa({ isOpen, onClose, pedido, user, onSucesso })
   const totalFormatado = Number(pedido.total).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
   const processarPagamento = async (dadosCartaoMp = null) => {
+    // 🟢 TRAVA 1: VERIFICAÇÃO DE ENDEREÇO E TELEFONE NO PERFIL
+    if (!user?.telefone || !user?.endereco || !user?.endereco?.cep) {
+      toast.error("⚠️ Cadastro Incompleto! Vá no menu 'Meu Perfil' e preencha seu Endereço e Telefone antes de pagar.", { duration: 6000 });
+      return;
+    }
+
+    // 🟢 TRAVA 2: IMPEDE O GIRO INFINITO NO BOLETO
+    if (metodoPagamento === 'faturado') {
+      toast.error("Este pedido já está aguardando análise de faturamento. Para pagar agora e liberar o pedido na hora, escolha PIX ou Cartão.", { duration: 6000 });
+      return;
+    }
+
     setIsProcessando(true);
-    // 🟢 Monta o payload igual ao que testamos no Checkout
+    
     const payload = {
       pedidoId: pedido.id,
       valor: pedido.total,
@@ -93,7 +104,6 @@ function ModalPagamentoRetentativa({ isOpen, onClose, pedido, user, onSucesso })
     };
 
     try {
-      // 🟢 Chama a rota Universal nova de geração de pagamentos
       const res = await fetch(`${getHubUrl()}/api/hub/pagamentos/gerar`, {
         method: "POST", 
         headers: getHeaders(), 
@@ -104,7 +114,6 @@ function ModalPagamentoRetentativa({ isOpen, onClose, pedido, user, onSucesso })
       
       if (data.success) {
         if (data.tipo === 'pix') {
-          // A rota /gerar devolve o qr_code direto na raiz do json
           setDadosPix({ ...data, pedidoId: pedido.id });
           setStep('sucesso_pix');
         } else {
@@ -210,7 +219,6 @@ function ModalDetalhes({ pedido, onClose, onPagarAgora }) {
   
   const getMeta = (key) => { const meta = pedido.meta_data?.find(m => m.key === key); return meta ? meta.value : "Não informado"; };
 
-  // 🟢 Tratamento Inteligente dos Nomes de Pagamento e Envio
   const metodoOrigem = pedido.payment_method || getMeta('metodo_pagamento');
   let metodoFormatado = metodoOrigem === 'faturado' ? 'Boleto ERP' : metodoOrigem === 'pix' ? 'PIX' : metodoOrigem === 'cartao' ? 'Cartão de Crédito' : metodoOrigem;
   if (!metodoFormatado) metodoFormatado = 'Não Informado';
@@ -262,7 +270,6 @@ function ModalDetalhes({ pedido, onClose, onPagarAgora }) {
             </div>
             <div className="bg-zinc-50 dark:bg-zinc-900/50 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm dark:shadow-none">
               <p className="text-xs text-zinc-500 font-medium mb-1 uppercase tracking-wider">Pagamento e Envio</p>
-              {/* 🟢 Leitura correta do método de pagamento e envio */}
               <p className="text-sm text-zinc-800 dark:text-zinc-200 font-bold uppercase break-words">{metodoFormatado} {getMeta('prazo_boleto') !== 'Não informado' && <span className="text-zinc-500 font-normal normal-case">({getMeta('prazo_boleto')})</span>}</p>
               <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-1 capitalize"><span className="text-zinc-500">Envio:</span> {envioFormatado}</p>
             </div>
@@ -376,7 +383,6 @@ export default function HistoricoPedidosB2B() {
     try {
       const payload = { page, limit: 15, clienteEmail: user.email };
       
-      // 🟢 BATE NA HOSTINGER com getHeaders limpo!
       const response = await fetch(`${getHubUrl()}/api/hub/pedidos/b2b`, { 
         method: "POST", 
         headers: getHeaders(), 

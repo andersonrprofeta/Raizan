@@ -28,19 +28,36 @@ export default function MeuPerfilB2B() {
       const parsedUser = JSON.parse(savedUser);
       setUser(parsedUser);
       
-      // Preenche se já tiver telefone no cache
-      if (parsedUser.telefone) setTelefone(parsedUser.telefone);
-      
-      // Preenche o endereço se já estiver salvo no cache
-      if (parsedUser.endereco) {
-        setCep(parsedUser.endereco.cep || "");
-        setLogradouro(parsedUser.endereco.logradouro || "");
-        setNumero(parsedUser.endereco.numero || "");
-        setComplemento(parsedUser.endereco.complemento || "");
-        setBairro(parsedUser.endereco.bairro || "");
-        setCidade(parsedUser.endereco.cidade || "");
-        setEstado(parsedUser.endereco.estado || "");
-      }
+      // 🟢 O SEU SELECT APLICADO NA TELA DE PERFIL!
+      const buscarNoBanco = async () => {
+        try {
+          const customHeaders = getHeaders();
+          if (parsedUser.tenant_id) customHeaders["x-tenant-id"] = parsedUser.tenant_id;
+          
+          const res = await fetch(`${getHubUrl()}/api/hub/clientes/b2b-perfil?cnpj=${parsedUser.cnpj}`, { headers: customHeaders });
+          const data = await res.json();
+          
+          if (data.success) {
+            if (data.telefone) setTelefone(data.telefone);
+            if (data.endereco) {
+              setCep(data.endereco.cep || "");
+              setLogradouro(data.endereco.logradouro || "");
+              setNumero(data.endereco.numero || "");
+              setComplemento(data.endereco.complemento || "");
+              setBairro(data.endereco.bairro || "");
+              setCidade(data.endereco.cidade || "");
+              setEstado(data.endereco.estado || "");
+
+              // Atualiza o localStorage invisivelmente pra não perder de novo
+              const userAtualizado = { ...parsedUser, telefone: data.telefone, endereco: data.endereco };
+              localStorage.setItem("raizan_user", JSON.stringify(userAtualizado));
+              setUser(userAtualizado);
+            }
+          }
+        } catch(e) {}
+      };
+      buscarNoBanco();
+
     } else {
       window.location.href = "/login-b2b";
     }

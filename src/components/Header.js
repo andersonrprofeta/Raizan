@@ -1,9 +1,9 @@
 "use client";
 import { useEffect, useState } from "react";
-import { AlertTriangle, Bell, ShoppingCart, Tag, ArrowRight, Zap, X, Plus, Minus, Package, FileText, Menu, Sun, Moon } from "lucide-react";
+import { AlertTriangle, Bell, ShoppingCart, Tag, ArrowRight, Zap, X, Plus, Minus, Package, FileText, Menu, Sun, Moon, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { useTheme } from "next-themes";
-import { getApiUrl, getHeaders } from "@/components/utils/api";
+import { getApiUrl, getHeaders, getHubUrl } from "@/components/utils/api";
 import toast from 'react-hot-toast';
 
 const formatarMoeda = (valor) => {
@@ -130,7 +130,10 @@ function ModalOfertasGlobal({ isOpen, onClose, ofertas, onComprar }) {
 
         <div className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-6 space-y-4">
           {ofertas.length === 0 ? (
-            <div className="text-center py-10 text-zinc-500">Nenhuma oferta relâmpago ativa no momento.</div>
+            <div className="text-center py-10 text-zinc-500 flex flex-col items-center gap-2">
+              <Loader2 className="animate-spin text-zinc-400" size={24} />
+              Buscando ofertas...
+            </div>
           ) : (
             ofertas.map(promo => {
               const minExigido = promo.qtd_minima || 1;
@@ -335,7 +338,6 @@ export default function Header() {
 
     const checarRadar = async () => {
       try {
-        // 🟢 CORREÇÃO: Trocamos getApiUrl() por getHubUrl() para bater na Hostinger!
         const res = await fetch(`${getHubUrl()}/api/admin/notificacoes`, { headers: getHeaders() });
         const data = await res.json();
 
@@ -417,7 +419,15 @@ export default function Header() {
     return () => clearInterval(timerRadar);
   }, [userRole]);
 
+  // 🟢 SISTEMA DE CACHE INTELIGENTE DAS OFERTAS
   const carregarOfertasGlobais = async () => {
+    // 1. Tenta carregar rápido da memória (sem travar a tela)
+    const cacheOfertas = sessionStorage.getItem("@raizan:cache_ofertas");
+    if (cacheOfertas) {
+      setListaOfertas(JSON.parse(cacheOfertas));
+    }
+
+    // 2. Faz o fetch na surdina pra atualizar a memória
     try {
       const res = await fetch(`${getApiUrl()}/api/admin/promocoes`, { headers: getHeaders() });
       const data = await res.json();
@@ -429,6 +439,9 @@ export default function Header() {
           fim.setHours(23, 59, 59);
           return promo.ativo && hoje >= inicio && hoje <= fim;
         });
+        
+        // Atualiza o cache e a tela (se tiver aberto)
+        sessionStorage.setItem("@raizan:cache_ofertas", JSON.stringify(ofertasAtivas));
         setListaOfertas(ofertasAtivas);
       }
     } catch(e) {}
@@ -447,12 +460,10 @@ export default function Header() {
     window.dispatchEvent(new Event('storage')); 
   };
 
-  // 🟢 Voltei o header para z-30 (o normal era z-30 ou z-40 pra ficar debaixo dos modais z-50)
   if (!userRole) return <header className="sticky top-0 z-30 w-full h-16 md:mt-8 bg-white/80 dark:bg-[#09090b]/80 backdrop-blur-md border-b border-zinc-200 dark:border-zinc-800/60" style={{ WebkitAppRegion: 'drag' }}></header>;
 
   return (
     <>
-      {/* 🟢 Voltei o Header principal para z-30 */}
       <header className="sticky top-0 z-30 w-full min-h-16 md:h-16 md:mt-8 bg-white/90 dark:bg-[#09090b]/90 backdrop-blur-md border-b border-zinc-200 dark:border-zinc-800/60 flex items-center justify-between px-3 sm:px-4 md:px-8 lg:pr-40 py-2 md:py-0 gap-2 sm:gap-3 transition-colors duration-300" style={{ WebkitAppRegion: 'drag' }}>
         
         <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1" style={{ WebkitAppRegion: 'no-drag' }}>
@@ -483,7 +494,7 @@ export default function Header() {
           )}
 
           {userRole === "admin" && diasRestantes !== null && diasRestantes <= 15 && diasRestantes > 0 && (
-            <div className="hidden md:flex items-center gap-2 bg-orange-100 dark:bg-orange-500/10 border border-orange-200 dark:border-orange-500/20 px-3 py-1.5 rounded-lg mr-2">
+            <div className="hidden md:flex items-center gap-2 bg-orange-100 dark:bg-orange-500/10 border border-orange-200 dark:orange-500/20 px-3 py-1.5 rounded-lg mr-2">
               <AlertTriangle size={16} className="text-orange-500 dark:text-orange-400 animate-pulse" />
               <span className="text-xs font-medium text-orange-600 dark:text-orange-400">Licença expira em {diasRestantes} dias</span>
             </div>
@@ -526,7 +537,6 @@ export default function Header() {
                 )}
               </Link>
 
-              {/* O tooltip continuou com z-[100] livre para sobrepor tudo se o mouse passar por cima! */}
               <div className="hidden lg:block absolute right-0 top-full mt-3 w-64 invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-2 group-hover:translate-y-0 z-[100]">
                 <div className="bg-white/95 dark:bg-[#0c0c0e]/95 backdrop-blur-xl border border-zinc-200 dark:border-zinc-800 rounded-2xl p-4 shadow-2xl ring-1 ring-black/5 dark:ring-white/5">
                   <h4 className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest mb-3 border-b border-zinc-100 dark:border-zinc-800 pb-2">Resumo Pendente</h4>
@@ -566,7 +576,9 @@ export default function Header() {
               <span className="text-sm md:text-base font-bold text-zinc-800 dark:text-zinc-200 leading-tight">{userRole === "lojista" ? "Meu Perfil" : "Operador"}</span>
               <span className={`text-[11px] max-w-[150px] truncate ${userRole === "lojista" ? "text-emerald-600 dark:text-emerald-500 font-medium" : "text-zinc-500 dark:text-zinc-500"}`}>{userRole === "lojista" ? `CNPJ: ${userEmail}` : userEmail}</span>
             </div>
-            <Link href={userRole === "lojista" ? "/b2b-inicio" : "/conta"}>
+            
+            {/* 🟢 O LINK DINÂMICO PARA O PERFIL */}
+            <Link href={userRole === "lojista" ? "/b2b-perfil" : "/conta"}>
               <div className={`w-8 h-8 md:w-10 md:h-10 rounded-xl flex items-center justify-center shadow-lg ring-2 ring-white dark:ring-zinc-950 hover:scale-105 transition-all cursor-pointer font-bold text-white text-xs md:text-sm ${userRole === "lojista" ? "bg-gradient-to-br from-emerald-500 to-teal-500 dark:from-emerald-600 dark:to-teal-600 hover:ring-emerald-500/50" : "bg-gradient-to-br from-purple-500 to-indigo-500 dark:from-purple-600 dark:to-indigo-600 hover:ring-purple-500/50"}`}>
                 {userInitial}
               </div>

@@ -5,12 +5,19 @@ export function getHubUrl() {
   return "https://api.raizan.com.br";
 }
 
+//ajuste para rodar a api no admin tbm
 export function getApiUrl() {
-  // A URL do motor local (túnel) será salva na memória assim que o cliente acessar a tela de Login!
+  // 1. PRIORIDADE B2B: Tenta pegar a URL dinâmica salva no login do lojista
   if (typeof window !== 'undefined') {
     const urlDinamica = localStorage.getItem("@raizan:b2b_api_url");
     if (urlDinamica) return urlDinamica.replace(/\/$/, "");
   }
+
+  // 2. PRIORIDADE ADMIN: Se for o Painel Admin (ou ambiente local de dev), puxa do .env!
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL.replace(/\/$/, "");
+  }
+
   return ""; 
 }
 

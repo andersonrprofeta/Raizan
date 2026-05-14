@@ -9,7 +9,6 @@ import {
   Zap, Tag, X, ShoppingCart 
 } from "lucide-react";
 import Link from "next/link";
-// 🟢 MUDANÇA 1: Importamos o getHubUrl para buscar a última compra na nuvem
 import { getApiUrl, getHubUrl, getHeaders } from "@/components/utils/api";
 import toast from 'react-hot-toast'; 
 
@@ -110,9 +109,10 @@ function ModalOfertasDoDia({ isOpen, onClose, ofertas, onComprar }) {
 export default function B2BInicio() {
   const [user, setUser] = useState(null);
   
-  // 🟢 ESTADOS DO MODAL DE OFERTAS
+  // 🟢 ESTADOS DO MODAL DE OFERTAS E CARRINHO
   const [isOfertasModalOpen, setIsOfertasModalOpen] = useState(false);
   const [listaOfertas, setListaOfertas] = useState([]);
+  const [temCarrinho, setTemCarrinho] = useState(false); // NOVO RADAR DO CARRINHO
 
   // 🟢 ESTADO PARA OS DADOS DINÂMICOS DA HOME
   const [dadosDinamicos, setDadosDinamicos] = useState({
@@ -126,7 +126,6 @@ export default function B2BInicio() {
     if (savedUser) {
       const parsedUser = JSON.parse(savedUser);
       setUser(parsedUser);
-      // Já carrega o que tem na memória para não dar "tela em branco"
       setDadosDinamicos({
         ultima_compra: parsedUser.ultima_compra,
         limite_credito: parsedUser.limite_credito,
@@ -135,6 +134,26 @@ export default function B2BInicio() {
     } else {
       window.location.href = "/login-b2b";
     }
+  }, []);
+
+  // 🟢 RADAR DO CARRINHO (Checa se tem item pendente)
+  useEffect(() => {
+    const checarCarrinho = () => {
+      const cartRaw = localStorage.getItem("@raizan:carrinho");
+      if (cartRaw) {
+        try {
+          const cartObj = JSON.parse(cartRaw);
+          setTemCarrinho(Object.keys(cartObj).length > 0);
+        } catch (e) { setTemCarrinho(false); }
+      } else {
+        setTemCarrinho(false);
+      }
+    };
+
+    checarCarrinho();
+    // Escuta mudanças de outras abas ou componentes
+    window.addEventListener('storage', checarCarrinho);
+    return () => window.removeEventListener('storage', checarCarrinho);
   }, []);
 
   // 🟢 BUSCADOR SILENCIOSO DOS DADOS DINÂMICOS
@@ -147,11 +166,9 @@ export default function B2BInicio() {
         const customHeaders = getHeaders();
         if (tenantId) customHeaders["x-tenant-id"] = tenantId;
 
-        // 1. Busca a Última Compra direto da Nuvem (Hostinger) que já temos rodando lisa!
         const resPedidos = await fetch(`${getHubUrl()}/api/hub/pedidos/b2b`, {
           method: "POST",
           headers: { ...customHeaders, "Content-Type": "application/json" },
-          // Limite 1, pois só queremos ver a data do último pedido!
           body: JSON.stringify({ page: 1, limit: 1, clienteEmail: user.email })
         });
         const dataPedidos = await resPedidos.json();
@@ -160,10 +177,6 @@ export default function B2BInicio() {
           const ultimaData = dataPedidos.pedidos[0].date_created || dataPedidos.pedidos[0].data_criacao;
           setDadosDinamicos(prev => ({ ...prev, ultima_compra: ultimaData }));
         }
-
-        // 2. Futuro: Aqui você pode colocar um fetch pra buscar o limite de crédito do hub_clientes
-        // const resCliente = await fetch(`${getHubUrl()}/api/hub/clientes/me...`);
-
       } catch (e) {
         console.log("Aviso: Não foi possível atualizar os dados silenciosamente.");
       }
@@ -200,7 +213,7 @@ export default function B2BInicio() {
     } catch(e) { console.error("Erro ao buscar ofertas do modal"); }
   };
 
-  // 🟢 ADICIONA NO CARRINHO DIRETAMENTE NO LOCALSTORAGE
+  // 🟢 ADICIONA NO CARRINHO DIRETAMENTE NO LOCALSTORAGE E AVISA O RADAR
   const adicionarOfertaAoCarrinho = (produto, qtd) => {
     const carrinhoSalvo = localStorage.getItem("@raizan:carrinho");
     let carrinhoAtual = {};
@@ -211,29 +224,28 @@ export default function B2BInicio() {
 
     const id = produto.PDCODPRO;
     
-    // Se o produto já existe no carrinho, só soma a quantidade. Se não, adiciona!
     if (carrinhoAtual[id]) {
       carrinhoAtual[id].qtd += qtd;
     } else {
       carrinhoAtual[id] = { ...produto, qtd };
     }
 
-    // Salva no cofre e o carrinho da Header vai atualizar sozinho!
     localStorage.setItem("@raizan:carrinho", JSON.stringify(carrinhoAtual));
+    setTemCarrinho(true); // Aciona o botão de continuar pedido na hora
+    window.dispatchEvent(new Event('storage'));
   };
 
   const formatarData = (dataString) => {
     if (!dataString) return "Sem compras recentes";
     try {
       const data = new Date(dataString);
-      if (isNaN(data.getTime())) return "Sem compras recentes"; // Tratamento extra de erro
+      if (isNaN(data.getTime())) return "Sem compras recentes";
       return data.toLocaleDateString("pt-BR");
     } catch {
       return dataString;
     }
   };
 
-  // MÁGICA 1: Trata limite zero, null ou estourado
   const renderLimiteCredito = (valor) => {
     const num = parseFloat(valor);
     if (isNaN(num) || num <= 0) {
@@ -242,7 +254,6 @@ export default function B2BInicio() {
     return formatarMoedaGlobal(num);
   };
 
-  // MÁGICA 2: Trata prazos (Agora suporta a Lista Real que vem do Oracle!)
   const renderPrazos = (prazos) => {
     if (Array.isArray(prazos)) {
       if (prazos.length === 0) return "À vista ou Sob Consulta";
@@ -266,7 +277,6 @@ export default function B2BInicio() {
 
         <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-10 custom-scrollbar relative">
           
-          {/* Luz de fundo sutil B2B */}
           <div className="absolute top-0 right-0 w-[300px] h-[300px] sm:w-[500px] sm:h-[500px] bg-emerald-600/10 dark:bg-emerald-600/5 rounded-full blur-[80px] sm:blur-[120px] pointer-events-none" />
 
           <div className="max-w-6xl mx-auto space-y-6 sm:space-y-8 relative z-10">
@@ -287,13 +297,13 @@ export default function B2BInicio() {
                 </div>
               </div>
               
-              {/* BOTÃO NEON ELEGANTE E RESPONSIVO */}
+              {/* 🟢 BOTÃO NEON INTELIGENTE (NOVO VS CONTINUAR) */}
               <Link 
                 href="/b2b-pedidos"
-                className="bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-3 sm:py-2.5 rounded-lg text-sm font-bold shadow-[0_0_20px_rgba(52,211,153,0.4)] hover:shadow-[0_0_25px_rgba(52,211,153,0.6)] transition-all flex items-center justify-center gap-2 w-full sm:w-max h-max"
+                className={`${temCarrinho ? 'bg-amber-500 hover:bg-amber-400 shadow-[0_0_20px_rgba(245,158,11,0.4)] hover:shadow-[0_0_25px_rgba(245,158,11,0.6)]' : 'bg-emerald-600 hover:bg-emerald-500 shadow-[0_0_20px_rgba(52,211,153,0.4)] hover:shadow-[0_0_25px_rgba(52,211,153,0.6)]'} text-white px-5 py-3 sm:py-2.5 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 w-full sm:w-max h-max`}
               >
-                <Store size={18} />
-                Fazer Novo Pedido
+                {temCarrinho ? <ShoppingCart size={18} /> : <Store size={18} />}
+                {temCarrinho ? "Continuar Pedido" : "Fazer Novo Pedido"}
               </Link>
             </div>
 
@@ -309,7 +319,6 @@ export default function B2BInicio() {
                 </div>
                 <p className="text-zinc-500 dark:text-zinc-400 text-xs sm:text-sm font-medium mb-1">Limite de Crédito</p>
                 <h2 className="text-2xl sm:text-3xl font-bold text-zinc-900 dark:text-zinc-100 tracking-tight h-8 sm:h-9 flex items-center truncate">
-                  {/* 🟢 Usando o Estado Dinâmico */}
                   {renderLimiteCredito(dadosDinamicos.limite_credito)}
                 </h2>
                 <p className="text-[10px] sm:text-xs text-emerald-600 dark:text-emerald-500/70 mt-2 sm:mt-3 font-medium flex items-center gap-1">
@@ -326,7 +335,6 @@ export default function B2BInicio() {
                 </div>
                 <p className="text-zinc-500 dark:text-zinc-400 text-xs sm:text-sm font-medium mb-1">Prazos Autorizados</p>
                 <h2 className="text-lg sm:text-xl font-bold text-zinc-900 dark:text-zinc-100 tracking-tight mt-1 sm:mt-2 line-clamp-2 h-7">
-                  {/* 🟢 Usando o Estado Dinâmico */}
                   {renderPrazos(dadosDinamicos.prazos_liberados)}
                 </h2>
               </div>
@@ -340,7 +348,6 @@ export default function B2BInicio() {
                 </div>
                 <p className="text-zinc-500 dark:text-zinc-400 text-xs sm:text-sm font-medium mb-1">Última Compra Realizada</p>
                 <h2 className="text-xl sm:text-2xl font-bold text-zinc-900 dark:text-zinc-100 tracking-tight mt-1 h-7 sm:h-8">
-                  {/* 🟢 A Mágica Acontece Aqui: Data puxada fresca da Nuvem */}
                   {formatarData(dadosDinamicos.ultima_compra)}
                 </h2>
                 <Link href="/b2b-historico" className="text-[10px] sm:text-xs text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 mt-2 font-medium flex items-center gap-1 transition-colors w-max">

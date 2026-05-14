@@ -12,33 +12,6 @@ import { getHubUrl, getHeaders } from "@/components/utils/api";
 import toast from 'react-hot-toast';
 import { initMercadoPago, Payment } from '@mercadopago/sdk-react';
 
-// 🟢 FUNÇÃO DE IDENTIDADE SEGURA (Padrão SaaS - 0% Chumbado)
-const obterTenantSeguro = () => {
-  // 1. A Nuvem/Hospedagem injeta o CNPJ automaticamente aqui via Variável de Ambiente
-  if (process.env.NEXT_PUBLIC_TENANT_ID) return process.env.NEXT_PUBLIC_TENANT_ID;
-
-  // 2. Busca no navegador (Storage) caso a variável falhe ou seja um Admin logado
-  if (typeof window !== 'undefined') {
-    try {
-      const userRaw = localStorage.getItem("@raizan:user");
-      if (userRaw) {
-        const userObj = JSON.parse(userRaw);
-        if (userObj.tenant_id) return userObj.tenant_id;
-        if (userObj.cnpj) return userObj.cnpj;
-      }
-      
-      const configRaw = localStorage.getItem("raizan_config_geral");
-      if (configRaw) {
-        const configObj = JSON.parse(configRaw);
-        if (configObj.tenantId) return configObj.tenantId;
-      }
-    } catch(e) {}
-  }
-
-  // 3. Se não achar nada, retorna nulo para o Back-end barrar (Segurança máxima)
-  return null; 
-};
-
 // ==========================================
 // COMPONENTE: BADGE DE STATUS DINÂMICO
 // ==========================================
@@ -85,14 +58,10 @@ function ModalPagamentoRetentativa({ isOpen, onClose, pedido, user, onSucesso })
       
       const buscarChave = async () => {
         try {
-          const tenantId = obterTenantSeguro();
-          const customHeaders = getHeaders();
-          if (tenantId) customHeaders["x-tenant-id"] = tenantId;
-
-          // Bate na Nuvem para puxar as configs de MP
-          const res = await fetch(`${getHubUrl()}/api/hub/configuracoes/status`, { headers: customHeaders });
+          // 🟢 Bate na Rota Nova e Correta de Métodos!
+          const res = await fetch(`${getHubUrl()}/api/hub/pagamentos/metodos-ativos`, { headers: getHeaders() });
           const data = await res.json();
-          if (data.mpPublicKey && data.mpPublicKey.trim() !== "") {
+          if (data.mercadopago && data.mpPublicKey) {
             initMercadoPago(data.mpPublicKey, { locale: 'pt-BR' });
             setIsMpReady(true); setMpKeyMissing(false);
           } else { setMpKeyMissing(true); }
@@ -108,38 +77,35 @@ function ModalPagamentoRetentativa({ isOpen, onClose, pedido, user, onSucesso })
 
   const processarPagamento = async (dadosCartaoMp = null) => {
     setIsProcessando(true);
+    // 🟢 Monta o payload igual ao que testamos no Checkout
     const payload = {
       pedidoId: pedido.id,
-      metodoPagamento,
-      prazoBoleto: metodoPagamento === 'faturado' ? prazoBoleto : null,
-      dadosCartaoMp
+      valor: pedido.total,
+      metodo: metodoPagamento,
+      dadosCartao: dadosCartaoMp,
+      cliente: {
+        codigo: user.codigo,
+        nome: user.nome,
+        cnpj: user.cnpj,
+        email: user.email,
+        telefone: user.telefone
+      }
     };
 
     try {
-      const tenantId = obterTenantSeguro();
-      const customHeaders = getHeaders();
-      if (tenantId) customHeaders["x-tenant-id"] = tenantId;
-
-      const res = await fetch(`${getHubUrl()}/api/b2b/pagar-pedido`, {
+      // 🟢 Chama a rota Universal nova de geração de pagamentos
+      const res = await fetch(`${getHubUrl()}/api/hub/pagamentos/gerar`, {
         method: "POST", 
-        headers: { ...customHeaders, "Content-Type": "application/json" }, 
+        headers: getHeaders(), 
         body: JSON.stringify(payload)
       });
       
-      const contentType = res.headers.get("content-type");
-      if (!contentType || !contentType.includes("application/json")) {
-         const textoErro = await res.text();
-         console.error("❌ O Motor não devolveu JSON! Erro bruto do servidor:", textoErro);
-         toast.error("Falha no servidor. Verifique o console (F12).");
-         setIsProcessando(false);
-         return;
-      }
-
       const data = await res.json();
       
       if (data.success) {
-        if (data.pagamento?.tipo === 'pix') {
-          setDadosPix(data.pagamento);
+        if (data.tipo === 'pix') {
+          // A rota /gerar devolve o qr_code direto na raiz do json
+          setDadosPix({ ...data, pedidoId: pedido.id });
           setStep('sucesso_pix');
         } else {
           toast.success("Pagamento aprovado!");
@@ -151,7 +117,6 @@ function ModalPagamentoRetentativa({ isOpen, onClose, pedido, user, onSucesso })
       }
 
     } catch (e) { 
-      console.error("❌ Erro fatal de comunicação:", e);
       toast.error(`Falha na requisição: ${e.message}`); 
     }
     setIsProcessando(false);
@@ -242,19 +207,23 @@ function ModalDetalhes({ pedido, onClose, onPagarAgora }) {
 
   const formatarMoeda = (valor) => Number(valor).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   const dataAjustada = new Date(pedido.date_created).toLocaleString("pt-BR");
+  
   const getMeta = (key) => { const meta = pedido.meta_data?.find(m => m.key === key); return meta ? meta.value : "Não informado"; };
+
+  // 🟢 Tratamento Inteligente dos Nomes de Pagamento e Envio
+  const metodoOrigem = pedido.payment_method || getMeta('metodo_pagamento');
+  let metodoFormatado = metodoOrigem === 'faturado' ? 'Boleto ERP' : metodoOrigem === 'pix' ? 'PIX' : metodoOrigem === 'cartao' ? 'Cartão de Crédito' : metodoOrigem;
+  if (!metodoFormatado) metodoFormatado = 'Não Informado';
+
+  const envioOrigem = getMeta('metodo_envio');
+  const envioFormatado = envioOrigem !== 'Não informado' ? envioOrigem : 'Transportadora Padrão';
 
   const handleSolicitarDocs = async () => {
     const toastId = toast.loading("Enviando solicitação para a equipe...");
     try {
-      const tenantId = obterTenantSeguro();
-      const customHeaders = getHeaders();
-      if (tenantId) customHeaders["x-tenant-id"] = tenantId;
-
-      // 🟢 BATE DIRETO NA HOSTINGER
       const res = await fetch(`${getHubUrl()}/api/hub/pedidos/solicitar-documentos`, {
         method: "POST",
-        headers: { ...customHeaders, "Content-Type": "application/json" },
+        headers: getHeaders(),
         body: JSON.stringify({ pedidoId: pedido.id })
       });
       
@@ -293,8 +262,9 @@ function ModalDetalhes({ pedido, onClose, onPagarAgora }) {
             </div>
             <div className="bg-zinc-50 dark:bg-zinc-900/50 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm dark:shadow-none">
               <p className="text-xs text-zinc-500 font-medium mb-1 uppercase tracking-wider">Pagamento e Envio</p>
-              <p className="text-sm text-zinc-800 dark:text-zinc-200 font-bold uppercase break-words">{getMeta('metodo_pagamento')} <span className="text-zinc-500 font-normal normal-case">({getMeta('prazo_boleto')})</span></p>
-              <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-1 capitalize"><span className="text-zinc-500">Envio:</span> {getMeta('metodo_envio')}</p>
+              {/* 🟢 Leitura correta do método de pagamento e envio */}
+              <p className="text-sm text-zinc-800 dark:text-zinc-200 font-bold uppercase break-words">{metodoFormatado} {getMeta('prazo_boleto') !== 'Não informado' && <span className="text-zinc-500 font-normal normal-case">({getMeta('prazo_boleto')})</span>}</p>
+              <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-1 capitalize"><span className="text-zinc-500">Envio:</span> {envioFormatado}</p>
             </div>
           </div>
 
@@ -332,7 +302,7 @@ function ModalDetalhes({ pedido, onClose, onPagarAgora }) {
               <div className="max-h-[40vh] overflow-y-auto custom-scrollbar">
                 <ul className="divide-y divide-zinc-200 dark:divide-zinc-800/50">
                   {pedido.line_items?.map(item => (
-                    <li key={item.id} className="p-3 flex flex-col sm:flex-row sm:items-start justify-between gap-2 sm:gap-4 hover:bg-white dark:hover:bg-zinc-800/30 transition-colors">
+                    <li key={item.id || item.sku} className="p-3 flex flex-col sm:flex-row sm:items-start justify-between gap-2 sm:gap-4 hover:bg-white dark:hover:bg-zinc-800/30 transition-colors">
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{item.name}</p>
                         <p className="text-xs text-zinc-500 mt-0.5 break-words">SKU: {item.sku} | Qtd: {item.quantity}</p>
@@ -404,16 +374,12 @@ export default function HistoricoPedidosB2B() {
   const carregarPedidos = async () => {
     setLoading(true);
     try {
-      const tenantId = obterTenantSeguro();
-      const customHeaders = getHeaders();
-      if (tenantId) customHeaders["x-tenant-id"] = tenantId;
-
       const payload = { page, limit: 15, clienteEmail: user.email };
       
-      // 🟢 BATE NA HOSTINGER (A mesma rota blindada com filtro de email que acabamos de testar!)
+      // 🟢 BATE NA HOSTINGER com getHeaders limpo!
       const response = await fetch(`${getHubUrl()}/api/hub/pedidos/b2b`, { 
         method: "POST", 
-        headers: { ...customHeaders, "Content-Type": "application/json" }, 
+        headers: getHeaders(), 
         body: JSON.stringify(payload) 
       });
       const data = await response.json();

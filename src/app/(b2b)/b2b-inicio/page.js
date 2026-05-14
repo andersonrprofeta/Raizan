@@ -6,7 +6,7 @@ import Header from "@/components/Header";
 import { 
   CreditCard, ShoppingBag, Calendar, Store, 
   ArrowRight, Package, Receipt, FileText,
-  Zap, Tag, X, ShoppingCart 
+  Zap, Tag, X, ShoppingCart, AlertCircle 
 } from "lucide-react";
 import Link from "next/link";
 import { getApiUrl, getHubUrl, getHeaders } from "@/components/utils/api";
@@ -109,12 +109,12 @@ function ModalOfertasDoDia({ isOpen, onClose, ofertas, onComprar }) {
 export default function B2BInicio() {
   const [user, setUser] = useState(null);
   
-  // 🟢 ESTADOS DO MODAL DE OFERTAS E CARRINHO
+  // ESTADOS DO MODAL DE OFERTAS E CARRINHO
   const [isOfertasModalOpen, setIsOfertasModalOpen] = useState(false);
   const [listaOfertas, setListaOfertas] = useState([]);
-  const [temCarrinho, setTemCarrinho] = useState(false); // NOVO RADAR DO CARRINHO
+  const [temCarrinho, setTemCarrinho] = useState(false);
 
-  // 🟢 ESTADO PARA OS DADOS DINÂMICOS DA HOME
+  // ESTADO PARA OS DADOS DINÂMICOS DA HOME
   const [dadosDinamicos, setDadosDinamicos] = useState({
     ultima_compra: null,
     limite_credito: null,
@@ -136,7 +136,7 @@ export default function B2BInicio() {
     }
   }, []);
 
-  // 🟢 RADAR DO CARRINHO (Checa se tem item pendente)
+  // RADAR DO CARRINHO (Checa se tem item pendente)
   useEffect(() => {
     const checarCarrinho = () => {
       const cartRaw = localStorage.getItem("@raizan:carrinho");
@@ -151,12 +151,11 @@ export default function B2BInicio() {
     };
 
     checarCarrinho();
-    // Escuta mudanças de outras abas ou componentes
     window.addEventListener('storage', checarCarrinho);
     return () => window.removeEventListener('storage', checarCarrinho);
   }, []);
 
-  // 🟢 BUSCADOR SILENCIOSO DOS DADOS DINÂMICOS
+  // BUSCADOR SILENCIOSO DOS DADOS DINÂMICOS
   useEffect(() => {
     if (!user) return;
 
@@ -185,7 +184,7 @@ export default function B2BInicio() {
     buscarResumoAtualizado();
   }, [user]);
 
-  // 🟢 ESCUTADOR DO HEADER PARA ABRIR O MODAL
+  // ESCUTADOR DO HEADER PARA ABRIR O MODAL
   useEffect(() => {
     const abrirModal = () => {
       setIsOfertasModalOpen(true);
@@ -195,7 +194,7 @@ export default function B2BInicio() {
     return () => window.removeEventListener('abrirOfertasB2B', abrirModal);
   }, []);
 
-  // 🟢 BUSCA AS OFERTAS DIRETAMENTE DO BANCO
+  // BUSCA AS OFERTAS DIRETAMENTE DO BANCO
   const carregarListaOfertasGlobais = async () => {
     try {
       const res = await fetch(`${getApiUrl()}/api/admin/promocoes`, { headers: getHeaders() });
@@ -213,7 +212,6 @@ export default function B2BInicio() {
     } catch(e) { console.error("Erro ao buscar ofertas do modal"); }
   };
 
-  // 🟢 ADICIONA NO CARRINHO DIRETAMENTE NO LOCALSTORAGE E AVISA O RADAR
   const adicionarOfertaAoCarrinho = (produto, qtd) => {
     const carrinhoSalvo = localStorage.getItem("@raizan:carrinho");
     let carrinhoAtual = {};
@@ -231,7 +229,7 @@ export default function B2BInicio() {
     }
 
     localStorage.setItem("@raizan:carrinho", JSON.stringify(carrinhoAtual));
-    setTemCarrinho(true); // Aciona o botão de continuar pedido na hora
+    setTemCarrinho(true); 
     window.dispatchEvent(new Event('storage'));
   };
 
@@ -267,6 +265,17 @@ export default function B2BInicio() {
 
   if (!user) return null; 
 
+  // 🟢 LÓGICA DO ALERTA DE CADASTRO
+  const isPerfilIncompleto = !user.telefone || !user.endereco || !user.endereco.cep;
+
+  const handlePedidoClick = (e) => {
+    if (isPerfilIncompleto) {
+      e.preventDefault(); // Impede de ir pro catálogo
+      toast.error("Antes de fazer um pedido, atualize seu endereço de entrega!", { duration: 4000 });
+      window.location.href = "/b2b-perfil"; // Força a ida pro perfil
+    }
+  };
+
   return (
     <div className="flex h-screen bg-zinc-50 dark:bg-[#09090b] overflow-hidden transition-colors duration-300">
       
@@ -297,20 +306,40 @@ export default function B2BInicio() {
                 </div>
               </div>
               
-              {/* 🟢 BOTÃO NEON INTELIGENTE (NOVO VS CONTINUAR) */}
+              {/* BOTÃO NEON INTELIGENTE (INTERCEPTA SE FALTAR ENDEREÇO) */}
               <Link 
-                href="/b2b-pedidos"
-                className={`${temCarrinho ? 'bg-amber-500 hover:bg-amber-400 shadow-[0_0_20px_rgba(245,158,11,0.4)] hover:shadow-[0_0_25px_rgba(245,158,11,0.6)]' : 'bg-emerald-600 hover:bg-emerald-500 shadow-[0_0_20px_rgba(52,211,153,0.4)] hover:shadow-[0_0_25px_rgba(52,211,153,0.6)]'} text-white px-5 py-3 sm:py-2.5 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 w-full sm:w-max h-max`}
+                href={isPerfilIncompleto ? "/b2b-perfil" : "/b2b-pedidos"}
+                onClick={handlePedidoClick}
+                className={`${temCarrinho ? 'bg-amber-500 hover:bg-amber-400 shadow-[0_0_20px_rgba(245,158,11,0.4)]' : 'bg-emerald-600 hover:bg-emerald-500 shadow-[0_0_20px_rgba(52,211,153,0.4)]'} text-white px-5 py-3 sm:py-2.5 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 w-full sm:w-max h-max`}
               >
                 {temCarrinho ? <ShoppingCart size={18} /> : <Store size={18} />}
                 {temCarrinho ? "Continuar Pedido" : "Fazer Novo Pedido"}
               </Link>
             </div>
 
+            {/* 🟢 1.5 ALERTA DE CADASTRO INCOMPLETO */}
+            {isPerfilIncompleto && (
+              <div className="bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/30 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-in fade-in slide-in-from-top-4 shadow-sm">
+                <div className="flex items-start gap-3">
+                  <div className="p-2 bg-rose-100 dark:bg-rose-500/20 rounded-full text-rose-600 dark:text-rose-400 shrink-0">
+                    <AlertCircle size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm sm:text-base font-bold text-rose-800 dark:text-rose-300">Ação Necessária: Finalize seu Cadastro</h3>
+                    <p className="text-xs sm:text-sm text-rose-600 dark:text-rose-400/80 mt-1 max-w-2xl">
+                      Para realizar novos pedidos ou aproveitar as ofertas, precisamos que você nos informe o seu <b>Endereço de Entrega</b> e <b>Telefone</b>.
+                    </p>
+                  </div>
+                </div>
+                <Link href="/b2b-perfil" className="w-full sm:w-auto px-5 py-2.5 bg-rose-600 hover:bg-rose-500 text-white text-sm font-bold rounded-xl transition-all shadow-[0_0_15px_rgba(225,29,72,0.3)] whitespace-nowrap text-center shrink-0">
+                  Completar Agora
+                </Link>
+              </div>
+            )}
+
             {/* 2. CARDS DE MÉTRICAS (FINANCEIRO) */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
               
-              {/* Card Limite de Crédito */}
               <div className="bg-white dark:bg-[#0c0c0e] border border-zinc-200 dark:border-zinc-800/80 rounded-2xl p-5 sm:p-6 shadow-lg dark:shadow-xl relative overflow-hidden transition-colors duration-300">
                 <div className="flex justify-between items-start mb-3 sm:mb-4">
                   <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-emerald-100 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 flex items-center justify-center">
@@ -326,7 +355,6 @@ export default function B2BInicio() {
                 </p>
               </div>
 
-              {/* Card Prazos */}
               <div className="bg-white dark:bg-[#0c0c0e] border border-zinc-200 dark:border-zinc-800/80 rounded-2xl p-5 sm:p-6 shadow-lg dark:shadow-xl transition-colors duration-300">
                 <div className="flex justify-between items-start mb-3 sm:mb-4">
                   <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-teal-100 dark:bg-teal-500/10 border border-teal-200 dark:border-teal-500/20 flex items-center justify-center">
@@ -339,7 +367,6 @@ export default function B2BInicio() {
                 </h2>
               </div>
 
-              {/* Card Última Compra */}
               <div className="bg-white dark:bg-[#0c0c0e] border border-zinc-200 dark:border-zinc-800/80 rounded-2xl p-5 sm:p-6 shadow-lg dark:shadow-xl transition-colors duration-300">
                 <div className="flex justify-between items-start mb-3 sm:mb-4">
                   <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-purple-100 dark:bg-purple-500/10 border border-purple-200 dark:border-purple-500/20 flex items-center justify-center">
@@ -358,7 +385,7 @@ export default function B2BInicio() {
             </div>
 
             {/* 3. MENU RÁPIDO (Ações) */}
-            <div>
+            <div className={isPerfilIncompleto ? "opacity-50 pointer-events-none grayscale transition-all" : ""}>
               <h3 className="text-base sm:text-lg font-bold text-zinc-800 dark:text-zinc-200 mb-3 sm:mb-4">Acesso Rápido</h3>
               
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">

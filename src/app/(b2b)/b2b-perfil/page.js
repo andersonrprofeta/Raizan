@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
-import { User, MapPin, Phone, Lock, Save, Loader2, Building2, Search, AlertCircle } from "lucide-react";
+import { User, MapPin, Phone, Lock, Save, Loader2, Building2, Search, AlertCircle, Edit2, CheckCircle2 } from "lucide-react";
 import { getHubUrl, getHeaders } from "@/components/utils/api";
 import toast from 'react-hot-toast';
 
@@ -11,6 +11,9 @@ export default function MeuPerfilB2B() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(false);
   const [buscandoCep, setBuscandoCep] = useState(false);
+  
+  // 🟢 NOVO ESTADO: O Lacre!
+  const [isLocked, setIsLocked] = useState(false);
 
   // Estados do Formulário
   const [telefone, setTelefone] = useState("");
@@ -28,7 +31,6 @@ export default function MeuPerfilB2B() {
       const parsedUser = JSON.parse(savedUser);
       setUser(parsedUser);
       
-      // 🟢 O SEU SELECT APLICADO NA TELA DE PERFIL!
       const buscarNoBanco = async () => {
         try {
           const customHeaders = getHeaders();
@@ -39,7 +41,7 @@ export default function MeuPerfilB2B() {
           
           if (data.success) {
             if (data.telefone) setTelefone(data.telefone);
-            if (data.endereco) {
+            if (data.endereco && data.endereco.cep) {
               setCep(data.endereco.cep || "");
               setLogradouro(data.endereco.logradouro || "");
               setNumero(data.endereco.numero || "");
@@ -48,10 +50,12 @@ export default function MeuPerfilB2B() {
               setCidade(data.endereco.cidade || "");
               setEstado(data.endereco.estado || "");
 
-              // Atualiza o localStorage invisivelmente pra não perder de novo
               const userAtualizado = { ...parsedUser, telefone: data.telefone, endereco: data.endereco };
               localStorage.setItem("raizan_user", JSON.stringify(userAtualizado));
               setUser(userAtualizado);
+              
+              // 🟢 Se achou o endereço no banco, tranca o formulário!
+              setIsLocked(true);
             }
           }
         } catch(e) {}
@@ -63,7 +67,6 @@ export default function MeuPerfilB2B() {
     }
   }, []);
 
-  // 🟢 MOTOR INTELIGENTE DO VIACEP
   const buscarCep = async (valorCep) => {
     const cepLimpo = valorCep.replace(/\D/g, '');
     if (cepLimpo.length !== 8) return;
@@ -81,7 +84,7 @@ export default function MeuPerfilB2B() {
         setCidade(data.localidade);
         setEstado(data.uf);
         toast.success("Endereço preenchido automaticamente!");
-        document.getElementById('input_numero').focus(); // Joga o foco pro número
+        document.getElementById('input_numero').focus(); 
       }
     } catch (error) {
       toast.error("Erro ao buscar CEP.");
@@ -114,7 +117,6 @@ export default function MeuPerfilB2B() {
 
     setLoading(true);
     
-    // Monta o pacote de dados misturando o Bloqueado com o Novo
     const payload = {
       nome: user.nome,
       email: user.email,
@@ -134,10 +136,12 @@ export default function MeuPerfilB2B() {
       if (data.success) {
         toast.success("Perfil atualizado e sincronizado na Nuvem!");
         
-        // Atualiza a memória do navegador para o Checkout usar na próxima compra
         const userAtualizado = { ...user, telefone: telefone, endereco: payload.endereco };
         localStorage.setItem("raizan_user", JSON.stringify(userAtualizado));
         setUser(userAtualizado);
+        
+        // 🟢 Fecha o Lacre após salvar com sucesso!
+        setIsLocked(true);
       } else {
         toast.error(data.message || "Erro ao salvar perfil na Nuvem.");
       }
@@ -170,7 +174,7 @@ export default function MeuPerfilB2B() {
 
             <form onSubmit={handleSalvarPerfil} className="space-y-6">
               
-              {/* 🟢 BLOCO 1: DADOS FISCAIS DO ERP (BLOQUEADOS) */}
+              {/* BLOCO 1: DADOS FISCAIS DO ERP (BLOQUEADOS) */}
               <div className="bg-white dark:bg-[#0c0c0e] p-6 rounded-2xl border border-zinc-200 dark:border-zinc-800/60 shadow-sm space-y-4 relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-zinc-200 dark:bg-zinc-800 rounded-full blur-[60px] opacity-50 pointer-events-none" />
                 
@@ -198,18 +202,38 @@ export default function MeuPerfilB2B() {
                 </p>
               </div>
 
-              {/* 🟢 BLOCO 2: DADOS EDITÁVEIS (NUVEM) */}
-              <div className="bg-white dark:bg-[#0c0c0e] p-6 rounded-2xl border border-emerald-500/20 shadow-lg shadow-emerald-500/5 space-y-4">
-                <h3 className="text-base font-bold text-zinc-800 dark:text-zinc-200 flex items-center gap-2 border-b border-zinc-100 dark:border-zinc-800 pb-3">
-                  <MapPin size={18} className="text-emerald-500" /> Endereço de Entrega e Contato
-                </h3>
+              {/* BLOCO 2: DADOS EDITÁVEIS (NUVEM) */}
+              <div className={`bg-white dark:bg-[#0c0c0e] p-6 rounded-2xl border transition-all duration-500 shadow-sm ${isLocked ? 'border-zinc-200 dark:border-zinc-800/60 opacity-90' : 'border-emerald-500/30 shadow-emerald-500/5 ring-4 ring-emerald-500/10'} space-y-4`}>
+                
+                {/* 🟢 CABEÇALHO COM O BOTÃO EDITAR E O LACRE */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-100 dark:border-zinc-800 pb-3">
+                  <h3 className="text-base font-bold text-zinc-800 dark:text-zinc-200 flex items-center gap-2">
+                    <MapPin size={18} className={isLocked ? "text-zinc-500" : "text-emerald-500"} /> 
+                    Endereço de Entrega e Contato
+                  </h3>
+
+                  {isLocked ? (
+                    <div className="flex items-center gap-3">
+                      <span className="text-[10px] bg-emerald-100 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 py-1 rounded-md font-bold uppercase tracking-wider flex items-center gap-1">
+                        <CheckCircle2 size={12} /> Salvo e Validado
+                      </span>
+                      <button type="button" onClick={() => setIsLocked(false)} className="text-xs flex items-center gap-1.5 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 px-3 py-1.5 rounded-lg font-bold text-zinc-700 dark:text-zinc-300 transition-colors">
+                        <Edit2 size={12} /> Editar
+                      </button>
+                    </div>
+                  ) : (
+                    <span className="text-[10px] bg-amber-100 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 px-2 py-1 rounded-md font-bold uppercase tracking-wider flex items-center gap-1">
+                      Modo Edição
+                    </span>
+                  )}
+                </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div className="space-y-1">
                     <label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">Celular / WhatsApp *</label>
                     <div className="relative">
                       <Phone size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
-                      <input type="tel" placeholder="(00) 00000-0000" value={telefone} onChange={handleTelefoneChange} maxLength={15} required className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 focus:border-emerald-500 text-zinc-900 dark:text-zinc-100 pl-10 pr-4 py-2.5 rounded-xl text-sm outline-none transition-colors" />
+                      <input type="tel" disabled={isLocked} placeholder="(00) 00000-0000" value={telefone} onChange={handleTelefoneChange} maxLength={15} required className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 disabled:border-transparent disabled:bg-zinc-100 dark:disabled:bg-zinc-900/50 disabled:text-zinc-500 focus:border-emerald-500 text-zinc-900 dark:text-zinc-100 pl-10 pr-4 py-2.5 rounded-xl text-sm outline-none transition-all" />
                     </div>
                   </div>
 
@@ -217,49 +241,52 @@ export default function MeuPerfilB2B() {
                     <label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">CEP *</label>
                     <div className="relative">
                       <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
-                      <input type="text" placeholder="00000-000" value={cep} onChange={handleCepChange} maxLength={9} required className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 focus:border-emerald-500 text-zinc-900 dark:text-zinc-100 pl-10 pr-10 py-2.5 rounded-xl text-sm outline-none transition-colors font-mono" />
+                      <input type="text" disabled={isLocked} placeholder="00000-000" value={cep} onChange={handleCepChange} maxLength={9} required className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 disabled:border-transparent disabled:bg-zinc-100 dark:disabled:bg-zinc-900/50 disabled:text-zinc-500 focus:border-emerald-500 text-zinc-900 dark:text-zinc-100 pl-10 pr-10 py-2.5 rounded-xl text-sm outline-none transition-all font-mono" />
                       {buscandoCep && <Loader2 size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-500 animate-spin" />}
                     </div>
                   </div>
 
                   <div className="space-y-1 lg:col-span-2">
                     <label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">Endereço (Rua/Av) *</label>
-                    <input type="text" value={logradouro} onChange={e => setLogradouro(e.target.value)} required placeholder="Ex: Av. Paulista" className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 focus:border-emerald-500 text-zinc-900 dark:text-zinc-100 px-4 py-2.5 rounded-xl text-sm outline-none transition-colors" />
+                    <input type="text" disabled={isLocked} value={logradouro} onChange={e => setLogradouro(e.target.value)} required placeholder="Ex: Av. Paulista" className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 disabled:border-transparent disabled:bg-zinc-100 dark:disabled:bg-zinc-900/50 disabled:text-zinc-500 focus:border-emerald-500 text-zinc-900 dark:text-zinc-100 px-4 py-2.5 rounded-xl text-sm outline-none transition-all" />
                   </div>
 
                   <div className="space-y-1">
                     <label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">Número *</label>
-                    <input id="input_numero" type="text" value={numero} onChange={e => setNumero(e.target.value)} required placeholder="Ex: 1000" className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 focus:border-emerald-500 text-zinc-900 dark:text-zinc-100 px-4 py-2.5 rounded-xl text-sm outline-none transition-colors" />
+                    <input id="input_numero" type="text" disabled={isLocked} value={numero} onChange={e => setNumero(e.target.value)} required placeholder="Ex: 1000" className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 disabled:border-transparent disabled:bg-zinc-100 dark:disabled:bg-zinc-900/50 disabled:text-zinc-500 focus:border-emerald-500 text-zinc-900 dark:text-zinc-100 px-4 py-2.5 rounded-xl text-sm outline-none transition-all" />
                   </div>
 
                   <div className="space-y-1">
                     <label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">Complemento</label>
-                    <input type="text" value={complemento} onChange={e => setComplemento(e.target.value)} placeholder="Ex: Galpão B, Sala 12" className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 focus:border-emerald-500 text-zinc-900 dark:text-zinc-100 px-4 py-2.5 rounded-xl text-sm outline-none transition-colors" />
+                    <input type="text" disabled={isLocked} value={complemento} onChange={e => setComplemento(e.target.value)} placeholder="Ex: Galpão B, Sala 12" className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 disabled:border-transparent disabled:bg-zinc-100 dark:disabled:bg-zinc-900/50 disabled:text-zinc-500 focus:border-emerald-500 text-zinc-900 dark:text-zinc-100 px-4 py-2.5 rounded-xl text-sm outline-none transition-all" />
                   </div>
 
                   <div className="space-y-1">
                     <label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">Bairro *</label>
-                    <input type="text" value={bairro} onChange={e => setBairro(e.target.value)} required placeholder="Ex: Centro" className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 focus:border-emerald-500 text-zinc-900 dark:text-zinc-100 px-4 py-2.5 rounded-xl text-sm outline-none transition-colors" />
+                    <input type="text" disabled={isLocked} value={bairro} onChange={e => setBairro(e.target.value)} required placeholder="Ex: Centro" className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 disabled:border-transparent disabled:bg-zinc-100 dark:disabled:bg-zinc-900/50 disabled:text-zinc-500 focus:border-emerald-500 text-zinc-900 dark:text-zinc-100 px-4 py-2.5 rounded-xl text-sm outline-none transition-all" />
                   </div>
 
                   <div className="space-y-1 lg:col-span-2">
                     <label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">Cidade *</label>
-                    <input type="text" value={cidade} onChange={e => setCidade(e.target.value)} required className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 focus:border-emerald-500 text-zinc-900 dark:text-zinc-100 px-4 py-2.5 rounded-xl text-sm outline-none transition-colors" />
+                    <input type="text" disabled={isLocked} value={cidade} onChange={e => setCidade(e.target.value)} required className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 disabled:border-transparent disabled:bg-zinc-100 dark:disabled:bg-zinc-900/50 disabled:text-zinc-500 focus:border-emerald-500 text-zinc-900 dark:text-zinc-100 px-4 py-2.5 rounded-xl text-sm outline-none transition-all" />
                   </div>
 
                   <div className="space-y-1">
                     <label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">UF *</label>
-                    <input type="text" value={estado} onChange={e => setEstado(e.target.value.toUpperCase())} maxLength={2} required className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 focus:border-emerald-500 text-zinc-900 dark:text-zinc-100 px-4 py-2.5 rounded-xl text-sm outline-none transition-colors uppercase" />
+                    <input type="text" disabled={isLocked} value={estado} onChange={e => setEstado(e.target.value.toUpperCase())} maxLength={2} required className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 disabled:border-transparent disabled:bg-zinc-100 dark:disabled:bg-zinc-900/50 disabled:text-zinc-500 focus:border-emerald-500 text-zinc-900 dark:text-zinc-100 px-4 py-2.5 rounded-xl text-sm outline-none transition-all uppercase" />
                   </div>
                 </div>
               </div>
 
-              <div className="flex justify-end pt-4">
-                <button type="submit" disabled={loading} className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-500 text-white px-8 py-3.5 rounded-xl font-bold shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-all flex items-center justify-center gap-2">
-                  {loading ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
-                  Salvar Dados do Perfil
-                </button>
-              </div>
+              {/* 🟢 O BOTÃO DE SALVAR SOME SE ESTIVER LACRADO */}
+              {!isLocked && (
+                <div className="flex justify-end pt-4 animate-in fade-in slide-in-from-top-2">
+                  <button type="submit" disabled={loading} className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-500 text-white px-8 py-3.5 rounded-xl font-bold shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-all flex items-center justify-center gap-2 hover:scale-105 active:scale-95">
+                    {loading ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                    Salvar Dados do Perfil
+                  </button>
+                </div>
+              )}
 
             </form>
           </div>

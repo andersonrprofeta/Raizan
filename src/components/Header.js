@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { AlertTriangle, Bell, ShoppingCart, Tag, ArrowRight, Zap, X, Plus, Minus, Package, FileText, Menu, Sun, Moon, AlertCircle } from "lucide-react";
+import { AlertTriangle, Bell, ShoppingCart, Tag, ArrowRight, Zap, X, Plus, Minus, Package, FileText, Menu, Sun, Moon, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useTheme } from "next-themes";
 import { getApiUrl, getHeaders, getHubUrl } from "@/components/utils/api";

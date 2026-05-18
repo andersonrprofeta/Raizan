@@ -109,10 +109,13 @@ function ModalOfertasDoDia({ isOpen, onClose, ofertas, onComprar }) {
 export default function B2BInicio() {
   const [user, setUser] = useState(null);
   
-  // ESTADOS DO MODAL DE OFERTAS E CARRINHO
+  // ESTADOS DO MODAL E COMPORTAMENTOS DA HOME
   const [isOfertasModalOpen, setIsOfertasModalOpen] = useState(false);
   const [listaOfertas, setListaOfertas] = useState([]);
   const [temCarrinho, setTemCarrinho] = useState(false);
+  
+  // 🟢 A MÁGICA SILENCIOSA
+  const [verificandoCadastro, setVerificandoCadastro] = useState(true);
 
   // ESTADO PARA OS DADOS DINÂMICOS DA HOME
   const [dadosDinamicos, setDadosDinamicos] = useState({
@@ -136,7 +139,6 @@ export default function B2BInicio() {
     }
   }, []);
 
-  // RADAR DO CARRINHO (Checa se tem item pendente)
   useEffect(() => {
     const checarCarrinho = () => {
       const cartRaw = localStorage.getItem("@raizan:carrinho");
@@ -155,36 +157,72 @@ export default function B2BInicio() {
     return () => window.removeEventListener('storage', checarCarrinho);
   }, []);
 
-  // BUSCADOR SILENCIOSO DOS DADOS DINÂMICOS
+  // 🟢 BUSCADOR SILENCIOSO E RECUPERAÇÃO DE CADASTRO
   useEffect(() => {
     if (!user) return;
 
-    const buscarResumoAtualizado = async () => {
+    const buscarDadosBackground = async () => {
       try {
         const tenantId = obterTenantSeguro();
         const customHeaders = getHeaders();
         if (tenantId) customHeaders["x-tenant-id"] = tenantId;
 
-        const resPedidos = await fetch(`${getHubUrl()}/api/hub/pedidos/b2b`, {
+        // 1. Busca resumo de pedidos
+        fetch(`${getHubUrl()}/api/hub/pedidos/b2b`, {
           method: "POST",
           headers: { ...customHeaders, "Content-Type": "application/json" },
           body: JSON.stringify({ page: 1, limit: 1, clienteEmail: user.email })
-        });
-        const dataPedidos = await resPedidos.json();
+        })
+        .then(res => res.json())
+        .then(dataPedidos => {
+          if (dataPedidos.success && dataPedidos.pedidos && dataPedidos.pedidos.length > 0) {
+            const ultimaData = dataPedidos.pedidos[0].date_created || dataPedidos.pedidos[0].data_criacao;
+            setDadosDinamicos(prev => ({ ...prev, ultima_compra: ultimaData }));
+          }
+        }).catch(() => {});
 
-        if (dataPedidos.success && dataPedidos.pedidos && dataPedidos.pedidos.length > 0) {
-          const ultimaData = dataPedidos.pedidos[0].date_created || dataPedidos.pedidos[0].data_criacao;
-          setDadosDinamicos(prev => ({ ...prev, ultima_compra: ultimaData }));
+        // 2. RECUPERAÇÃO INTELIGENTE DE ENDEREÇO
+        let endLocal = user.endereco;
+        if (typeof endLocal === 'string') { try { endLocal = JSON.parse(endLocal); } catch(e) { endLocal = {}; } }
+        
+        // Verifica se realmente falta dado no localStorage
+        const precisaBuscarEndereco = !user.telefone || !(endLocal?.cep || endLocal?.postcode);
+
+        if (precisaBuscarEndereco) {
+          const resCliente = await fetch(`${getHubUrl()}/api/hub/clientes`, { headers: customHeaders });
+          const dataCliente = await resCliente.json();
+          
+          if (dataCliente.success) {
+            const meuCadastro = dataCliente.clientes.find(c => 
+              c.email === user.email || 
+              (c.cpf_cnpj && user.cnpj && c.cpf_cnpj.replace(/\D/g, '') === user.cnpj.replace(/\D/g, ''))
+            );
+
+            if (meuCadastro && (meuCadastro.telefone || meuCadastro.endereco_json)) {
+              let endObj = meuCadastro.endereco_json;
+              if (typeof endObj === 'string') { try { endObj = JSON.parse(endObj); } catch(e) { endObj = {}; } }
+              
+              const userAtualizado = {
+                ...user,
+                telefone: meuCadastro.telefone || user.telefone,
+                endereco: endObj || user.endereco
+              };
+              
+              setUser(userAtualizado);
+              localStorage.setItem("raizan_user", JSON.stringify(userAtualizado)); // Salva pra sempre!
+            }
+          }
         }
       } catch (e) {
-        console.log("Aviso: Não foi possível atualizar os dados silenciosamente.");
+        console.log("Aviso: Sincronização background falhou silenciosamente.");
+      } finally {
+        setVerificandoCadastro(false);
       }
     };
 
-    buscarResumoAtualizado();
-  }, [user]);
+    buscarDadosBackground();
+  }, [user?.email]);
 
-  // ESCUTADOR DO HEADER PARA ABRIR O MODAL
   useEffect(() => {
     const abrirModal = () => {
       setIsOfertasModalOpen(true);
@@ -194,7 +232,6 @@ export default function B2BInicio() {
     return () => window.removeEventListener('abrirOfertasB2B', abrirModal);
   }, []);
 
-  // BUSCA AS OFERTAS DIRETAMENTE DO BANCO
   const carregarListaOfertasGlobais = async () => {
     try {
       const res = await fetch(`${getApiUrl()}/api/admin/promocoes`, { headers: getHeaders() });
@@ -209,19 +246,15 @@ export default function B2BInicio() {
         });
         setListaOfertas(ofertasAtivas);
       }
-    } catch(e) { console.error("Erro ao buscar ofertas do modal"); }
+    } catch(e) {}
   };
 
   const adicionarOfertaAoCarrinho = (produto, qtd) => {
     const carrinhoSalvo = localStorage.getItem("@raizan:carrinho");
     let carrinhoAtual = {};
-    
-    if (carrinhoSalvo) {
-      try { carrinhoAtual = JSON.parse(carrinhoSalvo); } catch (e) {}
-    }
+    if (carrinhoSalvo) { try { carrinhoAtual = JSON.parse(carrinhoSalvo); } catch (e) {} }
 
     const id = produto.PDCODPRO;
-    
     if (carrinhoAtual[id]) {
       carrinhoAtual[id].qtd += qtd;
     } else {
@@ -239,9 +272,7 @@ export default function B2BInicio() {
       const data = new Date(dataString);
       if (isNaN(data.getTime())) return "Sem compras recentes";
       return data.toLocaleDateString("pt-BR");
-    } catch {
-      return dataString;
-    }
+    } catch { return dataString; }
   };
 
   const renderLimiteCredito = (valor) => {
@@ -265,31 +296,27 @@ export default function B2BInicio() {
 
   if (!user) return null; 
 
-  // 🟢 LÓGICA DO ALERTA DE CADASTRO CORRIGIDA (Blindada contra strings JSON)
+  // 🟢 AVALIA SE O PERFIL ESTÁ INCOMPLETO
   let enderecoObj = user.endereco;
-  
-  // Se for string, tentamos converter para Objeto
   if (typeof enderecoObj === 'string') {
-    try {
-      enderecoObj = JSON.parse(enderecoObj);
-    } catch (e) {
-      enderecoObj = {};
-    }
+    try { enderecoObj = JSON.parse(enderecoObj); } catch (e) { enderecoObj = {}; }
   }
 
-  // Verifica se existe telefone salvo na raiz do user ou dentro do próprio objeto endereco
   const hasTelefone = Boolean(user.telefone || enderecoObj?.telefone || enderecoObj?.phone);
-  
-  // Verifica se o CEP (postcode) existe de verdade
   const hasCep = Boolean(enderecoObj?.cep || enderecoObj?.postcode);
 
-  const isPerfilIncompleto = !hasTelefone || !hasCep;
+  // O aviso SÓ APARECE se tiver certeza que não tem endereço, E depois de buscar no banco silenciosamente.
+  const isPerfilIncompleto = (!hasTelefone || !hasCep) && !verificandoCadastro;
 
   const handlePedidoClick = (e) => {
+    if (verificandoCadastro) {
+      e.preventDefault();
+      return toast.loading("Sincronizando dados, aguarde...", { duration: 1500 });
+    }
     if (isPerfilIncompleto) {
-      e.preventDefault(); // Impede de ir pro catálogo
+      e.preventDefault();
       toast.error("Antes de fazer um pedido, atualize seu endereço de entrega!", { duration: 4000 });
-      window.location.href = "/b2b-perfil"; // Força a ida pro perfil
+      window.location.href = "/b2b-perfil";
     }
   };
 
@@ -323,18 +350,18 @@ export default function B2BInicio() {
                 </div>
               </div>
               
-              {/* BOTÃO NEON INTELIGENTE (INTERCEPTA SE FALTAR ENDEREÇO) */}
+              {/* BOTÃO NEON INTELIGENTE */}
               <Link 
                 href={isPerfilIncompleto ? "/b2b-perfil" : "/b2b-pedidos"}
                 onClick={handlePedidoClick}
-                className={`${temCarrinho ? 'bg-amber-500 hover:bg-amber-400 shadow-[0_0_20px_rgba(245,158,11,0.4)]' : 'bg-emerald-600 hover:bg-emerald-500 shadow-[0_0_20px_rgba(52,211,153,0.4)]'} text-white px-5 py-3 sm:py-2.5 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 w-full sm:w-max h-max`}
+                className={`${temCarrinho ? 'bg-amber-500 hover:bg-amber-400 shadow-[0_0_20px_rgba(245,158,11,0.4)]' : 'bg-emerald-600 hover:bg-emerald-500 shadow-[0_0_20px_rgba(52,211,153,0.4)]'} text-white px-5 py-3 sm:py-2.5 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 w-full sm:w-max h-max ${verificandoCadastro ? 'opacity-80 pointer-events-none' : ''}`}
               >
                 {temCarrinho ? <ShoppingCart size={18} /> : <Store size={18} />}
                 {temCarrinho ? "Continuar Pedido" : "Fazer Novo Pedido"}
               </Link>
             </div>
 
-            {/* 🟢 1.5 ALERTA DE CADASTRO INCOMPLETO */}
+            {/* 🟢 1.5 ALERTA DE CADASTRO INCOMPLETO (SÓ MOSTRA SE REALMENTE ESTIVER FALTANDO) */}
             {isPerfilIncompleto && (
               <div className="bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/30 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-in fade-in slide-in-from-top-4 shadow-sm">
                 <div className="flex items-start gap-3">
@@ -402,7 +429,7 @@ export default function B2BInicio() {
             </div>
 
             {/* 3. MENU RÁPIDO (Ações) */}
-            <div className={isPerfilIncompleto ? "opacity-50 pointer-events-none grayscale transition-all" : ""}>
+            <div className={isPerfilIncompleto ? "opacity-50 pointer-events-none grayscale transition-all" : "transition-all"}>
               <h3 className="text-base sm:text-lg font-bold text-zinc-800 dark:text-zinc-200 mb-3 sm:mb-4">Acesso Rápido</h3>
               
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">

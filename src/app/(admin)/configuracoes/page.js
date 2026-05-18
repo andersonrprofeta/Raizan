@@ -30,12 +30,12 @@ export default function ConfiguracoesWizard() {
     sync_interval_min: 5
   });
 
-  // Mapeamento Dinâmico Separado (COM STATUS E EAN)
+  // Mapeamento Dinâmico Separado (COM STATUS, EAN E AGORA MARCA)
   const [tabelasOracle, setTabelasOracle] = useState([]);
   const [colunasProdutos, setColunasProdutos] = useState([]);
   const [colunasClientes, setColunasClientes] = useState([]);
   const [mapeamento, setMapeamento] = useState({
-    tabela_produtos: "", col_sku: "", col_cod_barras: "", col_nome: "", col_estoque: "", col_preco: "", col_status: "",
+    tabela_produtos: "", col_sku: "", col_cod_barras: "", col_nome: "", col_estoque: "", col_preco: "", col_status: "", col_marca: "",
     tabela_clientes: "", col_cli_cod: "", col_cli_nome: "", col_cli_email: "", col_cli_doc: ""
   });
 
@@ -149,7 +149,7 @@ export default function ConfiguracoesWizard() {
   };
 
   const handleSelecionarTabelaProdutos = async (nomeTabela) => {
-    setMapeamento({ ...mapeamento, tabela_produtos: nomeTabela, col_sku: "", col_cod_barras: "", col_nome: "", col_estoque: "", col_preco: "", col_status: "" });
+    setMapeamento({ ...mapeamento, tabela_produtos: nomeTabela, col_sku: "", col_cod_barras: "", col_nome: "", col_estoque: "", col_preco: "", col_status: "", col_marca: "" });
     if (!nomeTabela) return setColunasProdutos([]);
     const urlLimpa = coreUrl.trim().replace(/\/$/, "");
     try {
@@ -349,7 +349,8 @@ export default function ConfiguracoesWizard() {
                                   { label: "Nome do Produto", key: "col_nome" }, 
                                   { label: "Preço de Venda", key: "col_preco" }, 
                                   { label: "Estoque Físico", key: "col_estoque" }, 
-                                  { label: "Status (Ativo/Inativo)", key: "col_status" }
+                                  { label: "Status (Ativo/Inativo)", key: "col_status" },
+                                  { label: "Marca", key: "col_marca" } // 🟢 CAMPO DE MARCA ADICIONADO AQUI
                                 ].map(campo => (
                                   <div key={campo.key} className="space-y-1">
                                     <label className="text-[10px] font-bold text-zinc-500 uppercase">{campo.label}</label>

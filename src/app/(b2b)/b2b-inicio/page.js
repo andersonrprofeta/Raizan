@@ -265,8 +265,25 @@ export default function B2BInicio() {
 
   if (!user) return null; 
 
-  // 🟢 LÓGICA DO ALERTA DE CADASTRO
-  const isPerfilIncompleto = !user.telefone || !user.endereco || !user.endereco.cep;
+  // 🟢 LÓGICA DO ALERTA DE CADASTRO CORRIGIDA (Blindada contra strings JSON)
+  let enderecoObj = user.endereco;
+  
+  // Se for string, tentamos converter para Objeto
+  if (typeof enderecoObj === 'string') {
+    try {
+      enderecoObj = JSON.parse(enderecoObj);
+    } catch (e) {
+      enderecoObj = {};
+    }
+  }
+
+  // Verifica se existe telefone salvo na raiz do user ou dentro do próprio objeto endereco
+  const hasTelefone = Boolean(user.telefone || enderecoObj?.telefone || enderecoObj?.phone);
+  
+  // Verifica se o CEP (postcode) existe de verdade
+  const hasCep = Boolean(enderecoObj?.cep || enderecoObj?.postcode);
+
+  const isPerfilIncompleto = !hasTelefone || !hasCep;
 
   const handlePedidoClick = (e) => {
     if (isPerfilIncompleto) {

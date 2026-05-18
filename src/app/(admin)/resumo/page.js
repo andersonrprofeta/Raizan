@@ -6,7 +6,6 @@ import Header from "@/components/Header";
 import { getHubUrl, getApiUrl, getHeaders } from "@/components/utils/api";
 import { TrendingUp, Users, ShoppingCart, DollarSign, Package, Loader2, Database, AlertTriangle, MapPin, PieChart as PieChartIcon } from "lucide-react";
 import { AreaChart, Area, ResponsiveContainer, Tooltip as RechartsTooltip, XAxis, CartesianGrid, PieChart, Pie, Cell } from 'recharts';
-import { ComposableMap, Geographies, Geography } from "react-simple-maps";
 
 // ==========================================
 // 🧩 COMPONENTE 1: GRÁFICO DINÂMICO (COM FILTRO)
@@ -138,103 +137,57 @@ const VendasPorCanal = ({ canais }) => {
 };
 
 // ==========================================
-// 🧩 COMPONENTE 3: MAPA DE CALOR DO BRASIL INTERATIVO
+// 🧩 COMPONENTE 3: RANKING DE ESTADOS (NOVO SUBSTITUTO DO MAPA)
 // ==========================================
-// URL Pública com o mapa SVG geojson do Brasil
-const geoUrl = "https://raw.githubusercontent.com/codeforamerica/click_that_hood/master/public/data/brazil-states.geojson";
-
-const MapaBrasil = ({ estados }) => {
-  const [hoveredState, setHoveredState] = useState(null);
-  const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
-
+const RankingEstados = ({ estados }) => {
   const formatarMoeda = (valor) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor || 0);
   
-  // Acha o maior valor para calcular a cor (Mapa de Calor)
-  const maxValor = estados?.length > 0 ? Math.max(...estados.map(e => e.valor)) : 1;
-
-  // Função para definir a cor baseada no valor (Azul Claro pro Escuro)
-  const getColor = (valor) => {
-    if (!valor) return "#e4e4e7"; // Cor neutra (cinza/branco)
-    const intensidade = valor / maxValor;
-    if (intensidade > 0.8) return "#2563eb"; // Azul forte
-    if (intensidade > 0.5) return "#60a5fa"; // Azul médio
-    if (intensidade > 0.2) return "#93c5fd"; // Azul claro
-    return "#bfdbfe"; // Azul muito claro
-  };
-
-  const mapData = useMemo(() => {
-    const dataDict = {};
-    estados?.forEach(est => {
-      dataDict[est.sigla] = est;
-    });
-    return dataDict;
-  }, [estados]);
+  // Pega apenas os 6 melhores para não estourar o card
+  const topEstados = estados?.slice(0, 6) || [];
+  
+  // Acha o maior valor para calcular a largura da barra
+  const maxValor = topEstados.length > 0 ? Math.max(...topEstados.map(e => e.valor)) : 1;
 
   return (
     <div className="xl:col-span-1 bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800/80 rounded-2xl p-5 w-full shadow-sm relative overflow-hidden flex flex-col h-full min-h-[350px]">
-      <h2 className="text-sm md:text-base font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2 mb-2">
-        <MapPin size={18} className="text-blue-500" /> Pedidos por estado
+      <h2 className="text-sm md:text-base font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2 mb-6">
+        <MapPin size={18} className="text-blue-500" /> Top Regiões por Receita
       </h2>
       
-      <div 
-        className="flex-1 w-full relative flex items-center justify-center overflow-visible"
-        onMouseMove={(e) => setTooltipPos({ x: e.clientX, y: e.clientY })}
-      >
-        <ComposableMap
-          projection="geoMercator"
-          projectionConfig={{ scale: 650, center: [-54, -15] }} // Centraliza no Brasil
-          style={{ width: "100%", height: "100%" }}
-        >
-          <Geographies geography={geoUrl}>
-            {({ geographies }) =>
-              geographies.map((geo) => {
-                const siglaEstado = geo.properties.sigla; // Sigla no geojson
-                const dadosEstado = mapData[siglaEstado];
-                const corEstado = getColor(dadosEstado?.valor);
-
-                return (
-                  <Geography
-                    key={geo.rsmKey}
-                    geography={geo}
-                    fill={corEstado}
-                    stroke="#ffffff"
-                    strokeWidth={0.5}
-                    style={{
-                      default: { outline: "none" },
-                      hover: { fill: "#3b82f6", outline: "none", cursor: "pointer" }, // Cor ao passar o mouse
-                      pressed: { fill: "#1d4ed8", outline: "none" },
-                    }}
-                    onMouseEnter={() => setHoveredState({ nome: geo.properties.name, ...dadosEstado })}
-                    onMouseLeave={() => setHoveredState(null)}
+      {!topEstados || topEstados.length === 0 ? (
+        <div className="flex-1 flex items-center justify-center text-zinc-400 text-sm">Sem dados de região no momento</div>
+      ) : (
+        <div className="flex-1 flex flex-col justify-center gap-5">
+          {topEstados.map((uf, index) => {
+            const percent = Math.max((uf.valor / maxValor) * 100, 2); // minimo de 2% para a barra aparecer redondinha
+            
+            return (
+              <div key={uf.sigla || index} className="space-y-2 group">
+                <div className="flex justify-between items-end text-sm">
+                  <span className="font-bold text-zinc-700 dark:text-zinc-300 flex items-center gap-2">
+                    <span className="w-5 h-5 rounded bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center text-[10px]">
+                      {index + 1}
+                    </span>
+                    {uf.nome || uf.sigla}
+                  </span>
+                  <span className="text-zinc-900 dark:text-zinc-100 font-bold">{formatarMoeda(uf.valor)}</span>
+                </div>
+                
+                <div className="w-full bg-zinc-100 dark:bg-zinc-800/50 rounded-full h-2.5 overflow-hidden">
+                  <div 
+                    className="bg-blue-500 dark:bg-blue-600 h-full rounded-full transition-all duration-1000 ease-out group-hover:bg-blue-400"
+                    style={{ width: `${percent}%` }}
                   />
-                );
-              })
-            }
-          </Geographies>
-        </ComposableMap>
-
-        {/* TOOLTIP ESTILO TINY/OLIST */}
-        {hoveredState && (
-          <div 
-            className="fixed z-50 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 shadow-xl rounded-xl p-3 pointer-events-none transform -translate-x-1/2 -translate-y-full"
-            style={{ top: tooltipPos.y - 15, left: tooltipPos.x }}
-          >
-            <p className="text-xs text-zinc-500 font-medium mb-1">{hoveredState.nome}</p>
-            <p className="text-sm font-bold text-zinc-900 dark:text-white">{formatarMoeda(hoveredState.valor || 0)}</p>
-            <p className="text-[10px] text-zinc-500 mt-1">{hoveredState.pedidos || 0} pedidos</p>
-          </div>
-        )}
-      </div>
-
-      {/* Lista Top 3 (Opcional, em baixo do mapa) */}
-      <div className="mt-4 pt-3 border-t border-zinc-100 dark:border-zinc-800/80 space-y-2">
-        {estados?.slice(0, 3).map((uf) => (
-          <div key={uf.sigla} className="flex justify-between items-center text-xs">
-            <span className="font-bold text-zinc-700 dark:text-zinc-300">{uf.sigla}</span>
-            <span className="text-zinc-900 dark:text-zinc-100 font-medium">{formatarMoeda(uf.valor)}</span>
-          </div>
-        ))}
-      </div>
+                </div>
+                
+                {uf.pedidos && (
+                   <p className="text-[10px] text-zinc-500 text-right mt-0.5 leading-none">{uf.pedidos} pedidos gerados</p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };
@@ -406,7 +359,9 @@ export default function DashboardAnalitico() {
 
                 <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 items-stretch">
                   <GraficoDinamico dadosGrafico={dados?.graficoVendasDinamico || []} canais={dados?.canais || []} />
-                  <MapaBrasil estados={dados?.rankingEstados || []} />
+                  
+                  {/* 🟢 O NOVO RANKING QUE SUBSTITUIU O MAPA E SALVOU O DEPLOY */}
+                  <RankingEstados estados={dados?.rankingEstados || []} />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch mt-6">

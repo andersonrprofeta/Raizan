@@ -21,7 +21,7 @@ export default function IntegracoesPage() {
   const [integracaoParaDeletar, setIntegracaoParaDeletar] = useState(null); 
 
   const [formWoo, setFormWoo] = useState({
-    nome_integracao: "WooCommerce Legado",
+    nome_integracao: "Minha Loja WooCommerce",
     url_loja: "",
     consumer_key: "",
     consumer_secret: ""
@@ -423,7 +423,6 @@ export default function IntegracoesPage() {
                             <button onClick={(e) => { e.stopPropagation(); setInstalando('raizan'); }} className="w-full py-2.5 bg-purple-600 rounded-xl text-sm font-bold text-white hover:bg-purple-500 shadow-md shadow-purple-500/20 transition-all">Ativar Módulo</button>
                           </div>
 
-                          {/* 🟢 CARD DO NOVO PORTAL B2B */}
                           <div className="border-2 border-indigo-200 dark:border-indigo-500/30 rounded-2xl p-5 flex flex-col items-center text-center hover:border-indigo-500 hover:shadow-xl hover:shadow-indigo-500/10 transition-all cursor-pointer bg-gradient-to-b from-indigo-50/50 to-white dark:from-indigo-900/10 dark:to-[#0c0c0e] relative overflow-hidden group">
                             <div className="absolute top-0 right-0 bg-indigo-600 text-white text-[9px] font-black uppercase px-2 py-1 rounded-bl-lg tracking-wider z-10">Nativo</div>
                             <div className="w-16 h-16 bg-white dark:bg-[#121214] shadow-sm rounded-2xl flex items-center justify-center mb-4 border border-indigo-100 dark:border-indigo-500/20 group-hover:scale-110 transition-transform">
@@ -529,7 +528,66 @@ export default function IntegracoesPage() {
                   </div>
                 )}
 
-                {/* 🟢 FORMULÁRIO PORTAL B2B COM TRAVA VISUAL */}
+                {/* 🟢 NOVO FORMULÁRIO WOOCOMMERCE */}
+                {instalando === 'woocommerce' && (
+                  <div onClick={(e) => e.stopPropagation()} className="bg-white dark:bg-[#0c0c0e] border border-zinc-200 dark:border-zinc-700/50 rounded-3xl animate-in fade-in slide-in-from-right-4 shadow-2xl shadow-zinc-500/5 overflow-hidden">
+                    <div className="p-8 border-b border-zinc-100 dark:border-zinc-800/60 flex items-center justify-between bg-zinc-50/50 dark:bg-zinc-900/10">
+                      <div className="flex items-center gap-4">
+                        <div className="bg-white dark:bg-[#121214] p-3 rounded-2xl shadow-sm border border-zinc-100 dark:border-zinc-700/30">
+                          <img src="/woocommerce.svg" className="w-8 h-8 object-contain" />
+                        </div>
+                        <div>
+                          <h2 className="text-2xl font-black text-zinc-900 dark:text-zinc-100 tracking-tight">WooCommerce</h2>
+                          <p className="text-sm text-zinc-500 font-medium mt-1">Conecte sua loja virtual WordPress.</p>
+                        </div>
+                      </div>
+                      <button onClick={() => setInstalando('catalogo')} className="text-sm font-bold text-zinc-500 hover:text-zinc-900 dark:hover:text-white bg-white dark:bg-zinc-900 px-4 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 transition-colors shadow-sm">Cancelar Configuração</button>
+                    </div>
+
+                    <div className="p-8 max-w-3xl">
+                      <form onSubmit={salvarWooCommerce} className="space-y-6">
+                        
+                        <div className="space-y-2">
+                          <label className="text-sm font-bold flex items-center gap-2 text-zinc-700 dark:text-zinc-300">
+                            <Store size={14} className="text-zinc-500"/> Apelido da Loja
+                          </label>
+                          <input type="text" required value={formWoo.nome_integracao} onChange={e => setFormWoo({...formWoo, nome_integracao: e.target.value})} placeholder="Ex: Filial São Paulo, Varejo Matriz..." className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 p-3.5 rounded-xl font-medium outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all" />
+                          <p className="text-xs font-medium text-zinc-500 mt-1">Isso ajudará você a identificar esta loja no painel.</p>
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-sm font-bold flex items-center gap-2 text-zinc-700 dark:text-zinc-300">
+                            <Globe size={14} className="text-zinc-500"/> URL do Site
+                          </label>
+                          <input type="url" required value={formWoo.url_loja} onChange={e => setFormWoo({...formWoo, url_loja: e.target.value})} placeholder="https://www.sualoja.com.br" className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 p-3.5 rounded-xl font-medium outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all" />
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div className="space-y-2">
+                            <label className="text-sm font-bold flex items-center gap-2 text-zinc-700 dark:text-zinc-300">
+                              <Key size={14} className="text-zinc-500"/> Consumer Key
+                            </label>
+                            <input type="text" required value={formWoo.consumer_key} onChange={e => setFormWoo({...formWoo, consumer_key: e.target.value})} placeholder="ck_1234567890abcdef..." className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 p-3.5 rounded-xl font-mono text-sm outline-none focus:border-purple-500 transition-all" />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-sm font-bold flex items-center gap-2 text-zinc-700 dark:text-zinc-300">
+                              <Key size={14} className="text-zinc-500"/> Consumer Secret
+                            </label>
+                            <input type="password" required value={formWoo.consumer_secret} onChange={e => setFormWoo({...formWoo, consumer_secret: e.target.value})} placeholder="cs_1234567890abcdef..." className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 p-3.5 rounded-xl font-mono text-sm outline-none focus:border-purple-500 transition-all" />
+                          </div>
+                        </div>
+
+                        <div className="pt-4 border-t border-zinc-100 dark:border-zinc-800 mt-8">
+                          <button type="submit" className="w-full sm:w-auto bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 px-8 py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all hover:scale-[0.98]">
+                            <LinkIcon size={18} /> Conectar WooCommerce
+                          </button>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                )}
+
+                {/* FORMULÁRIO PORTAL B2B COM TRAVA VISUAL */}
                 {instalando === 'b2b' && (
                   <div onClick={(e) => e.stopPropagation()} className="bg-white dark:bg-[#0c0c0e] border border-indigo-200 dark:border-indigo-500/30 rounded-3xl animate-in fade-in slide-in-from-right-4 shadow-2xl shadow-indigo-500/5 overflow-hidden">
                     <div className="p-8 border-b border-indigo-100 dark:border-indigo-500/20 flex items-center justify-between bg-indigo-50/50 dark:bg-indigo-900/10">
@@ -563,7 +621,7 @@ export default function IntegracoesPage() {
                           </div>
                         </div>
 
-                        {/* 🟢 AQUI ESTÁ A TRAVA DE SEGURANÇA QUE VOCÊ PEDIU */}
+                        {/* 🟢 TRAVA DE SEGURANÇA */}
                         <div className="p-6 bg-indigo-50 dark:bg-indigo-500/5 border border-indigo-100 dark:border-indigo-500/20 rounded-2xl space-y-5 relative overflow-hidden mt-6">
                           <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none"><Fingerprint size={80}/></div>
                           <h3 className="text-sm font-black text-indigo-900 dark:text-indigo-300 flex items-center gap-2 relative z-10"><Fingerprint size={16} /> Identidade do Módulo</h3>

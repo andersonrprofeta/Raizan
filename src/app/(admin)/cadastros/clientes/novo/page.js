@@ -16,13 +16,14 @@ export default function NovoClienteHub() {
   const [loading, setLoading] = useState(false);
   const [buscandoCep, setBuscandoCep] = useState(false);
 
-  // Estado unificado do formulário
+  // Estado unificado do formulário (🟢 AGORA COM INSCRICAO ESTADUAL)
   const [formData, setFormData] = useState({
     tipo_pessoa: 'fisica',
     nome: '',
     email: '',
     telefone: '',
     cpf_cnpj: '',
+    inscricao_estadual: '', 
     cep: '',
     logradouro: '',
     numero: '',
@@ -104,12 +105,13 @@ export default function NovoClienteHub() {
 
     setLoading(true);
 
-    // Empacotamos o endereço para o JSON que o backend espera
+    // Empacotamos os dados com a Inscrição Estadual e o endereço
     const payload = {
       nome: formData.nome,
       email: formData.email,
       telefone: formData.telefone,
       cpf_cnpj: formData.cpf_cnpj,
+      inscricao_estadual: formData.inscricao_estadual, // 🟢 INJEÇÃO DA IE AQUI!
       tipo_pessoa: formData.tipo_pessoa,
       origem: 'manual', // Indica que foi cadastrado pelo painel admin
       endereco: {
@@ -128,7 +130,7 @@ export default function NovoClienteHub() {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
-          "x-tenant-id": tenantId // 🔥 INJETAMOS O CRACHÁ AQUI!
+          "x-tenant-id": tenantId 
         },
         body: JSON.stringify(payload)
       });
@@ -136,7 +138,7 @@ export default function NovoClienteHub() {
 
       if (data.success) {
         toast.success("Cliente cadastrado com sucesso!");
-        router.push("/cadastros/clientes"); // Volta para a listagem
+        router.push("/cadastros/clientes"); 
       } else {
         toast.error(data.message || "Erro ao salvar cliente.");
       }
@@ -230,6 +232,18 @@ export default function NovoClienteHub() {
                     />
                   </div>
 
+                  {/* 🟢 NOVA INSCRIÇÃO ESTADUAL */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-1">
+                      <Building2 size={14} /> Inscrição Estadual (IE)
+                    </label>
+                    <input 
+                      type="text" name="inscricao_estadual" value={formData.inscricao_estadual} onChange={handleChange}
+                      placeholder={formData.tipo_pessoa === 'fisica' ? "ISENTO" : "Ex: 123.456.789.000"}
+                      className="w-full p-3 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all"
+                    />
+                  </div>
+
                   {/* Telefone */}
                   <div className="space-y-2">
                     <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-1">
@@ -243,7 +257,7 @@ export default function NovoClienteHub() {
                   </div>
 
                   {/* Email */}
-                  <div className="space-y-2 md:col-span-2">
+                  <div className="space-y-2">
                     <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-1">
                       <Mail size={14} /> E-mail *
                     </label>

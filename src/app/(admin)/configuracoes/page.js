@@ -30,13 +30,13 @@ export default function ConfiguracoesWizard() {
     sync_interval_min: 5
   });
 
-  // Mapeamento Dinâmico Separado (COM STATUS, EAN E AGORA MARCA)
+  // Mapeamento Dinâmico Separado (AGORA COM IE NOS CLIENTES)
   const [tabelasOracle, setTabelasOracle] = useState([]);
   const [colunasProdutos, setColunasProdutos] = useState([]);
   const [colunasClientes, setColunasClientes] = useState([]);
   const [mapeamento, setMapeamento] = useState({
     tabela_produtos: "", col_sku: "", col_cod_barras: "", col_nome: "", col_estoque: "", col_preco: "", col_status: "", col_marca: "",
-    tabela_clientes: "", col_cli_cod: "", col_cli_nome: "", col_cli_email: "", col_cli_doc: ""
+    tabela_clientes: "", col_cli_cod: "", col_cli_nome: "", col_cli_email: "", col_cli_doc: "", col_cli_ie: ""
   });
 
   // Integrações Puxadas da Nuvem
@@ -166,7 +166,7 @@ export default function ConfiguracoesWizard() {
   };
 
   const handleSelecionarTabelaClientes = async (nomeTabela) => {
-    setMapeamento({ ...mapeamento, tabela_clientes: nomeTabela, col_cli_cod: "", col_cli_nome: "", col_cli_email: "", col_cli_doc: "" });
+    setMapeamento({ ...mapeamento, tabela_clientes: nomeTabela, col_cli_cod: "", col_cli_nome: "", col_cli_email: "", col_cli_doc: "", col_cli_ie: "" });
     if (!nomeTabela) return setColunasClientes([]);
     const urlLimpa = coreUrl.trim().replace(/\/$/, "");
     try {
@@ -350,7 +350,7 @@ export default function ConfiguracoesWizard() {
                                   { label: "Preço de Venda", key: "col_preco" }, 
                                   { label: "Estoque Físico", key: "col_estoque" }, 
                                   { label: "Status (Ativo/Inativo)", key: "col_status" },
-                                  { label: "Marca", key: "col_marca" } // 🟢 CAMPO DE MARCA ADICIONADO AQUI
+                                  { label: "Marca", key: "col_marca" }
                                 ].map(campo => (
                                   <div key={campo.key} className="space-y-1">
                                     <label className="text-[10px] font-bold text-zinc-500 uppercase">{campo.label}</label>
@@ -374,8 +374,11 @@ export default function ConfiguracoesWizard() {
                             {colunasClientes.length > 0 && (
                               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 p-4 border border-zinc-200 dark:border-zinc-800 rounded-xl bg-zinc-50/50 dark:bg-zinc-900/30">
                                 {[
-                                  { label: "Código Cliente", key: "col_cli_cod" }, { label: "Razão Social / Nome", key: "col_cli_nome" },
-                                  { label: "E-mail", key: "col_cli_email" }, { label: "CNPJ / CPF", key: "col_cli_doc" }
+                                  { label: "Código Cliente", key: "col_cli_cod" }, 
+                                  { label: "Razão Social / Nome", key: "col_cli_nome" },
+                                  { label: "E-mail", key: "col_cli_email" }, 
+                                  { label: "CNPJ / CPF", key: "col_cli_doc" },
+                                  { label: "Inscrição Estadual (IE)", key: "col_cli_ie" } // 🟢 NOVA COLUNA ADICIONADA AQUI
                                 ].map(campo => (
                                   <div key={campo.key} className="space-y-1">
                                     <label className="text-[10px] font-bold text-zinc-500 uppercase">{campo.label}</label>

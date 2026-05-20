@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState } from "react";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import { getHubUrl, getApiUrl, getHeaders } from "@/components/utils/api";
-import { TrendingUp, Users, ShoppingCart, DollarSign, Package, Loader2, Database, AlertTriangle, MapPin, PieChart as PieChartIcon } from "lucide-react";
+import { TrendingUp, Users, ShoppingCart, DollarSign, Package, Loader2, Database, AlertTriangle, MapPin, PieChart as PieChartIcon, Trophy } from "lucide-react";
 import { AreaChart, Area, ResponsiveContainer, Tooltip as RechartsTooltip, XAxis, CartesianGrid, PieChart, Pie, Cell } from 'recharts';
 
 // ==========================================
@@ -19,7 +19,6 @@ const GraficoDinamico = ({ dadosGrafico, canais }) => {
 
   const formatarMoeda = (valor) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor || 0);
 
-  // Se não tiver dados reais do backend ainda, mostra vazio elegante
   if (!dadosGrafico || dadosGrafico.length === 0) {
     return (
       <div className="xl:col-span-2 bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800/80 rounded-2xl p-4 md:p-6 w-full flex items-center justify-center min-h-[300px] shadow-sm text-zinc-400">
@@ -42,8 +41,8 @@ const GraficoDinamico = ({ dadosGrafico, canais }) => {
               onClick={() => toggleCanal(canal.id)}
               className={`flex items-center gap-1.5 transition-all duration-300 hover:scale-105 ${canaisOcultos.includes(canal.id) ? 'opacity-40 grayscale' : 'opacity-100'}`}
             >
-              <div className="w-2.5 h-2.5 rounded-full shadow-sm" style={{ backgroundColor: canal.cor }}></div>
-              <span className="text-zinc-600 dark:text-zinc-300">{canal.nome}</span>
+              <div className="w-2.5 h-2.5 rounded-full shadow-sm shrink-0" style={{ backgroundColor: canal.cor }}></div>
+              <span className="text-zinc-600 dark:text-zinc-300 truncate max-w-[120px]" title={canal.nome}>{canal.nome}</span>
             </button>
           ))}
         </div>
@@ -108,7 +107,7 @@ const VendasPorCanal = ({ canais }) => {
                   ))}
                 </Pie>
                 <RechartsTooltip 
-                  formatter={(value) => formatarMoeda(value)}
+                  formatter={(value, name, props) => [formatarMoeda(value), props.payload.nome || name]}
                   contentStyle={{ backgroundColor: '#0c0c0e', borderColor: '#27272a', borderRadius: '8px', fontSize: '12px', color: '#fff' }}
                 />
               </PieChart>
@@ -123,8 +122,8 @@ const VendasPorCanal = ({ canais }) => {
             {canais.map(canal => (
               <div key={canal.id} className="flex justify-between items-center text-xs">
                 <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: canal.cor }}></div>
-                  <span className="text-zinc-600 dark:text-zinc-400 truncate max-w-[100px]">{canal.nome}</span>
+                  <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: canal.cor }}></div>
+                  <span className="text-zinc-600 dark:text-zinc-400 truncate max-w-[140px]" title={canal.nome}>{canal.nome}</span>
                 </div>
                 <span className="font-bold text-zinc-800 dark:text-zinc-200">{formatarMoeda(canal.valor)}</span>
               </div>
@@ -137,51 +136,76 @@ const VendasPorCanal = ({ canais }) => {
 };
 
 // ==========================================
-// 🧩 COMPONENTE 3: RANKING DE ESTADOS (NOVO SUBSTITUTO DO MAPA)
+// 🧩 COMPONENTE 3: RANKING DE ESTADOS (COM VIDA E TROFÉU!)
 // ==========================================
 const RankingEstados = ({ estados }) => {
   const formatarMoeda = (valor) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor || 0);
   
-  // Pega apenas os 6 melhores para não estourar o card
   const topEstados = estados?.slice(0, 6) || [];
-  
-  // Acha o maior valor para calcular a largura da barra
   const maxValor = topEstados.length > 0 ? Math.max(...topEstados.map(e => e.valor)) : 1;
 
   return (
     <div className="xl:col-span-1 bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800/80 rounded-2xl p-5 w-full shadow-sm relative overflow-hidden flex flex-col h-full min-h-[350px]">
-      <h2 className="text-sm md:text-base font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2 mb-6">
-        <MapPin size={18} className="text-blue-500" /> Top Regiões por Receita
+      
+      {/* Fundo decorativo sutil */}
+      <div className="absolute top-0 right-0 w-40 h-40 bg-blue-500/5 dark:bg-blue-500/10 rounded-full blur-3xl pointer-events-none -translate-y-1/2 translate-x-1/3" />
+
+      <h2 className="text-sm md:text-base font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2 mb-6 relative z-10">
+        <div className="p-1.5 bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 rounded-lg">
+          <MapPin size={16} />
+        </div>
+        Top Regiões
       </h2>
       
       {!topEstados || topEstados.length === 0 ? (
-        <div className="flex-1 flex items-center justify-center text-zinc-400 text-sm">Sem dados de região no momento</div>
+        <div className="flex-1 flex flex-col items-center justify-center text-zinc-400 text-sm gap-2">
+          <MapPin size={32} className="opacity-20" />
+          Sem dados de região no momento
+        </div>
       ) : (
-        <div className="flex-1 flex flex-col justify-center gap-5">
+        <div className="flex-1 flex flex-col justify-center gap-5 relative z-10">
           {topEstados.map((uf, index) => {
-            const percent = Math.max((uf.valor / maxValor) * 100, 2); // minimo de 2% para a barra aparecer redondinha
+            const percent = Math.max((uf.valor / maxValor) * 100, 2); 
+            const isFirst = index === 0;
+            const siglaCrua = uf.sigla || "ND";
+            const isGhost = siglaCrua === 'UF' || siglaCrua === 'ND';
+            const nomeExibicao = uf.nome || (isGhost ? 'Local Não Informado' : siglaCrua);
             
             return (
-              <div key={uf.sigla || index} className="space-y-2 group">
+              <div key={siglaCrua + index} className="space-y-2 group">
                 <div className="flex justify-between items-end text-sm">
-                  <span className="font-bold text-zinc-700 dark:text-zinc-300 flex items-center gap-2">
-                    <span className="w-5 h-5 rounded bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center text-[10px]">
-                      {index + 1}
+                  <span className={`font-bold flex items-center gap-2.5 transition-colors ${isGhost ? 'text-zinc-400' : 'text-zinc-700 dark:text-zinc-300'}`}>
+                    
+                    {/* Badge Animado do Número/Troféu */}
+                    <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] shadow-sm shrink-0 transition-transform group-hover:scale-110 
+                      ${isFirst ? 'bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-500/30' : 
+                        isGhost ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500 border border-zinc-200 dark:border-zinc-700' : 
+                        'bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-500/20'}`}
+                    >
+                      {isFirst ? <Trophy size={12} className="fill-amber-500/20" /> : index + 1}
                     </span>
-                    {uf.nome || uf.sigla}
+
+                    <span className="truncate max-w-[120px]" title={nomeExibicao}>{nomeExibicao}</span>
                   </span>
-                  <span className="text-zinc-900 dark:text-zinc-100 font-bold">{formatarMoeda(uf.valor)}</span>
+                  
+                  <span className={`font-bold ${isFirst ? 'text-amber-600 dark:text-amber-400' : isGhost ? 'text-zinc-400' : 'text-zinc-900 dark:text-zinc-100'}`}>
+                    {formatarMoeda(uf.valor)}
+                  </span>
                 </div>
                 
-                <div className="w-full bg-zinc-100 dark:bg-zinc-800/50 rounded-full h-2.5 overflow-hidden">
+                {/* Barra de Progresso em Degradê */}
+                <div className="w-full bg-zinc-100 dark:bg-zinc-800/60 rounded-full h-2 overflow-hidden shadow-inner">
                   <div 
-                    className="bg-blue-500 dark:bg-blue-600 h-full rounded-full transition-all duration-1000 ease-out group-hover:bg-blue-400"
+                    className={`h-full rounded-full transition-all duration-1000 ease-out group-hover:opacity-80
+                      ${isFirst ? 'bg-gradient-to-r from-amber-400 to-amber-500' : 
+                        isGhost ? 'bg-zinc-300 dark:bg-zinc-600' : 
+                        'bg-gradient-to-r from-blue-500 to-blue-600'}`}
                     style={{ width: `${percent}%` }}
                   />
                 </div>
                 
                 {uf.pedidos && (
-                   <p className="text-[10px] text-zinc-500 text-right mt-0.5 leading-none">{uf.pedidos} pedidos gerados</p>
+                   <p className="text-[10px] text-zinc-400 dark:text-zinc-500 text-right leading-none font-medium">{uf.pedidos} pedidos gerados</p>
                 )}
               </div>
             );
@@ -236,8 +260,6 @@ export default function DashboardAnalitico() {
         const json = await res.json();
         
         if (json.sucesso) {
-          // 🟢 OS DADOS MOCKADOS FORAM REMOVIDOS DAQUI!
-          // Agora o Front-end obedece 100% o que o seu Banco de Dados mandar!
           setDados(json);
         }
       } catch (error) {
@@ -332,6 +354,7 @@ export default function DashboardAnalitico() {
                     </h3>
                   </div>
 
+                  {/* 🟢 O RETORNO DOS NOVOS CLIENTES */}
                   <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800/80 rounded-2xl p-5 hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition-colors relative overflow-hidden w-full shadow-sm group">
                     <div className="flex justify-between items-start mb-4 relative z-10">
                       <div className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-500/10 flex items-center justify-center border border-blue-200 dark:border-blue-500/20 shadow-inner shadow-blue-500/10">
@@ -359,8 +382,6 @@ export default function DashboardAnalitico() {
 
                 <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 items-stretch">
                   <GraficoDinamico dadosGrafico={dados?.graficoVendasDinamico || []} canais={dados?.canais || []} />
-                  
-                  {/* 🟢 O NOVO RANKING QUE SUBSTITUIU O MAPA E SALVOU O DEPLOY */}
                   <RankingEstados estados={dados?.rankingEstados || []} />
                 </div>
 

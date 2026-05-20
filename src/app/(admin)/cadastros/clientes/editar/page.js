@@ -20,8 +20,9 @@ function FormularioEdicao() {
   const [loading, setLoading] = useState(false);
   const [buscandoCep, setBuscandoCep] = useState(false);
 
+  // 🟢 AGORA COM INSCRIÇÃO ESTADUAL
   const [formData, setFormData] = useState({
-    tipo_pessoa: 'fisica', nome: '', email: '', telefone: '', cpf_cnpj: '',
+    tipo_pessoa: 'fisica', nome: '', email: '', telefone: '', cpf_cnpj: '', inscricao_estadual: '',
     cep: '', logradouro: '', numero: '', complemento: '', bairro: '', cidade: '', uf: ''
   });
 
@@ -49,7 +50,6 @@ function FormularioEdicao() {
     }
 
     try {
-      // 🔥 Injetamos o cabeçalho aqui para buscar os dados
       const res = await fetch(`https://api.raizan.com.br/api/hub/clientes/${idCliente}`, {
         headers: { "x-tenant-id": tenantId }
       });
@@ -66,6 +66,7 @@ function FormularioEdicao() {
           email: c.email || '',
           telefone: c.telefone || '',
           cpf_cnpj: c.cpf_cnpj || '',
+          inscricao_estadual: c.inscricao_estadual || '', // 🟢 PUXANDO A IE DO BANCO
           cep: end.cep || '',
           logradouro: end.logradouro || '',
           numero: end.numero || '',
@@ -122,13 +123,24 @@ function FormularioEdicao() {
     setLoading(true);
 
     const payload = {
-      nome: formData.nome, email: formData.email, telefone: formData.telefone,
-      cpf_cnpj: formData.cpf_cnpj, tipo_pessoa: formData.tipo_pessoa,
-      endereco: { cep: formData.cep, logradouro: formData.logradouro, numero: formData.numero, complemento: formData.complemento, bairro: formData.bairro, cidade: formData.cidade, uf: formData.uf }
+      nome: formData.nome, 
+      email: formData.email, 
+      telefone: formData.telefone,
+      cpf_cnpj: formData.cpf_cnpj, 
+      inscricao_estadual: formData.inscricao_estadual, // 🟢 MANDANDO A IE PRO BACKEND
+      tipo_pessoa: formData.tipo_pessoa,
+      endereco: { 
+        cep: formData.cep, 
+        logradouro: formData.logradouro, 
+        numero: formData.numero, 
+        complemento: formData.complemento, 
+        bairro: formData.bairro, 
+        cidade: formData.cidade, 
+        uf: formData.uf 
+      }
     };
 
     try {
-      // 🔥 Injetamos o cabeçalho aqui também para salvar os dados
       const res = await fetch(`https://api.raizan.com.br/api/hub/clientes/${idCliente}`, {
         method: "PUT", 
         headers: { 
@@ -141,7 +153,8 @@ function FormularioEdicao() {
       
       if (data.success) {
         toast.success("Cadastro atualizado!");
-        router.push("/cadastros/clientes"); 
+        // Em vez de voltar pra lista, volta pra Visão 360º que é mais chique!
+        router.push(`/cadastros/clientes/detalhes?id=${idCliente}`); 
       } else {
         toast.error(data.message || "Erro ao salvar.");
       }
@@ -162,11 +175,12 @@ function FormularioEdicao() {
         
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <Link href="/cadastros/clientes">
-              <button className="w-10 h-10 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl flex items-center justify-center hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors shadow-sm text-zinc-500">
-                <ArrowLeft size={20} />
-              </button>
-            </Link>
+            <button 
+              onClick={() => router.back()}
+              className="w-10 h-10 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl flex items-center justify-center hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors shadow-sm text-zinc-500"
+            >
+              <ArrowLeft size={20} />
+            </button>
             <div>
               <h1 className="text-2xl font-black text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
                 <UserPen className="text-emerald-500" size={24} /> Editar Cliente
@@ -187,6 +201,7 @@ function FormularioEdicao() {
               <UserIcon size={20} className="text-emerald-500" /> Informações Principais
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              
               <div className="space-y-2 md:col-span-2">
                 <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Tipo de Pessoa</label>
                 <div className="flex gap-4">
@@ -200,19 +215,35 @@ function FormularioEdicao() {
                   </label>
                 </div>
               </div>
+              
               <div className="space-y-2 md:col-span-2">
                 <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">{formData.tipo_pessoa === 'fisica' ? 'Nome Completo *' : 'Razão Social *'}</label>
                 <input type="text" name="nome" value={formData.nome} onChange={handleChange} required className="w-full p-3 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl outline-none focus:border-emerald-500" />
               </div>
+              
               <div className="space-y-2">
                 <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-1"><CreditCard size={14} /> {formData.tipo_pessoa === 'fisica' ? 'CPF' : 'CNPJ'}</label>
                 <input type="text" name="cpf_cnpj" value={formData.cpf_cnpj} onChange={handleChange} className="w-full p-3 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl outline-none focus:border-emerald-500" />
               </div>
+
+              {/* 🟢 NOVA INSCRIÇÃO ESTADUAL NA EDIÇÃO */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-1">
+                  <Building2 size={14} /> Inscrição Estadual (IE)
+                </label>
+                <input 
+                  type="text" name="inscricao_estadual" value={formData.inscricao_estadual} onChange={handleChange}
+                  placeholder={formData.tipo_pessoa === 'fisica' ? "ISENTO" : "Ex: 123.456.789.000"}
+                  className="w-full p-3 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl outline-none focus:border-emerald-500 transition-all"
+                />
+              </div>
+              
               <div className="space-y-2">
                 <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-1"><Phone size={14} /> Telefone / WhatsApp</label>
                 <input type="text" name="telefone" value={formData.telefone} onChange={handleChange} className="w-full p-3 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl outline-none focus:border-emerald-500" />
               </div>
-              <div className="space-y-2 md:col-span-2">
+              
+              <div className="space-y-2">
                 <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-1"><Mail size={14} /> E-mail *</label>
                 <input type="email" name="email" value={formData.email} onChange={handleChange} required className="w-full p-3 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl outline-none focus:border-emerald-500" />
               </div>

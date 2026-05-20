@@ -3,20 +3,43 @@
 import { useState, useEffect } from "react";
 import { FolderTree, AlignLeft, Image as ImageIcon, Link2, Search, Type, Hash, ChevronDown, Tag } from "lucide-react";
 import UploaderImagens from "./UploaderImagens";
+import dynamic from "next/dynamic";
+import "react-quill-new/dist/quill.snow.css"; // 🟢 IMPORT ATUALIZADO
+
+// 🟢 IMPORTAÇÃO DINÂMICA ATUALIZADA (Para o react-quill-new)
+const ReactQuill = dynamic(() => import("react-quill-new"), { 
+  ssr: false,
+  loading: () => <p className="p-4 text-sm text-zinc-500 animate-pulse">Carregando editor avançado...</p>
+});
 
 export default function AbaComplementar({ produto, atualizarCampo, setProduto, isEditMode }) {
   const [categorias, setCategorias] = useState([]);
   const [carregandoCategorias, setCarregandoCategorias] = useState(true);
   
-  // 🟢 NOVOS ESTADOS PARA MARCAS
   const [marcas, setMarcas] = useState([]);
   const [carregandoMarcas, setCarregandoMarcas] = useState(true);
 
+  // 🔥 Função para pegar o Tenant ID logado
+  const pegarCnpjLogado = () => {
+    if (typeof window !== 'undefined') {
+      const storedUser = localStorage.getItem("@raizan:user");
+      if (storedUser) {
+        return JSON.parse(storedUser).tenant_id;
+      }
+    }
+    return "";
+  };
+
   useEffect(() => {
     const buscarDados = async () => {
-      // Busca Categorias
+      const tenantId = pegarCnpjLogado();
+      if (!tenantId) return;
+
+      // 🟢 BUSCA CATEGORIAS
       try {
-        const resCat = await fetch("https://api.raizan.com.br/api/hub/categorias");
+        const resCat = await fetch("https://api.raizan.com.br/api/hub/categorias", {
+          headers: { "x-tenant-id": tenantId }
+        });
         const dataCat = await resCat.json();
         if (dataCat.success) setCategorias(dataCat.categorias);
       } catch (error) {
@@ -25,9 +48,11 @@ export default function AbaComplementar({ produto, atualizarCampo, setProduto, i
         setCarregandoCategorias(false);
       }
 
-      // Busca Marcas
+      // 🟢 BUSCA MARCAS
       try {
-        const resMarca = await fetch("https://api.raizan.com.br/api/hub/marcas");
+        const resMarca = await fetch("https://api.raizan.com.br/api/hub/marcas", {
+          headers: { "x-tenant-id": tenantId }
+        });
         const dataMarca = await resMarca.json();
         if (dataMarca.success) setMarcas(dataMarca.marcas);
       } catch (error) {
@@ -39,6 +64,16 @@ export default function AbaComplementar({ produto, atualizarCampo, setProduto, i
 
     buscarDados();
   }, []);
+
+  const modulosEditor = {
+    toolbar: [
+      [{ 'header': [1, 2, 3, false] }],
+      ['bold', 'italic', 'underline', 'strike'],
+      [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+      ['link'],
+      ['clean'] 
+    ],
+  };
 
   return (
     <div className="space-y-10 animate-in fade-in slide-in-from-right-4 duration-300">
@@ -92,7 +127,6 @@ export default function AbaComplementar({ produto, atualizarCampo, setProduto, i
                )}
             </div>
             
-            {/* 🟢 O NOVO DROPDOWN DE MARCAS */}
             <div className="relative">
               <Tag className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 dark:text-zinc-500 transition-colors pointer-events-none" size={16} />
               <select 
@@ -133,21 +167,18 @@ export default function AbaComplementar({ produto, atualizarCampo, setProduto, i
         </h2>
         
         <div className="space-y-2">
-          <div className="w-full bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-t-xl p-2 flex items-center gap-2 overflow-x-auto no-scrollbar transition-colors">
-            <select className="bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-xs font-bold text-zinc-700 dark:text-zinc-300 rounded px-2 py-1 outline-none transition-colors"><option>Simples</option><option>Título 1</option></select>
-            <div className="w-px h-4 bg-zinc-300 dark:bg-zinc-800 mx-1 transition-colors"></div>
-            <button className="p-1.5 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded text-zinc-600 dark:text-zinc-400 font-bold transition-colors">B</button>
-            <button className="p-1.5 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded text-zinc-600 dark:text-zinc-400 italic transition-colors">I</button>
-            <button className="p-1.5 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded text-zinc-600 dark:text-zinc-400 underline transition-colors">U</button>
+          <div className="quill-wrapper rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 transition-colors overflow-hidden">
+            <ReactQuill 
+              theme="snow"
+              value={produto.complementares.descricao || ""}
+              onChange={(content) => atualizarCampo('complementares', 'descricao', content)}
+              modules={modulosEditor}
+              placeholder="Digite a descrição detalhada do produto aqui..."
+            />
           </div>
-          <textarea 
-            rows="6"
-            placeholder="Digite a descrição detalhada do produto aqui..."
-            value={produto.complementares.descricao}
-            onChange={(e) => atualizarCampo('complementares', 'descricao', e.target.value)}
-            className="w-full bg-zinc-50 dark:bg-zinc-950 border border-t-0 border-zinc-200 dark:border-zinc-800 rounded-b-xl p-4 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all resize-y placeholder:text-zinc-400 dark:placeholder:text-zinc-600 shadow-sm dark:shadow-none"
-          ></textarea>
-          <p className="text-[11px] font-medium text-zinc-500 dark:text-zinc-500 transition-colors">Campo exibido em propostas comerciais, pedidos de venda e descrição do produto no e-commerce.</p>
+          <p className="text-[11px] font-medium text-zinc-500 dark:text-zinc-500 transition-colors pt-1">
+            Campo exibido em propostas comerciais, pedidos de venda e descrição do produto no e-commerce. (Formatação HTML suportada)
+          </p>
         </div>
       </section>
 
@@ -250,6 +281,34 @@ export default function AbaComplementar({ produto, atualizarCampo, setProduto, i
           </div>
         </div>
       </section>
+
+      {/* 🟢 CSS PARA DEIXAR O QUILL COM CARA DE SISTEMA PREMIUM E RESPONSIVO AO DARK MODE */}
+      <style jsx global>{`
+        .quill-wrapper .ql-toolbar {
+          border: none !important;
+          border-bottom: 1px solid #e4e4e7 !important;
+          background-color: transparent;
+        }
+        .dark .quill-wrapper .ql-toolbar {
+          border-bottom-color: #27272a !important;
+        }
+        .dark .quill-wrapper .ql-stroke { stroke: #a1a1aa !important; }
+        .dark .quill-wrapper .ql-fill { fill: #a1a1aa !important; }
+        .dark .quill-wrapper .ql-picker { color: #a1a1aa !important; }
+        
+        .quill-wrapper .ql-container {
+          border: none !important;
+          min-height: 200px;
+          font-family: inherit;
+          font-size: 0.875rem;
+          color: inherit;
+        }
+        .dark .quill-wrapper .ql-editor { color: #e4e4e7; }
+        .quill-wrapper .ql-editor.ql-blank::before {
+          color: #a1a1aa;
+          font-style: normal;
+        }
+      `}</style>
 
     </div>
   );

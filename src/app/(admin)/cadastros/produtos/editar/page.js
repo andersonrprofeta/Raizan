@@ -40,6 +40,17 @@ function FormularioInterno() {
     composicao_kit: []
   });
 
+  // 🔥 Função para pegar o Tenant ID logado (O Crachá!)
+  const pegarCnpjLogado = () => {
+    if (typeof window !== 'undefined') {
+      const storedUser = localStorage.getItem("@raizan:user");
+      if (storedUser) {
+        return JSON.parse(storedUser).tenant_id;
+      }
+    }
+    return "";
+  };
+
   useEffect(() => {
     if (isEditMode) {
       buscarProdutoParaEdicao();
@@ -47,8 +58,18 @@ function FormularioInterno() {
   }, [idProduto]);
 
   const buscarProdutoParaEdicao = async () => {
+    const tenantId = pegarCnpjLogado();
+    if (!tenantId) {
+      toast.error("Erro de sessão. Faça login novamente.");
+      router.push('/login');
+      return;
+    }
+
     try {
-      const res = await fetch(`https://api.raizan.com.br/api/hub/produtos/${idProduto}`);
+      // 🟢 CABEÇALHO INJETADO NA BUSCA
+      const res = await fetch(`https://api.raizan.com.br/api/hub/produtos/${idProduto}`, {
+        headers: { "x-tenant-id": tenantId }
+      });
       const data = await res.json();
       if (data.success) {
         setProduto(data.produto);
@@ -75,6 +96,11 @@ function FormularioInterno() {
   };
 
   const salvarProduto = async () => {
+    const tenantId = pegarCnpjLogado();
+    if (!tenantId) {
+      return toast.error("Erro de sessão. Faça login novamente.");
+    }
+
     setSalvando(true);
     
     let produtoParaSalvar = { ...produto };
@@ -91,9 +117,13 @@ function FormularioInterno() {
     const method = isEditMode ? "PUT" : "POST";
 
     try {
+      // 🟢 CABEÇALHO INJETADO NO SALVAMENTO
       const res = await fetch(url, {
         method: method,
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "x-tenant-id": tenantId
+        },
         body: JSON.stringify(produtoParaSalvar) 
       });
       
@@ -144,7 +174,7 @@ function FormularioInterno() {
       <div className="flex-1 flex flex-col h-screen relative min-w-0">
         <Header />
         <main className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-6 lg:p-8 relative">
-          <div className="max-w-6xl mx-auto space-y-6 pb-24"> {/* Adicionado pb-24 para a barra não cobrir conteúdo */}
+          <div className="max-w-6xl mx-auto space-y-6 pb-24"> 
             
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-white dark:bg-[#0c0c0e] p-5 sm:p-6 rounded-2xl border border-zinc-200 dark:border-zinc-800/60 shadow-sm dark:shadow-xl relative overflow-hidden transition-colors duration-300 gap-4">
               <div className="absolute -left-10 -top-10 w-40 h-40 bg-purple-100 dark:bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
@@ -162,7 +192,6 @@ function FormularioInterno() {
                 </div>
               </div>
 
-              {/* Botão original de cima mantido, mas escondemos se a barra flutuante estiver ativa para evitar cliques duplos confusos */}
               {!temAlteracoes && (
                 <button 
                   onClick={salvarProduto} disabled={salvando}
@@ -224,7 +253,7 @@ function FormularioInterno() {
                   </button>
                   
                   <button 
-                    onClick={salvarProduto} // 🟢 Conectado à sua função principal de salvar!
+                    onClick={salvarProduto} 
                     disabled={salvando}
                     className="bg-purple-600 hover:bg-purple-500 text-white px-6 md:px-8 py-2.5 rounded-xl font-bold shadow-lg shadow-purple-600/20 transition-all active:scale-95 text-xs sm:text-sm flex items-center gap-2 disabled:opacity-50"
                   >

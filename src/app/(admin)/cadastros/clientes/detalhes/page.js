@@ -6,7 +6,8 @@ import Header from "@/components/Header";
 import { 
   ArrowLeft, User as UserIcon, Mail, Phone, MapPin, 
   Building2, CreditCard, ShoppingBag, DollarSign, 
-  TrendingUp, Calendar, Package, ExternalLink, Loader2
+  TrendingUp, Package, ExternalLink, Loader2, Store, 
+  Globe, MonitorSmartphone, ChevronLeft, ChevronRight, X
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -24,7 +25,11 @@ function DashboardCliente() {
     pedidos: []
   });
 
-  // 🔥 Função para pegar o Tenant ID logado
+  // 🟢 ESTADOS DA PAGINAÇÃO E DO MODAL
+  const [paginaAtual, setPaginaAtual] = useState(1);
+  const itensPorPagina = 5; // Mantém a tela limpa e compacta
+  const [modalPedido, setModalPedido] = useState({ open: false, pedido: null });
+
   const pegarCnpjLogado = () => {
     if (typeof window !== 'undefined') {
       const storedUser = localStorage.getItem("@raizan:user");
@@ -51,7 +56,7 @@ function DashboardCliente() {
       const res = await fetch(`https://api.raizan.com.br/api/hub/clientes/${idCliente}/dashboard`, {
         headers: { 
           "Content-Type": "application/json",
-          "x-tenant-id": tenantId // 🔥 INJETAMOS O CRACHÁ AQUI TAMBÉM!
+          "x-tenant-id": tenantId 
         }
       });
       const data = await res.json();
@@ -70,32 +75,88 @@ function DashboardCliente() {
   };
 
   const formatarMoeda = (valor) => Number(valor).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-  const formatarData = (dataStr) => new Date(dataStr).toLocaleDateString("pt-BR", { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const formatarData = (dataStr) => new Date(dataStr).toLocaleDateString("pt-BR", { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute:'2-digit' });
+
+  const getCanalFavorito = () => {
+    if (!dados.pedidos || dados.pedidos.length === 0) return { nome: "Nenhum", icon: <Store size={14} /> };
+    
+    const contagem = {};
+    let maxCount = 0;
+    let favorito = "";
+    
+    dados.pedidos.forEach(p => {
+      const origem = p.origem || 'manual';
+      contagem[origem] = (contagem[origem] || 0) + 1;
+      if (contagem[origem] > maxCount) {
+        maxCount = contagem[origem];
+        favorito = origem;
+      }
+    });
+
+    if (favorito.includes('woo')) return { nome: "WooCommerce", icon: <Globe size={14} className="text-purple-500" /> };
+    if (favorito.includes('b2b')) return { nome: "Portal B2B", icon: <MonitorSmartphone size={14} className="text-blue-500" /> };
+    return { nome: "Manual / PDV", icon: <Store size={14} className="text-zinc-500" /> };
+  };
 
   const renderStatusPedido = (status) => {
     switch(status) {
-      case 'entregue': return <span className="px-2.5 py-1 bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 rounded-md text-[10px] font-black uppercase tracking-wider border border-emerald-200 dark:border-emerald-500/20">Entregue</span>;
-      case 'enviado': return <span className="px-2.5 py-1 bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400 rounded-md text-[10px] font-black uppercase tracking-wider border border-blue-200 dark:border-blue-500/20">Enviado</span>;
-      case 'cancelado': return <span className="px-2.5 py-1 bg-rose-100 text-rose-700 dark:bg-rose-500/10 dark:text-rose-400 rounded-md text-[10px] font-black uppercase tracking-wider border border-rose-200 dark:border-rose-500/20">Cancelado</span>;
-      default: return <span className="px-2.5 py-1 bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400 rounded-md text-[10px] font-black uppercase tracking-wider border border-amber-200 dark:border-amber-500/20">Pendente</span>;
+      case 'entregue': 
+      case 'completed': 
+        return <span className="px-2.5 py-1 bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 rounded-md text-[10px] font-black uppercase tracking-wider border border-emerald-200 dark:border-emerald-500/20">Entregue</span>;
+      case 'enviado': 
+        return <span className="px-2.5 py-1 bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400 rounded-md text-[10px] font-black uppercase tracking-wider border border-blue-200 dark:border-blue-500/20">Enviado</span>;
+      case 'cancelado': 
+      case 'cancelled': 
+      case 'refunded':
+        return <span className="px-2.5 py-1 bg-rose-100 text-rose-700 dark:bg-rose-500/10 dark:text-rose-400 rounded-md text-[10px] font-black uppercase tracking-wider border border-rose-200 dark:border-rose-500/20">Cancelado</span>;
+      default: 
+        return <span className="px-2.5 py-1 bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400 rounded-md text-[10px] font-black uppercase tracking-wider border border-amber-200 dark:border-amber-500/20">Pendente</span>;
     }
+  };
+
+  const renderBadgeOrigem = (origem) => {
+    const nome = origem.toLowerCase();
+    if (nome.includes('woo')) {
+      return (
+        <span className="flex items-center gap-1 w-fit bg-purple-50 text-purple-600 dark:bg-purple-500/10 dark:text-purple-400 border border-purple-200 dark:border-purple-500/20 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider mt-1.5">
+          <Globe size={10} /> WooCommerce
+        </span>
+      );
+    }
+    if (nome.includes('b2b')) {
+      return (
+        <span className="flex items-center gap-1 w-fit bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400 border border-blue-200 dark:border-blue-500/20 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider mt-1.5">
+          <MonitorSmartphone size={10} /> Portal B2B
+        </span>
+      );
+    }
+    return (
+      <span className="flex items-center gap-1 w-fit bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider mt-1.5">
+        <Store size={10} /> Manual
+      </span>
+    );
   };
 
   if (loading) {
     return <div className="flex-1 flex items-center justify-center"><Loader2 size={40} className="text-indigo-500 animate-spin" /></div>;
   }
 
-  // 🔥 Segurança para não dar tela branca caso a API não retorne o cliente
-  if (!dados.cliente) {
-    return null; 
-  }
+  if (!dados.cliente) return null; 
 
   const { cliente, kpis, pedidos } = dados;
+  const canalFavorito = getCanalFavorito();
+  
   let endereco = {};
   try { endereco = typeof cliente.endereco_json === 'string' ? JSON.parse(cliente.endereco_json) : (cliente.endereco_json || {}); } catch(e){}
 
+  // 🟢 LÓGICA DE PAGINAÇÃO
+  const totalPaginas = Math.ceil(pedidos.length / itensPorPagina);
+  const indexUltimoPedido = paginaAtual * itensPorPagina;
+  const indexPrimeiroPedido = indexUltimoPedido - itensPorPagina;
+  const pedidosPaginados = pedidos.slice(indexPrimeiroPedido, indexUltimoPedido);
+
   return (
-    <main className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-6 lg:p-8">
+    <main className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-6 lg:p-8 relative">
       <div className="max-w-[1200px] mx-auto space-y-6 pb-20">
         
         {/* Cabeçalho */}
@@ -119,9 +180,8 @@ function DashboardCliente() {
           </Link>
         </div>
 
-        {/* KPIs (Métricas Principais) */}
+        {/* KPIs */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* LTV - Agora em roxo/índigo premium */}
           <div className="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-2xl p-6 text-white shadow-xl shadow-indigo-500/20 relative overflow-hidden">
             <div className="absolute -right-6 -top-6 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
             <div className="absolute -left-6 -bottom-6 w-24 h-24 bg-purple-500/20 rounded-full blur-xl"></div>
@@ -156,7 +216,7 @@ function DashboardCliente() {
         </div>
 
         {/* Layout de 2 Colunas */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
           
           {/* Coluna 1: Dados do Cliente */}
           <div className="lg:col-span-1 space-y-6">
@@ -166,9 +226,14 @@ function DashboardCliente() {
                   {cliente.nome ? cliente.nome.charAt(0).toUpperCase() : <UserIcon size={32} />}
                 </div>
                 <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">{cliente.nome}</h2>
-                <p className="text-[10px] font-bold text-zinc-400 mt-1.5 uppercase tracking-widest flex items-center gap-1 justify-center bg-zinc-100 dark:bg-zinc-800 px-3 py-1 rounded-full w-fit mx-auto">
-                  {cliente.tipo_pessoa === 'juridica' ? <><Building2 size={12}/> Pessoa Jurídica</> : <><UserIcon size={12}/> Pessoa Física</>}
-                </p>
+                <div className="flex items-center gap-2 mt-2">
+                  <p className="text-[10px] font-bold text-zinc-500 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-3 py-1 rounded-full uppercase tracking-widest flex items-center gap-1">
+                    {cliente.tipo_pessoa === 'juridica' ? <><Building2 size={12}/> PJ</> : <><UserIcon size={12}/> PF</>}
+                  </p>
+                  <p className="text-[10px] font-bold text-zinc-500 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-3 py-1 rounded-full flex items-center gap-1">
+                    {canalFavorito.icon} {canalFavorito.nome}
+                  </p>
+                </div>
               </div>
 
               <div className="pt-6 space-y-5">
@@ -176,9 +241,9 @@ function DashboardCliente() {
                   <div className="w-8 h-8 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 flex items-center justify-center shrink-0 border border-zinc-200 dark:border-zinc-700">
                     <Mail size={14} className="text-zinc-500" />
                   </div>
-                  <div className="pt-0.5">
+                  <div className="pt-0.5 min-w-0">
                     <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">E-mail</p>
-                    <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200 break-all">{cliente.email}</p>
+                    <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200 truncate">{cliente.email}</p>
                   </div>
                 </div>
                 
@@ -201,6 +266,18 @@ function DashboardCliente() {
                     <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{cliente.cpf_cnpj || "Não informado"}</p>
                   </div>
                 </div>
+
+                {cliente.inscricao_estadual && (
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 flex items-center justify-center shrink-0 border border-zinc-200 dark:border-zinc-700">
+                      <Building2 size={14} className="text-zinc-500" />
+                    </div>
+                    <div className="pt-0.5">
+                      <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Inscrição Estadual (IE)</p>
+                      <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{cliente.inscricao_estadual}</p>
+                    </div>
+                  </div>
+                )}
                 
                 <div className="flex items-start gap-3">
                   <div className="w-8 h-8 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 flex items-center justify-center shrink-0 border border-zinc-200 dark:border-zinc-700">
@@ -219,22 +296,25 @@ function DashboardCliente() {
             </div>
           </div>
 
-          {/* Coluna 2: Histórico de Pedidos */}
+          {/* Coluna 2: Histórico de Pedidos Paginado */}
           <div className="lg:col-span-2">
             <div className="bg-white dark:bg-[#0c0c0e] border border-zinc-200 dark:border-zinc-800/60 rounded-2xl shadow-sm overflow-hidden flex flex-col h-full">
               <div className="p-6 border-b border-zinc-200 dark:border-zinc-800/60 flex items-center justify-between">
                 <h2 className="text-lg font-bold flex items-center gap-2 text-zinc-800 dark:text-zinc-200">
                   <Package size={20} className="text-indigo-500" /> Histórico de Encomendas
                 </h2>
+                <span className="text-xs font-bold bg-zinc-100 dark:bg-zinc-800 text-zinc-500 px-3 py-1 rounded-full">
+                  {pedidos.length} Registos
+                </span>
               </div>
               
               <div className="overflow-x-auto flex-1">
                 <table className="w-full text-sm text-left">
                   <thead className="bg-zinc-50/50 dark:bg-zinc-900/30 text-zinc-500 dark:text-zinc-400 font-bold border-b border-zinc-200 dark:border-zinc-800/60">
                     <tr>
-                      <th className="px-6 py-4 uppercase tracking-wider text-xs">Pedido</th>
+                      <th className="px-6 py-4 uppercase tracking-wider text-xs">Pedido / Canal</th>
                       <th className="px-6 py-4 uppercase tracking-wider text-xs">Data</th>
-                      <th className="px-6 py-4 uppercase tracking-wider text-xs">Produtos</th>
+                      <th className="px-6 py-4 uppercase tracking-wider text-xs">Volumes</th>
                       <th className="px-6 py-4 text-center uppercase tracking-wider text-xs">Estado</th>
                       <th className="px-6 py-4 text-right uppercase tracking-wider text-xs">Total</th>
                     </tr>
@@ -242,63 +322,46 @@ function DashboardCliente() {
                   <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/40">
                     {pedidos.length === 0 ? (
                       <tr>
-                        <td colSpan="6" className="px-6 py-16 text-center text-zinc-500">
+                        <td colSpan="5" className="px-6 py-16 text-center text-zinc-500">
                           <ShoppingBag size={40} className="mx-auto mb-4 text-zinc-300 dark:text-zinc-700" />
                           <p className="font-medium text-base text-zinc-600 dark:text-zinc-400">Nenhuma compra registrada.</p>
                         </td>
                       </tr>
                     ) : (
-                      pedidos.map((pedido) => {
-                        const itensVisiveis = pedido.itens ? pedido.itens.slice(0, 2) : [];
-                        const itensOcultos = pedido.itens ? pedido.itens.length - 2 : 0;
+                      pedidosPaginados.map((pedido) => {
+                        const totalItens = pedido.itens ? pedido.itens.reduce((acc, item) => acc + (item.quantidade || 1), 0) : 0;
 
                         return (
-                          <tr key={pedido.id} className="hover:bg-indigo-50/30 dark:hover:bg-indigo-500/5 transition-colors cursor-pointer group">
-                            
+                          <tr 
+                            key={pedido.id} 
+                            onClick={() => setModalPedido({ open: true, pedido })}
+                            className="hover:bg-indigo-50/30 dark:hover:bg-indigo-500/5 transition-colors cursor-pointer group"
+                          >
                             <td className="px-6 py-4">
-                              <span className="font-black text-indigo-600 dark:text-indigo-400 block text-base">
+                              <span className="font-black text-indigo-600 dark:text-indigo-400 block text-base leading-none">
                                 #{pedido.codigo_externo || pedido.id}
                               </span>
-                              <span className="text-[10px] text-zinc-500 capitalize tracking-wider font-bold mt-1 block">
-                                {pedido.origem.replace('_', ' ')}
-                              </span>
+                              {renderBadgeOrigem(pedido.origem)}
                             </td>
 
                             <td className="px-6 py-4 text-zinc-600 dark:text-zinc-400 font-medium whitespace-nowrap">
-                              {formatarData(pedido.created_at)}
+                              {formatarData(pedido.created_at).split(' ')[0]} <br/>
+                              <span className="text-xs opacity-60">{formatarData(pedido.created_at).split(' ')[1]}</span>
                             </td>
                             
-                            <td className="px-6 py-4 min-w-[220px] max-w-[300px]">
-                              {itensVisiveis.length > 0 ? (
-                                <div className="flex flex-col gap-2">
-                                  {itensVisiveis.map((item) => (
-                                    <div key={item.id} className="flex items-start gap-2.5 text-xs">
-                                      <span className="font-black text-indigo-700 dark:text-indigo-300 min-w-[22px] bg-indigo-100 dark:bg-indigo-900/40 px-1 py-0.5 rounded text-center shrink-0">
-                                        {item.quantidade}x
-                                      </span>
-                                      <span className="text-zinc-700 dark:text-zinc-300 font-medium truncate pt-0.5" title={item.nome_produto}>
-                                        {item.nome_produto}
-                                      </span>
-                                    </div>
-                                  ))}
-                                  {itensOcultos > 0 && (
-                                    <span className="text-[10px] font-bold text-zinc-500 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-2 py-1 rounded-md w-fit mt-1">
-                                      + {itensOcultos} outro(s) item(ns)
-                                    </span>
-                                  )}
-                                </div>
-                              ) : (
-                                <span className="text-xs text-zinc-400 italic">Itens não sincronizados</span>
-                              )}
+                            <td className="px-6 py-4">
+                              <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300 flex items-center gap-2">
+                                <Package size={14} className="text-zinc-400" /> {totalItens} {totalItens === 1 ? 'item' : 'itens'}
+                              </span>
                             </td>
 
                             <td className="px-6 py-4 text-center">
-                              {renderStatusPedido(pedido.status_pedido)}
+                              {renderStatusPedido(pedido.status_pedido || pedido.status)}
                             </td>
 
                             <td className="px-6 py-4 text-right">
                               <div className="flex items-center justify-end gap-2">
-                                <span className="font-black text-zinc-900 dark:text-zinc-100 text-base">{formatarMoeda(pedido.valor_total)}</span>
+                                <span className="font-black text-zinc-900 dark:text-zinc-100 text-base">{formatarMoeda(pedido.valor_total || pedido.total)}</span>
                                 <ExternalLink size={16} className="text-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity" />
                               </div>
                             </td>
@@ -309,11 +372,107 @@ function DashboardCliente() {
                   </tbody>
                 </table>
               </div>
+
+              {/* Controles de Paginação */}
+              {totalPaginas > 1 && (
+                <div className="p-4 border-t border-zinc-200 dark:border-zinc-800/60 flex items-center justify-between bg-zinc-50/30 dark:bg-zinc-900/10">
+                  <span className="text-sm text-zinc-500 dark:text-zinc-400">
+                    Página <strong className="text-zinc-900 dark:text-zinc-100">{paginaAtual}</strong> de <strong className="text-zinc-900 dark:text-zinc-100">{totalPaginas}</strong>
+                  </span>
+                  
+                  <div className="flex items-center gap-2">
+                    <button 
+                      onClick={() => setPaginaAtual(prev => Math.max(prev - 1, 1))}
+                      disabled={paginaAtual === 1}
+                      className="p-2 rounded-lg border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <ChevronLeft size={18} />
+                    </button>
+                    
+                    <button 
+                      onClick={() => setPaginaAtual(prev => Math.min(prev + 1, totalPaginas))}
+                      disabled={paginaAtual === totalPaginas}
+                      className="p-2 rounded-lg border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <ChevronRight size={18} />
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
         </div>
       </div>
+
+      {/* 🟢 MODAL DE DETALHES DO PEDIDO (GLASSMORPHISM) */}
+      {modalPedido.open && modalPedido.pedido && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-3xl w-full max-w-2xl shadow-2xl flex flex-col relative overflow-hidden animate-in zoom-in-95 duration-200 max-h-[85vh]">
+            
+            {/* Header do Modal */}
+            <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 flex justify-between items-center bg-zinc-50/50 dark:bg-zinc-900/30">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-indigo-100 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 rounded-xl flex items-center justify-center">
+                  <Package size={24} />
+                </div>
+                <div>
+                  <h2 className="text-xl font-black text-zinc-900 dark:text-zinc-100 leading-tight">
+                    Pedido #{modalPedido.pedido.codigo_externo || modalPedido.pedido.id}
+                  </h2>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                      {formatarData(modalPedido.pedido.created_at)}
+                    </span>
+                    <span className="w-1 h-1 rounded-full bg-zinc-300 dark:bg-zinc-700"></span>
+                    {renderStatusPedido(modalPedido.pedido.status_pedido || modalPedido.pedido.status)}
+                  </div>
+                </div>
+              </div>
+              <button 
+                onClick={() => setModalPedido({ open: false, pedido: null })}
+                className="w-10 h-10 rounded-full flex items-center justify-center bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-500 transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Body do Modal (Lista de Produtos) */}
+            <div className="p-6 overflow-y-auto custom-scrollbar flex-1 bg-white dark:bg-[#0c0c0e]">
+              <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider mb-4">Itens da Encomenda</h3>
+              
+              {!modalPedido.pedido.itens || modalPedido.pedido.itens.length === 0 ? (
+                <div className="text-center py-8 text-zinc-400 italic text-sm border border-dashed border-zinc-200 dark:border-zinc-800 rounded-xl">
+                  Detalhes dos itens não sincronizados.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {modalPedido.pedido.itens.map((item, idx) => (
+                    <div key={item.id || idx} className="flex items-center gap-4 p-4 rounded-xl border border-zinc-100 dark:border-zinc-800/60 bg-zinc-50/50 dark:bg-zinc-900/20 hover:border-indigo-200 dark:hover:border-indigo-500/30 transition-colors">
+                      <div className="w-10 h-10 rounded-lg bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center shrink-0 font-black text-zinc-500 dark:text-zinc-400 text-xs">
+                        {item.quantidade}x
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold text-zinc-800 dark:text-zinc-200 truncate">{item.nome_produto}</p>
+                        <p className="text-[10px] text-zinc-400 mt-0.5">Cód: {item.id}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Footer do Modal */}
+            <div className="p-6 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 flex justify-between items-center">
+              <span className="text-sm font-bold text-zinc-500 uppercase tracking-wider">Valor Total</span>
+              <span className="text-2xl font-black text-indigo-600 dark:text-indigo-400">
+                {formatarMoeda(modalPedido.pedido.valor_total || modalPedido.pedido.total)}
+              </span>
+            </div>
+
+          </div>
+        </div>
+      )}
     </main>
   );
 }

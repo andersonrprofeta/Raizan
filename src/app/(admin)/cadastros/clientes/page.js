@@ -6,7 +6,7 @@ import Header from "@/components/Header";
 import { 
   Users, Search, Plus, Edit, Trash2, 
   Mail, Phone, Building2, User as UserIcon,
-  Loader2, ChevronLeft, ChevronRight
+  Loader2, ChevronLeft, ChevronRight, Database, DownloadCloud
 } from "lucide-react";
 import Link from "next/link";
 import toast from 'react-hot-toast';
@@ -23,7 +23,10 @@ export default function ListaClientesHub() {
   const [modalDelete, setModalDelete] = useState({ open: false, cliente: null });
   const [excluirNoWoo, setExcluirNoWoo] = useState(false);
 
-  // 🟢 FUNÇÃO NOVA: Pega o CNPJ da sessão atual para mandar pra API
+  // 🟢 NOVO: ESTADO PARA CONTROLAR A VISIBILIDADE DO BOTÃO
+  const [temERP, setTemERP] = useState(false);
+  const [modalOracle, setModalOracle] = useState({ open: false, codigo: "", loading: false });
+
   const pegarCnpjLogado = () => {
     if (typeof window !== 'undefined') {
       const storedUser = localStorage.getItem("@raizan:user");
@@ -35,10 +38,10 @@ export default function ListaClientesHub() {
   };
 
   useEffect(() => {
-    carregarClientes();
+    carregarClientesEConfiguracoes();
   }, []);
 
-  const carregarClientes = async () => {
+  const carregarClientesEConfiguracoes = async () => {
     try {
       const cnpj = pegarCnpjLogado();
       
@@ -48,21 +51,24 @@ export default function ListaClientesHub() {
         return;
       }
 
-      // 🟢 CORRIGIDO: Agora enviamos o "x-tenant-id" no cabeçalho!
-      const res = await fetch(`${getHubUrl()}/api/hub/clientes`, {
-        method: "GET",
-        headers: {
-          ...getHeaders(),
-          "x-tenant-id": cnpj 
-        }
-      });
+      // 🟢 BUSCA OS CLIENTES E AS CONFIGURAÇÕES AO MESMO TEMPO
+      const [resClientes, resConfig] = await Promise.all([
+        fetch(`${getHubUrl()}/api/hub/clientes`, { headers: { ...getHeaders(), "x-tenant-id": cnpj } }),
+        fetch(`${getHubUrl()}/api/hub/configuracoes`, { headers: { ...getHeaders(), "x-tenant-id": cnpj } })
+      ]);
       
-      const data = await res.json();
-      if (data.success) {
-        setClientes(data.clientes);
-      } else {
-        toast.error("Falha ao carregar clientes.");
+      const dataClientes = await resClientes.json();
+      const dataConfig = await resConfig.json();
+
+      if (dataClientes.success) {
+        setClientes(dataClientes.clientes);
       }
+
+      // 🟢 SE O ORACLE HOST EXISTIR, LIBERA O BOTÃO!
+      if (dataConfig.success && dataConfig.configuracoes?.oracle_host) {
+        setTemERP(true);
+      }
+
     } catch (error) { 
       toast.error("Erro de conexão com o Hub."); 
     } finally { 
@@ -76,13 +82,9 @@ export default function ListaClientesHub() {
     const cnpj = pegarCnpjLogado();
 
     try {
-      // 🟢 CORRIGIDO: Enviando o "x-tenant-id" para deletar no banco certo
       const res = await fetch(`${getHubUrl()}/api/hub/clientes/${id}?excluir_woo=${excluirNoWoo}`, { 
         method: "DELETE",
-        headers: {
-          ...getHeaders(),
-          "x-tenant-id": cnpj
-        }
+        headers: { ...getHeaders(), "x-tenant-id": cnpj }
       });
       const data = await res.json();
       
@@ -97,6 +99,37 @@ export default function ListaClientesHub() {
     } finally {
       setModalDelete({ open: false, cliente: null });
       setExcluirNoWoo(false);
+    }
+  };
+
+  const handleImportarOracle = async (e) => {
+    e.preventDefault();
+    if (!modalOracle.codigo) return toast.error("Digite o código do cliente!");
+
+    const cnpj = pegarCnpjLogado();
+    setModalOracle({ ...modalOracle, loading: true });
+    const toastId = toast.loading("Buscando dados no ERP...");
+
+    try {
+      const res = await fetch(`${getHubUrl()}/api/hub/clientes/importar-erp`, {
+        method: "POST",
+        headers: { ...getHeaders(), "Content-Type": "application/json", "x-tenant-id": cnpj },
+        body: JSON.stringify({ codigo_erp: modalOracle.codigo })
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        toast.success("Cliente importado com sucesso!", { id: toastId });
+        setModalOracle({ open: false, codigo: "", loading: false });
+        carregarClientesEConfiguracoes(); 
+      } else {
+        toast.error(data.message || "Cliente não encontrado.", { id: toastId });
+        setModalOracle({ ...modalOracle, loading: false });
+      }
+    } catch (error) {
+      toast.error("Falha de comunicação com a API.", { id: toastId });
+      setModalOracle({ ...modalOracle, loading: false });
     }
   };
 
@@ -117,6 +150,15 @@ export default function ListaClientesHub() {
   const renderOrigem = (origem) => {
     const text = (origem || "manual").toLowerCase();
     
+    if (text.includes("oracle") || text.includes("erp")) {
+      return (
+        <div className="flex items-center justify-center gap-2 px-3 py-1.5 bg-red-50 dark:bg-red-500/10 rounded-lg border border-red-200 dark:border-red-500/20 w-fit mx-auto shadow-sm">
+          <img src="/oracle.svg" alt="Oracle" className="w-4 h-4 object-contain" />
+          <span className="text-[10px] font-bold text-red-700 dark:text-red-400 uppercase tracking-wider">ERP Local</span>
+        </div>
+      );
+    }
+
     if (text.includes("woo")) {
       return (
         <div className="flex items-center justify-center gap-2 px-3 py-1.5 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-zinc-200 dark:border-zinc-700 w-fit mx-auto shadow-sm">
@@ -162,11 +204,23 @@ export default function ListaClientesHub() {
                 </div>
               </div>
               
-              <Link href="/cadastros/clientes/novo" className="w-full sm:w-auto relative z-10">
-                <button className="w-full sm:w-auto bg-purple-600 hover:bg-purple-500 text-white px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-md shadow-purple-500/20 transition-all active:scale-95">
-                  <Plus size={18} /> Novo Cliente
-                </button>
-              </Link>
+              <div className="flex items-center gap-3 w-full sm:w-auto relative z-10">
+                {/* 🟢 O BOTÃO SÓ APARECE SE TIVER ERP CONFIGURADO */}
+                {temERP && (
+                  <button 
+                    onClick={() => setModalOracle({ open: true, codigo: "", loading: false })}
+                    className="w-full sm:w-auto bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:bg-red-50 dark:hover:bg-red-500/10 text-zinc-700 dark:text-zinc-300 hover:text-red-600 dark:hover:text-red-400 px-5 py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-sm transition-all active:scale-95"
+                  >
+                    <Database size={16} /> Importar do ERP
+                  </button>
+                )}
+
+                <Link href="/cadastros/clientes/novo" className="w-full sm:w-auto">
+                  <button className="w-full sm:w-auto bg-purple-600 hover:bg-purple-500 text-white px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-md shadow-purple-500/20 transition-all active:scale-95">
+                    <Plus size={18} /> Novo Cliente
+                  </button>
+                </Link>
+              </div>
             </div>
 
             <div className="bg-white dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-800 p-4 rounded-2xl flex flex-col sm:flex-row gap-4 shadow-sm dark:shadow-none transition-colors">
@@ -283,7 +337,6 @@ export default function ListaClientesHub() {
                     </table>
                   </div>
 
-                  {/* 🟢 CONTROLES DE PAGINAÇÃO */}
                   {totalPaginas > 1 && (
                     <div className="p-4 border-t border-zinc-200 dark:border-zinc-800/60 flex items-center justify-between bg-zinc-50 dark:bg-[#0c0c0e]">
                       <span className="text-sm text-zinc-500 dark:text-zinc-400">
@@ -329,6 +382,53 @@ export default function ListaClientesHub() {
               )}
             </div>
 
+            {/* MODAL DE IMPORTAÇÃO DO ERP */}
+            {modalOracle.open && (
+              <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+                <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-3xl w-full max-w-md shadow-2xl p-8 text-center flex flex-col items-center relative overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+                  <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-red-500 to-orange-500" />
+                  
+                  <div className="w-16 h-16 bg-red-50 dark:bg-red-500/10 rounded-2xl flex items-center justify-center mb-6 shadow-sm border border-red-100 dark:border-red-500/20">
+                    <DownloadCloud size={32} className="text-red-600 dark:text-red-400" />
+                  </div>
+                  
+                  <h2 className="text-2xl font-black text-zinc-900 dark:text-zinc-100 mb-2">Importar do ERP</h2>
+                  <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-6 leading-relaxed px-2">
+                    Digite o <strong className="text-zinc-800 dark:text-zinc-200">Código do Cliente</strong> para buscar no ERP e autorizar o acesso à plataforma.
+                  </p>
+
+                  <form onSubmit={handleImportarOracle} className="w-full space-y-5">
+                    <input 
+                      type="text" 
+                      placeholder="Ex: 15482" 
+                      required
+                      value={modalOracle.codigo}
+                      onChange={(e) => setModalOracle({...modalOracle, codigo: e.target.value})}
+                      className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 p-4 rounded-xl text-center text-lg font-black tracking-widest outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 transition-all"
+                    />
+
+                    <div className="flex gap-3 w-full">
+                      <button 
+                        type="button"
+                        onClick={() => setModalOracle({ open: false, codigo: "", loading: false })} 
+                        className="flex-1 py-3 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 dark:bg-zinc-900 dark:hover:bg-zinc-800 dark:text-zinc-300 rounded-xl font-bold transition-colors"
+                      >
+                        Cancelar
+                      </button>
+                      <button 
+                        type="submit"
+                        disabled={modalOracle.loading}
+                        className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold transition-colors shadow-md shadow-red-500/20 flex items-center justify-center gap-2 disabled:opacity-70"
+                      >
+                        {modalOracle.loading ? <Loader2 size={18} className="animate-spin" /> : <Database size={18} />}
+                        Importar
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+
             {/* MODAL DE DELETE */}
             {modalDelete.open && (
               <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
@@ -344,7 +444,6 @@ export default function ListaClientesHub() {
                     <span className="mt-2 block">Esta ação é irreversível e apagará este registo do seu Hub.</span>
                   </p>
 
-                  {/* 🔥 SE O CLIENTE FOR DO WOOCOMMERCE, APARECE A OPÇÃO DE EXCLUIR NA LOJA TAMBÉM 🔥 */}
                   {modalDelete.cliente?.origem?.toLowerCase().includes('woo') && (
                     <div className="mb-6 w-full bg-zinc-50 dark:bg-zinc-800/50 p-3.5 rounded-xl border border-zinc-200 dark:border-zinc-700 flex items-start gap-3 text-left transition-colors">
                       <input 

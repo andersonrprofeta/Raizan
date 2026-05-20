@@ -5,7 +5,7 @@ import Image from "next/image";
 import { Mail, Lock, ArrowRight, AlertTriangle, ShieldCheck } from "lucide-react"; 
 import toast from "react-hot-toast";
 import packageJson from "../../../../package.json";
-import { getApiUrl, getHubUrl, getHeaders } from "@/components/utils/api";
+import { getHubUrl } from "@/components/utils/api";
 
 export default function LoginB2B() {
   const [email, setEmail] = useState("");
@@ -14,7 +14,7 @@ export default function LoginB2B() {
   const [errorMsg, setErrorMsg] = useState("");
   
   const [configuracaoPronta, setConfiguracaoPronta] = useState(false);
-  const [isConfiguring, setIsConfiguring] = useState(true); // 🟢 Controla o giro inicial
+  const [isConfiguring, setIsConfiguring] = useState(true);
 
   // ======================================================================
   // 🟢 A MÁGICA ESTILO "TINY ERP": DESCOBRINDO A IDENTIDADE
@@ -30,7 +30,6 @@ export default function LoginB2B() {
           body: JSON.stringify({ url_acesso: host })
         });
         
-        // 🟢 Trava para não quebrar o JSON se der 404/500 no backend
         if (!res.ok) throw new Error(`Erro no servidor: ${res.status}`);
 
         const data = await res.json();
@@ -38,10 +37,9 @@ export default function LoginB2B() {
         if (data.success) {
           localStorage.setItem("@raizan:b2b_tenant_id", data.tenant_id);
           localStorage.setItem("@raizan:b2b_api_url", data.url_api_local);
-          console.log(`🔥 Identidade confirmada: ${data.tenant_id} | Motor: ${data.url_api_local}`);
+          console.log(`🔥 Identidade confirmada: ${data.tenant_id} | Nuvem Ativada!`);
           setConfiguracaoPronta(true);
         } else {
-          // Se for Localhost, funciona. Se não, exibe o erro e para o botão!
           if (host === 'localhost' || host === '127.0.0.1') {
             localStorage.setItem("@raizan:b2b_tenant_id", "28389424000109");
             localStorage.setItem("@raizan:b2b_api_url", "https://api.rafany.com.br");
@@ -60,7 +58,7 @@ export default function LoginB2B() {
           setErrorMsg("Servidor Central indisponível. Verifique as rotas da Hostinger.");
         }
       } finally {
-        setIsConfiguring(false); // 🟢 Para de girar o botão aconteça o que acontecer!
+        setIsConfiguring(false);
       }
     };
 
@@ -73,10 +71,16 @@ export default function LoginB2B() {
     setIsLoading(true);
     setErrorMsg("");
 
+    const tenantId = localStorage.getItem("@raizan:b2b_tenant_id");
+
     try {
-      const response = await fetch(`${getApiUrl()}/api/b2b/auth`, {
+      // 🟢 O PULO DO GATO: Agora o login bate direto na NUVEM (HubUrl) e não no motor local!
+      const response = await fetch(`${getHubUrl()}/api/auth/b2b/auth`, {
         method: "POST",
-        headers: getHeaders(), 
+        headers: {
+          "Content-Type": "application/json",
+          "x-tenant-id": tenantId 
+        }, 
         body: JSON.stringify({ email, senha })
       });
 
@@ -97,7 +101,7 @@ export default function LoginB2B() {
       }, 1000);
 
     } catch (err) {
-      setErrorMsg("Erro de conexão com o servidor da distribuidora.");
+      setErrorMsg("Erro de conexão com o servidor da distribuidora na Nuvem.");
       setIsLoading(false);
     }
   };

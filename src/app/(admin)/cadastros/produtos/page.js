@@ -31,7 +31,6 @@ export default function ListaProdutosHub() {
     status: "", tipo: "", estoque: "", marca: "", variacao: "", categoria: "" 
   });
   
-  // Estados para o Modal de Sincronização (Mapeamento)
   const [modalEnvio, setModalEnvio] = useState({
     open: false,
     produto: null,
@@ -39,6 +38,17 @@ export default function ListaProdutosHub() {
     categoriaSelecionada: "",
     loadingCategorias: false
   }); 
+
+  // 🔥 Função para pegar o Tenant ID logado
+  const pegarCnpjLogado = () => {
+    if (typeof window !== 'undefined') {
+      const storedUser = localStorage.getItem("@raizan:user");
+      if (storedUser) {
+        return JSON.parse(storedUser).tenant_id;
+      }
+    }
+    return "";
+  };
 
   useEffect(() => {
     carregarProdutos();
@@ -56,8 +66,16 @@ export default function ListaProdutosHub() {
   useEffect(() => { setPaginaAtual(1); }, [busca, filtros]);
 
   const carregarProdutos = async () => {
+    const tenantId = pegarCnpjLogado();
+    if (!tenantId) {
+      toast.error("Erro de sessão.");
+      return;
+    }
+
     try {
-      const res = await fetch("https://api.raizan.com.br/api/hub/produtos");
+      const res = await fetch("https://api.raizan.com.br/api/hub/produtos", {
+        headers: { "x-tenant-id": tenantId } // 🟢 CABEÇALHO INJETADO
+      });
       const data = await res.json();
       if (data.success) {
         setProdutos(data.produtos);
@@ -69,8 +87,13 @@ export default function ListaProdutosHub() {
   };
 
   const carregarCategorias = async () => {
+    const tenantId = pegarCnpjLogado();
+    if (!tenantId) return;
+
     try {
-      const res = await fetch("https://api.raizan.com.br/api/hub/categorias");
+      const res = await fetch("https://api.raizan.com.br/api/hub/categorias", {
+        headers: { "x-tenant-id": tenantId } // 🟢 CABEÇALHO INJETADO
+      });
       const data = await res.json();
       if (data.success) setCategorias(data.categorias);
     } catch (error) { console.error("Erro ao puxar categorias"); }
@@ -80,11 +103,14 @@ export default function ListaProdutosHub() {
   // 1. ABRIR MODAL DE MAPEAMENTO
   // ==========================================
   const prepararEnvioParaLoja = async (produto) => {
+    const tenantId = pegarCnpjLogado();
     setMenuAberto(null);
     setModalEnvio({ open: true, produto, categoriasWoo: [], categoriaSelecionada: "", loadingCategorias: true });
 
     try {
-      const res = await fetch("https://api.raizan.com.br/api/hub/sincronizar/woocommerce/categorias");
+      const res = await fetch("https://api.raizan.com.br/api/hub/sincronizar/woocommerce/categorias", {
+        headers: { "x-tenant-id": tenantId } // 🟢 CABEÇALHO INJETADO
+      });
       const data = await res.json();
       if (data.success) {
         setModalEnvio(prev => ({ ...prev, categoriasWoo: data.categorias, loadingCategorias: false }));
@@ -103,6 +129,7 @@ export default function ListaProdutosHub() {
   // ==========================================
   const confirmarEnvioLoja = async () => {
     const { produto, categoriaSelecionada } = modalEnvio;
+    const tenantId = pegarCnpjLogado();
     
     if (!categoriaSelecionada) {
       toast.error("Selecione uma categoria para mapear!");
@@ -114,7 +141,10 @@ export default function ListaProdutosHub() {
     try {
       const res = await fetch('https://api.raizan.com.br/api/hub/sincronizar/woocommerce', { 
         method: 'POST', 
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-tenant-id': tenantId // 🟢 CABEÇALHO INJETADO
+        },
         body: JSON.stringify({ 
           produto_id: produto.id,
           categoria_woo_id: categoriaSelecionada 
@@ -144,8 +174,13 @@ export default function ListaProdutosHub() {
 
   const confirmarExclusao = async () => {
     const id = modalDelete.produto.id;
+    const tenantId = pegarCnpjLogado();
+
     try {
-      const res = await fetch(`https://api.raizan.com.br/api/hub/produtos/${id}`, { method: "DELETE" });
+      const res = await fetch(`https://api.raizan.com.br/api/hub/produtos/${id}`, { 
+        method: "DELETE",
+        headers: { "x-tenant-id": tenantId } // 🟢 CABEÇALHO INJETADO
+      });
       const data = await res.json();
       if (data.success) {
         toast.success(data.message);
@@ -554,8 +589,8 @@ export default function ListaProdutosHub() {
           </div>
 
           {/* ==========================================
-                MODAL DE FILTROS AVANÇADOS
-            ========================================== */}
+              MODAL DE FILTROS AVANÇADOS
+          ========================================== */}
             {modalFiltros && (
               <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
                 <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-2xl w-full max-w-2xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">

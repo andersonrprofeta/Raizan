@@ -15,10 +15,27 @@ export default function MarcasPage() {
   const [nome, setNome] = useState("");
   const [slug, setSlug] = useState("");
 
+  // 🔥 Função para pegar o Tenant ID logado (O Crachá!)
+  const pegarCnpjLogado = () => {
+    if (typeof window !== 'undefined') {
+      const storedUser = localStorage.getItem("@raizan:user");
+      if (storedUser) {
+        return JSON.parse(storedUser).tenant_id;
+      }
+    }
+    return "";
+  };
+
   const fetchMarcas = async () => {
+    const tenantId = pegarCnpjLogado();
+    if (!tenantId) return;
+
     setIsLoading(true);
     try {
-      const res = await fetch(`https://api.raizan.com.br/api/hub/marcas`);
+      // 🟢 Injetando o cabeçalho de identificação
+      const res = await fetch(`https://api.raizan.com.br/api/hub/marcas`, {
+        headers: { "x-tenant-id": tenantId }
+      });
       const data = await res.json();
       if (data.success) {
         setMarcas(data.marcas);
@@ -61,11 +78,17 @@ export default function MarcasPage() {
       return;
     }
 
+    const tenantId = pegarCnpjLogado();
     setIsSubmitting(true);
+
     try {
+      // 🟢 Injetando o cabeçalho no POST
       const res = await fetch(`https://api.raizan.com.br/api/hub/marcas`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "x-tenant-id": tenantId 
+        },
         body: JSON.stringify({
           nome: nome.trim(),
           slug: slug.trim() || gerarSlug(nome),
@@ -95,9 +118,13 @@ export default function MarcasPage() {
       return;
     }
 
+    const tenantId = pegarCnpjLogado();
+
     try {
+      // 🟢 Injetando o cabeçalho no DELETE
       const res = await fetch(`https://api.raizan.com.br/api/hub/marcas/${id}`, {
         method: "DELETE",
+        headers: { "x-tenant-id": tenantId }
       });
       const data = await res.json();
 
@@ -120,7 +147,6 @@ export default function MarcasPage() {
   return (
     <div className="flex h-screen bg-zinc-50 dark:bg-[#09090b] text-zinc-900 dark:text-zinc-100 overflow-hidden transition-colors duration-300">
       
-      {/* OS COMPONENTES QUE ESTAVAM FALTANDO! */}
       <Sidebar />
       <div className="flex-1 flex flex-col h-screen relative min-w-0">
         <Header />

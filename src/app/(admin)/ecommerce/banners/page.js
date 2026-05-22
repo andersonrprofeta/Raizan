@@ -23,7 +23,6 @@ export default function BannersEcommercePage() {
   const [salvando, setSalvando] = useState(false);
   const [activeTab, setActiveTab] = useState("hero");
 
-  // Estado centralizado com suporte a Carrossel (Array no Hero) e Tipo de Fundo nas Promos
   const [content, setContent] = useState({
     heroSlides: [
       {
@@ -45,7 +44,7 @@ export default function BannersEcommercePage() {
     promoBanners: [
       {
         id: 1,
-        bgType: "color", // 'color' ou 'image'
+        bgType: "color", 
         bgColor: "#e11d48",
         image: "",
         title: "Kits Prontos DaBelle",
@@ -72,38 +71,114 @@ export default function BannersEcommercePage() {
     }
   });
 
+  // 🔥 Função para pegar o Tenant ID logado (O Crachá!)
+  const pegarCnpjLogado = () => {
+    if (typeof window !== 'undefined') {
+      const storedUser = localStorage.getItem("@raizan:user");
+      if (storedUser) return JSON.parse(storedUser).tenant_id;
+    }
+    return "";
+  };
+
   useEffect(() => {
-    // Simulação de busca inicial na API
-    setTimeout(() => setLoading(false), 800);
+    buscarConteudoAtual();
   }, []);
 
+  // 🟢 BUSCA REAL NO BANCO DE DADOS
+  const buscarConteudoAtual = async () => {
+    const tenantId = pegarCnpjLogado();
+    if (!tenantId) {
+      toast.error("Sessão expirada. Faça login novamente.");
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const res = await fetch(`https://api.raizan.com.br/api/hub/ecommerce/config?tenant=${tenantId}`, {
+        headers: { "x-tenant-id": tenantId }
+      });
+      const data = await res.json();
+      
+      if (data.success && data.config?.banners) {
+        // Mescla o que veio do banco com o estado padrão para não quebrar a tela se faltar campo
+        setContent(prev => ({ ...prev, ...data.config.banners }));
+      }
+    } catch (error) {
+      toast.error("Erro ao carregar banners atuais.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 🟢 SALVAMENTO REAL NO BANCO DE DADOS
   const salvarConteudo = async () => {
+    const tenantId = pegarCnpjLogado();
+    if (!tenantId) return toast.error("Sessão expirada.");
+
     setSalvando(true);
     const toastId = toast.loading("Sincronizando conteúdo com a loja...");
 
     try {
-      // Simulação da chamada de API
-      setTimeout(() => {
+      const res = await fetch("https://api.raizan.com.br/api/hub/ecommerce/config/banners", {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "x-tenant-id": tenantId 
+        },
+        body: JSON.stringify({
+          tenant_id: tenantId,
+          banners: content // Manda o JSON completo dos banners
+        })
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
         toast.success("Conteúdo atualizado! A loja já está com os novos banners.", { id: toastId });
-        setSalvando(false);
-      }, 1500);
+      } else {
+        toast.error("Falha ao salvar banners.", { id: toastId });
+      }
     } catch (error) {
       toast.error("Erro de conexão com o servidor.", { id: toastId });
+    } finally {
       setSalvando(false);
     }
   };
 
-  // Função para simular o upload gerando uma URL local temporária para o Preview
-  const handleFileUpload = (e, callback) => {
+  // 🟢 UPLOAD REAL DE IMAGEM PARA A NUVEM
+  const handleFileUpload = async (e, callback) => {
     const file = e.target.files[0];
-    if (file) {
-      // Validação básica de tamanho (Ex: max 2MB)
-      if (file.size > 2 * 1024 * 1024) {
-        toast.error("A imagem deve ter no máximo 2MB.");
-        return;
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("A imagem deve ter no máximo 2MB.");
+      return;
+    }
+
+    const tenantId = pegarCnpjLogado();
+    const toastId = toast.loading("Enviando imagem...");
+    
+    const formData = new FormData();
+    formData.append("imagem", file);
+    formData.append("tenant_id", tenantId);
+
+    try {
+      const res = await fetch("https://api.raizan.com.br/api/hub/upload", {
+        method: "POST",
+        headers: { "x-tenant-id": tenantId },
+        body: formData,
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        callback(data.url); // Devolve a URL oficial da nuvem pro Banner
+        toast.success("Imagem enviada!", { id: toastId });
+      } else {
+        toast.error(data.message || "Erro no upload.", { id: toastId });
       }
-      const previewUrl = URL.createObjectURL(file);
-      callback(previewUrl);
+    } catch (error) {
+      toast.error("Falha ao enviar imagem para a nuvem.", { id: toastId });
     }
   };
 

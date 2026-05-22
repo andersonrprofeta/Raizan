@@ -75,13 +75,11 @@ function ModalPagamentoRetentativa({ isOpen, onClose, pedido, user, onSucesso })
   const totalFormatado = Number(pedido.total).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
   const processarPagamento = async (dadosCartaoMp = null) => {
-    // 🟢 TRAVA 1: VERIFICAÇÃO DE ENDEREÇO E TELEFONE NO PERFIL
     if (!user?.telefone || !user?.endereco || !user?.endereco?.cep) {
       toast.error("⚠️ Cadastro Incompleto! Vá no menu 'Meu Perfil' e preencha seu Endereço e Telefone antes de pagar.", { duration: 6000 });
       return;
     }
 
-    // 🟢 TRAVA 2: IMPEDE O GIRO INFINITO NO BOLETO
     if (metodoPagamento === 'faturado') {
       toast.error("Este pedido já está aguardando análise de faturamento. Para pagar agora e liberar o pedido na hora, escolha PIX ou Cartão.", { duration: 6000 });
       return;
@@ -215,6 +213,16 @@ function ModalDetalhes({ pedido, onClose, onPagarAgora }) {
   if (!pedido) return null;
 
   const formatarMoeda = (valor) => Number(valor).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  
+  // 🟢 FUNÇÃO MÁGICA: Limpa e formata os números gigantes que o banco de dados enviou
+  const formatarTextoHistorico = (texto) => {
+    if (!texto) return "";
+    return texto.replace(/R\$\s*(-?\d+(\.\d+)?)/g, (match, numeroStr) => {
+      const valor = parseFloat(numeroStr);
+      return isNaN(valor) ? match : formatarMoeda(valor);
+    });
+  };
+
   const dataAjustada = new Date(pedido.date_created).toLocaleString("pt-BR");
   
   const getMeta = (key) => { const meta = pedido.meta_data?.find(m => m.key === key); return meta ? meta.value : "Não informado"; };
@@ -225,6 +233,18 @@ function ModalDetalhes({ pedido, onClose, onPagarAgora }) {
 
   const envioOrigem = getMeta('metodo_envio');
   const envioFormatado = envioOrigem !== 'Não informado' ? envioOrigem : 'Transportadora Padrão';
+
+  const historicoEdicoes = (pedido.meta_data || []).filter(m => m.key === 'historico_edicao');
+
+  // 🟢 MATEMÁTICA FINANCEIRA DO RODAPÉ
+  const subtotalItens = pedido.line_items?.reduce((acc, item) => {
+    const precoItem = parseFloat(item.price || item.preco_unitario || 0);
+    const qtdItem = parseInt(item.quantity || item.qtd || 1);
+    return acc + (item.total ? parseFloat(item.total) : (precoItem * qtdItem));
+  }, 0) || 0;
+
+  const totalPedido = parseFloat(pedido.total || 0);
+  const diferencaValores = totalPedido - subtotalItens; 
 
   const handleSolicitarDocs = async () => {
     const toastId = toast.loading("Enviando solicitação para a equipe...");
@@ -275,26 +295,19 @@ function ModalDetalhes({ pedido, onClose, onPagarAgora }) {
             </div>
           </div>
 
-          {pedido.historico_edicoes && pedido.historico_edicoes.length > 0 && (
+          {historicoEdicoes.length > 0 && (
             <div className="bg-amber-50 dark:bg-amber-500/5 border border-amber-200 dark:border-amber-500/20 rounded-xl p-4 shrink-0 shadow-inner">
               <h3 className="text-sm font-bold text-amber-600 dark:text-amber-500 flex items-center gap-2 mb-3">
-                <AlertCircle size={16} /> Avisos sobre o seu pedido
+                <AlertCircle size={16} /> Avisos e Edições do Pedido
               </h3>
               <div className="space-y-3 divide-y divide-amber-200 dark:divide-amber-500/10">
-                {pedido.historico_edicoes.map((hist, index) => (
+                {historicoEdicoes.map((hist, index) => (
                   <div key={index} className="pt-3 first:pt-0">
                     <p className="text-sm text-zinc-700 dark:text-zinc-300">
-                      <span className="text-xs text-zinc-500 font-medium mr-2">
-                        {new Date(hist.data).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}:
-                      </span> 
-                      {hist.motivo}
+                      <span className="text-xs text-zinc-500 font-bold mr-2 uppercase tracking-wider">Atualização:</span> 
+                      {/* 🟢 A MÁGICA DO REGEX APLICADA AQUI */}
+                      {formatarTextoHistorico(hist.value)}
                     </p>
-                    
-                    {hist.gerou_credito && hist.valor_abatido > 0 && (
-                      <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400 mt-1.5 flex items-center gap-1.5 bg-emerald-100 dark:bg-emerald-500/10 w-fit px-2 py-1 rounded-md">
-                        + {formatarMoeda(hist.valor_abatido)} adicionados como crédito em sua Carteira!
-                      </p>
-                    )}
                   </div>
                 ))}
               </div>
@@ -308,29 +321,63 @@ function ModalDetalhes({ pedido, onClose, onPagarAgora }) {
             <div className="bg-zinc-50 dark:bg-zinc-900/30 border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden flex flex-col shadow-sm dark:shadow-none">
               <div className="max-h-[40vh] overflow-y-auto custom-scrollbar">
                 <ul className="divide-y divide-zinc-200 dark:divide-zinc-800/50">
-                  {pedido.line_items?.map(item => (
-                    <li key={item.id || item.sku} className="p-3 flex flex-col sm:flex-row sm:items-start justify-between gap-2 sm:gap-4 hover:bg-white dark:hover:bg-zinc-800/30 transition-colors">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{item.name}</p>
-                        <p className="text-xs text-zinc-500 mt-0.5 break-words">SKU: {item.sku} | Qtd: {item.quantity}</p>
-                      </div>
-                      <div className="text-sm font-bold text-zinc-900 dark:text-zinc-100 whitespace-nowrap sm:mt-1">{formatarMoeda(item.total)}</div>
-                    </li>
-                  ))}
+                  {pedido.line_items?.map((item, idx) => {
+                    const precoItem = parseFloat(item.price || item.preco_unitario || 0);
+                    const qtdItem = parseInt(item.quantity || item.qtd || 1);
+                    const totalItem = item.total ? parseFloat(item.total) : (precoItem * qtdItem);
+
+                    return (
+                      <li key={item.id || item.sku || idx} className="p-3 flex flex-col sm:flex-row sm:items-start justify-between gap-2 sm:gap-4 hover:bg-white dark:hover:bg-zinc-800/30 transition-colors">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{item.name}</p>
+                          <p className="text-xs text-zinc-500 mt-0.5 break-words">
+                            SKU: {item.sku || 'N/A'} | {qtdItem} un. x {formatarMoeda(precoItem)}
+                          </p>
+                        </div>
+                        <div className="text-sm font-bold text-zinc-900 dark:text-zinc-100 whitespace-nowrap sm:mt-1">
+                          {formatarMoeda(totalItem)}
+                        </div>
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
 
-              <div className="p-4 bg-zinc-100 dark:bg-zinc-900/80 border-t border-zinc-200 dark:border-zinc-800 flex flex-col sm:flex-row justify-between sm:items-center gap-1 shrink-0 shadow-inner dark:shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.2)]">
-                <span className="text-sm font-medium text-zinc-600 dark:text-zinc-400">Total do Pedido:</span>
-                <span className="text-lg sm:text-xl font-bold text-emerald-600 dark:text-emerald-400">{formatarMoeda(pedido.total)}</span>
+              {/* 🟢 RODAPÉ FINANCEIRO COMPLETO */}
+              <div className="p-4 sm:p-6 bg-zinc-100 dark:bg-zinc-900/80 border-t border-zinc-200 dark:border-zinc-800 flex flex-col gap-3 shrink-0 shadow-inner dark:shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.2)]">
+                
+                <div className="flex flex-col gap-2 w-full sm:w-72 self-end text-sm">
+                  <div className="flex justify-between items-center text-zinc-500 dark:text-zinc-400">
+                    <span>Subtotal dos Itens:</span>
+                    <span className="font-bold text-zinc-900 dark:text-zinc-100">{formatarMoeda(subtotalItens)}</span>
+                  </div>
+                  
+                  {Math.abs(diferencaValores) > 0.01 && (
+                    <div className="flex justify-between items-center text-zinc-500 dark:text-zinc-400">
+                      <span>{diferencaValores > 0 ? 'Frete / Acréscimos (+):' : 'Descontos Aplicados (-):'}</span>
+                      <span className={`font-bold ${diferencaValores > 0 ? 'text-zinc-900 dark:text-zinc-100' : 'text-rose-500'}`}>
+                        {formatarMoeda(Math.abs(diferencaValores))}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="pt-3 border-t border-zinc-200 dark:border-zinc-800/60 flex justify-between items-center gap-3">
+                    <span className="text-base font-bold text-zinc-900 dark:text-zinc-100">Total Final:</span>
+                    <span className="text-xl sm:text-2xl font-black text-emerald-600 dark:text-emerald-400">{formatarMoeda(totalPedido)}</span>
+                  </div>
+                </div>
+
               </div>
               
               <div className="p-4 bg-white dark:bg-zinc-950 border-t border-zinc-200 dark:border-zinc-800 shrink-0 flex flex-col gap-3">
                 
+                {/* 🟢 BOTÃO DE PAGAR MAIS ELEGANTE */}
                 {pedido.status === 'aguardando-pagamento' && (
-                  <button onClick={() => { onClose(); onPagarAgora(pedido); }} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-3.5 rounded-xl font-bold shadow-[0_0_20px_rgba(16,185,129,0.2)] transition-all flex items-center justify-center gap-2">
-                    <CreditCard size={18} /> Pagar Agora
-                  </button>
+                  <div className="flex justify-end pt-2">
+                    <button onClick={() => { onClose(); onPagarAgora(pedido); }} className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-500 text-white px-8 py-2.5 rounded-xl font-bold shadow-md transition-all flex items-center justify-center gap-2">
+                      <CreditCard size={18} /> Pagar Agora
+                    </button>
+                  </div>
                 )}
 
                 {getMeta('link_xml_boleto') !== "Não informado" ? (

@@ -21,13 +21,34 @@ export default function CoresEcommercePage() {
     badgeColor: "#f97316"     // Cor do carrinho/ofertas (Laranja por padrão)
   });
 
+  // 🔥 Função para pegar o Tenant ID logado (O Crachá!)
+  const pegarCnpjLogado = () => {
+    if (typeof window !== 'undefined') {
+      const storedUser = localStorage.getItem("@raizan:user");
+      if (storedUser) {
+        return JSON.parse(storedUser).tenant_id;
+      }
+    }
+    return "";
+  };
+
   useEffect(() => {
     buscarCoresAtuais();
   }, []);
 
   const buscarCoresAtuais = async () => {
+    const tenantId = pegarCnpjLogado();
+    if (!tenantId) {
+      toast.error("Erro de sessão. Faça login novamente.");
+      setLoading(false);
+      return;
+    }
+
     try {
-      const res = await fetch("https://api.raizan.com.br/api/hub/ecommerce/config?tenant=rafany");
+      // 🟢 Substituído o hardcode "rafany" pela variável tenantId na URL e no Cabeçalho
+      const res = await fetch(`https://api.raizan.com.br/api/hub/ecommerce/config?tenant=${tenantId}`, {
+        headers: { "x-tenant-id": tenantId }
+      });
       const data = await res.json();
       if (data.success && data.config?.theme) {
         setCores(prev => ({ ...prev, ...data.config.theme }));
@@ -40,15 +61,21 @@ export default function CoresEcommercePage() {
   };
 
   const salvarCores = async () => {
+    const tenantId = pegarCnpjLogado();
+    if (!tenantId) return toast.error("Sessão expirada.");
+
     setSalvando(true);
     const toastId = toast.loading("Sincronizando cores com a loja...");
 
     try {
       const res = await fetch("https://api.raizan.com.br/api/hub/ecommerce/config/cores", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "x-tenant-id": tenantId // 🟢 CRACHÁ NO CABEÇALHO
+        },
         body: JSON.stringify({
-          tenant_id: "rafany",
+          tenant_id: tenantId, // 🟢 TENANT ID DINÂMICO NO CORPO
           cores: cores
         })
       });

@@ -14,11 +14,28 @@ export default function AbaKit({ produto, atualizarCampo }) {
   const [linhaBuscando, setLinhaBuscando] = useState(null); // Guarda o índice da linha que está pesquisando
   const [carregandoCatalogo, setCarregandoCatalogo] = useState(true);
 
+  // 🔥 Função para pegar o Tenant ID logado (O Crachá!)
+  const pegarCnpjLogado = () => {
+    if (typeof window !== 'undefined') {
+      const storedUser = localStorage.getItem("@raizan:user");
+      if (storedUser) {
+        return JSON.parse(storedUser).tenant_id;
+      }
+    }
+    return "";
+  };
+
   // 🟢 BUSCA O CATÁLOGO REAL NA NUVEM AO ABRIR A ABA
   useEffect(() => {
     const buscarProdutos = async () => {
+      const tenantId = pegarCnpjLogado();
+      if (!tenantId) return;
+
       try {
-        const res = await fetch("https://api.raizan.com.br/api/hub/produtos");
+        // 🟢 INJETANDO O CABEÇALHO AQUI
+        const res = await fetch("https://api.raizan.com.br/api/hub/produtos", {
+          headers: { "x-tenant-id": tenantId }
+        });
         const data = await res.json();
         if (data.success) {
           setCatalogo(data.produtos);

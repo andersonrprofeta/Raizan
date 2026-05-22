@@ -40,6 +40,17 @@ function FormularioInterno() {
     composicao_kit: []
   });
 
+  // 🔥 Função para pegar o Tenant ID logado
+  const pegarCnpjLogado = () => {
+    if (typeof window !== 'undefined') {
+      const storedUser = localStorage.getItem("@raizan:user");
+      if (storedUser) {
+        return JSON.parse(storedUser).tenant_id;
+      }
+    }
+    return "";
+  };
+
   useEffect(() => {
     if (isEditMode) {
       buscarProdutoParaEdicao();
@@ -47,8 +58,17 @@ function FormularioInterno() {
   }, [idProduto]);
 
   const buscarProdutoParaEdicao = async () => {
+    const tenantId = pegarCnpjLogado();
+    if (!tenantId) {
+      toast.error("Erro de sessão. Faça login novamente.");
+      router.push('/login');
+      return;
+    }
+
     try {
-      const res = await fetch(`https://api.raizan.com.br/api/hub/produtos/${idProduto}`);
+      const res = await fetch(`https://api.raizan.com.br/api/hub/produtos/${idProduto}`, {
+        headers: { "x-tenant-id": tenantId } // 🟢 CRACHÁ INJETADO NA BUSCA
+      });
       const data = await res.json();
       if (data.success) {
         setProduto(data.produto);
@@ -75,9 +95,16 @@ function FormularioInterno() {
   };
 
   const salvarProduto = async () => {
+    const tenantId = pegarCnpjLogado();
+    if (!tenantId) {
+      return toast.error("Erro de sessão. Faça login novamente.");
+    }
+
     setSalvando(true);
     
-    let produtoParaSalvar = { ...produto };
+    // 🟢 MÁGICA AQUI: Injetamos o tenant_id direto nos dados que vão ser salvos!
+    let produtoParaSalvar = { ...produto, tenant_id: tenantId };
+    
     if (!produtoParaSalvar.basico.sku || produtoParaSalvar.basico.sku.trim() === "") {
        const skuAleatorio = Math.floor(Math.random() * 99999).toString().padStart(5, '0');
        produtoParaSalvar.basico.sku = skuAleatorio;
@@ -93,7 +120,10 @@ function FormularioInterno() {
     try {
       const res = await fetch(url, {
         method: method,
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "x-tenant-id": tenantId // 🟢 CRACHÁ INJETADO NO CABEÇALHO
+        },
         body: JSON.stringify(produtoParaSalvar) 
       });
       
@@ -224,7 +254,7 @@ function FormularioInterno() {
                   </button>
                   
                   <button 
-                    onClick={salvarProduto} // 🟢 Conectado à sua função principal de salvar!
+                    onClick={salvarProduto} // 🟢 CONECTADO!
                     disabled={salvando}
                     className="bg-purple-600 hover:bg-purple-500 text-white px-6 md:px-8 py-2.5 rounded-xl font-bold shadow-lg shadow-purple-600/20 transition-all active:scale-95 text-xs sm:text-sm flex items-center gap-2 disabled:opacity-50"
                   >

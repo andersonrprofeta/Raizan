@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
-// 🟢 1. LIXEIRA IMPORTADA AQUI (Trash2)
 import { Search, ShoppingCart, CheckCircle2, AlertCircle, Package, Barcode, Loader2, DollarSign, Zap, ShoppingBag, X, FileText, QrCode, Building2, Truck, MapPin, CreditCard, CalendarDays, ChevronLeft, ChevronRight, Tag, Clock, ShieldCheck, RefreshCw, Trash2 } from "lucide-react";
 import { getApiUrl, getHubUrl, getHeaders } from "@/components/utils/api";
 import toast from 'react-hot-toast';
@@ -42,7 +41,6 @@ function ModalCheckout({ isOpen, onClose, carrinho, produtos, tabelaAtiva, onFin
   const [tempoExpiracao, setTempoExpiracao] = useState(1800); 
   const [isVerificando, setIsVerificando] = useState(false);
 
-  // 🟢 NOVO ESTADO: Controla o que aparece na tela!
   const [metodosAtivos, setMetodosAtivos] = useState({ faturado: true, mercadopago: false });
   const [isMpReady, setIsMpReady] = useState(false);
   const [mpKeyMissing, setMpKeyMissing] = useState(false);
@@ -56,26 +54,23 @@ function ModalCheckout({ isOpen, onClose, carrinho, produtos, tabelaAtiva, onFin
     if (savedUser) setUser(JSON.parse(savedUser));
   }, [isOpen]);
 
-  // 🟢 INICIALIZAÇÃO INTELIGENTE DOS MÉTODOS DE PAGAMENTO (LIMPO)
   useEffect(() => {
     if (isOpen) {
       const buscarMetodos = async () => {
         try {
-          // Bate na nova rota de pagamentos usando o getHeaders() limpo!
           const res = await fetch(`${getHubUrl()}/api/hub/pagamentos/metodos-ativos`, { headers: getHeaders() });
           const data = await res.json();
           
           if (data.success) {
             setMetodosAtivos({ faturado: data.faturado, mercadopago: data.mercadopago });
 
-            // Se tem Mercado Pago, liga o motor de segurança dele
             if (data.mercadopago && data.mpPublicKey) {
               initMercadoPago(data.mpPublicKey, { locale: 'pt-BR' });
               setIsMpReady(true);
               setMpKeyMissing(false);
             } else {
               setMpKeyMissing(true);
-              setMetodoPagamento('faturado'); // Força boleto se não tiver MP
+              setMetodoPagamento('faturado'); 
             }
           }
         } catch (e) {
@@ -88,7 +83,6 @@ function ModalCheckout({ isOpen, onClose, carrinho, produtos, tabelaAtiva, onFin
       buscarMetodos();
     }
   }, [isOpen]);
-
 
   useEffect(() => {
     let timer;
@@ -104,7 +98,6 @@ function ModalCheckout({ isOpen, onClose, carrinho, produtos, tabelaAtiva, onFin
     return `${m}:${s}`;
   };
 
-  // 🟢 RADAR DO PIX (LIMPO)
   useEffect(() => {
     let intervalo;
     if (step === 'sucesso_pix' && dadosPix?.pedidoId) {
@@ -119,7 +112,6 @@ function ModalCheckout({ isOpen, onClose, carrinho, produtos, tabelaAtiva, onFin
     return () => clearInterval(intervalo);
   }, [step, dadosPix]);
 
-  // 🟢 VERIFICAÇÃO MANUAL (LIMPO)
   const verificarPagamentoManual = async () => {
     setIsVerificando(true);
     try {
@@ -139,12 +131,19 @@ function ModalCheckout({ isOpen, onClose, carrinho, produtos, tabelaAtiva, onFin
 
   if (!isOpen) return null;
 
+  // 🟢 TRAVA DE MATEMÁTICA: Evita que itens com preço nulo causem Erro 500 no Banco de Dados
   const itensComprados = Object.values(carrinho).map(p => {
-    const precoOriginal = p[tabelaAtiva] !== undefined ? parseFloat(p[tabelaAtiva]) : parseFloat(p.PDPRECO);
-    const minExigido = p.qtd_minima_promocao || 1;
+    const precoOriginal = parseFloat(p[tabelaAtiva] || p.PDPRECO || 0) || 0;
+    const minExigido = parseInt(p.qtd_minima_promocao) || 1;
     const atingiuMinimo = p.em_promocao && p.qtd >= minExigido;
-    const precoFinal = atingiuMinimo ? parseFloat(p.preco_promocional) : precoOriginal;
-    return { ...p, precoUsado: precoFinal, totalItem: precoFinal * p.qtd, atingiuMinimo };
+    const precoFinal = atingiuMinimo ? parseFloat(p.preco_promocional || 0) : precoOriginal;
+    
+    return { 
+      ...p, 
+      precoUsado: precoFinal, 
+      totalItem: precoFinal * (p.qtd || 0), 
+      atingiuMinimo 
+    };
   });
 
   if (itensComprados.length === 0 && step === 'resumo') {
@@ -283,7 +282,6 @@ function ModalCheckout({ isOpen, onClose, carrinho, produtos, tabelaAtiva, onFin
               <div className="bg-zinc-50 dark:bg-zinc-900/30 border border-zinc-200 dark:border-zinc-800/50 rounded-xl p-5 space-y-4 shadow-sm dark:shadow-none">
                 <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 border-b border-zinc-200 dark:border-zinc-800 pb-2">Forma de Pagamento</h3>
                 
-                {/* Renderização Inteligente dos Botões de Pagamento */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <button onClick={() => setMetodoPagamento('faturado')} className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all ${metodoPagamento === 'faturado' ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-500 text-emerald-600 dark:text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.1)]' : 'bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-700'}`}>
                     <FileText size={20} className="mb-1.5" />
@@ -627,6 +625,7 @@ export default function CatalogoB2B() {
     });
   };
 
+  // 🟢 A MÁGICA DE INJETAR O CRACHÁ ACONTECE AQUI!
   const handleFinalizarPedido = async (dadosDoPedido) => {
     const savedUser = localStorage.getItem("raizan_user");
     if (!savedUser) {
@@ -636,8 +635,13 @@ export default function CatalogoB2B() {
     }
 
     const userLogado = JSON.parse(savedUser);
+    
+    // 🔥 Descobre quem é a loja matriz. Se o Lojista não tiver 'tenant_id', assume a Rafany.
+    const tenant_id = userLogado.tenant_id || "rafany"; 
+
     const payloadCompleto = {
       ...dadosDoPedido, 
+      tenant_id: tenant_id, // 🟢 ENVIADO DENTRO DO CORPO DA MENSAGEM
       cliente: {
         codigo: userLogado.codigo,
         nome: userLogado.nome, 
@@ -650,9 +654,15 @@ export default function CatalogoB2B() {
     const toastId = toast.loading("Gerando pedido na distribuidora..."); 
     
     try {
-     const response = await fetch(`${getHubUrl()}/api/hub/pedidos/criar`, {
+      // 🟢 CABEÇALHOS BLINDADOS (Adicionamos o crachá direto no Request Header)
+      const cabecalhosComCracha = {
+        ...getHeaders(),
+        "x-tenant-id": tenant_id
+      };
+
+      const response = await fetch(`${getHubUrl()}/api/hub/pedidos/criar`, {
         method: "POST",
-        headers: getHeaders(),
+        headers: cabecalhosComCracha,
         body: JSON.stringify(payloadCompleto)
       });
       const data = await response.json();
@@ -667,7 +677,7 @@ export default function CatalogoB2B() {
         
         const payRes = await fetch(`${getHubUrl()}/api/hub/pagamentos/gerar`, {
           method: "POST",
-          headers: getHeaders(),
+          headers: cabecalhosComCracha, // 🟢 Mercado Pago também precisa do crachá!
           body: JSON.stringify({
             pedidoId: data.pedidoId,
             valor: dadosDoPedido.subtotal,

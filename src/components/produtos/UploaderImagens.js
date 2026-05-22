@@ -9,17 +9,39 @@ export default function UploaderImagens({ imagens, setImagens }) {
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef(null);
 
+  // 🔥 Função para pegar o Tenant ID logado (O Crachá!)
+  const pegarCnpjLogado = () => {
+    if (typeof window !== 'undefined') {
+      const storedUser = localStorage.getItem("@raizan:user");
+      if (storedUser) {
+        return JSON.parse(storedUser).tenant_id;
+      }
+    }
+    return "";
+  };
+
   // Função que faz o envio real para a Nuvem
   const enviarParaNuvem = async (file) => {
+    const tenantId = pegarCnpjLogado();
+    if (!tenantId) {
+      toast.error("Sessão expirada. Faça login novamente.");
+      return;
+    }
+
     setUploading(true);
     const formData = new FormData();
     formData.append("imagem", file);
+    // 🟢 INJETAMOS O TENANT_ID TAMBÉM NO FORM DATA POR SEGURANÇA!
+    formData.append("tenant_id", tenantId); 
 
     try {
       // 🟢 Bate na rota do Multer que acabamos de criar!
       // (Mude para localhost:3005 se estiver testando localmente)
       const res = await fetch("https://api.raizan.com.br/api/hub/upload", {
         method: "POST",
+        headers: {
+          "x-tenant-id": tenantId // 🟢 CRACHÁ NO CABEÇALHO!
+        },
         body: formData,
       });
 

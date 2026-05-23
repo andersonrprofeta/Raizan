@@ -17,6 +17,8 @@ import {
   MonitorPlay
 } from "lucide-react";
 import toast from 'react-hot-toast';
+// 🟢 IMPORTAÇÕES CORRIGIDAS
+import { getHubUrl, getHeaders } from "@/components/utils/api";
 
 export default function BannersEcommercePage() {
   const [loading, setLoading] = useState(true);
@@ -71,7 +73,6 @@ export default function BannersEcommercePage() {
     }
   });
 
-  // 🔥 Função para pegar o Tenant ID logado (O Crachá!)
   const pegarCnpjLogado = () => {
     if (typeof window !== 'undefined') {
       const storedUser = localStorage.getItem("@raizan:user");
@@ -84,7 +85,6 @@ export default function BannersEcommercePage() {
     buscarConteudoAtual();
   }, []);
 
-  // 🟢 BUSCA REAL NO BANCO DE DADOS
   const buscarConteudoAtual = async () => {
     const tenantId = pegarCnpjLogado();
     if (!tenantId) {
@@ -94,13 +94,13 @@ export default function BannersEcommercePage() {
     }
 
     try {
-      const res = await fetch(`https://api.raizan.com.br/api/hub/ecommerce/config?tenant=${tenantId}`, {
-        headers: { "x-tenant-id": tenantId }
+      // 🟢 USANDO getHubUrl() E getHeaders()
+      const res = await fetch(`${getHubUrl()}/api/hub/ecommerce/config?tenant=${tenantId}`, {
+        headers: { ...getHeaders(), "x-tenant-id": tenantId }
       });
       const data = await res.json();
       
       if (data.success && data.config?.banners) {
-        // Mescla o que veio do banco com o estado padrão para não quebrar a tela se faltar campo
         setContent(prev => ({ ...prev, ...data.config.banners }));
       }
     } catch (error) {
@@ -110,7 +110,6 @@ export default function BannersEcommercePage() {
     }
   };
 
-  // 🟢 SALVAMENTO REAL NO BANCO DE DADOS
   const salvarConteudo = async () => {
     const tenantId = pegarCnpjLogado();
     if (!tenantId) return toast.error("Sessão expirada.");
@@ -119,15 +118,17 @@ export default function BannersEcommercePage() {
     const toastId = toast.loading("Sincronizando conteúdo com a loja...");
 
     try {
-      const res = await fetch("https://api.raizan.com.br/api/hub/ecommerce/config/banners", {
+      // 🟢 USANDO getHubUrl() E getHeaders()
+      const res = await fetch(`${getHubUrl()}/api/hub/ecommerce/config/banners`, {
         method: "POST",
         headers: { 
+          ...getHeaders(),
           "Content-Type": "application/json",
           "x-tenant-id": tenantId 
         },
         body: JSON.stringify({
           tenant_id: tenantId,
-          banners: content // Manda o JSON completo dos banners
+          banners: content
         })
       });
 
@@ -145,7 +146,6 @@ export default function BannersEcommercePage() {
     }
   };
 
-  // 🟢 UPLOAD REAL DE IMAGEM PARA A NUVEM
   const handleFileUpload = async (e, callback) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -162,17 +162,25 @@ export default function BannersEcommercePage() {
     formData.append("imagem", file);
     formData.append("tenant_id", tenantId);
 
+    // 🟢 LIMPANDO CONTENT-TYPE PARA O NAVEGADOR FAZER O MULTIPART SOZINHO
+    const cabecalhos = getHeaders();
+    delete cabecalhos["Content-Type"];
+
     try {
-      const res = await fetch("https://api.raizan.com.br/api/hub/upload", {
+      // 🟢 USANDO getHubUrl()
+      const res = await fetch(`${getHubUrl()}/api/hub/upload`, {
         method: "POST",
-        headers: { "x-tenant-id": tenantId },
+        headers: { 
+          ...cabecalhos, 
+          "x-tenant-id": tenantId 
+        },
         body: formData,
       });
 
       const data = await res.json();
 
       if (data.success) {
-        callback(data.url); // Devolve a URL oficial da nuvem pro Banner
+        callback(data.url); 
         toast.success("Imagem enviada!", { id: toastId });
       } else {
         toast.error(data.message || "Erro no upload.", { id: toastId });
@@ -182,7 +190,6 @@ export default function BannersEcommercePage() {
     }
   };
 
-  // ================= Funções do Hero (Carrossel) =================
   const addHeroSlide = () => {
     setContent(prev => ({
       ...prev,
@@ -211,7 +218,6 @@ export default function BannersEcommercePage() {
     }));
   };
 
-  // ================= Funções Promos =================
   const handlePromoChange = (id, field, value) => {
     setContent(prev => ({
       ...prev,
@@ -236,7 +242,6 @@ export default function BannersEcommercePage() {
         <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 custom-scrollbar">
           <div className="max-w-[1400px] mx-auto space-y-6">
             
-            {/* CABEÇALHO DA PÁGINA */}
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white dark:bg-[#0c0c0e] p-6 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm relative overflow-hidden">
                <div className="absolute -left-10 -top-10 w-40 h-40 bg-blue-100 dark:bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
                <div className="flex items-center gap-4 relative z-10">
@@ -263,7 +268,6 @@ export default function BannersEcommercePage() {
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
               
-              {/* MENU LATERAL DE ABAS */}
               <div className="lg:col-span-3">
                 <div className="bg-white dark:bg-[#0c0c0e] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-3 shadow-sm flex flex-col gap-1 sticky top-6">
                   <button onClick={() => setActiveTab("hero")} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-bold text-sm text-left ${activeTab === "hero" ? "bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400" : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"}`}>
@@ -281,10 +285,8 @@ export default function BannersEcommercePage() {
                 </div>
               </div>
 
-              {/* ÁREA DE CONFIGURAÇÃO (MEIO) */}
               <div className="lg:col-span-5">
                 
-                {/* ABA: HERO SLIDES */}
                 {activeTab === "hero" && (
                   <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
                     <div className="flex items-center justify-between">
@@ -306,7 +308,6 @@ export default function BannersEcommercePage() {
                         <h3 className="text-sm font-black text-zinc-800 dark:text-zinc-200 mb-4 uppercase">Slide {index + 1}</h3>
                         
                         <div className="space-y-5">
-                          {/* Upload de Imagem */}
                           <div>
                             <label className="block text-xs font-bold text-zinc-500 mb-2 uppercase tracking-wider">Imagem do Banner</label>
                             <div className="relative border-2 border-dashed border-zinc-300 dark:border-zinc-700 rounded-xl p-6 flex flex-col items-center justify-center text-center hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition-colors">
@@ -357,7 +358,6 @@ export default function BannersEcommercePage() {
                   </div>
                 )}
 
-                {/* ABA: BANNERS PROMOCIONAIS */}
                 {activeTab === "promos" && (
                   <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
                     <h2 className="text-xl font-bold flex items-center gap-2">
@@ -368,7 +368,6 @@ export default function BannersEcommercePage() {
                       <div key={banner.id} className="bg-white dark:bg-[#0c0c0e] border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 shadow-sm">
                         <h3 className="text-sm font-black uppercase tracking-wider mb-4">Banner Menor {index + 1}</h3>
                         
-                        {/* Seletor de Tipo (Cor vs Imagem) */}
                         <div className="flex p-1 bg-zinc-100 dark:bg-zinc-900 rounded-lg mb-6 w-fit">
                           <button onClick={() => handlePromoChange(banner.id, "bgType", "color")} className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${banner.bgType === 'color' ? 'bg-white dark:bg-zinc-800 shadow-sm text-zinc-900 dark:text-zinc-100' : 'text-zinc-500'}`}>Usar Cor de Fundo</button>
                           <button onClick={() => handlePromoChange(banner.id, "bgType", "image")} className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${banner.bgType === 'image' ? 'bg-white dark:bg-zinc-800 shadow-sm text-zinc-900 dark:text-zinc-100' : 'text-zinc-500'}`}>Usar Imagem</button>
@@ -418,7 +417,6 @@ export default function BannersEcommercePage() {
                   </div>
                 )}
 
-                {/* ABA: MENU CATEGORIAS */}
                 {activeTab === "megamenu" && (
                   <div className="bg-white dark:bg-[#0c0c0e] border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 md:p-8 shadow-sm animate-in fade-in slide-in-from-bottom-2">
                     <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
@@ -464,7 +462,6 @@ export default function BannersEcommercePage() {
                   </div>
                 )}
 
-                {/* ABA: TEXTOS DAS VITRINES */}
                 {activeTab === "sections" && (
                   <div className="bg-white dark:bg-[#0c0c0e] border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 md:p-8 shadow-sm animate-in fade-in slide-in-from-bottom-2">
                     <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
@@ -493,7 +490,6 @@ export default function BannersEcommercePage() {
                 )}
               </div>
 
-              {/* ÁREA DE PREVIEW (DIREITA) */}
               <div className="lg:col-span-4 hidden lg:block">
                 <div className="bg-white dark:bg-[#0c0c0e] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 sticky top-6">
                   <h3 className="text-xs font-black uppercase tracking-widest text-zinc-400 mb-4 flex items-center justify-center gap-2">
@@ -501,21 +497,17 @@ export default function BannersEcommercePage() {
                     Live Preview
                   </h3>
                   
-                  {/* Container Mock do Site */}
                   <div className="border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden bg-zinc-100 dark:bg-zinc-950 flex flex-col gap-3 pb-4">
                     
-                    {/* Mock Header Navbar */}
                     <div className="h-6 bg-zinc-800 flex items-center px-3 gap-2">
                       <div className="w-8 h-2 bg-zinc-600 rounded-full" />
                       <div className="flex-1 h-3 bg-white/10 rounded" />
                     </div>
 
-                    {/* PREVIEW: HERO (Mostra o Slide 1) */}
                     <div 
                       className="h-28 mx-3 rounded-lg bg-zinc-200 dark:bg-zinc-800 flex items-center justify-start p-4 relative overflow-hidden bg-cover bg-center"
                       style={{ backgroundImage: content.heroSlides[0]?.image ? `url(${content.heroSlides[0].image})` : 'none' }}
                     >
-                      {/* Overlay Escuro para leitura */}
                       {content.heroSlides[0]?.image && <div className="absolute inset-0 bg-black/40"></div>}
                       
                       {content.heroSlides[0]?.showText && (
@@ -527,7 +519,6 @@ export default function BannersEcommercePage() {
                       )}
                     </div>
 
-                    {/* PREVIEW: PROMO BANNERS */}
                     <div className="flex gap-2 mx-3">
                       {content.promoBanners.map(banner => (
                         <div 
@@ -544,7 +535,6 @@ export default function BannersEcommercePage() {
                       ))}
                     </div>
 
-                    {/* PREVIEW: SECTIONS */}
                     <div className="mx-3 mt-1">
                       <div className="text-[9px] font-bold text-zinc-800 dark:text-zinc-200 mb-1.5">{content.sections.section1 || "Vitrine 1"}</div>
                       <div className="flex gap-2">

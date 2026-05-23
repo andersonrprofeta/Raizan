@@ -7,7 +7,7 @@ import { Search, ShoppingCart, CheckCircle2, AlertCircle, Package, Barcode, Load
 import { getApiUrl, getHubUrl, getHeaders } from "@/components/utils/api";
 import toast from 'react-hot-toast';
 import { initMercadoPago, Payment } from '@mercadopago/sdk-react';
-
+//REGRAS DE EDIÇÃO DO CÓDIGO: NUNCA MEXER NO LAYOUT, NUNCA CHUMBAR TENANT ID
 // ==========================================
 // CONFIGURAÇÕES DO MOTOR DE IMAGENS 
 // ==========================================
@@ -625,7 +625,7 @@ export default function CatalogoB2B() {
     });
   };
 
-  // 🟢 A MÁGICA DE INJETAR O CRACHÁ ACONTECE AQUI!
+// 🟢 A MÁGICA DE INJETAR O CRACHÁ ACONTECE AQUI!
   const handleFinalizarPedido = async (dadosDoPedido) => {
     const savedUser = localStorage.getItem("raizan_user");
     if (!savedUser) {
@@ -635,13 +635,21 @@ export default function CatalogoB2B() {
     }
 
     const userLogado = JSON.parse(savedUser);
+    const cabecalhosPadrao = getHeaders();
     
-    // 🔥 Descobre quem é a loja matriz. Se o Lojista não tiver 'tenant_id', assume a Rafany.
-    const tenant_id = userLogado.tenant_id || "rafany"; 
+    // 🔥 O FIM DO CHUMBADO! 
+    // Tenta pegar do usuário logado -> Se não achar, pega dos Headers globais -> Se não achar, pega do .env
+    const tenant_id = userLogado.tenant_id || cabecalhosPadrao["x-tenant-id"] || process.env.NEXT_PUBLIC_TENANT_ID; 
+
+    if (!tenant_id) {
+       console.error("FALHA CRÍTICA: Tenant ID não encontrado.");
+       toast.error("Erro de identificação da loja. Limpe o cache e faça login novamente.");
+       return null;
+    }
 
     const payloadCompleto = {
       ...dadosDoPedido, 
-      tenant_id: tenant_id, // 🟢 ENVIADO DENTRO DO CORPO DA MENSAGEM
+      tenant_id: tenant_id, // 🟢 100% DINÂMICO
       cliente: {
         codigo: userLogado.codigo,
         nome: userLogado.nome, 
@@ -654,9 +662,10 @@ export default function CatalogoB2B() {
     const toastId = toast.loading("Gerando pedido na distribuidora..."); 
     
     try {
-      // 🟢 CABEÇALHOS BLINDADOS (Adicionamos o crachá direto no Request Header)
+      // 🟢 CABEÇALHOS BLINDADOS
       const cabecalhosComCracha = {
-        ...getHeaders(),
+        ...cabecalhosPadrao,
+        "Content-Type": "application/json", 
         "x-tenant-id": tenant_id
       };
 
@@ -677,7 +686,7 @@ export default function CatalogoB2B() {
         
         const payRes = await fetch(`${getHubUrl()}/api/hub/pagamentos/gerar`, {
           method: "POST",
-          headers: cabecalhosComCracha, // 🟢 Mercado Pago também precisa do crachá!
+          headers: cabecalhosComCracha, 
           body: JSON.stringify({
             pedidoId: data.pedidoId,
             valor: dadosDoPedido.subtotal,
@@ -714,6 +723,7 @@ export default function CatalogoB2B() {
       return null;
     }
   };
+  //FIM DA MÁGICA AQUI
 
   const getEstiloTabelaPreco = (tabela) => {
     switch(tabela) {

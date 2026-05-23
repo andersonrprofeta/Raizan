@@ -51,7 +51,6 @@ function EditarPedidoConteudo() {
     }
 
     try {
-      // 🟢 CORREÇÃO APLICADA: Batendo em /api/hub/pedidos
       const res = await fetch(`https://api.raizan.com.br/api/hub/pedidos/${id}`, { 
         headers: { ...getHeaders(), "x-tenant-id": tenantId } 
       });
@@ -159,6 +158,12 @@ function EditarPedidoConteudo() {
     setItens(novosItens);
   };
 
+  // 🟢 FUNÇÃO MÁGICA: Remove o item do Array e a matemática já faz o resto!
+  const removerItem = (indexParaRemover) => {
+    setItens(itens.filter((_, index) => index !== indexParaRemover));
+    toast.success("Item removido!", { icon: '🗑️' });
+  };
+
   const subtotalItens = itens.reduce((acc, item) => acc + (parseFloat(item.price || 0) * (item.quantity || 0)), 0);
   const totalOriginal = parseFloat(pedido?.total || pedido?.subtotal || 0);
   const novoTotal = Math.max(0, subtotalItens + parseFloat(frete || 0) - parseFloat(desconto || 0));
@@ -175,7 +180,6 @@ function EditarPedidoConteudo() {
     const pedidoJaPago = ['pago', 'processing', 'completed'].includes(pedido?.status);
 
     try {
-      // 🟢 CORREÇÃO APLICADA: Batendo em /api/hub/pedidos/editar
       const res = await fetch(`https://api.raizan.com.br/api/hub/pedidos/editar`, {
         method: 'POST',
         headers: { ...getHeaders(), "Content-Type": "application/json", "x-tenant-id": tenantId },
@@ -217,6 +221,7 @@ function EditarPedidoConteudo() {
         <main className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-8">
           <div className="max-w-5xl mx-auto space-y-6">
             
+            {/* CABEÇALHO REFINADO */}
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between bg-white dark:bg-zinc-900/40 p-5 sm:p-6 rounded-2xl border border-zinc-200 dark:border-zinc-800 gap-4 shadow-sm dark:shadow-none transition-colors">
               <div>
                 <Link href="/pedidos" className="text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300 flex items-center gap-2 text-sm mb-1.5 transition-all w-fit">
@@ -227,6 +232,7 @@ function EditarPedidoConteudo() {
                 </h1>
               </div>
 
+              {/* BOTÕES */}
               <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto mt-2 md:mt-0">
                 <button 
                   onClick={() => setModalBusca(true)}
@@ -245,6 +251,7 @@ function EditarPedidoConteudo() {
               </div>
             </div>
 
+            {/* ALERTA INTELIGENTE E CAMPO DE MOTIVO */}
             {diferenca > 0 && (
               <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 p-5 rounded-xl flex flex-col gap-4 transition-colors animate-in fade-in">
                 <div className="flex items-start gap-4 text-amber-600 dark:text-amber-400">
@@ -285,6 +292,7 @@ function EditarPedidoConteudo() {
               />
             </div>
 
+            {/* TABELA DE PRODUTOS E FINANCEIRO */}
             <div className="bg-white dark:bg-[#0c0c0e] border border-zinc-200 dark:border-zinc-800 rounded-2xl overflow-hidden shadow-md dark:shadow-xl transition-colors">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
@@ -297,12 +305,19 @@ function EditarPedidoConteudo() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800/50 transition-colors">
+                    {itens.length === 0 && (
+                      <tr>
+                        <td colSpan="4" className="px-6 py-8 text-center text-zinc-500">
+                          Todos os itens foram removidos. Adicione novos produtos ou cancele o pedido.
+                        </td>
+                      </tr>
+                    )}
                     {itens.map((item, index) => {
                       const preco = parseFloat(item.price || 0);
                       const quantidade = item.quantity || 0;
 
                       return (
-                      <tr key={index} className="hover:bg-zinc-50 dark:hover:bg-zinc-900/30 transition-colors">
+                      <tr key={index} className="hover:bg-zinc-50 dark:hover:bg-zinc-900/30 transition-colors group">
                         <td className="px-6 py-4 font-medium text-zinc-900 dark:text-zinc-200 transition-colors">{item.name}</td>
                         <td className="px-6 py-4 text-center text-zinc-500 dark:text-zinc-400 transition-colors">{formatMoeda(preco)}</td>
                         <td className="px-6 py-4">
@@ -312,8 +327,19 @@ function EditarPedidoConteudo() {
                             <button onClick={() => handleQtdChange(index, quantidade + 1)} className="p-1.5 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 rounded-lg transition-colors"><Plus size={14}/></button>
                           </div>
                         </td>
-                        <td className="px-6 py-4 text-right font-bold text-zinc-900 dark:text-zinc-100 transition-colors">
-                          {formatMoeda(preco * quantidade)}
+                        <td className="px-6 py-4 text-right">
+                          <div className="flex flex-col items-end gap-1.5">
+                            <span className="font-bold text-zinc-900 dark:text-zinc-100 transition-colors">
+                              {formatMoeda(preco * quantidade)}
+                            </span>
+                            {/* 🟢 BOTÃO DE REMOVER LINDÃO AQUI */}
+                            <button 
+                              onClick={() => removerItem(index)} 
+                              className="text-zinc-400 dark:text-zinc-500 hover:text-rose-600 dark:hover:text-rose-400 transition-colors flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider bg-transparent hover:bg-rose-50 dark:hover:bg-rose-500/10 px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100"
+                            >
+                              <Trash2 size={12} /> Remover
+                            </button>
+                          </div>
                         </td>
                       </tr>
                       );
@@ -322,6 +348,7 @@ function EditarPedidoConteudo() {
                 </table>
               </div>
 
+              {/* RODAPÉ COM FRETE E DESCONTO */}
               <div className="p-6 bg-zinc-50 dark:bg-zinc-900/20 border-t border-zinc-200 dark:border-zinc-800 flex flex-col items-end gap-3 transition-colors">
                  
                  <div className="w-full sm:w-72 space-y-3">
@@ -368,6 +395,7 @@ function EditarPedidoConteudo() {
 
           </div>
 
+          {/* 🟢 MODAL DE BUSCA LIGADO AO ORACLE LOCAL & HUB */}
           {modalBusca && (
             <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setModalBusca(false)}>
               <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-3xl w-full max-w-2xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
@@ -382,6 +410,7 @@ function EditarPedidoConteudo() {
 
                 <div className="p-6 space-y-4">
                   
+                  {/* 🟢 O TOGGLE DE SELEÇÃO DE FONTE DE DADOS */}
                   <div className="flex p-1 bg-zinc-100 dark:bg-zinc-900 rounded-xl mb-4 shadow-inner border border-zinc-200 dark:border-zinc-800">
                     <button 
                       onClick={() => { setFonteBusca('oracle'); setCatalogo([]); setTermoBusca(''); }}

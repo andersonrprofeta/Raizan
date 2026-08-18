@@ -15,49 +15,128 @@ import {
   Loader2
 } from "lucide-react";
 import toast from 'react-hot-toast';
+import { getHubUrl, getHeaders } from "@/components/utils/api";
 
 export default function IdentityEcommercePage() {
   const [loading, setLoading] = useState(true);
   const [salvando, setSalvando] = useState(false);
 
-  // Estado central da Identidade
   const [identity, setIdentity] = useState({
-    logo: "", // URL da Logo
-    favicon: "", // URL do Favicon
+    logo: "", 
+    favicon: "", 
     siteTitle: "Raizan Store",
-    siteTagline: "Tudo que você ama está aqui" // Pegando a sua referência das Americanas!
+    siteTagline: "Tudo que você ama está aqui" 
   });
 
+  const pegarCnpjLogado = () => {
+    if (typeof window !== 'undefined') {
+      const storedUser = localStorage.getItem("@raizan:user");
+      const userLogado = storedUser ? JSON.parse(storedUser) : {};
+      const cabecalhosPadrao = getHeaders();
+      return userLogado.tenant_id || cabecalhosPadrao["x-tenant-id"] || process.env.NEXT_PUBLIC_TENANT_ID || "";
+    }
+    return "";
+  };
+
   useEffect(() => {
-    // Simulação de carregamento da API
-    setTimeout(() => setLoading(false), 500);
+    buscarIdentidadeAtual();
   }, []);
 
+  const buscarIdentidadeAtual = async () => {
+    const tenantId = pegarCnpjLogado();
+    if (!tenantId) {
+      toast.error("Sessão expirada. Faça login novamente.");
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const res = await fetch(`${getHubUrl()}/api/hub/ecommerce/config?tenant=${tenantId}`, {
+        headers: { ...getHeaders(), "x-tenant-id": tenantId }
+      });
+      const data = await res.json();
+      
+      if (data.success && data.config?.identity) {
+        setIdentity(prev => ({ ...prev, ...data.config.identity }));
+      }
+    } catch (error) {
+      toast.error("Erro ao carregar identidade atual.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const salvarIdentidade = async () => {
+    const tenantId = pegarCnpjLogado();
+    if (!tenantId) return toast.error("Sessão expirada.");
+
     setSalvando(true);
     const toastId = toast.loading("Salvando identidade visual...");
+
     try {
-      // Simulação de requisição
-      setTimeout(() => {
+      const res = await fetch(`${getHubUrl()}/api/hub/ecommerce/config/identity`, {
+        method: "POST",
+        headers: { 
+          ...getHeaders(),
+          "Content-Type": "application/json",
+          "x-tenant-id": tenantId 
+        },
+        body: JSON.stringify({
+          tenant_id: tenantId,
+          identity: identity
+        })
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
         toast.success("Identidade atualizada com sucesso!", { id: toastId });
-        setSalvando(false);
-      }, 1500);
+      } else {
+        toast.error("Falha ao salvar identidade.", { id: toastId });
+      }
     } catch (error) {
-      toast.error("Erro ao salvar.", { id: toastId });
+      toast.error("Erro de conexão com o servidor.", { id: toastId });
+    } finally {
       setSalvando(false);
     }
   };
 
-  const handleFileUpload = (e, field) => {
+  const handleFileUpload = async (e, field) => {
     const file = e.target.files[0];
-    if (file) {
-      if (file.size > 2 * 1024 * 1024) {
-        toast.error("O arquivo deve ter no máximo 2MB.");
-        return;
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("O arquivo deve ter no máximo 2MB.");
+      return;
+    }
+
+    const tenantId = pegarCnpjLogado();
+    const toastId = toast.loading("Enviando imagem...");
+    
+    const formData = new FormData();
+    formData.append("imagem", file);
+    formData.append("tenant_id", tenantId);
+
+    const cabecalhos = getHeaders();
+    delete cabecalhos["Content-Type"];
+
+    try {
+      const res = await fetch(`${getHubUrl()}/api/hub/upload`, {
+        method: "POST",
+        headers: { ...cabecalhos, "x-tenant-id": tenantId },
+        body: formData,
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        setIdentity(prev => ({ ...prev, [field]: data.url }));
+        toast.success("Imagem enviada!", { id: toastId });
+      } else {
+        toast.error(data.message || "Erro no upload.", { id: toastId });
       }
-      // Criando URL temporária para o Preview local (padrão Electron/React)
-      const url = URL.createObjectURL(file);
-      setIdentity(prev => ({ ...prev, [field]: url }));
+    } catch (error) {
+      toast.error("Falha ao enviar imagem para a nuvem.", { id: toastId });
     }
   };
 

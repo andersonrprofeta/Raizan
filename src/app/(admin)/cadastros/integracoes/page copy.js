@@ -17,7 +17,6 @@ import FormPortalB2B from "@/components/integracoes/FormPortalB2B";
 import FormMercadoPago from "@/components/integracoes/FormMercadoPago";
 import FormFrenet from "@/components/integracoes/FormFrenet";
 import FormOmie from "@/components/integracoes/FormOmie";
-import FormTiny from "@/components/integracoes/FormTiny"; // 🚀 NOSSO NOVO MÓDULO
 
 export default function IntegracoesPage() {
   const [integracoesAtivas, setIntegracoesAtivas] = useState([]);
@@ -129,12 +128,12 @@ export default function IntegracoesPage() {
     if (plataforma === 'mercadopago') return <img src="/Mercadopago.svg" alt="Mercado Pago" className={imgClass} />;
     if (plataforma === 'frenet') return <img src="/Frenet.svg" alt="Frenet" className={frenetClass} />;
     if (plataforma === 'shopify') return <img src="/shopify.svg" alt="Shopify" className={imgClass} />;
+    // Lendo o arquivo mercadolibre.svg em espanhol corretamente:
     if (plataforma === 'mercadolivre') return <img src="/mercadolibre.svg" alt="Mercado Livre" className={imgClass} />;
     if (plataforma === 'shopee') return <img src="/shopee.svg" alt="Shopee" className={imgClass} />;
     if (plataforma === 'oracle') return <img src="/oracle.svg" alt="Oracle" className={imgClass} />;
     if (plataforma === 'portal_b2b') return <Globe size={48} className="text-indigo-500 drop-shadow-sm transition-transform hover:scale-105" />; 
     if (plataforma === 'omie') return <img src="/omie.png" alt="Omie" className={imgClass} />;
-    if (plataforma === 'tiny') return <img src="/olist.svg" alt="Tiny" className={imgClass} />;
     
     return <Store size={48} className="text-zinc-300 dark:text-zinc-700 drop-shadow-sm" />;
   };
@@ -307,6 +306,7 @@ export default function IntegracoesPage() {
                           <div className="border-2 border-purple-200 dark:border-purple-500/30 rounded-2xl p-5 flex flex-col items-center text-center hover:border-purple-500 hover:shadow-xl hover:shadow-purple-500/10 transition-all cursor-pointer bg-gradient-to-b from-purple-50/50 to-white dark:from-purple-900/10 dark:to-[#0c0c0e] relative overflow-hidden group">
                             <div className="absolute top-0 right-0 bg-purple-600 text-white text-[9px] font-black uppercase px-2 py-1 rounded-bl-lg tracking-wider z-10">Nativo</div>
                             <div className="w-16 h-16 bg-white dark:bg-[#121214] shadow-sm rounded-2xl flex items-center justify-center mb-4 border border-purple-100 dark:border-purple-500/20 group-hover:scale-110 transition-transform">
+                              {/* 🟢 ÍCONES MAIORES (w-12 h-12) NO CATÁLOGO */}
                               <img src="/RaizanCommerce.png" alt="Raizan" className="w-12 h-12 object-contain drop-shadow-sm" />
                             </div>
                             <h3 className="font-bold text-base mb-1 text-zinc-900 dark:text-zinc-100">Raizan Commerce</h3>
@@ -333,12 +333,12 @@ export default function IntegracoesPage() {
                             <button onClick={(e) => { e.stopPropagation(); setInstalando('woocommerce'); }} className="w-full py-2.5 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl text-sm font-bold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors">Conectar</button>
                           </div>
 
-                          {['shopify', 'mercadolivre', 'shopee'].map(plataforma => (
+                          {['shopify', 'mercadolibre', 'shopee'].map(plataforma => (
                             <div key={plataforma} className="border border-zinc-200 dark:border-zinc-800 rounded-2xl p-5 flex flex-col items-center text-center opacity-50 grayscale cursor-not-allowed bg-zinc-50/50 dark:bg-zinc-900/10">
                               <div className="w-16 h-16 bg-white dark:bg-zinc-900 rounded-2xl flex items-center justify-center mb-4 border border-zinc-100 dark:border-zinc-800">
                                 <img src={`/${plataforma}.svg`} alt={plataforma} className="w-12 h-12 object-contain" />
                               </div>
-                              <h3 className="font-bold text-base mb-1 capitalize">{plataforma.replace('mercadolivre', 'Mercado Livre')}</h3>
+                              <h3 className="font-bold text-base mb-1 capitalize">{plataforma.replace('mercadolibre', 'Mercado Livre')}</h3>
                               <p className="text-xs font-medium text-zinc-500 mb-5 h-8">Integração em desenvolvimento.</p>
                               <span className="w-full py-2.5 bg-zinc-200 dark:bg-zinc-800 rounded-xl text-xs font-bold text-zinc-500 uppercase tracking-widest">Em Breve</span>
                             </div>
@@ -373,6 +373,7 @@ export default function IntegracoesPage() {
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                           <div className="border border-orange-200 dark:border-orange-500/30 rounded-2xl p-5 flex flex-col items-center text-center hover:border-orange-500 hover:shadow-xl transition-all cursor-pointer bg-gradient-to-b from-orange-50/50 to-white dark:from-orange-900/10 dark:to-[#0c0c0e] group relative overflow-hidden">
                             <div className="w-16 h-16 bg-white dark:bg-[#121214] shadow-sm rounded-2xl flex items-center justify-center mb-4 border border-orange-100 dark:border-orange-500/20 group-hover:scale-110 transition-transform">
+                              {/* 🟢 MÁGICA NA FRENET: Filtro brightness para dar contraste */}
                               <img src="/Frenet.svg" alt="Frenet" className="w-12 h-12 object-contain brightness-0 dark:brightness-100" />
                             </div>
                             <h3 className="font-bold text-base mb-1 text-zinc-900 dark:text-zinc-100">Frenet</h3>
@@ -390,24 +391,13 @@ export default function IntegracoesPage() {
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                           
                           <div className="border border-emerald-200 dark:border-emerald-500/30 rounded-2xl p-5 flex flex-col items-center text-center hover:border-emerald-500 hover:shadow-xl transition-all cursor-pointer bg-gradient-to-b from-emerald-50/50 to-white dark:from-emerald-900/10 dark:to-[#0c0c0e] group relative overflow-hidden">
-                            <div className="absolute top-0 right-0 bg-emerald-600 text-white text-[9px] font-black uppercase px-2 py-1 rounded-bl-lg tracking-wider z-10">Ativo</div>
+                            <div className="absolute top-0 right-0 bg-emerald-600 text-white text-[9px] font-black uppercase px-2 py-1 rounded-bl-lg tracking-wider z-10">Novo</div>
                             <div className="w-16 h-16 bg-white dark:bg-[#121214] shadow-sm rounded-2xl flex items-center justify-center mb-4 border border-emerald-100 dark:border-emerald-500/20 group-hover:scale-110 transition-transform">
                               <img src="/omie.png" alt="Omie" className="w-12 h-12 object-contain drop-shadow-sm" /> 
                             </div>
                             <h3 className="font-bold text-base mb-1 text-zinc-900 dark:text-zinc-100">Omie ERP</h3>
                             <p className="text-xs font-medium text-zinc-500 mb-5 h-8">Sincronização de Pedidos e Clientes.</p>
                             <button onClick={(e) => { e.stopPropagation(); setInstalando('omie'); }} className="w-full py-2.5 bg-emerald-600 rounded-xl text-sm font-bold text-white hover:bg-emerald-500 shadow-md shadow-emerald-500/20 transition-all">Configurar</button>
-                          </div>
-
-                          {/* 🟢 NOSSO NOVO BOTÃO DO TINY ERP */}
-                          <div className="border border-blue-200 dark:border-blue-500/30 rounded-2xl p-5 flex flex-col items-center text-center hover:border-blue-500 hover:shadow-xl transition-all cursor-pointer bg-gradient-to-b from-blue-50/50 to-white dark:from-blue-900/10 dark:to-[#0c0c0e] group relative overflow-hidden">
-                            <div className="absolute top-0 right-0 bg-blue-600 text-white text-[9px] font-black uppercase px-2 py-1 rounded-bl-lg tracking-wider z-10">Novo</div>
-                            <div className="w-16 h-16 bg-white dark:bg-[#121214] shadow-sm rounded-2xl flex items-center justify-center mb-4 border border-blue-100 dark:border-blue-500/20 group-hover:scale-110 transition-transform">
-                              <img src="/olist.svg" alt="Tiny" className="w-12 h-12 object-contain drop-shadow-sm" />
-                            </div>
-                            <h3 className="font-bold text-base mb-1 text-zinc-900 dark:text-zinc-100">Tiny ERP</h3>
-                            <p className="text-xs font-medium text-zinc-500 mb-5 h-8">Sincronização Bidirecional.</p>
-                            <button onClick={(e) => { e.stopPropagation(); setInstalando('tiny'); }} className="w-full py-2.5 bg-blue-600 rounded-xl text-sm font-bold text-white hover:bg-blue-500 shadow-md shadow-blue-500/20 transition-all">Configurar</button>
                           </div>
 
                           <div className={`border ${oracleConfigurado ? 'border-red-200 dark:border-red-500/40 bg-red-50/30 dark:bg-red-900/10' : 'border-zinc-200 dark:border-zinc-800 bg-white dark:bg-[#121214]'} rounded-2xl p-5 flex flex-col items-center text-center hover:border-red-50 hover:shadow-xl transition-all cursor-pointer group relative overflow-hidden`}>
@@ -447,7 +437,6 @@ export default function IntegracoesPage() {
                 {instalando === 'mercadopago' && <FormMercadoPago onCancel={() => setInstalando('catalogo')} onSuccess={handleSuccess} />}
                 {instalando === 'frenet' && <FormFrenet onCancel={() => setInstalando('catalogo')} onSuccess={handleSuccess} />}
                 {instalando === 'omie' && <FormOmie onCancel={() => setInstalando('catalogo')} onSuccess={handleSuccess} />}
-                {instalando === 'tiny' && <FormTiny onCancel={() => setInstalando('catalogo')} onSuccess={handleSuccess} />}
 
               </>
             )}

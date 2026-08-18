@@ -24,27 +24,28 @@ import {
   Layout
 } from "lucide-react";
 import toast from 'react-hot-toast';
+import { getHubUrl, getHeaders } from "@/components/utils/api";
 
 export default function FooterEcommercePage() {
   const [loading, setLoading] = useState(true);
   const [salvando, setSalvando] = useState(false);
   const [activeTab, setActiveTab] = useState("info");
 
-  // Estado central do Footer
+  // Estado central do Footer (Valores Padrão)
   const [content, setContent] = useState({
     info: {
-      logoUrl: "", // Se vazio, usa o texto abaixo
+      logoUrl: "", 
       companyName: "Raizan Store.",
       description: "Destacamos que os preços previstos no site prevalecem aos demais anunciados em outros meios de comunicação e sites de buscas.",
-      cnpj: "CNPJ 43.214.055/0001-07\nRaizan Comércio e Tecnologia S.A.\nRua Luziânia, 47, Aparecida, Goiânia / GO - CEP 74000-000",
-      disclaimer: "*Ofertas válidas para produtos vendidos e entregues pelo Raizan Core. As ações estão sujeitas a saírem do ar antecipadamente. Verifique o regulamento da campanha. As condições comerciais (Disponibilidade de Estoque, Preço, Valor do Frete e Prazo de entrega) são válidas para a região de entrega informada."
+      cnpj: "CNPJ 00.000.000/0001-00\nSua Empresa S.A.\nEndereço Completo, Cidade / UF - CEP 00000-000",
+      disclaimer: "*Ofertas válidas para produtos vendidos e entregues pelo portal. As ações estão sujeitas a saírem do ar antecipadamente. Verifique o regulamento."
     },
     menus: [
       {
         id: "col1",
         title: "INSTITUCIONAL",
         links: [
-          { id: 1, label: "Sobre o Raizan Store", url: "/sobre" },
+          { id: 1, label: "Sobre a Loja", url: "/sobre" },
           { id: 2, label: "Trabalhe conosco", url: "/vagas" },
           { id: 3, label: "Blog Corporativo", url: "/blog" }
         ]
@@ -90,33 +91,121 @@ export default function FooterEcommercePage() {
     }
   });
 
+  // 🔥 TENANT 100% DINÂMICO
+  const pegarCnpjLogado = () => {
+    if (typeof window !== 'undefined') {
+      const storedUser = localStorage.getItem("@raizan:user");
+      const userLogado = storedUser ? JSON.parse(storedUser) : {};
+      const cabecalhosPadrao = getHeaders();
+      
+      const tenant_id = userLogado.tenant_id || cabecalhosPadrao["x-tenant-id"] || process.env.NEXT_PUBLIC_TENANT_ID;
+      return tenant_id || "";
+    }
+    return "";
+  };
+
   useEffect(() => {
-    // Simulação de busca inicial
-    setTimeout(() => setLoading(false), 600);
+    buscarConteudoAtual();
   }, []);
 
+  // 🟢 BUSCAR DADOS REAIS DO BANCO
+  const buscarConteudoAtual = async () => {
+    const tenantId = pegarCnpjLogado();
+    if (!tenantId) {
+      toast.error("Sessão expirada. Faça login novamente.");
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const res = await fetch(`${getHubUrl()}/api/hub/ecommerce/config?tenant=${tenantId}`, {
+        headers: { ...getHeaders(), "x-tenant-id": tenantId }
+      });
+      const data = await res.json();
+      
+      if (data.success && data.config?.footer) {
+        setContent(prev => ({ ...prev, ...data.config.footer }));
+      }
+    } catch (error) {
+      toast.error("Erro ao carregar rodapé atual.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 🟢 SALVAR NA NUVEM
   const salvarConteudo = async () => {
+    const tenantId = pegarCnpjLogado();
+    if (!tenantId) return toast.error("Sessão expirada.");
+
     setSalvando(true);
     const toastId = toast.loading("Atualizando rodapé da loja...");
+
     try {
-      setTimeout(() => {
+      const res = await fetch(`${getHubUrl()}/api/hub/ecommerce/config/footer`, {
+        method: "POST",
+        headers: { 
+          ...getHeaders(),
+          "Content-Type": "application/json",
+          "x-tenant-id": tenantId 
+        },
+        body: JSON.stringify({
+          tenant_id: tenantId,
+          footer: content
+        })
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
         toast.success("Rodapé atualizado com sucesso!", { id: toastId });
-        setSalvando(false);
-      }, 1500);
+      } else {
+        toast.error("Falha ao salvar rodapé.", { id: toastId });
+      }
     } catch (error) {
-      toast.error("Erro ao salvar.", { id: toastId });
+      toast.error("Erro de conexão com o servidor.", { id: toastId });
+    } finally {
       setSalvando(false);
     }
   };
 
-  const handleFileUpload = (e, callback) => {
+  // 🟢 UPLOAD DE IMAGEM BLINDADO
+  const handleFileUpload = async (e, callback) => {
     const file = e.target.files[0];
-    if (file) {
-      if (file.size > 2 * 1024 * 1024) {
-        toast.error("A imagem deve ter no máximo 2MB.");
-        return;
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("A imagem deve ter no máximo 2MB.");
+      return;
+    }
+
+    const tenantId = pegarCnpjLogado();
+    const toastId = toast.loading("Enviando imagem...");
+    
+    const formData = new FormData();
+    formData.append("imagem", file);
+    formData.append("tenant_id", tenantId);
+
+    const cabecalhos = getHeaders();
+    delete cabecalhos["Content-Type"];
+
+    try {
+      const res = await fetch(`${getHubUrl()}/api/hub/upload`, {
+        method: "POST",
+        headers: { ...cabecalhos, "x-tenant-id": tenantId },
+        body: formData,
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        callback(data.url);
+        toast.success("Imagem enviada!", { id: toastId });
+      } else {
+        toast.error(data.message || "Erro no upload.", { id: toastId });
       }
-      callback(URL.createObjectURL(file));
+    } catch (error) {
+      toast.error("Falha ao enviar imagem para a nuvem.", { id: toastId });
     }
   };
 
@@ -140,7 +229,6 @@ export default function FooterEcommercePage() {
     setContent({ ...content, menus: newMenus });
   };
 
-  // 🔥 Nova função para atualizar o título da coluna
   const updateColTitle = (colIndex, newTitle) => {
     const newMenus = [...content.menus];
     newMenus[colIndex].title = newTitle;

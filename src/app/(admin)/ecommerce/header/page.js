@@ -29,16 +29,20 @@ import {
   Tag
 } from "lucide-react";
 import toast from 'react-hot-toast';
+import { getHubUrl, getHeaders } from "@/components/utils/api";
 
-// Mapeamento de ícones disponíveis para o lojista escolher no Menu Principal
+// 🟢 DICIONÁRIO DE ÍCONES (Versão JavaScript sem tipagem)
 const ICON_OPTIONS = {
+  None: null, // Representa "Sem Ícone"
   Home: <Home size={14} />,
   Star: <Star size={14} />,
   Flame: <Flame size={14} />,
   Monitor: <Monitor size={14} />,
   Smartphone: <Smartphone size={14} />,
   Gift: <Gift size={14} />,
-  Tag: <Tag size={14} />
+  Tag: <Tag size={14} />,
+  Truck: <Truck size={14} />,
+  ShieldCheck: <ShieldCheck size={14} />
 };
 
 export default function HeaderEcommercePage() {
@@ -46,12 +50,14 @@ export default function HeaderEcommercePage() {
   const [salvando, setSalvando] = useState(false);
   const [activeTab, setActiveTab] = useState("topbar");
 
-  // Estado central do Header
+  // Estado central do Header Turbinado
   const [content, setContent] = useState({
     topBar: {
       textLeft: "Frete grátis acima de R$ 199",
+      announcementIcon: "Truck", 
       textCenter: "Compra 100% Segura no Raizan Commerce",
-      showLangCurrency: true, // Habilita o seletor PT/EN/ES
+      centerIcon: "ShieldCheck", 
+      showLangCurrency: true, 
     },
     categoryBar: {
       megaMenuBtn: "Todos os Departamentos",
@@ -96,32 +102,93 @@ export default function HeaderEcommercePage() {
     ]
   });
 
+  const pegarCnpjLogado = () => {
+    if (typeof window !== 'undefined') {
+      const storedUser = localStorage.getItem("@raizan:user");
+      const userLogado = storedUser ? JSON.parse(storedUser) : {};
+      const cabecalhosPadrao = getHeaders();
+      return userLogado.tenant_id || cabecalhosPadrao["x-tenant-id"] || process.env.NEXT_PUBLIC_TENANT_ID || "";
+    }
+    return "";
+  };
+
   useEffect(() => {
-    setTimeout(() => setLoading(false), 600);
+    buscarConteudoAtual();
   }, []);
 
+  const buscarConteudoAtual = async () => {
+    const tenantId = pegarCnpjLogado();
+    if (!tenantId) {
+      toast.error("Sessão expirada. Faça login novamente.");
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const res = await fetch(`${getHubUrl()}/api/hub/ecommerce/config?tenant=${tenantId}`, {
+        headers: { ...getHeaders(), "x-tenant-id": tenantId }
+      });
+      const data = await res.json();
+      
+      if (data.success && data.config?.header) {
+        setContent(prev => {
+          const merged = { ...prev, ...data.config.header };
+          if (!merged.topBar.announcementIcon) merged.topBar.announcementIcon = "Truck";
+          if (!merged.topBar.centerIcon) merged.topBar.centerIcon = "ShieldCheck";
+          return merged;
+        });
+      }
+    } catch (error) {
+      console.error("Erro ao carregar cabeçalho:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const salvarConteudo = async () => {
+    const tenantId = pegarCnpjLogado();
+    if (!tenantId) return toast.error("Sessão expirada.");
+
     setSalvando(true);
     const toastId = toast.loading("Atualizando cabeçalho da loja...");
+
     try {
-      setTimeout(() => {
+      const res = await fetch(`${getHubUrl()}/api/hub/ecommerce/config/header`, {
+        method: "POST",
+        headers: { 
+          ...getHeaders(),
+          "Content-Type": "application/json",
+          "x-tenant-id": tenantId 
+        },
+        body: JSON.stringify({
+          tenant_id: tenantId,
+          header: content 
+        })
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
         toast.success("Cabeçalho atualizado com sucesso!", { id: toastId });
-        setSalvando(false);
-      }, 1500);
+      } else {
+        toast.error("Falha ao salvar cabeçalho.", { id: toastId });
+      }
     } catch (error) {
-      toast.error("Erro ao salvar.", { id: toastId });
+      console.error("ERRO CRÍTICO AO SALVAR NO SERVIDOR:", error);
+      toast.error("Erro de conexão com o servidor. (Veja o F12)", { id: toastId });
+    } finally {
       setSalvando(false);
     }
   };
 
-  // Funções do Menu Principal
+  // Funções do Menu Principal (Sem tipagens TS)
   const addMainMenuItem = () => {
     if (content.categoryBar.mainMenu.length >= 8) {
       toast.error("O limite máximo é de 8 menus para não quebrar o layout.");
       return;
     }
     const newMenu = [...content.categoryBar.mainMenu];
-    newMenu.push({ id: Date.now(), label: "Novo Menu", url: "/", icon: "Star" });
+    newMenu.push({ id: Date.now(), label: "Novo Menu", url: "/", icon: "None" });
     setContent({ ...content, categoryBar: { ...content.categoryBar, mainMenu: newMenu } });
   };
 
@@ -137,7 +204,6 @@ export default function HeaderEcommercePage() {
     setContent({ ...content, categoryBar: { ...content.categoryBar, mainMenu: newMenu } });
   };
 
-  // Funções do Mega Menu (Colunas)
   const updateMegaMenuColTitle = (colIndex, value) => {
     const newMega = [...content.megaMenuContent];
     newMega[colIndex].title = value;
@@ -184,7 +250,6 @@ export default function HeaderEcommercePage() {
         <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 custom-scrollbar">
           <div className="max-w-[1400px] mx-auto space-y-6">
             
-            {/* CABEÇALHO */}
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white dark:bg-[#0c0c0e] p-6 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm relative overflow-hidden">
                <div className="absolute -left-10 -top-10 w-40 h-40 bg-blue-100 dark:bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
                <div className="flex items-center gap-4 relative z-10">
@@ -196,7 +261,6 @@ export default function HeaderEcommercePage() {
                   <p className="text-sm text-zinc-500">Configure avisos de topo e a barra de categorias.</p>
                 </div>
               </div>
-
               <div className="flex gap-2 relative z-10">
                 <button onClick={salvarConteudo} disabled={salvando} className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 transition-all shadow-lg shadow-blue-500/20 disabled:opacity-50">
                   {salvando ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />} Salvar
@@ -206,7 +270,6 @@ export default function HeaderEcommercePage() {
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
               
-              {/* MENU LATERAL */}
               <div className="lg:col-span-3">
                 <div className="bg-white dark:bg-[#0c0c0e] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-3 shadow-sm flex flex-col gap-1 sticky top-6">
                   <button onClick={() => setActiveTab("topbar")} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-bold text-sm ${activeTab === "topbar" ? "bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400" : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"}`}>
@@ -221,10 +284,8 @@ export default function HeaderEcommercePage() {
                 </div>
               </div>
 
-              {/* EDITOR */}
               <div className="lg:col-span-9 xl:col-span-5">
                 
-                {/* ABA: FAIXA DO TOPO */}
                 {activeTab === "topbar" && (
                   <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
                     <div className="bg-white dark:bg-[#0c0c0e] border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 md:p-8 shadow-sm">
@@ -233,13 +294,44 @@ export default function HeaderEcommercePage() {
                       </h2>
 
                       <div className="space-y-5">
-                        <div>
-                          <label className="block text-xs font-bold text-zinc-500 mb-2 uppercase tracking-wider">Aviso Esquerdo (Frete)</label>
-                          <input type="text" value={content.topBar.textLeft} onChange={(e) => setContent({...content, topBar: {...content.topBar, textLeft: e.target.value}})} className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 h-12 outline-none text-sm" />
+                        <div className="flex flex-col sm:flex-row gap-3">
+                          <div className="sm:w-1/3">
+                            <label className="block text-xs font-bold text-zinc-500 mb-2 uppercase tracking-wider">Ícone (Esq)</label>
+                            <select 
+                               value={content.topBar.announcementIcon || "Truck"} 
+                               onChange={(e) => setContent({...content, topBar: {...content.topBar, announcementIcon: e.target.value}})}
+                               className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 h-12 outline-none text-sm"
+                            >
+                               <option value="None">Sem Ícone</option>
+                               <option value="Truck">Caminhão</option>
+                               <option value="ShieldCheck">Escudo</option>
+                               <option value="Gift">Presente</option>
+                            </select>
+                          </div>
+                          <div className="flex-1">
+                            <label className="block text-xs font-bold text-zinc-500 mb-2 uppercase tracking-wider">Aviso Esquerdo (Ex: Frete)</label>
+                            <input type="text" value={content.topBar.textLeft} onChange={(e) => setContent({...content, topBar: {...content.topBar, textLeft: e.target.value}})} className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 h-12 outline-none text-sm" />
+                          </div>
                         </div>
-                        <div>
-                          <label className="block text-xs font-bold text-zinc-500 mb-2 uppercase tracking-wider">Aviso Central (Segurança)</label>
-                          <input type="text" value={content.topBar.textCenter} onChange={(e) => setContent({...content, topBar: {...content.topBar, textCenter: e.target.value}})} className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 h-12 outline-none text-sm" />
+                        
+                        <div className="flex flex-col sm:flex-row gap-3">
+                          <div className="sm:w-1/3">
+                            <label className="block text-xs font-bold text-zinc-500 mb-2 uppercase tracking-wider">Ícone (Centro)</label>
+                            <select 
+                               value={content.topBar.centerIcon || "ShieldCheck"} 
+                               onChange={(e) => setContent({...content, topBar: {...content.topBar, centerIcon: e.target.value}})}
+                               className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 h-12 outline-none text-sm"
+                            >
+                               <option value="None">Sem Ícone</option>
+                               <option value="ShieldCheck">Escudo</option>
+                               <option value="Truck">Caminhão</option>
+                               <option value="Star">Estrela</option>
+                            </select>
+                          </div>
+                          <div className="flex-1">
+                            <label className="block text-xs font-bold text-zinc-500 mb-2 uppercase tracking-wider">Aviso Central (Ex: Segurança)</label>
+                            <input type="text" value={content.topBar.textCenter} onChange={(e) => setContent({...content, topBar: {...content.topBar, textCenter: e.target.value}})} className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 h-12 outline-none text-sm" />
+                          </div>
                         </div>
 
                         <div className="pt-4 border-t border-zinc-100 dark:border-zinc-800">
@@ -259,7 +351,6 @@ export default function HeaderEcommercePage() {
                   </div>
                 )}
 
-                {/* ABA: MENU PRINCIPAL */}
                 {activeTab === "mainmenu" && (
                   <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
                     <div className="bg-white dark:bg-[#0c0c0e] border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 md:p-8 shadow-sm">
@@ -270,27 +361,31 @@ export default function HeaderEcommercePage() {
                         <span className="text-xs font-bold text-zinc-400 bg-zinc-100 dark:bg-zinc-900 px-2 py-1 rounded">{content.categoryBar.mainMenu.length}/8 MÁX</span>
                       </div>
 
-                      {/* Botão Mega Menu */}
                       <div className="mb-6 p-4 bg-purple-50 dark:bg-purple-500/5 rounded-xl border border-purple-100 dark:border-purple-500/20">
                         <label className="block text-[10px] font-bold text-purple-600 dark:text-purple-400 mb-2 uppercase tracking-wider">Botão Principal (Abre o Mega Menu)</label>
                         <input type="text" value={content.categoryBar.megaMenuBtn} onChange={(e) => setContent({...content, categoryBar: {...content.categoryBar, megaMenuBtn: e.target.value}})} className="w-full bg-white dark:bg-[#0c0c0e] border border-purple-200 dark:border-purple-500/30 rounded-lg px-3 h-10 outline-none text-sm font-bold" />
                       </div>
 
-                      {/* Lista Dinâmica do Menu */}
                       <div className="space-y-3 mb-6">
                         {content.categoryBar.mainMenu.map((item, index) => (
                           <div key={item.id} className="flex flex-col sm:flex-row gap-2 bg-zinc-50 dark:bg-zinc-900 p-2.5 rounded-xl border border-zinc-200 dark:border-zinc-800 items-start sm:items-center">
                             
                             <div className="flex gap-2 w-full sm:w-auto">
                               <span className="bg-zinc-200 dark:bg-zinc-800 text-zinc-500 text-xs font-bold w-6 h-8 flex items-center justify-center rounded">{index + 1}</span>
+                              
                               <select 
-                                value={item.icon} 
+                                value={item.icon || "None"} 
                                 onChange={(e) => updateMainMenuItem(item.id, "icon", e.target.value)}
-                                className="bg-white dark:bg-[#0c0c0e] border border-zinc-200 dark:border-zinc-700 rounded outline-none text-xs px-1 h-8 w-12 cursor-pointer"
+                                className="bg-white dark:bg-[#0c0c0e] border border-zinc-200 dark:border-zinc-700 rounded outline-none text-xs px-1 h-8 w-24 cursor-pointer"
                               >
-                                {Object.keys(ICON_OPTIONS).map(key => (
-                                  <option key={key} value={key}>{key}</option>
-                                ))}
+                                <option value="None">Sem ícone</option>
+                                <option value="Home">Casa</option>
+                                <option value="Star">Estrela</option>
+                                <option value="Flame">Fogo</option>
+                                <option value="Monitor">Monitor</option>
+                                <option value="Smartphone">Celular</option>
+                                <option value="Gift">Presente</option>
+                                <option value="Tag">Etiqueta</option>
                               </select>
                             </div>
 
@@ -308,7 +403,6 @@ export default function HeaderEcommercePage() {
                         <Plus size={14} /> Adicionar Menu Manual
                       </button>
 
-                      {/* Botão Destaque Direita */}
                       <div className="mt-8 pt-6 border-t border-zinc-100 dark:border-zinc-800">
                         <label className="block text-[10px] font-bold text-orange-500 mb-2 uppercase tracking-wider">Menu de Destaque (Canto Direito)</label>
                         <div className="flex gap-2">
@@ -320,7 +414,6 @@ export default function HeaderEcommercePage() {
                   </div>
                 )}
 
-                {/* ABA: MEGA MENU (Todos os Departamentos) */}
                 {activeTab === "megamenu" && (
                   <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
                     <div className="bg-white dark:bg-[#0c0c0e] border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 md:p-8 shadow-sm">
@@ -367,15 +460,19 @@ export default function HeaderEcommercePage() {
                     <MonitorPlay size={14} className="text-blue-500" /> Live Preview
                   </h3>
                   
-                  {/* Container do Header Renderizado Miniatura */}
                   <div className="border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden shadow-2xl flex flex-col font-sans bg-white dark:bg-[#0c0c0e]">
                     
-                    {/* Top Header (Avisos) */}
                     <div className="bg-black text-white px-2 py-1.5 text-[6px] font-medium flex items-center justify-between">
                       <div className="flex gap-2 items-center">
-                        <span className="flex items-center gap-1"><Truck size={6} className="text-blue-400"/> {content.topBar.textLeft}</span>
+                        <span className="flex items-center gap-1">
+                          {content.topBar.announcementIcon !== "None" && ICON_OPTIONS[content.topBar.announcementIcon]} 
+                          {content.topBar.textLeft}
+                        </span>
                         <span className="text-zinc-600">|</span>
-                        <span className="flex items-center gap-1"><ShieldCheck size={6} className="text-emerald-400"/> {content.topBar.textCenter}</span>
+                        <span className="flex items-center gap-1">
+                          {content.topBar.centerIcon !== "None" && ICON_OPTIONS[content.topBar.centerIcon || "ShieldCheck"]} 
+                          {content.topBar.textCenter}
+                        </span>
                       </div>
                       
                       {content.topBar.showLangCurrency ? (
@@ -387,15 +484,12 @@ export default function HeaderEcommercePage() {
                       )}
                     </div>
 
-                    {/* Main Header (Logo, Busca, Ícones) */}
                     <div className="bg-[#5c16c5] px-3 py-3 flex items-center justify-between">
                       <div className="text-white font-black text-sm tracking-tighter">Raizan.</div>
-                      
                       <div className="flex-1 mx-3 bg-white rounded flex items-center px-2 py-1 h-6">
                         <span className="text-zinc-400 text-[6px]">Buscar produtos...</span>
                         <Search size={8} className="ml-auto text-zinc-400" />
                       </div>
-
                       <div className="flex items-center gap-2 text-white">
                         <div className="flex flex-col items-center"><Heart size={10} /><span className="text-[4px] mt-0.5">Favoritos</span></div>
                         <div className="flex items-center gap-1">
@@ -409,31 +503,27 @@ export default function HeaderEcommercePage() {
                       </div>
                     </div>
 
-                    {/* Category Bar */}
                     <div className="bg-[#fbbf24] px-2 py-1 flex items-center justify-between shadow-sm">
                       <div className="flex items-center gap-2">
-                        {/* Botão Mega Menu */}
                         <div className="bg-[#4c1d95] text-white px-2 py-1 rounded text-[5px] font-bold flex items-center gap-1 shadow-sm cursor-pointer">
                           <MenuIcon size={8} /> {content.categoryBar.megaMenuBtn}
                         </div>
                         
-                        {/* Links Manuais */}
                         <div className="flex gap-2">
                           {content.categoryBar.mainMenu.map(item => (
                             <div key={item.id} className="flex items-center gap-0.5 text-black text-[5px] font-medium">
-                              {ICON_OPTIONS[item.icon]} <span>{item.label}</span>
+                              {item.icon !== "None" && ICON_OPTIONS[item.icon]} 
+                              <span>{item.label}</span>
                             </div>
                           ))}
                         </div>
                       </div>
 
-                      {/* Deal Menu (Direita) */}
                       <div className="flex items-center gap-0.5 text-black text-[5px] font-black uppercase">
                         <Zap size={8} /> {content.categoryBar.dealMenuText}
                       </div>
                     </div>
 
-                    {/* Preview Condicional do Mega Menu (Aberto) */}
                     {activeTab === "megamenu" && (
                       <div className="p-3 grid grid-cols-3 gap-2 bg-white dark:bg-[#0c0c0e] border-b border-zinc-100 dark:border-zinc-800">
                         {content.megaMenuContent.map(col => (
@@ -448,7 +538,6 @@ export default function HeaderEcommercePage() {
                         ))}
                       </div>
                     )}
-
                   </div>
                   
                   {activeTab === "megamenu" && <p className="text-[8px] text-zinc-400 text-center mt-2">Simulando o Mega Menu Aberto</p>}

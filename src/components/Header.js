@@ -203,7 +203,6 @@ export default function Header() {
   const [listaOfertas, setListaOfertas] = useState([]);
   const [isCarrinhoModalOpen, setIsCarrinhoModalOpen] = useState(false);
   
-
   const gerarIniciais = (nome) => {
     if (!nome) return "R";
     const partes = nome.trim().split(" ");
@@ -421,13 +420,11 @@ export default function Header() {
 
   // 🟢 SISTEMA DE CACHE INTELIGENTE DAS OFERTAS
   const carregarOfertasGlobais = async () => {
-    // 1. Tenta carregar rápido da memória (sem travar a tela)
     const cacheOfertas = sessionStorage.getItem("@raizan:cache_ofertas");
     if (cacheOfertas) {
       setListaOfertas(JSON.parse(cacheOfertas));
     }
 
-    // 2. Faz o fetch na surdina pra atualizar a memória
     try {
       const res = await fetch(`${getApiUrl()}/api/admin/promocoes`, { headers: getHeaders() });
       const data = await res.json();
@@ -440,7 +437,6 @@ export default function Header() {
           return promo.ativo && hoje >= inicio && hoje <= fim;
         });
         
-        // Atualiza o cache e a tela (se tiver aberto)
         sessionStorage.setItem("@raizan:cache_ofertas", JSON.stringify(ofertasAtivas));
         setListaOfertas(ofertasAtivas);
       }
@@ -460,132 +456,132 @@ export default function Header() {
     window.dispatchEvent(new Event('storage')); 
   };
 
-  if (!userRole) return <header className="sticky top-0 z-30 w-full h-16 md:mt-8 bg-white/80 dark:bg-[#09090b]/80 backdrop-blur-md border-b border-zinc-200 dark:border-zinc-800/60" style={{ WebkitAppRegion: 'drag' }}></header>;
+  if (!userRole) return <header className="sticky top-4 z-30 w-full md:w-[calc(100%-2rem)] mx-auto h-16 bg-transparent pointer-events-none"></header>;
 
   return (
     <>
-      <header className="sticky top-0 z-30 w-full min-h-16 md:h-16 md:mt-8 bg-white/90 dark:bg-[#09090b]/90 backdrop-blur-md border-b border-zinc-200 dark:border-zinc-800/60 flex items-center justify-between px-3 sm:px-4 md:px-8 lg:pr-40 py-2 md:py-0 gap-2 sm:gap-3 transition-colors duration-300" style={{ WebkitAppRegion: 'drag' }}>
-        
-        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1" style={{ WebkitAppRegion: 'no-drag' }}>
-          <button onClick={toggleMobileMenu} className="lg:hidden shrink-0 p-2 bg-zinc-100 dark:bg-zinc-900 rounded-lg text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors border border-zinc-200 dark:border-zinc-800/60">
-            <Menu size={20} />
-          </button>
-
-          <div className="flex flex-col justify-center min-w-0">
-            <h2 className="text-xs sm:text-sm md:text-lg font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-1 md:gap-2 truncate max-w-[150px] sm:max-w-[220px] md:max-w-none">
-              Olá, <span className={userRole === "lojista" ? "text-emerald-600 dark:text-emerald-400" : "text-purple-600 dark:text-purple-400"}>
-                {userName}
-              </span>! <span className="animate-wave origin-bottom-right inline-block">👋</span>
-            </h2>
-            <span className="hidden sm:block text-xs md:text-sm text-zinc-500 dark:text-zinc-400 font-medium truncate max-w-[260px] md:max-w-none">{dataHora}</span>
-          </div>
-        </div>
-
-        <div className="flex items-center justify-end gap-2 sm:gap-3 md:gap-5 min-w-0 shrink-0" style={{ WebkitAppRegion: 'no-drag' }}>
+      {/* 🔥 A MÁGICA DO HEADER FLUTUANTE (FLOATING PILL) ESTÁ NESTA DIV ABAIXO */}
+      <div className="w-full px-2 sm:px-4 md:px-6 pt-2 sm:pt-4 md:pt-6 pb-2" style={{ WebkitAppRegion: 'drag' }}>
+        <header 
+          className="sticky top-4 z-30 w-full min-h-16 md:h-[72px] bg-white/90 dark:bg-[#121214]/90 backdrop-blur-xl border border-zinc-200/80 dark:border-white/5 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] flex items-center justify-between px-4 sm:px-6 py-2 md:py-0 transition-all duration-300" 
+          style={{ WebkitAppRegion: 'no-drag' }}
+        >
           
-          {montado && (
-            <button 
-              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-              className="relative shrink-0 p-1.5 md:p-2 text-zinc-500 dark:text-zinc-400 hover:text-amber-500 dark:hover:text-amber-400 bg-zinc-100 dark:bg-zinc-900/50 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-800 transition-all"
-              title="Alternar Tema Claro/Escuro"
-            >
-              {theme === "dark" ? <Sun size={18} className="md:w-5 md:h-5" /> : <Moon size={18} className="md:w-5 md:h-5" />}
+          <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
+            <button onClick={toggleMobileMenu} className="lg:hidden shrink-0 p-2 bg-zinc-100 dark:bg-zinc-800/50 rounded-xl text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors border border-zinc-200 dark:border-zinc-700">
+              <Menu size={20} />
             </button>
-          )}
 
-          {userRole === "admin" && diasRestantes !== null && diasRestantes <= 15 && diasRestantes > 0 && (
-            <div className="hidden md:flex items-center gap-2 bg-orange-100 dark:bg-orange-500/10 border border-orange-200 dark:orange-500/20 px-3 py-1.5 rounded-lg mr-2">
-              <AlertTriangle size={16} className="text-orange-500 dark:text-orange-400 animate-pulse" />
-              <span className="text-xs font-medium text-orange-600 dark:text-orange-400">Licença expira em {diasRestantes} dias</span>
+            <div className="flex flex-col justify-center min-w-0">
+              <h2 className="text-sm md:text-[17px] font-black text-zinc-900 dark:text-zinc-100 flex items-center gap-1 md:gap-2 truncate">
+                Olá, <span className={userRole === "lojista" ? "text-emerald-600 dark:text-emerald-400" : "text-purple-600 dark:text-purple-400"}>
+                  {userName}
+                </span>! <span className="animate-wave origin-bottom-right inline-block">👋</span>
+              </h2>
+              <span className="hidden sm:block text-[11px] md:text-xs text-zinc-500 dark:text-zinc-400 font-semibold truncate">{dataHora}</span>
             </div>
-          )}
+          </div>
 
-          {userRole === "lojista" && (
-            <div className="flex items-center gap-1.5 sm:gap-2 md:gap-4 min-w-0">
+          <div className="flex items-center justify-end gap-2 sm:gap-3 md:gap-4 min-w-0 shrink-0">
+            
+            {montado && (
               <button 
-                onClick={() => { setIsOfertasModalOpen(true); carregarOfertasGlobais(); }}
-                className="flex items-center gap-1 md:gap-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 text-white px-2 py-1.5 sm:px-2.5 md:px-4 md:py-1.5 rounded-full text-[10px] sm:text-xs font-bold shadow-[0_0_15px_rgba(249,115,22,0.3)] transition-all transform hover:scale-105 border border-orange-400/50 max-w-[120px] sm:max-w-none"
+                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                className="relative shrink-0 p-2 text-zinc-500 dark:text-zinc-400 hover:text-amber-500 dark:hover:text-amber-400 bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700/50 transition-all"
+                title="Alternar Tema Claro/Escuro"
               >
-                <Tag size={12} className="md:w-[14px] md:h-[14px]" /> 
-                <span className="hidden sm:inline">Ofertas do Dia</span>
-                <span className="sm:hidden">Ofertas</span>
+                {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
               </button>
+            )}
 
-              <button 
-                onClick={() => setIsCarrinhoModalOpen(true)} 
-                className="relative shrink-0 p-1.5 md:p-2 text-zinc-500 dark:text-zinc-400 hover:text-emerald-600 dark:hover:text-emerald-400 bg-zinc-100 dark:bg-zinc-900/50 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-800 transition-all" 
-                title="Ver Resumo do Carrinho"
-              >
-                <ShoppingCart size={18} className="md:w-5 md:h-5" />
-                {qtdCarrinho > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 bg-emerald-500 text-white dark:text-black text-[9px] md:text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center border-2 border-white dark:border-[#09090b]">
-                    {qtdCarrinho}
-                  </span>
-                )}
-              </button>
-            </div>
-          )}
+            {userRole === "admin" && diasRestantes !== null && diasRestantes <= 15 && diasRestantes > 0 && (
+              <div className="hidden md:flex items-center gap-2 bg-orange-50 dark:bg-orange-500/10 border border-orange-200 dark:border-orange-500/20 px-3 py-2 rounded-xl">
+                <AlertTriangle size={16} className="text-orange-500 dark:text-orange-400 animate-pulse" />
+                <span className="text-xs font-bold text-orange-600 dark:text-orange-400">Expira em {diasRestantes} dias</span>
+              </div>
+            )}
 
-          {userRole === "admin" && (
-            <div className="relative group cursor-pointer mr-0 md:mr-2 shrink-0" style={{ WebkitAppRegion: 'no-drag' }}>
-              <Link href="/xml" className="transition-colors relative block p-2 bg-zinc-100 dark:bg-zinc-900/50 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-800" title="Ver Central de Documentos">
-                <Bell size={18} className={updateStatus ? "text-rose-500 dark:text-rose-400 animate-pulse" : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"} />
-                {updateStatus && (
-                  <span className="absolute -top-1.5 -right-1.5 bg-rose-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center border-2 border-white dark:border-[#09090b]">
-                    {updateStatus === "!" ? "1" : updateStatus}
-                  </span>
-                )}
-              </Link>
+            {userRole === "lojista" && (
+              <div className="flex items-center gap-2 sm:gap-3">
+                <button 
+                  onClick={() => { setIsOfertasModalOpen(true); carregarOfertasGlobais(); }}
+                  className="flex items-center gap-1.5 md:gap-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 text-white px-3 py-2 md:px-4 md:py-2 rounded-xl text-xs font-bold shadow-lg shadow-orange-500/20 transition-all transform hover:-translate-y-0.5 border border-orange-400/50"
+                >
+                  <Tag size={14} /> 
+                  <span className="hidden sm:inline">Ofertas do Dia</span>
+                  <span className="sm:hidden">Ofertas</span>
+                </button>
 
-              <div className="hidden lg:block absolute right-0 top-full mt-3 w-64 invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-2 group-hover:translate-y-0 z-[100]">
-                <div className="bg-white/95 dark:bg-[#0c0c0e]/95 backdrop-blur-xl border border-zinc-200 dark:border-zinc-800 rounded-2xl p-4 shadow-2xl ring-1 ring-black/5 dark:ring-white/5">
-                  <h4 className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest mb-3 border-b border-zinc-100 dark:border-zinc-800 pb-2">Resumo Pendente</h4>
-                  <div className="space-y-4">
-                    {!updateStatus && <p className="text-xs text-zinc-400 dark:text-zinc-500 text-center py-2">Nenhuma notificação nova.</p>}
-                    {lastPedidoId && (
-                      <div className="flex items-start gap-3">
-                        <div className="p-1.5 bg-emerald-100 dark:bg-emerald-500/10 rounded-lg"><ShoppingCart size={14} className="text-emerald-600 dark:text-emerald-400" /></div>
-                        <div className="overflow-hidden">
-                          <p className="text-[11px] font-bold text-zinc-800 dark:text-zinc-200 truncate">Último Pedido</p>
-                          <p className="text-[10px] text-zinc-500 dark:text-zinc-400 truncate">ID: {lastPedidoId}</p>
+                <button 
+                  onClick={() => setIsCarrinhoModalOpen(true)} 
+                  className="relative shrink-0 p-2 text-zinc-500 dark:text-zinc-400 hover:text-emerald-600 dark:hover:text-emerald-400 bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700/50 transition-all" 
+                  title="Ver Resumo do Carrinho"
+                >
+                  <ShoppingCart size={18} />
+                  {qtdCarrinho > 0 && (
+                    <span className="absolute -top-2 -right-2 bg-emerald-500 text-white dark:text-black text-[10px] font-black min-w-[20px] h-5 px-1 rounded-full flex items-center justify-center border-2 border-white dark:border-[#121214] shadow-sm">
+                      {qtdCarrinho}
+                    </span>
+                  )}
+                </button>
+              </div>
+            )}
+
+            {userRole === "admin" && (
+              <div className="relative group cursor-pointer shrink-0">
+                <Link href="/xml" className="transition-all relative block p-2 bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700/50" title="Ver Central de Documentos">
+                  <Bell size={18} className={updateStatus ? "text-rose-500 dark:text-rose-400 animate-pulse" : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"} />
+                  {updateStatus && (
+                    <span className="absolute -top-2 -right-2 bg-rose-500 text-white text-[10px] font-black min-w-[20px] h-5 px-1 rounded-full flex items-center justify-center border-2 border-white dark:border-[#121214] shadow-sm">
+                      {updateStatus === "!" ? "1" : updateStatus}
+                    </span>
+                  )}
+                </Link>
+
+                <div className="hidden lg:block absolute right-0 top-full mt-4 w-64 invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-2 group-hover:translate-y-0 z-[100]">
+                  <div className="bg-white/95 dark:bg-[#121214]/95 backdrop-blur-xl border border-zinc-200 dark:border-zinc-800 rounded-2xl p-4 shadow-2xl ring-1 ring-black/5 dark:ring-white/5">
+                    <h4 className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-widest mb-3 border-b border-zinc-100 dark:border-zinc-800/50 pb-2">Resumo Pendente</h4>
+                    <div className="space-y-4">
+                      {!updateStatus && <p className="text-xs text-zinc-400 dark:text-zinc-500 text-center py-2 font-medium">Nenhuma notificação nova.</p>}
+                      {lastPedidoId && (
+                        <div className="flex items-start gap-3">
+                          <div className="p-1.5 bg-emerald-100 dark:bg-emerald-500/10 rounded-lg"><ShoppingCart size={14} className="text-emerald-600 dark:text-emerald-400" /></div>
+                          <div className="overflow-hidden">
+                            <p className="text-[11px] font-bold text-zinc-800 dark:text-zinc-200 truncate">Último Pedido</p>
+                            <p className="text-[10px] text-zinc-500 dark:text-zinc-400 truncate font-mono mt-0.5">ID: {lastPedidoId}</p>
+                          </div>
                         </div>
-                      </div>
-                    )}
-                    {lastXmlId && (
-                      <div className="flex items-start gap-3">
-                        <div className="p-1.5 bg-rose-100 dark:bg-rose-500/10 rounded-lg"><FileText size={14} className="text-rose-600 dark:text-rose-400" /></div>
-                        <div className="overflow-hidden">
-                          <p className="text-[11px] font-bold text-zinc-800 dark:text-zinc-200 truncate">Aguardando XML</p>
-                          <p className="text-[10px] text-rose-600 dark:text-rose-400 font-medium truncate italic underline">Pedido #{lastXmlId}</p>
+                      )}
+                      {lastXmlId && (
+                        <div className="flex items-start gap-3">
+                          <div className="p-1.5 bg-rose-100 dark:bg-rose-500/10 rounded-lg"><FileText size={14} className="text-rose-600 dark:text-rose-400" /></div>
+                          <div className="overflow-hidden">
+                            <p className="text-[11px] font-bold text-zinc-800 dark:text-zinc-200 truncate">Aguardando XML</p>
+                            <p className="text-[10px] text-rose-600 dark:text-rose-400 font-medium truncate mt-0.5 hover:underline">Pedido #{lastXmlId}</p>
+                          </div>
                         </div>
-                      </div>
-                    )}
-                  </div>
-                  <div className="mt-4 pt-2 border-t border-zinc-100 dark:border-zinc-800 flex justify-between items-center text-[9px] text-zinc-400 dark:text-zinc-500 italic">
-                    <span>Radar ativo</span>
-                    <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-ping"></span>
+                      )}
+                    </div>
                   </div>
                 </div>
-                <div className="absolute -top-1 right-4 w-2 h-2 bg-white dark:bg-[#0c0c0e] border-l border-t border-zinc-200 dark:border-zinc-800 rotate-45"></div>
               </div>
-            </div>
-          )}
+            )}
 
-          <div className="flex items-center gap-2 sm:gap-3 pl-2 sm:pl-3 md:pl-5 border-l border-zinc-200 dark:border-zinc-800/60 shrink-0">
-            <div className="hidden sm:flex flex-col items-end">
-              <span className="text-sm md:text-base font-bold text-zinc-800 dark:text-zinc-200 leading-tight">{userRole === "lojista" ? "Meu Perfil" : "Operador"}</span>
-              <span className={`text-[11px] max-w-[150px] truncate ${userRole === "lojista" ? "text-emerald-600 dark:text-emerald-500 font-medium" : "text-zinc-500 dark:text-zinc-500"}`}>{userRole === "lojista" ? `CNPJ: ${userEmail}` : userEmail}</span>
-            </div>
-            
-            {/* 🟢 O LINK DINÂMICO PARA O PERFIL */}
-            <Link href={userRole === "lojista" ? "/b2b-perfil" : "/conta"}>
-              <div className={`w-8 h-8 md:w-10 md:h-10 rounded-xl flex items-center justify-center shadow-lg ring-2 ring-white dark:ring-zinc-950 hover:scale-105 transition-all cursor-pointer font-bold text-white text-xs md:text-sm ${userRole === "lojista" ? "bg-gradient-to-br from-emerald-500 to-teal-500 dark:from-emerald-600 dark:to-teal-600 hover:ring-emerald-500/50" : "bg-gradient-to-br from-purple-500 to-indigo-500 dark:from-purple-600 dark:to-indigo-600 hover:ring-purple-500/50"}`}>
-                {userInitial}
+            <div className="flex items-center gap-3 pl-3 sm:pl-4 border-l border-zinc-200 dark:border-zinc-800 shrink-0 ml-1 sm:ml-2">
+              <div className="hidden sm:flex flex-col items-end">
+                <span className="text-sm font-bold text-zinc-900 dark:text-zinc-100 leading-none mb-1">{userRole === "lojista" ? "Meu Perfil" : "Operador"}</span>
+                <span className={`text-[10px] font-bold tracking-wide uppercase max-w-[150px] truncate ${userRole === "lojista" ? "text-emerald-600 dark:text-emerald-500" : "text-zinc-500 dark:text-zinc-400"}`}>{userRole === "lojista" ? `CNPJ: ${userEmail}` : userEmail}</span>
               </div>
-            </Link>
+              
+              <Link href={userRole === "lojista" ? "/b2b-perfil" : "/conta"}>
+                <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shadow-md hover:shadow-xl hover:-translate-y-0.5 transition-all cursor-pointer font-black text-white text-sm ${userRole === "lojista" ? "bg-gradient-to-br from-emerald-500 to-teal-600 shadow-emerald-500/20" : "bg-gradient-to-br from-purple-500 to-indigo-600 shadow-purple-500/20"}`}>
+                  {userInitial}
+                </div>
+              </Link>
+            </div>
           </div>
-        </div>
-      </header>
+        </header>
+      </div>
 
       <ModalOfertasGlobal isOpen={isOfertasModalOpen} onClose={() => setIsOfertasModalOpen(false)} ofertas={listaOfertas} onComprar={adicionarOfertaAoCarrinho} />
       <ModalResumoCarrinho isOpen={isCarrinhoModalOpen} onClose={() => setIsCarrinhoModalOpen(false)} />

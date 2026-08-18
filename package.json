@@ -1,7 +1,9 @@
 {
   "name": "raizan-core",
-  "version": "0.5.1",
+  "version": "0.5.5",
   "private": true,
+  "author": "Raizan",
+  "description": "Raizan Core App",
   "main": "main.js",
   "scripts": {
     "dev": "next dev",
@@ -16,6 +18,7 @@
     "@mercadopago/sdk-react": "^1.0.7",
     "electron-serve": "^3.0.1",
     "electron-updater": "^6.8.3",
+    "framer-motion": "^13.1.0",
     "lucide-react": "^0.577.0",
     "mysql2": "^3.20.0",
     "next": "16.2.0",
@@ -47,10 +50,16 @@
       "preload.js",
       "main.js",
       "package.json",
-      "node_modules/**/*"
+      "logo.ico",
+      "node_modules/**/*",
+      "!node_modules/@babel/**/*",
+      "!node_modules/webpack/**/*",
+      "!node_modules/@webassemblyjs/**/*",
+      "!node_modules/next/dist/compiled/**/*"
     ],
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "icon": "logo.ico"
     }
   },
   "publish": [

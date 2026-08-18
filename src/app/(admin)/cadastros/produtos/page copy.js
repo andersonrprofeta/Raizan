@@ -8,7 +8,7 @@ import {
   Package, Search, Plus, Edit, Trash2, 
   Image as ImageIcon, Loader2, Filter,
   MoreHorizontal, PackageOpen, Layers, Box, X,
-  ChevronLeft, ChevronRight, TrendingUp, Barcode, AlertTriangle, CloudSync
+  ChevronLeft, ChevronRight, TrendingUp, Barcode, AlertTriangle
 } from "lucide-react";
 import Link from "next/link";
 import toast from 'react-hot-toast';
@@ -21,7 +21,7 @@ export default function ListaProdutosHub() {
   const [menuAberto, setMenuAberto] = useState(null); 
 
   const [paginaAtual, setPaginaAtual] = useState(1);
-  const [itensPorPagina, setItensPorPagina] = useState(10); // 🟢 ESTADO DINÂMICO PARA O SELETOR
+  const itensPorPagina = 10;
 
   const [modalDelete, setModalDelete] = useState({ open: false, produto: null, temVendas: false });
   const menuRef = useRef(null);
@@ -32,13 +32,20 @@ export default function ListaProdutosHub() {
   });
   
   const [modalEnvio, setModalEnvio] = useState({
-    open: false, produto: null, categoriasWoo: [], categoriaSelecionada: "", loadingCategorias: false
+    open: false,
+    produto: null,
+    categoriasWoo: [],
+    categoriaSelecionada: "",
+    loadingCategorias: false
   }); 
 
+  // 🔥 Função para pegar o Tenant ID logado
   const pegarCnpjLogado = () => {
     if (typeof window !== 'undefined') {
       const storedUser = localStorage.getItem("@raizan:user");
-      if (storedUser) return JSON.parse(storedUser).tenant_id;
+      if (storedUser) {
+        return JSON.parse(storedUser).tenant_id;
+      }
     }
     return "";
   };
@@ -56,15 +63,19 @@ export default function ListaProdutosHub() {
     return () => document.removeEventListener("mousedown", handleClickFora);
   }, []);
 
-  useEffect(() => { setPaginaAtual(1); }, [busca, filtros, itensPorPagina]);
+  useEffect(() => { setPaginaAtual(1); }, [busca, filtros]);
 
   const carregarProdutos = async () => {
     const tenantId = pegarCnpjLogado();
-    if (!tenantId) return toast.error("Erro de sessão.");
+    if (!tenantId) {
+      toast.error("Erro de sessão.");
+      return;
+    }
 
     try {
-      // 🟢 O PULO DO GATO: Passando limite=5000 na URL para o Backend liberar tudo!
-      const res = await fetch("https://api.raizan.com.br/api/hub/produtos?limit=5000", { headers: { "x-tenant-id": tenantId } });
+      const res = await fetch("https://api.raizan.com.br/api/hub/produtos", {
+        headers: { "x-tenant-id": tenantId } // 🟢 CABEÇALHO INJETADO
+      });
       const data = await res.json();
       if (data.success) {
         setProdutos(data.produtos);
@@ -80,52 +91,73 @@ export default function ListaProdutosHub() {
     if (!tenantId) return;
 
     try {
-      const res = await fetch("https://api.raizan.com.br/api/hub/categorias", { headers: { "x-tenant-id": tenantId } });
+      const res = await fetch("https://api.raizan.com.br/api/hub/categorias", {
+        headers: { "x-tenant-id": tenantId } // 🟢 CABEÇALHO INJETADO
+      });
       const data = await res.json();
       if (data.success) setCategorias(data.categorias);
     } catch (error) { console.error("Erro ao puxar categorias"); }
   };
 
+  // ==========================================
+  // 1. ABRIR MODAL DE MAPEAMENTO
+  // ==========================================
   const prepararEnvioParaLoja = async (produto) => {
     const tenantId = pegarCnpjLogado();
     setMenuAberto(null);
     setModalEnvio({ open: true, produto, categoriasWoo: [], categoriaSelecionada: "", loadingCategorias: true });
 
     try {
-      const res = await fetch("https://api.raizan.com.br/api/hub/sincronizar/woocommerce/categorias", { headers: { "x-tenant-id": tenantId } });
+      const res = await fetch("https://api.raizan.com.br/api/hub/sincronizar/woocommerce/categorias", {
+        headers: { "x-tenant-id": tenantId } // 🟢 CABEÇALHO INJETADO
+      });
       const data = await res.json();
       if (data.success) {
         setModalEnvio(prev => ({ ...prev, categoriasWoo: data.categorias, loadingCategorias: false }));
       } else {
-        toast.error("Erro ao buscar categorias.");
+        toast.error("Erro ao buscar categorias da loja.");
         setModalEnvio(prev => ({ ...prev, loadingCategorias: false }));
       }
     } catch (error) {
-      toast.error("Falha na comunicação.");
+      toast.error("Falha na comunicação com a loja.");
       setModalEnvio(prev => ({ ...prev, loadingCategorias: false }));
     }
   };
 
+  // ==========================================
+  // 2. CONFIRMAR ENVIO (Com Categoria)
+  // ==========================================
   const confirmarEnvioLoja = async () => {
     const { produto, categoriaSelecionada } = modalEnvio;
     const tenantId = pegarCnpjLogado();
     
-    if (!categoriaSelecionada) return toast.error("Selecione uma categoria!");
+    if (!categoriaSelecionada) {
+      toast.error("Selecione uma categoria para mapear!");
+      return;
+    }
 
     const toastId = toast.loading(`Sincronizando ${produto.nome}...`);
     
     try {
       const res = await fetch('https://api.raizan.com.br/api/hub/sincronizar/woocommerce', { 
         method: 'POST', 
-        headers: { 'Content-Type': 'application/json', 'x-tenant-id': tenantId },
-        body: JSON.stringify({ produto_id: produto.id, categoria_woo_id: categoriaSelecionada }) 
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-tenant-id': tenantId // 🟢 CABEÇALHO INJETADO
+        },
+        body: JSON.stringify({ 
+          produto_id: produto.id,
+          categoria_woo_id: categoriaSelecionada 
+        }) 
       });
       
       const data = await res.json();
       
       if (data.success) {
-        toast.success(`Enviado com sucesso!`, { id: toastId });
+        toast.success(`Enviado para a loja com sucesso!`, { id: toastId });
         setModalEnvio({ open: false, produto: null, categoriasWoo: [], categoriaSelecionada: "", loadingCategorias: false });
+        
+        // Acende o ícone do WooCommerce visualmente
         setProdutos(produtos.map(p => p.id === produto.id ? { ...p, canais_ativos: [...(p.canais_ativos || []), 'woocommerce'] } : p));
       } else {
         toast.error(data.message, { id: toastId });
@@ -133,15 +165,6 @@ export default function ListaProdutosHub() {
     } catch (error) {
       toast.error(`Falha ao enviar.`, { id: toastId });
     }
-  };
-
-  const enviarParaForcaDeVendas = async (produto) => {
-    setMenuAberto(null);
-    const toastId = toast.loading(`Atualizando app dos vendedores com ${produto.nome}...`);
-    setTimeout(() => {
-        toast.success(`Catálogo App atualizado com sucesso!`, { id: toastId });
-        setProdutos(produtos.map(p => p.id === produto.id ? { ...p, canais_ativos: [...(p.canais_ativos || []), 'raizan'] } : p));
-    }, 1500);
   };
 
   const abrirModalDelete = (produto) => {
@@ -154,7 +177,10 @@ export default function ListaProdutosHub() {
     const tenantId = pegarCnpjLogado();
 
     try {
-      const res = await fetch(`https://api.raizan.com.br/api/hub/produtos/${id}`, { method: "DELETE", headers: { "x-tenant-id": tenantId } });
+      const res = await fetch(`https://api.raizan.com.br/api/hub/produtos/${id}`, { 
+        method: "DELETE",
+        headers: { "x-tenant-id": tenantId } // 🟢 CABEÇALHO INJETADO
+      });
       const data = await res.json();
       if (data.success) {
         toast.success(data.message);
@@ -167,7 +193,7 @@ export default function ListaProdutosHub() {
   const inativarProduto = () => {
     const id = modalDelete.produto.id;
     setProdutos(produtos.map(p => p.id === id ? { ...p, status: 'inativo' } : p));
-    toast.success("Produto Inativado!");
+    toast.success("Produto Inativado com sucesso!");
     setModalDelete({ open: false, produto: null, temVendas: false });
   };
 
@@ -175,7 +201,12 @@ export default function ListaProdutosHub() {
 
   const produtosFiltrados = produtos.filter(p => {
     const termo = busca.toLowerCase();
-    const matchBusca = (p.nome && p.nome.toLowerCase().includes(termo)) || (p.sku && p.sku.toLowerCase().includes(termo)) || (p.gtin && p.gtin.toLowerCase().includes(termo)) || (p.marca && p.marca.toLowerCase().includes(termo));
+    const matchBusca = 
+      (p.nome && p.nome.toLowerCase().includes(termo)) || 
+      (p.sku && p.sku.toLowerCase().includes(termo)) ||
+      (p.gtin && p.gtin.toLowerCase().includes(termo)) ||
+      (p.marca && p.marca.toLowerCase().includes(termo));
+
     const matchStatus = filtros.status ? p.status === filtros.status : true;
     
     let matchTipo = true;
@@ -222,16 +253,12 @@ export default function ListaProdutosHub() {
 
   const qtdFiltrosAtivos = Object.values(filtros).filter(val => val !== "").length;
 
-  const obterCapa = (produto) => {
-    if (produto && produto.imagens_anexos) {
-      try {
-        const imagens = typeof produto.imagens_anexos === 'string' ? JSON.parse(produto.imagens_anexos) : produto.imagens_anexos;
-        if (Array.isArray(imagens) && imagens.length > 0 && imagens[0]) {
-          return imagens[0];
-        }
-      } catch(e) {}
-    }
-    return null; 
+  const obterCapa = (jsonImagens) => {
+    if (!jsonImagens) return null;
+    try {
+      const imagens = typeof jsonImagens === 'string' ? JSON.parse(jsonImagens) : jsonImagens;
+      return imagens.length > 0 ? imagens[0] : null;
+    } catch(e) { return null; }
   };
 
   const renderCanalIcon = (canal) => {
@@ -246,7 +273,7 @@ export default function ListaProdutosHub() {
       case 'magalu': return <div key={canal} className={`${baseClasses} bg-white border-blue-400`} title="Magalu"><img src="/magalu.svg" alt="Magalu" className={iconClasses} /></div>;
       case 'shopify': return <div key={canal} className={`${baseClasses} bg-white border-emerald-200`} title="Shopify"><img src="/shopify.svg" alt="Shopify" className={iconClasses} /></div>;
       case 'tiktok': return <div key={canal} className={`${baseClasses} bg-white border-zinc-300`} title="TikTok"><img src="/tiktok.svg" alt="TikTok" className={iconClasses} /></div>;
-      case 'raizan': return <div key={canal} className={`${baseClasses} bg-purple-50 border-purple-200 dark:bg-purple-900/20 dark:border-purple-800`} title="Força de Vendas (Raizan Seller)"><Package size={14} className="text-purple-600 dark:text-purple-400" /></div>;
+      case 'raizan': return <div key={canal} className={`${baseClasses} bg-purple-50 border-purple-200 dark:bg-purple-900/20 dark:border-purple-800`} title="Raizan Commerce"><Package size={14} className="text-purple-600 dark:text-purple-400" /></div>;
       default: return null;
     }
   };
@@ -329,7 +356,7 @@ export default function ListaProdutosHub() {
                           </tr>
                         ) : (
                           produtosPaginados.map((produto, index) => {
-                            const capaUrl = obterCapa(produto);
+                            const capaUrl = obterCapa(produto.imagens_anexos);
                             const isMenuOpen = menuAberto === produto.id;
                             const isInativo = produto.status === 'inativo';
                             const menuParaCima = index >= produtosPaginados.length - 2 && produtosPaginados.length >= 3;
@@ -412,10 +439,6 @@ export default function ListaProdutosHub() {
                                       </button>
                                     </Link>
 
-                                    <button onClick={() => enviarParaForcaDeVendas(produto)} title="Sincronizar Força de Vendas" className="p-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 text-zinc-500 dark:text-zinc-400 hover:text-emerald-600 dark:hover:text-emerald-400 rounded-lg shadow-sm transition-colors">
-                                      <CloudSync size={16} />
-                                    </button>
-
                                     <button onClick={() => abrirModalDelete(produto)} className="p-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 hover:bg-rose-50 dark:hover:bg-rose-500/10 text-zinc-500 dark:text-zinc-400 hover:text-rose-600 dark:hover:text-rose-400 rounded-lg shadow-sm transition-colors">
                                       <Trash2 size={16} />
                                     </button>
@@ -433,7 +456,6 @@ export default function ListaProdutosHub() {
                                         menuParaCima={menuParaCima} 
                                         produto={produto}
                                         onEnviarParaLoja={prepararEnvioParaLoja}
-                                        onEnviarForcaVendas={enviarParaForcaDeVendas}
                                       />
                                     )}
                                   </div>
@@ -447,55 +469,32 @@ export default function ListaProdutosHub() {
                     </table>
                   </div>
 
-                  {totalPaginas > 0 && (
+                  {totalPaginas > 1 && (
                     <div className="flex flex-col sm:flex-row justify-between items-center gap-4 px-6 py-4 border-t border-zinc-200 dark:border-zinc-800/60 mt-auto relative z-0 bg-zinc-50/50 dark:bg-[#0c0c0e]/50 rounded-b-2xl">
                       <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium text-center sm:text-left">
                         Mostrando <span className="font-bold text-zinc-900 dark:text-zinc-100">{indicePrimeiroItem + 1}</span> a <span className="font-bold text-zinc-900 dark:text-zinc-100">{Math.min(indiceUltimoItem, produtosFiltrados.length)}</span> de <span className="font-bold text-zinc-900 dark:text-zinc-100">{produtosFiltrados.length}</span> produtos
                       </p>
                       
-                      <div className="flex items-center gap-6">
+                      <div className="flex items-center gap-2">
+                        <button 
+                          onClick={() => setPaginaAtual(prev => Math.max(prev - 1, 1))}
+                          disabled={paginaAtual === 1}
+                          className="p-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+                        >
+                          <ChevronLeft size={16} />
+                        </button>
                         
-                        {/* 🟢 O SEU NOVO SELETOR DE QUANTIDADE */}
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-zinc-500 dark:text-zinc-400">Exibir:</span>
-                          <select 
-                            value={itensPorPagina} 
-                            onChange={(e) => {
-                              setItensPorPagina(Number(e.target.value));
-                              setPaginaAtual(1); // Volta pra pág 1 ao mudar a quantidade
-                            }}
-                            className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 text-xs font-bold rounded-lg px-2 py-1.5 outline-none focus:border-purple-500 cursor-pointer shadow-sm"
-                          >
-                            <option value={10}>10 linhas</option>
-                            <option value={20}>20 linhas</option>
-                            <option value={50}>50 linhas</option>
-                            <option value={100}>100 linhas</option>
-                          </select>
-                        </div>
-
-                        {/* Botões de Navegação */}
-                        <div className="flex items-center gap-2">
-                          <button 
-                            onClick={() => setPaginaAtual(prev => Math.max(prev - 1, 1))}
-                            disabled={paginaAtual === 1}
-                            className="p-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
-                          >
-                            <ChevronLeft size={16} />
-                          </button>
-                          
-                          <span className="text-xs font-bold text-zinc-700 dark:text-zinc-300 px-1">
-                            Página {paginaAtual} de {totalPaginas || 1}
-                          </span>
-                          
-                          <button 
-                            onClick={() => setPaginaAtual(prev => Math.min(prev + 1, totalPaginas))}
-                            disabled={paginaAtual === totalPaginas || totalPaginas === 0}
-                            className="p-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
-                          >
-                            <ChevronRight size={16} />
-                          </button>
-                        </div>
-
+                        <span className="text-xs font-bold text-zinc-700 dark:text-zinc-300 px-3">
+                          Página {paginaAtual} de {totalPaginas}
+                        </span>
+                        
+                        <button 
+                          onClick={() => setPaginaAtual(prev => Math.min(prev + 1, totalPaginas))}
+                          disabled={paginaAtual === totalPaginas}
+                          className="p-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+                        >
+                          <ChevronRight size={16} />
+                        </button>
                       </div>
                     </div>
                   )}

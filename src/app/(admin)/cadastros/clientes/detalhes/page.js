@@ -7,7 +7,8 @@ import {
   ArrowLeft, User as UserIcon, Mail, Phone, MapPin, 
   Building2, CreditCard, ShoppingBag, DollarSign, 
   TrendingUp, Package, ExternalLink, Loader2, Store, 
-  Globe, MonitorSmartphone, ChevronLeft, ChevronRight, X
+  Globe, MonitorSmartphone, ChevronLeft, ChevronRight, X,
+  Database, Briefcase, ShieldAlert, BadgeCheck, FileText
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -27,7 +28,7 @@ function DashboardCliente() {
 
   // 🟢 ESTADOS DA PAGINAÇÃO E DO MODAL
   const [paginaAtual, setPaginaAtual] = useState(1);
-  const itensPorPagina = 5; // Mantém a tela limpa e compacta
+  const itensPorPagina = 5; 
   const [modalPedido, setModalPedido] = useState({ open: false, pedido: null });
 
   const pegarCnpjLogado = () => {
@@ -74,7 +75,7 @@ function DashboardCliente() {
     }
   };
 
-  const formatarMoeda = (valor) => Number(valor).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  const formatarMoeda = (valor) => Number(valor || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   const formatarData = (dataStr) => new Date(dataStr).toLocaleDateString("pt-BR", { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute:'2-digit' });
 
   const getCanalFavorito = () => {
@@ -93,13 +94,14 @@ function DashboardCliente() {
       }
     });
 
+    if (favorito.includes('omie')) return { nome: "Omie ERP", icon: <Database size={14} className="text-emerald-500" /> };
     if (favorito.includes('woo')) return { nome: "WooCommerce", icon: <Globe size={14} className="text-purple-500" /> };
     if (favorito.includes('b2b')) return { nome: "Portal B2B", icon: <MonitorSmartphone size={14} className="text-blue-500" /> };
     return { nome: "Manual / PDV", icon: <Store size={14} className="text-zinc-500" /> };
   };
 
   const renderStatusPedido = (status) => {
-    switch(status) {
+    switch(status?.toLowerCase()) {
       case 'entregue': 
       case 'completed': 
         return <span className="px-2.5 py-1 bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 rounded-md text-[10px] font-black uppercase tracking-wider border border-emerald-200 dark:border-emerald-500/20">Entregue</span>;
@@ -115,7 +117,15 @@ function DashboardCliente() {
   };
 
   const renderBadgeOrigem = (origem) => {
-    const nome = origem.toLowerCase();
+    const nome = (origem || "").toLowerCase();
+    
+    if (nome.includes('omie')) {
+      return (
+        <span className="flex items-center gap-1 w-fit bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider mt-1.5">
+          <Database size={10} /> Omie ERP
+        </span>
+      );
+    }
     if (nome.includes('woo')) {
       return (
         <span className="flex items-center gap-1 w-fit bg-purple-50 text-purple-600 dark:bg-purple-500/10 dark:text-purple-400 border border-purple-200 dark:border-purple-500/20 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider mt-1.5">
@@ -146,8 +156,15 @@ function DashboardCliente() {
   const { cliente, kpis, pedidos } = dados;
   const canalFavorito = getCanalFavorito();
   
+  // 🟢 INTELIGÊNCIA: Verifica se é PJ contando os números do documento! (Salva a pátria do WooCommerce)
+  const documentoLimpo = cliente.cpf_cnpj ? String(cliente.cpf_cnpj).replace(/\D/g, '') : '';
+  const isPJ = cliente.tipo_pessoa === 'juridica' || documentoLimpo.length > 11;
+  
+  // 🟢 INTELIGÊNCIA: Parsing de Metadados e Endereço seguros
   let endereco = {};
+  let metadata = {};
   try { endereco = typeof cliente.endereco_json === 'string' ? JSON.parse(cliente.endereco_json) : (cliente.endereco_json || {}); } catch(e){}
+  try { metadata = typeof cliente.metadata_json === 'string' ? JSON.parse(cliente.metadata_json) : (cliente.metadata_json || {}); } catch(e){}
 
   // 🟢 LÓGICA DE PAGINAÇÃO
   const totalPaginas = Math.ceil(pedidos.length / itensPorPagina);
@@ -218,8 +235,10 @@ function DashboardCliente() {
         {/* Layout de 2 Colunas */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
           
-          {/* Coluna 1: Dados do Cliente */}
+          {/* Coluna 1: Dados do Cliente e Comercial */}
           <div className="lg:col-span-1 space-y-6">
+            
+            {/* Bloco 1: Informações de Contato e Identificação */}
             <div className="bg-white dark:bg-[#0c0c0e] border border-zinc-200 dark:border-zinc-800/60 rounded-2xl p-6 shadow-sm">
               <div className="flex flex-col items-center text-center pb-6 border-b border-zinc-100 dark:border-zinc-800/60">
                 <div className="w-24 h-24 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-full flex items-center justify-center text-3xl font-black border-4 border-white dark:border-[#0c0c0e] shadow-lg mb-4">
@@ -228,7 +247,8 @@ function DashboardCliente() {
                 <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">{cliente.nome}</h2>
                 <div className="flex items-center gap-2 mt-2">
                   <p className="text-[10px] font-bold text-zinc-500 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-3 py-1 rounded-full uppercase tracking-widest flex items-center gap-1">
-                    {cliente.tipo_pessoa === 'juridica' ? <><Building2 size={12}/> PJ</> : <><UserIcon size={12}/> PF</>}
+                    {/* 🟢 A MÁGICA DA CORREÇÃO DE PF/PJ ACONTECE AQUI: */}
+                    {isPJ ? <><Building2 size={12}/> PJ</> : <><UserIcon size={12}/> PF</>}
                   </p>
                   <p className="text-[10px] font-bold text-zinc-500 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-3 py-1 rounded-full flex items-center gap-1">
                     {canalFavorito.icon} {canalFavorito.nome}
@@ -262,7 +282,7 @@ function DashboardCliente() {
                     <CreditCard size={14} className="text-zinc-500" />
                   </div>
                   <div className="pt-0.5">
-                    <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">{cliente.tipo_pessoa === 'fisica' ? 'CPF' : 'CNPJ'}</p>
+                    <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">{isPJ ? 'CNPJ' : 'CPF'}</p>
                     <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{cliente.cpf_cnpj || "Não informado"}</p>
                   </div>
                 </div>
@@ -294,6 +314,71 @@ function DashboardCliente() {
                 </div>
               </div>
             </div>
+
+            {/* 🟢 Bloco 2: O NOVO CARD COM OS DADOS COMERCIAIS DO OMIE ERP */}
+            {(cliente.codigo_vendedor || metadata.limite_credito !== undefined || metadata.condicao_pagamento_padrao) && (
+              <div className="bg-white dark:bg-[#0c0c0e] border border-zinc-200 dark:border-zinc-800/60 rounded-2xl p-6 shadow-sm">
+                <h3 className="text-xs font-black text-zinc-400 uppercase tracking-widest mb-5 flex items-center gap-2">
+                  <Briefcase size={16} className="text-zinc-400" /> Informações Comerciais (ERP)
+                </h3>
+                
+                <div className="space-y-4">
+                  {/* Status no ERP */}
+                  <div className="flex items-center justify-between p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800/30 border border-zinc-100 dark:border-zinc-800">
+                    <div className="flex items-center gap-2 text-sm font-bold text-zinc-700 dark:text-zinc-300">
+                      {metadata.bloqueado ? <ShieldAlert size={16} className="text-rose-500" /> : <BadgeCheck size={16} className="text-emerald-500" />}
+                      Situação no ERP
+                    </div>
+                    {metadata.bloqueado ? (
+                      <span className="text-[10px] font-black uppercase tracking-wider text-rose-600 bg-rose-100 dark:bg-rose-500/10 dark:text-rose-400 px-2 py-1 rounded-md">Bloqueado</span>
+                    ) : (
+                      <span className="text-[10px] font-black uppercase tracking-wider text-emerald-600 bg-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400 px-2 py-1 rounded-md">Ativo</span>
+                    )}
+                  </div>
+
+                  {/* Vendedor */}
+                  {cliente.nome_vendedor && (
+                    <div className="flex items-start gap-3 mt-4">
+                      <div className="w-8 h-8 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 flex items-center justify-center shrink-0 border border-zinc-200 dark:border-zinc-700">
+                        <UserIcon size={14} className="text-zinc-500" />
+                      </div>
+                      <div className="pt-0.5">
+                        <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Vendedor Responsável</p>
+                        <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{cliente.nome_vendedor} <span className="text-xs text-zinc-500 font-normal ml-1">(Cód: {cliente.codigo_vendedor})</span></p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Limite de Crédito */}
+                  {metadata.limite_credito !== undefined && (
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 flex items-center justify-center shrink-0 border border-zinc-200 dark:border-zinc-700">
+                        <DollarSign size={14} className="text-zinc-500" />
+                      </div>
+                      <div className="pt-0.5">
+                        <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Limite de Crédito</p>
+                        <p className="text-sm font-black text-emerald-600 dark:text-emerald-400">{formatarMoeda(metadata.limite_credito)}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Condição Padrão */}
+                  {metadata.condicao_pagamento_padrao && (
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 flex items-center justify-center shrink-0 border border-zinc-200 dark:border-zinc-700">
+                        <FileText size={14} className="text-zinc-500" />
+                      </div>
+                      <div className="pt-0.5">
+                        <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Condição Padrão</p>
+                        <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{metadata.condicao_pagamento_padrao}</p>
+                      </div>
+                    </div>
+                  )}
+
+                </div>
+              </div>
+            )}
+
           </div>
 
           {/* Coluna 2: Histórico de Pedidos Paginado */}

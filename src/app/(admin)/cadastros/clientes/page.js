@@ -147,38 +147,50 @@ export default function ListaClientesHub() {
   const indexPrimeiroCliente = indexUltimoCliente - itensPorPagina;
   const clientesPaginados = clientesFiltrados.slice(indexPrimeiroCliente, indexUltimoCliente);
 
+  // 🟢 AQUI FORAM FEITOS OS AJUSTES DE TAMANHO DOS BADGES
   const renderOrigem = (origem) => {
     const text = (origem || "manual").toLowerCase();
     
+    if (text.includes("omie")) {
+      return (
+        <div className="flex items-center justify-center gap-1.5 px-2 py-1 bg-emerald-50 dark:bg-emerald-500/10 rounded-md border border-emerald-200 dark:border-emerald-500/20 w-fit mx-auto shadow-sm">
+          <Database size={12} className="text-emerald-500" />
+          <span className="text-[9px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">Omie ERP</span>
+        </div>
+      );
+    }
+
     if (text.includes("oracle") || text.includes("erp")) {
       return (
-        <div className="flex items-center justify-center gap-2 px-3 py-1.5 bg-red-50 dark:bg-red-500/10 rounded-lg border border-red-200 dark:border-red-500/20 w-fit mx-auto shadow-sm">
-          <img src="/oracle.svg" alt="Oracle" className="w-4 h-4 object-contain" />
-          <span className="text-[10px] font-bold text-red-700 dark:text-red-400 uppercase tracking-wider">ERP Local</span>
+        <div className="flex items-center justify-center gap-1.5 px-2 py-1 bg-red-50 dark:bg-red-500/10 rounded-md border border-red-200 dark:border-red-500/20 w-fit mx-auto shadow-sm">
+          <img src="/oracle.svg" alt="Oracle" className="w-3.5 h-3.5 object-contain" />
+          <span className="text-[9px] font-bold text-red-700 dark:text-red-400 uppercase tracking-wider">ERP Local</span>
         </div>
       );
     }
 
     if (text.includes("woo")) {
       return (
-        <div className="flex items-center justify-center gap-2 px-3 py-1.5 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-zinc-200 dark:border-zinc-700 w-fit mx-auto shadow-sm">
-          <img src="/woocommerce.svg" alt="WooCommerce" className="w-4 h-4 object-contain" />
-          <span className="text-[10px] font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">WooCommerce</span>
+        <div className="flex items-center justify-center gap-1.5 px-2 py-1 bg-zinc-50 dark:bg-zinc-800/50 rounded-md border border-zinc-200 dark:border-zinc-700 w-fit mx-auto shadow-sm">
+          <img src="/woocommerce.svg" alt="WooCommerce" className="w-3.5 h-3.5 object-contain" />
+          <span className="text-[9px] font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">WooCommerce</span>
         </div>
       );
     }
+    
     if (text.includes("raizan") || text.includes("site")) {
       return (
-        <div className="flex items-center justify-center gap-2 px-3 py-1.5 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-zinc-200 dark:border-zinc-700 w-fit mx-auto shadow-sm">
-          <img src="/globe.svg" alt="Raizan Commerce" className="w-4 h-4 object-contain" />
-          <span className="text-[10px] font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">Raizan Commerce</span>
+        <div className="flex items-center justify-center gap-1.5 px-2 py-1 bg-zinc-50 dark:bg-zinc-800/50 rounded-md border border-zinc-200 dark:border-zinc-700 w-fit mx-auto shadow-sm">
+          <img src="/globe.svg" alt="Raizan Commerce" className="w-3.5 h-3.5 object-contain" />
+          <span className="text-[9px] font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">Raizan Commerce</span>
         </div>
       );
     }
+    
     return (
-      <div className="flex items-center justify-center gap-2 px-3 py-1.5 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-zinc-200 dark:border-zinc-700 w-fit mx-auto shadow-sm">
-        <UserIcon size={14} className="text-zinc-400" />
-        <span className="text-[10px] font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">Manual / PDV</span>
+      <div className="flex items-center justify-center gap-1.5 px-2 py-1 bg-zinc-50 dark:bg-zinc-800/50 rounded-md border border-zinc-200 dark:border-zinc-700 w-fit mx-auto shadow-sm">
+        <UserIcon size={12} className="text-zinc-400" />
+        <span className="text-[9px] font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">Manual / PDV</span>
       </div>
     );
   };
@@ -269,69 +281,74 @@ export default function ListaClientesHub() {
                             </td>
                           </tr>
                         ) : (
-                          clientesPaginados.map((cliente) => (
-                            <tr key={cliente.id} className="hover:bg-purple-50/50 dark:hover:bg-purple-500/5 transition-colors group">
-                              <td className="px-6 py-4">
-                                <div className="flex items-center gap-3">
-                                  <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 flex items-center justify-center font-black border border-purple-200 dark:border-purple-800/50">
-                                    {cliente.nome ? cliente.nome.charAt(0).toUpperCase() : <UserIcon size={18} />}
-                                  </div>
-                                  <div className="flex flex-col">
-                                    <Link href={`/cadastros/clientes/detalhes?id=${cliente.id}`}>
-                                      <span className="font-bold text-zinc-900 dark:text-zinc-100 hover:text-purple-600 transition-colors cursor-pointer">
-                                        {cliente.nome}
-                                      </span>
-                                    </Link>
-                                    <span className="text-[10px] text-zinc-500 uppercase tracking-widest font-semibold flex items-center gap-1 mt-0.5">
-                                      {cliente.tipo_pessoa === 'juridica' ? <><Building2 size={10}/> Pessoa Jurídica</> : <><UserIcon size={10}/> Pessoa Física</>}
-                                    </span>
-                                  </div>
-                                </div>
-                              </td>
-                              
-                              <td className="px-6 py-4">
-                                <div className="flex flex-col gap-1.5 text-sm">
-                                  <div className="flex items-center gap-2 text-zinc-600 dark:text-zinc-300">
-                                    <Mail size={14} className="text-zinc-400" /> {cliente.email || 'Não informado'}
-                                  </div>
-                                  {cliente.telefone && (
-                                    <div className="flex items-center gap-2 text-zinc-600 dark:text-zinc-300">
-                                      <Phone size={14} className="text-zinc-400" /> {cliente.telefone}
-                                    </div>
-                                  )}
-                                </div>
-                              </td>
+                          clientesPaginados.map((cliente) => {
+                            const documentoLimpo = cliente.cpf_cnpj ? String(cliente.cpf_cnpj).replace(/\D/g, '') : '';
+                            const isPJ = cliente.tipo_pessoa === 'juridica' || documentoLimpo.length > 11;
 
-                              <td className="px-6 py-4">
-                                <span className="font-medium text-zinc-700 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 px-2 py-1 rounded text-xs border border-zinc-200 dark:border-zinc-700">
-                                  {cliente.cpf_cnpj || 'N/A'}
-                                </span>
-                              </td>
-                              
-                              <td className="px-6 py-4 text-center">
-                                {renderOrigem(cliente.origem)}
-                              </td>
-                              
-                              <td className="px-6 py-4 text-right">
-                                <div className="flex items-center justify-end gap-2">
-                                  <Link href={`/cadastros/clientes/editar?id=${cliente.id}`}>
-                                    <button className="p-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 hover:bg-purple-50 dark:hover:bg-purple-500/10 text-zinc-500 hover:text-purple-600 rounded-lg shadow-sm transition-colors">
-                                      <Edit size={16} />
+                            return (
+                              <tr key={cliente.id} className="hover:bg-purple-50/50 dark:hover:bg-purple-500/5 transition-colors group">
+                                <td className="px-6 py-4">
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 flex items-center justify-center font-black border border-purple-200 dark:border-purple-800/50">
+                                      {cliente.nome ? cliente.nome.charAt(0).toUpperCase() : (isPJ ? <Building2 size={18} /> : <UserIcon size={18} />)}
+                                    </div>
+                                    <div className="flex flex-col">
+                                      <Link href={`/cadastros/clientes/detalhes?id=${cliente.id}`}>
+                                        <span className="font-bold text-zinc-900 dark:text-zinc-100 hover:text-purple-600 transition-colors cursor-pointer">
+                                          {cliente.nome}
+                                        </span>
+                                      </Link>
+                                      <span className="text-[10px] text-zinc-500 uppercase tracking-widest font-semibold flex items-center gap-1 mt-0.5">
+                                        {isPJ ? <><Building2 size={10}/> Pessoa Jurídica</> : <><UserIcon size={10}/> Pessoa Física</>}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </td>
+                                
+                                <td className="px-6 py-4">
+                                  <div className="flex flex-col gap-1.5 text-sm">
+                                    <div className="flex items-center gap-2 text-zinc-600 dark:text-zinc-300">
+                                      <Mail size={14} className="text-zinc-400" /> {cliente.email || 'Não informado'}
+                                    </div>
+                                    {cliente.telefone && (
+                                      <div className="flex items-center gap-2 text-zinc-600 dark:text-zinc-300">
+                                        <Phone size={14} className="text-zinc-400" /> {cliente.telefone}
+                                      </div>
+                                    )}
+                                  </div>
+                                </td>
+
+                                <td className="px-6 py-4">
+                                  <span className="font-medium text-zinc-700 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 px-2 py-1 rounded text-xs border border-zinc-200 dark:border-zinc-700">
+                                    {cliente.cpf_cnpj || 'N/A'}
+                                  </span>
+                                </td>
+                                
+                                <td className="px-6 py-4 text-center">
+                                  {renderOrigem(cliente.origem)}
+                                </td>
+                                
+                                <td className="px-6 py-4 text-right">
+                                  <div className="flex items-center justify-end gap-2">
+                                    <Link href={`/cadastros/clientes/editar?id=${cliente.id}`}>
+                                      <button className="p-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 hover:bg-purple-50 dark:hover:bg-purple-500/10 text-zinc-500 hover:text-purple-600 rounded-lg shadow-sm transition-colors">
+                                        <Edit size={16} />
+                                      </button>
+                                    </Link>
+                                    <button 
+                                      onClick={() => {
+                                        setModalDelete({ open: true, cliente });
+                                        setExcluirNoWoo(false); 
+                                      }} 
+                                      className="p-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 hover:bg-rose-50 dark:hover:bg-rose-500/10 text-zinc-500 hover:text-rose-600 rounded-lg shadow-sm transition-colors"
+                                    >
+                                      <Trash2 size={16} />
                                     </button>
-                                  </Link>
-                                  <button 
-                                    onClick={() => {
-                                      setModalDelete({ open: true, cliente });
-                                      setExcluirNoWoo(false); 
-                                    }} 
-                                    className="p-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 hover:bg-rose-50 dark:hover:bg-rose-500/10 text-zinc-500 hover:text-rose-600 rounded-lg shadow-sm transition-colors"
-                                  >
-                                    <Trash2 size={16} />
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          ))
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })
                         )}
                       </tbody>
                     </table>

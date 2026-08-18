@@ -5,7 +5,7 @@ import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import { 
   UserPen, ArrowLeft, Save, Building2, User as UserIcon,
-  Mail, Phone, CreditCard, MapPin, Loader2
+  Mail, Phone, CreditCard, MapPin, Loader2, Database, ShieldAlert
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -19,14 +19,20 @@ function FormularioEdicao() {
   const [loadingInitial, setLoadingInitial] = useState(true);
   const [loading, setLoading] = useState(false);
   const [buscandoCep, setBuscandoCep] = useState(false);
+  const [origemERP, setOrigemERP] = useState(null); // Guarda se veio do Omie/Oracle
 
-  // 🟢 AGORA COM INSCRIÇÃO ESTADUAL
+  // 🟢 DADOS COMPLETOS (INCLUINDO METADADOS E VENDEDOR)
   const [formData, setFormData] = useState({
     tipo_pessoa: 'fisica', nome: '', email: '', telefone: '', cpf_cnpj: '', inscricao_estadual: '',
-    cep: '', logradouro: '', numero: '', complemento: '', bairro: '', cidade: '', uf: ''
+    cep: '', logradouro: '', numero: '', complemento: '', bairro: '', cidade: '', uf: '',
+    codigo_vendedor: '', nome_vendedor: '', codigo_erp: '',
+    metadata: {
+      limite_credito: 0,
+      condicao_pagamento_padrao: '',
+      bloqueado: false
+    }
   });
 
-  // 🔥 Função para pegar o Tenant ID logado
   const pegarCnpjLogado = () => {
     if (typeof window !== 'undefined') {
       const storedUser = localStorage.getItem("@raizan:user");
@@ -57,23 +63,39 @@ function FormularioEdicao() {
       
       if (data.success && data.cliente) {
         const c = data.cliente;
+        setOrigemERP(c.origem || 'manual');
+
         let end = {};
+        let meta = {};
         try { end = typeof c.endereco_json === 'string' ? JSON.parse(c.endereco_json) : (c.endereco_json || {}); } catch(e){}
+        try { meta = typeof c.metadata_json === 'string' ? JSON.parse(c.metadata_json) : (c.metadata_json || {}); } catch(e){}
+
+        // 🟢 Inteligência de PF/PJ pelo número do documento
+        const documentoLimpo = c.cpf_cnpj ? String(c.cpf_cnpj).replace(/\D/g, '') : '';
+        const tipoCerto = (c.tipo_pessoa === 'juridica' || documentoLimpo.length > 11) ? 'juridica' : 'fisica';
 
         setFormData({
-          tipo_pessoa: c.tipo_pessoa || 'fisica',
+          tipo_pessoa: tipoCerto,
           nome: c.nome || '',
           email: c.email || '',
           telefone: c.telefone || '',
           cpf_cnpj: c.cpf_cnpj || '',
-          inscricao_estadual: c.inscricao_estadual || '', // 🟢 PUXANDO A IE DO BANCO
+          inscricao_estadual: c.inscricao_estadual || '', 
+          codigo_erp: c.codigo_erp || '',
+          codigo_vendedor: c.codigo_vendedor || '',
+          nome_vendedor: c.nome_vendedor || '',
           cep: end.cep || '',
           logradouro: end.logradouro || '',
           numero: end.numero || '',
           complemento: end.complemento || '',
           bairro: end.bairro || '',
           cidade: end.cidade || '',
-          uf: end.uf || ''
+          uf: end.uf || '',
+          metadata: {
+            limite_credito: meta.limite_credito || 0,
+            condicao_pagamento_padrao: meta.condicao_pagamento_padrao || '',
+            bloqueado: meta.bloqueado || false
+          }
         });
       } else {
         toast.error("Cliente não encontrado.");
@@ -89,6 +111,18 @@ function FormularioEdicao() {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  // Trata mudanças dentro do Metadata (Limite, etc)
+  const handleMetadataChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      metadata: {
+        ...prev.metadata,
+        [name]: type === 'checkbox' ? checked : value
+      }
+    }));
   };
 
   const buscarCep = async (cepBuscado) => {
@@ -114,11 +148,8 @@ function FormularioEdicao() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
     const tenantId = pegarCnpjLogado();
-    if (!tenantId) {
-      return toast.error("Sessão expirada. Faça login novamente.");
-    }
+    if (!tenantId) return toast.error("Sessão expirada. Faça login novamente.");
 
     setLoading(true);
 
@@ -127,8 +158,12 @@ function FormularioEdicao() {
       email: formData.email, 
       telefone: formData.telefone,
       cpf_cnpj: formData.cpf_cnpj, 
-      inscricao_estadual: formData.inscricao_estadual, // 🟢 MANDANDO A IE PRO BACKEND
+      inscricao_estadual: formData.inscricao_estadual, 
       tipo_pessoa: formData.tipo_pessoa,
+      codigo_vendedor: formData.codigo_vendedor,
+      nome_vendedor: formData.nome_vendedor,
+      codigo_erp: formData.codigo_erp, // Importante mandar de volta
+      metadata_json: JSON.stringify(formData.metadata), // Envia a caixa de metadata atualizada
       endereco: { 
         cep: formData.cep, 
         logradouro: formData.logradouro, 
@@ -143,17 +178,13 @@ function FormularioEdicao() {
     try {
       const res = await fetch(`https://api.raizan.com.br/api/hub/clientes/${idCliente}`, {
         method: "PUT", 
-        headers: { 
-          "Content-Type": "application/json",
-          "x-tenant-id": tenantId 
-        }, 
+        headers: { "Content-Type": "application/json", "x-tenant-id": tenantId }, 
         body: JSON.stringify(payload)
       });
       const data = await res.json();
       
       if (data.success) {
         toast.success("Cadastro atualizado!");
-        // Em vez de voltar pra lista, volta pra Visão 360º que é mais chique!
         router.push(`/cadastros/clientes/detalhes?id=${idCliente}`); 
       } else {
         toast.error(data.message || "Erro ao salvar.");
@@ -168,6 +199,8 @@ function FormularioEdicao() {
   if (loadingInitial) {
     return <div className="flex-1 flex items-center justify-center"><Loader2 size={40} className="text-emerald-500 animate-spin" /></div>;
   }
+
+  const veioDoERP = origemERP && (origemERP.includes('omie') || origemERP.includes('oracle'));
 
   return (
     <main className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-6 lg:p-8">
@@ -196,6 +229,8 @@ function FormularioEdicao() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          
+          {/* DADOS CADASTRAIS (O que todo mundo mexe) */}
           <div className="bg-white dark:bg-[#0c0c0e] border border-zinc-200 dark:border-zinc-800/60 rounded-2xl p-6 sm:p-8 shadow-sm">
             <h2 className="text-lg font-bold mb-6 flex items-center gap-2 text-zinc-800 dark:text-zinc-200 border-b border-zinc-100 dark:border-zinc-800/60 pb-4">
               <UserIcon size={20} className="text-emerald-500" /> Informações Principais
@@ -226,7 +261,6 @@ function FormularioEdicao() {
                 <input type="text" name="cpf_cnpj" value={formData.cpf_cnpj} onChange={handleChange} className="w-full p-3 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl outline-none focus:border-emerald-500" />
               </div>
 
-              {/* 🟢 NOVA INSCRIÇÃO ESTADUAL NA EDIÇÃO */}
               <div className="space-y-2">
                 <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-1">
                   <Building2 size={14} /> Inscrição Estadual (IE)
@@ -250,6 +284,65 @@ function FormularioEdicao() {
             </div>
           </div>
 
+          {/* DADOS DO ERP E VENDEDOR (SEI LÁ, SE DEIXAR VAZAR COMISSÃO DÁ BRIGA) */}
+          <div className="bg-white dark:bg-[#0c0c0e] border border-zinc-200 dark:border-zinc-800/60 rounded-2xl p-6 sm:p-8 shadow-sm">
+            <h2 className="text-lg font-bold mb-2 flex items-center gap-2 text-zinc-800 dark:text-zinc-200 border-b border-zinc-100 dark:border-zinc-800/60 pb-4">
+              <Database size={20} className="text-blue-500" /> Dados Comerciais (ERP)
+            </h2>
+            
+            {veioDoERP && (
+              <div className="mb-6 bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 text-blue-700 dark:text-blue-400 p-4 rounded-xl text-sm font-medium flex items-start gap-3">
+                <ShieldAlert size={20} className="shrink-0 mt-0.5" />
+                <p>Este cliente foi importado do <b>{origemERP}</b>. Campos como Limite de Crédito e Bloqueio devem ser alterados preferencialmente direto no sistema emissor.</p>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Código ERP</label>
+                <input type="text" value={formData.codigo_erp} readOnly disabled className="w-full p-3 bg-zinc-100 dark:bg-zinc-800/50 text-zinc-500 border border-zinc-200 dark:border-zinc-700 rounded-xl outline-none cursor-not-allowed" />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Cód. Vendedor</label>
+                <input type="text" name="codigo_vendedor" value={formData.codigo_vendedor} onChange={handleChange} placeholder="Ex: 102" className="w-full p-3 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl outline-none focus:border-blue-500" />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Nome Vendedor</label>
+                <input type="text" name="nome_vendedor" value={formData.nome_vendedor} onChange={handleChange} placeholder="Ex: Carlos Oliveira" className="w-full p-3 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl outline-none focus:border-blue-500" />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Condição Padrão</label>
+                <input type="text" name="condicao_pagamento_padrao" value={formData.metadata.condicao_pagamento_padrao} onChange={handleMetadataChange} placeholder="Ex: 30_60_90" className="w-full p-3 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl outline-none focus:border-blue-500" />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Limite de Crédito</label>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-zinc-400">R$</span>
+                  <input type="number" step="0.01" name="limite_credito" value={formData.metadata.limite_credito} onChange={handleMetadataChange} className="w-full p-3 pl-11 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl outline-none focus:border-blue-500" />
+                </div>
+              </div>
+
+              <div className="space-y-2 flex flex-col justify-end pb-2">
+                <label className="flex items-center gap-3 p-3 border border-zinc-200 dark:border-zinc-700 rounded-xl cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
+                  <input 
+                    type="checkbox" name="bloqueado" 
+                    checked={formData.metadata.bloqueado} 
+                    onChange={handleMetadataChange} 
+                    className="w-5 h-5 text-rose-600 rounded border-zinc-300 focus:ring-rose-500 dark:bg-zinc-800 dark:border-zinc-600"
+                  />
+                  <span className="text-sm font-bold text-rose-600 dark:text-rose-400">Cliente Bloqueado para Vendas</span>
+                </label>
+              </div>
+
+            </div>
+          </div>
+
+          {/* DADOS DE ENDEREÇO */}
           <div className="bg-white dark:bg-[#0c0c0e] border border-zinc-200 dark:border-zinc-800/60 rounded-2xl p-6 sm:p-8 shadow-sm">
             <h2 className="text-lg font-bold mb-6 flex items-center gap-2 text-zinc-800 dark:text-zinc-200 border-b border-zinc-100 dark:border-zinc-800/60 pb-4">
               <MapPin size={20} className="text-emerald-500" /> Endereço de Entrega

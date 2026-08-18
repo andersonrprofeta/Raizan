@@ -20,6 +20,7 @@ import {
   CheckCircle2
 } from "lucide-react";
 import toast from 'react-hot-toast';
+import { getHubUrl, getHeaders } from "@/components/utils/api";
 
 export default function SACEcommercePage() {
   const [loading, setLoading] = useState(true);
@@ -63,21 +64,78 @@ export default function SACEcommercePage() {
     ]
   });
 
+  // 🔥 TENANT DINÂMICO BLINDADO
+  const pegarCnpjLogado = () => {
+    if (typeof window !== 'undefined') {
+      const storedUser = localStorage.getItem("@raizan:user");
+      const userLogado = storedUser ? JSON.parse(storedUser) : {};
+      const cabecalhosPadrao = getHeaders();
+      return userLogado.tenant_id || cabecalhosPadrao["x-tenant-id"] || process.env.NEXT_PUBLIC_TENANT_ID || "";
+    }
+    return "";
+  };
+
   useEffect(() => {
-    // Simulação de carregamento da API
-    setTimeout(() => setLoading(false), 500);
+    buscarConteudoAtual();
   }, []);
 
+  // 🟢 BUSCAR DADOS REAIS DO BANCO
+  const buscarConteudoAtual = async () => {
+    const tenantId = pegarCnpjLogado();
+    if (!tenantId) {
+      toast.error("Sessão expirada. Faça login novamente.");
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const res = await fetch(`${getHubUrl()}/api/hub/ecommerce/config?tenant=${tenantId}`, {
+        headers: { ...getHeaders(), "x-tenant-id": tenantId }
+      });
+      const data = await res.json();
+      
+      if (data.success && data.config?.sac) {
+        setContent(prev => ({ ...prev, ...data.config.sac }));
+      }
+    } catch (error) {
+      toast.error("Erro ao carregar informações de SAC atuais.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 🟢 SALVAR NA NUVEM
   const salvarConteudo = async () => {
+    const tenantId = pegarCnpjLogado();
+    if (!tenantId) return toast.error("Sessão expirada.");
+
     setSalvando(true);
     const toastId = toast.loading("Salvando informações de SAC e Políticas...");
+
     try {
-      setTimeout(() => {
+      const res = await fetch(`${getHubUrl()}/api/hub/ecommerce/config/sac`, {
+        method: "POST",
+        headers: { 
+          ...getHeaders(),
+          "Content-Type": "application/json",
+          "x-tenant-id": tenantId 
+        },
+        body: JSON.stringify({
+          tenant_id: tenantId,
+          sac: content
+        })
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
         toast.success("Informações atualizadas com sucesso!", { id: toastId });
-        setSalvando(false);
-      }, 1500);
+      } else {
+        toast.error("Falha ao salvar informações.", { id: toastId });
+      }
     } catch (error) {
-      toast.error("Erro ao salvar.", { id: toastId });
+      toast.error("Erro de conexão com o servidor.", { id: toastId });
+    } finally {
       setSalvando(false);
     }
   };
@@ -271,11 +329,11 @@ export default function SACEcommercePage() {
                        <label className="block text-[11px] font-bold text-zinc-500 mb-2 uppercase tracking-wider">Editando: Política de {activePolicy.charAt(0).toUpperCase() + activePolicy.slice(1)}</label>
                        {/* Textarea padrão (Pode ser substituído por um TinyMCE/Quill futuramente se quiser Rich Text) */}
                        <textarea 
-                          rows="12" 
-                          value={content.policies[activePolicy]} 
-                          onChange={(e) => setContent({...content, policies: {...content.policies, [activePolicy]: e.target.value}})} 
-                          className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-5 outline-none text-sm leading-relaxed resize-y focus:border-purple-500 transition-colors" 
-                          placeholder="Digite o texto da política aqui..."
+                         rows="12" 
+                         value={content.policies[activePolicy]} 
+                         onChange={(e) => setContent({...content, policies: {...content.policies, [activePolicy]: e.target.value}})} 
+                         className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-5 outline-none text-sm leading-relaxed resize-y focus:border-purple-500 transition-colors" 
+                         placeholder="Digite o texto da política aqui..."
                        />
                        <p className="text-[10px] text-zinc-400 mt-2">Dica: Separe os parágrafos pulando linhas. Estes textos aparecerão nas páginas de rodapé correspondentes.</p>
                     </div>

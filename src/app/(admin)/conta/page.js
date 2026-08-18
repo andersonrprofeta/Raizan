@@ -4,7 +4,10 @@ import { useEffect, useState } from "react";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import { getApiUrl } from "@/components/utils/api";
-import { ShieldCheck, Key, LogOut, CheckCircle2, Store, CreditCard, Eye, EyeOff, XOctagon, Lock, RefreshCw } from "lucide-react";
+import { 
+  ShieldCheck, Key, LogOut, CheckCircle2, Store, 
+  Eye, EyeOff, XOctagon, Lock, RefreshCw, AlertTriangle
+} from "lucide-react";
 import toast from 'react-hot-toast';
 
 export default function MinhaConta() {
@@ -20,29 +23,29 @@ export default function MinhaConta() {
   const [diasRestantes, setDiasRestantes] = useState("...");
   const [sincronizando, setSincronizando] = useState(false);
 
-  // A SUA NOVA LISTA REAL DE MÓDULOS 🚀
-  const TODOS_MODULOS = [
-    { id: "dashboard", nome: "Dashboard (Início)" },
-    { id: "produtos", nome: "Gestão de produtos no ERP" },
-    { id: "pedidos", nome: "Gestão de Pedidos no Woo" },
-    { id: "shopee", nome: "Gestão de Pedidos na Shopee" },
-    { id: "mercado-livre", nome: "Gestão de Pedidos no Mercado Livre" },
-    { id: "magalu", nome: "Gestão de Pedidos na Magalu" },
-    { id: "clientes", nome: "Gestão de Clientes Woo/ERP" },
-    { id: "crm", nome: "Gestão de CRM" },
-    { id: "relatorios", nome: "Controle de relatórios" },
-    //{ id: "estoque", nome: "Controle de entradas e saídas" },
-    { id: "pdv", nome: "Ponto de venda" },
-    { id: "nfe", nome: "Emissão de Notas" },
-    { id: "website", nome: "Site Institucional"},
-    { id: "loja", nome: "E-commerce"},
-    { id: "catalogo", nome: "Catalogo Virtual"},
-    { id: "ads", nome: "Meta Business Metrics"},
-    { id: "whatsapp", nome: "Bot de atendimento"},
-    { id: "host", nome: "Hospedagem de site"},
-    { id: "sistema", nome: "Atualização online"},
-    { id: "configuracoes", nome: "Gestão do sistema" }
-  ];
+  // 🟢 NOVO: ESTADOS PARA MÓDULOS DINÂMICOS E MODAL
+  const [modulosDoSistema, setModulosDoSistema] = useState([]);
+  const [carregandoModulos, setCarregandoModulos] = useState(true);
+  const [modalRevogar, setModalRevogar] = useState(false);
+
+  // 🟢 NOVO: BUSCA OS MÓDULOS DIRETO DO BANCO DE DADOS
+  const carregarModulosDaAPI = async () => {
+    try {
+      // Como essa rota é pública para leitura ou usa o token do admin, puxamos direto
+      const res = await fetch("https://api.raizan.com.br/api/admin/modulos");
+      const data = await res.json();
+      
+      if (data.success) {
+        // Remove a Dashboard da lista, pois ela é padrão e não deve ser bloqueada
+        const modulosFiltrados = data.modulos.filter((m) => m.slug !== 'dashboard' && m.slug !== 'inicio');
+        setModulosDoSistema(modulosFiltrados);
+      }
+    } catch (error) {
+      console.error("Erro ao puxar módulos:", error);
+    } finally {
+      setCarregandoModulos(false);
+    }
+  };
 
   const carregarDadosDaMemoria = () => {
     const nomeLocal = localStorage.getItem("@raizan:nome") || "Cliente Raizan";
@@ -56,33 +59,29 @@ export default function MinhaConta() {
 
     setDadosLicenca({ nome: nomeLocal, email, licenca, vencimento, modulos });
 
-    // A MÁGICA SUPREMA ANTI-BUG DA DATA (Agora à prova de milênios 🧙‍♂️)
+    // Lógica da data
     if (vencimento && vencimento !== "undefined" && vencimento !== "null" && vencimento.trim() !== "") {
       try {
         let ano, mes, dia;
         
-        // 1. Se vier formato Brasileiro (ex: 31/03/2027)
         if (vencimento.includes('/')) {
           const p = vencimento.split('/');
           dia = parseInt(p[0]); 
-          mes = parseInt(p[1]) - 1; // Mês no JS começa no 0
+          mes = parseInt(p[1]) - 1; 
           ano = parseInt(p[2]);
         } 
-        // 2. Se vier formato Americano/ISO (ex: 2027-03-31)
         else if (vencimento.includes('-')) {
           const p = vencimento.split('T')[0].split('-');
           ano = parseInt(p[0]); 
           mes = parseInt(p[1]) - 1; 
           dia = parseInt(p[2]);
         } 
-        // 3. Se vier cru do banco de dados (ex: 20270331 ou 31032027)
         else {
           const limpo = vencimento.replace(/\D/g, '');
           ano = parseInt(limpo.substring(0, 4));
           mes = parseInt(limpo.substring(4, 6)) - 1;
           dia = parseInt(limpo.substring(6, 8));
           
-          // Trava de segurança: Se o ano deu 3103, é porque inverteu (DDMMAAAA)
           if (ano > 2100) {
              ano = parseInt(limpo.substring(4, 8));
              mes = parseInt(limpo.substring(2, 4)) - 1;
@@ -106,6 +105,7 @@ export default function MinhaConta() {
 
   useEffect(() => {
     carregarDadosDaMemoria();
+    carregarModulosDaAPI(); // Chama os módulos ao abrir a tela
   }, []);
 
   const handleSincronizar = async () => {
@@ -114,7 +114,8 @@ export default function MinhaConta() {
       const email = localStorage.getItem("@raizan:email");
       const license = localStorage.getItem("@raizan:license");
       
-      const res = await fetch(`${getApiUrl()}/api/auth/login`, {
+      // 🟢 CORREÇÃO AQUI: Atirando na API Central, não na local do Hub!
+      const res = await fetch(`https://api.raizan.com.br/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, license })
@@ -122,37 +123,37 @@ export default function MinhaConta() {
       
       const json = await res.json();
       
-      if (json.sucesso) {
+      if (json.sucesso || json.success) {
         localStorage.setItem("@raizan:expires_at", json.expires_at || "");
         localStorage.setItem("@raizan:modulos", JSON.stringify(json.modulos || []));
         carregarDadosDaMemoria();
+        toast.success("Licença sincronizada com sucesso!");
       } else {
-        alert("Erro ao sincronizar: " + (json.error || "Tente novamente."));
+        toast.error("Erro ao sincronizar: " + (json.error || json.message || "Tente novamente."));
       }
     } catch (error) {
-      alert("Erro de conexão com o servidor de licenças.");
+      toast.error("Erro de conexão com o servidor de licenças.");
     } finally {
       setTimeout(() => setSincronizando(false), 500);
     }
   };
 
-  const handleRevogarLicenca = () => {
-    const confirmar = window.confirm("ATENÇÃO: Você está prestes a revogar sua licença. Deseja continuar?");
-    if (confirmar) {
+  // 🟢 NOVO: AÇÃO DO MODAL DE REVOGAR
+  const confirmarRevogarLicenca = () => {
+    setModalRevogar(false);
+    toast.loading("Limpando dados do terminal...");
+    setTimeout(() => {
       localStorage.clear();
       window.location.href = "/login";
-    }
+    }, 1500);
   };
 
-  // FUNÇÃO BLINDADA: Só libera se tiver o módulo E a licença estiver em dia!
-  const temModuloLiberado = (modulo) => {
-    // Se a licença expirou, deu erro ou é inválida, tranca tudo imediatamente!
+  const temModuloLiberado = (slug) => {
     if (diasRestantes === "Expirada" || diasRestantes === "Data Inválida" || diasRestantes === "Erro de Leitura") {
       return false; 
     }
-    
     const arrayModulos = dadosLicenca.modulos || [];
-    return arrayModulos.includes(modulo.id) || arrayModulos.includes(modulo.nome);
+    return arrayModulos.includes(slug);
   };
 
   return (
@@ -189,7 +190,7 @@ export default function MinhaConta() {
                   <button 
                     onClick={handleSincronizar}
                     disabled={sincronizando}
-                    className="w-full py-2.5 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 border border-zinc-200 dark:border-zinc-700/50 shadow-sm dark:shadow-none active:scale-95"
+                    className="w-full py-2.5 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 border border-zinc-200 dark:border-zinc-700/50 shadow-sm dark:shadow-none active:scale-95 disabled:opacity-50"
                   >
                     <RefreshCw size={14} className={sincronizando ? "animate-spin text-purple-600 dark:text-purple-400" : ""} /> 
                     {sincronizando ? "Sincronizando..." : "Sincronizar Permissões"}
@@ -205,7 +206,7 @@ export default function MinhaConta() {
                     Ao revogar a licença, este terminal perderá imediatamente o acesso.
                   </p>
                   <button 
-                    onClick={handleRevogarLicenca}
+                    onClick={() => setModalRevogar(true)} // 🟢 ABRE O MODAL NOVO!
                     className="w-full py-2.5 bg-white dark:bg-red-500/10 hover:bg-rose-100 dark:hover:bg-red-500/20 text-rose-700 dark:text-red-400 border border-rose-200 dark:border-red-500/30 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 shadow-sm dark:shadow-none active:scale-95"
                   >
                     <LogOut size={16} /> Revogar Acesso
@@ -256,7 +257,7 @@ export default function MinhaConta() {
                   </div>
                 </div>
 
-                {/* CARD ECOSSISTEMA */}
+                {/* CARD ECOSSISTEMA DINÂMICO */}
                 <div className="bg-white dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-800/60 rounded-3xl p-6 sm:p-8 shadow-sm dark:shadow-none transition-colors">
                   <div className="flex items-center justify-between mb-6">
                     <h2 className="text-lg font-black text-zinc-900 dark:text-zinc-100 flex items-center gap-2 transition-colors">
@@ -264,44 +265,85 @@ export default function MinhaConta() {
                     </h2>
                   </div>
                   
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {TODOS_MODULOS.map((modulo) => {
-                      const temModulo = temModuloLiberado(modulo);
-                      
-                      return (
-                        <div 
-                          key={modulo.id} 
-                          className={`flex items-center justify-between px-4 py-3.5 rounded-xl border transition-all ${
-                            temModulo 
-                              ? "bg-emerald-50 dark:bg-emerald-500/5 border-emerald-200 dark:border-emerald-500/20 shadow-sm dark:shadow-none" 
-                              : "bg-zinc-50 dark:bg-zinc-950/50 border-zinc-200 dark:border-zinc-800/50 opacity-80 dark:opacity-70" 
-                          }`}
-                        >
-                          <div className="flex items-center gap-3">
-                            {temModulo ? (
-                              <CheckCircle2 size={18} className="text-emerald-600 dark:text-emerald-500 shrink-0 transition-colors" />
-                            ) : (
-                              <Lock size={18} className="text-zinc-400 dark:text-zinc-600 shrink-0 transition-colors" />
+                  {carregandoModulos ? (
+                    <div className="text-center py-6 text-zinc-500 animate-pulse">
+                      Carregando módulos do sistema...
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {modulosDoSistema.map((modulo) => {
+                        const temModulo = temModuloLiberado(modulo.slug);
+                        
+                        return (
+                          <div 
+                            key={modulo.id || modulo.slug} 
+                            className={`flex items-center justify-between px-4 py-3.5 rounded-xl border transition-all ${
+                              temModulo 
+                                ? "bg-emerald-50 dark:bg-emerald-500/5 border-emerald-200 dark:border-emerald-500/20 shadow-sm dark:shadow-none" 
+                                : "bg-zinc-50 dark:bg-zinc-950/50 border-zinc-200 dark:border-zinc-800/50 opacity-80 dark:opacity-70" 
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              {temModulo ? (
+                                <CheckCircle2 size={18} className="text-emerald-600 dark:text-emerald-500 shrink-0 transition-colors" />
+                              ) : (
+                                <Lock size={18} className="text-zinc-400 dark:text-zinc-600 shrink-0 transition-colors" />
+                              )}
+                              <span className={`text-sm font-bold truncate max-w-[150px] sm:max-w-[170px] transition-colors ${temModulo ? "text-emerald-900 dark:text-emerald-100" : "text-zinc-500 dark:text-zinc-500"}`}>
+                                {modulo.nome}
+                              </span>
+                            </div>
+                            
+                            {!temModulo && (
+                              <button className="text-[10px] font-black uppercase tracking-wider bg-purple-100 dark:bg-purple-600/20 text-purple-700 dark:text-purple-400 hover:bg-purple-200 dark:hover:bg-purple-600/40 px-2.5 py-1.5 rounded-lg transition-colors flex items-center gap-1 shrink-0">
+                                Upgrade
+                              </button>
                             )}
-                            <span className={`text-sm font-bold truncate max-w-[150px] sm:max-w-[170px] transition-colors ${temModulo ? "text-emerald-900 dark:text-emerald-100" : "text-zinc-500 dark:text-zinc-500"}`}>
-                              {modulo.nome}
-                            </span>
                           </div>
-                          
-                          {!temModulo && (
-                            <button className="text-[10px] font-black uppercase tracking-wider bg-purple-100 dark:bg-purple-600/20 text-purple-700 dark:text-purple-400 hover:bg-purple-200 dark:hover:bg-purple-600/40 px-2.5 py-1.5 rounded-lg transition-colors flex items-center gap-1 shrink-0">
-                              Upgrade
-                            </button>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
+                        );
+                      })}
+                    </div>
+                  )}
                   
                 </div>
 
               </div>
             </div>
+
+            {/* 🟢 MODAL DE REVOGAR LICENÇA FEITO DO ZERO */}
+            {modalRevogar && (
+              <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+                <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-3xl w-full max-w-md shadow-2xl p-8 text-center flex flex-col items-center relative overflow-hidden animate-in zoom-in-95 duration-200">
+                  <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-rose-500 to-orange-500" />
+                  
+                  <div className="w-20 h-20 bg-rose-100 dark:bg-rose-500/10 text-rose-600 rounded-full flex items-center justify-center mb-6 shadow-inner">
+                    <AlertTriangle size={36} strokeWidth={2.5} />
+                  </div>
+                  
+                  <h2 className="text-2xl font-black text-zinc-900 dark:text-zinc-100 mb-3">Revogar Acesso?</h2>
+                  
+                  <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-6 leading-relaxed px-2">
+                    Você está prestes a apagar a licença deste terminal. 
+                    <strong className="text-zinc-800 dark:text-zinc-200 block mt-2">O sistema será desconectado imediatamente.</strong>
+                  </p>
+
+                  <div className="flex gap-3 w-full justify-center">
+                    <button 
+                      onClick={() => setModalRevogar(false)} 
+                      className="flex-1 py-3 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 dark:bg-zinc-900 dark:hover:bg-zinc-800 dark:text-zinc-300 rounded-xl font-bold transition-colors"
+                    >
+                      Cancelar
+                    </button>
+                    <button 
+                      onClick={confirmarRevogarLicenca} 
+                      className="flex-1 py-3 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold transition-colors shadow-md shadow-rose-500/20"
+                    >
+                      Sim, Revogar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
           </div>
         </main>

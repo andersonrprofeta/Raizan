@@ -1,10 +1,16 @@
 import { 
   UploadCloud, DollarSign, Package, FileText, 
   Settings, Printer, TrendingDown, TrendingUp, 
-  ShoppingCart, Copy, Tag 
+  ShoppingCart, Copy, Tag, CloudSync 
 } from "lucide-react";
 
-export default function MenuAcoesProduto({ menuRef, menuParaCima, produto, onEnviarParaLoja }) {
+export default function MenuAcoesProduto({ 
+  menuRef, 
+  menuParaCima, 
+  produto, 
+  onEnviarParaLoja,
+  onEnviarForcaVendas 
+}) {
   return (
     <div 
       ref={menuRef} 
@@ -14,12 +20,20 @@ export default function MenuAcoesProduto({ menuRef, menuParaCima, produto, onEnv
         <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Sincronização</p>
       </div>
       
-      {/* 🚀 BOTAO DE ENVIAR PARA A LOJA AQUI */}
+      {/* 🚀 BOTAO DE ENVIAR PARA A LOJA (WOOCOMMERCE) */}
       <button 
-        onClick={() => onEnviarParaLoja(produto)}
+        onClick={() => onEnviarParaLoja && onEnviarParaLoja(produto)}
         className="w-full px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-purple-50 dark:hover:bg-purple-500/10 hover:text-purple-600 dark:hover:text-purple-400 flex items-center gap-3 transition-colors"
       >
         <UploadCloud size={16} /> Enviar para o e-commerce
+      </button>
+
+      {/* 🟢 NOVO BOTAO: ENVIAR PARA O APP SELLER */}
+      <button 
+        onClick={() => onEnviarForcaVendas && onEnviarForcaVendas(produto)}
+        className="w-full px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 hover:text-emerald-600 dark:hover:text-emerald-400 flex items-center gap-3 transition-colors"
+      >
+        <CloudSync size={16} /> Enviar p/ Força de Vendas
       </button>
       
       <button className="w-full px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-purple-50 dark:hover:bg-purple-500/10 hover:text-purple-600 dark:hover:text-purple-400 flex items-center gap-3 transition-colors">

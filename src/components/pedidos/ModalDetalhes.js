@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { X, User, MapPin, FileText, Package, Phone, Mail, Calendar, Edit, Loader2, Truck, CheckCircle2, Clock } from "lucide-react"; 
+import { X, User, MapPin, FileText, Package, Phone, Mail, Calendar, Edit, Loader2, Truck, CheckCircle2 } from "lucide-react"; 
 import Link from "next/link"; 
 import { getHubUrl, getHeaders } from "@/components/utils/api";
 import toast from 'react-hot-toast';
@@ -39,24 +39,27 @@ const parseEndereco = (pedido) => {
     if (typeof val === 'object') return val;
     try { return JSON.parse(val); } catch(e) { return null; }
   };
+  
   if (pedido.billing && Object.keys(pedido.billing).length > 0) rawEnd = pedido.billing;
   else if (pedido.cliente && (pedido.cliente.endereco || pedido.cliente.endereco_json)) {
     rawEnd = tryParse(pedido.cliente.endereco_json) || tryParse(pedido.cliente.endereco) || {};
   } else if (pedido.endereco || pedido.endereco_json || pedido.endereco_entrega) {
     rawEnd = tryParse(pedido.endereco_json) || tryParse(pedido.endereco) || tryParse(pedido.endereco_entrega) || {};
   }
+
   return {
-    first_name: rawEnd.first_name || pedido.cliente?.nome || rawEnd.nome || '',
+    first_name: rawEnd.first_name || pedido.cliente?.nome || rawEnd.nome || rawEnd.fantasia || '',
     last_name: rawEnd.last_name || '',
     email: rawEnd.email || pedido.cliente?.email || '',
     phone: rawEnd.phone || rawEnd.telefone || pedido.cliente?.telefone || pedido.telefone || '',
-    address_1: rawEnd.address_1 || rawEnd.logradouro || '',
+    address_1: rawEnd.address_1 || rawEnd.endereco || rawEnd.logradouro || '',
     address_2: rawEnd.address_2 || rawEnd.complemento || '',
     neighborhood: rawEnd.neighborhood || rawEnd.bairro || '',
     city: rawEnd.city || rawEnd.cidade || '',
     state: rawEnd.state || rawEnd.estado || rawEnd.uf || '',
     postcode: rawEnd.postcode || rawEnd.cep || '',
-    cpf_cnpj: pedido.cliente?.cnpj || pedido.cliente?.cpf_cnpj || rawEnd.cpf_cnpj || ''
+    cpf_cnpj: pedido.cnpj_cpf || pedido.cliente?.cnpj || pedido.cliente?.cpf_cnpj || rawEnd.cnpj_cpf || rawEnd.cpf_cnpj || '',
+    ie: pedido.inscricao_estadual || rawEnd.ie || rawEnd.inscricao_estadual || ''
   };
 };
 
@@ -79,6 +82,9 @@ export default function ModalDetalhes({ pedido, onClose, activeTabObj, onUpdateS
   const [loadingRastreio, setLoadingRastreio] = useState(false);
   const [timelineRastreio, setTimelineRastreio] = useState(null);
 
+  // 🟢 IDENTIFICADOR BLINDADO
+  const isOmie = String(activeTabObj?.plataforma || activeTabObj?.tipo || '').toLowerCase().includes('omie');
+
   useEffect(() => {
     if (!pedido) {
       setDadosRecuperados(null);
@@ -89,7 +95,9 @@ export default function ModalDetalhes({ pedido, onClose, activeTabObj, onUpdateS
     setDadosRecuperados(null);
     setTimelineRastreio(null);
 
-    if (activeTabObj?.tipo !== 'b2b') return;
+    // 🟢 AGORA O AUTO-RECUPERADOR FUNCIONA PRO B2B E PRO APP/OMIE!
+    if (activeTabObj?.tipo !== 'b2b' && !isOmie) return; 
+
     const endParcial = parseEndereco(pedido);
     const emailBase = endParcial.email;
 
@@ -105,7 +113,14 @@ export default function ModalDetalhes({ pedido, onClose, activeTabObj, onUpdateS
             if (clienteCadastrado) {
               let endJson = {};
               try { endJson = typeof clienteCadastrado.endereco_json === 'string' ? JSON.parse(clienteCadastrado.endereco_json) : clienteCadastrado.endereco_json; } catch(e){}
-              setDadosRecuperados({ pedidoId: currentPedidoId, cpf_cnpj: clienteCadastrado.cpf_cnpj, telefone: clienteCadastrado.telefone, endereco: endJson });
+              
+              setDadosRecuperados({ 
+                pedidoId: currentPedidoId, 
+                cpf_cnpj: clienteCadastrado.cpf_cnpj, 
+                ie: clienteCadastrado.inscricao_estadual || clienteCadastrado.ie || "",
+                telefone: clienteCadastrado.telefone, 
+                endereco: endJson 
+              });
             }
           }
         } catch(e) {}
@@ -113,7 +128,7 @@ export default function ModalDetalhes({ pedido, onClose, activeTabObj, onUpdateS
       };
       buscarNoCadastro();
     }
-  }, [pedido?.id, pedido?.pedido_id, activeTabObj]);
+  }, [pedido?.id, pedido?.pedido_id, activeTabObj, isOmie]);
 
   if (!pedido) return null;
 
@@ -122,24 +137,31 @@ export default function ModalDetalhes({ pedido, onClose, activeTabObj, onUpdateS
   const statusAtual = pedido.status || pedido.status_pedido || 'pendente';
   
   let endereco = parseEndereco(pedido);
-  let cpfCnpj = getMetaValue(pedido.meta_data, ['_billing_cpf', '_billing_cnpj', 'billing_cpf', 'billing_cnpj']);
-  if (cpfCnpj === "Não informado" && endereco.cpf_cnpj) cpfCnpj = endereco.cpf_cnpj;
-  let telefone = endereco.phone || "Não informado";
+  
+  let cpfCnpj = endereco.cpf_cnpj || getMetaValue(pedido.meta_data, ['_billing_cpf', '_billing_cnpj', 'billing_cpf', 'billing_cnpj']);
+  if (!cpfCnpj || cpfCnpj === "Não informado" || cpfCnpj.trim() === '') cpfCnpj = 'Não informado';
 
+  let ie = endereco.ie || getMetaValue(pedido.meta_data, ['_billing_ie', 'billing_ie']);
+  if (!ie || ie === "Não informado" || ie.trim() === '') ie = 'Não informado';
+
+  let telefone = endereco.phone || "Não informado";
+  if (!telefone || telefone.trim() === '') telefone = 'Não informado';
+
+  // 🟢 APLICANDO OS DADOS RECUPERADOS DA NUVEM (INCLUINDO A INSCRIÇÃO ESTADUAL)
   if (dadosRecuperados && dadosRecuperados.pedidoId === pedidoIdAtual) {
     if (dadosRecuperados.cpf_cnpj) cpfCnpj = dadosRecuperados.cpf_cnpj;
+    if (dadosRecuperados.ie) ie = dadosRecuperados.ie;
     if (dadosRecuperados.telefone) telefone = dadosRecuperados.telefone;
     if (dadosRecuperados.endereco && Object.keys(dadosRecuperados.endereco).length > 0) {
-      endereco.address_1 = dadosRecuperados.endereco.logradouro || '';
+      endereco.address_1 = dadosRecuperados.endereco.logradouro || dadosRecuperados.endereco.endereco || '';
       endereco.address_2 = dadosRecuperados.endereco.complemento || '';
       endereco.neighborhood = dadosRecuperados.endereco.bairro || '';
       endereco.city = dadosRecuperados.endereco.cidade || '';
-      endereco.state = dadosRecuperados.endereco.estado || '';
+      endereco.state = dadosRecuperados.endereco.estado || dadosRecuperados.endereco.uf || '';
       endereco.postcode = dadosRecuperados.endereco.cep || '';
     }
   }
 
-  const ie = getMetaValue(pedido.meta_data, ['_billing_ie', 'billing_ie']);
   const codigoRastreio = acharCodigoRastreio(pedido);
 
   const handleRastrear = async () => {
@@ -165,12 +187,11 @@ export default function ModalDetalhes({ pedido, onClose, activeTabObj, onUpdateS
 
   const statusOpcoes = activeTabObj?.tipo === 'b2b' 
     ? [{ value: 'aguardando-pagamento', label: 'Aguardando Pagamento' }, { value: 'pago', label: 'Pago / Aprovado' }, { value: 'enviado', label: 'Enviado / Em Trânsito' }, { value: 'entregue', label: 'Pedido Entregue' }, { value: 'cancelado', label: 'Cancelado' }]
-    : [{ value: 'pending', label: 'Pagamento Pendente' }, { value: 'processing', label: 'Processando / Pago' }, { value: 'on-hold', label: 'Aguardando' }, { value: 'completed', label: 'Concluído / Entregue' }, { value: 'cancelled', label: 'Cancelado' }, { value: 'pendente', label: 'Pendente' }];
+    : [{ value: 'pending', label: 'Pagamento Pendente' }, { value: 'processing', label: 'Processando / Pago' }, { value: 'on-hold', label: 'Aguardando' }, { value: 'completed', label: 'Concluído / Entregue' }, { value: 'cancelled', label: 'Cancelado' }, { value: 'pendente', label: 'Pendente' }, { value: 'sincronizado', label: 'Sincronizado ERP' }];
 
   const clienteNome = endereco.first_name ? `${endereco.first_name || ''} ${endereco.last_name || ''}` : `Cliente #${pedido.cliente_id || 'Varejo'}`;
   const itensPedido = pedido.line_items || pedido.itens || [];
 
-  // 🟢 INTELIGÊNCIA VISUAL: Verifica se o pedido já está marcado como entregue!
   const isEntregue = ['completed', 'entregue'].includes(statusAtual);
 
   return (
@@ -186,6 +207,8 @@ export default function ModalDetalhes({ pedido, onClose, activeTabObj, onUpdateS
                 {!statusOpcoes.find(o => o.value === statusAtual) && <option value={statusAtual}>{statusAtual}</option>}
                 {statusOpcoes.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
               </select>
+              
+              {/* 🟢 O BOTÃO EDITAR VOLTOU PRO JOGO! */}
               {['aguardando-pagamento', 'pending', 'processing', 'on-hold', 'pago', 'pendente'].includes(statusAtual) && (
                 <Link href={`/editar-pedido?id=${pedido.id || pedido.pedido_id}`}>
                   <button className="bg-amber-100 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 px-3 py-1.5 rounded-md text-xs font-bold flex items-center gap-1.5 ml-2 shadow-sm"><Edit size={14} /> Editar</button>
@@ -207,10 +230,10 @@ export default function ModalDetalhes({ pedido, onClose, activeTabObj, onUpdateS
                 <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2 mb-4 border-b border-zinc-200 dark:border-zinc-800 pb-2"><User size={16} className="text-purple-600" /> Informações do Cliente</h3>
                 <div className="space-y-3 text-sm">
                   <p><span className="text-zinc-500">Razão/Nome:</span> <span className="font-medium text-zinc-900 dark:text-zinc-100">{clienteNome}</span></p>
-                  <p className="flex items-center gap-2"><span className="text-zinc-500">CPF/CNPJ:</span> {recuperando ? <span className="w-32 h-4 bg-zinc-200 dark:bg-zinc-700 animate-pulse rounded" /> : <span className={dadosRecuperados ? "text-emerald-600 font-bold" : "text-zinc-900 dark:text-zinc-100"}>{cpfCnpj}</span>}</p>
-                  <p><span className="text-zinc-500">Inscrição Est.:</span> <span className="text-zinc-900 dark:text-zinc-100">{ie}</span></p>
+                  <p className="flex items-center gap-2"><span className="text-zinc-500">CPF/CNPJ:</span> {recuperando ? <span className="w-32 h-4 bg-zinc-200 dark:bg-zinc-700 animate-pulse rounded" /> : <span className={cpfCnpj !== 'Não informado' ? "text-emerald-600 font-bold" : "text-zinc-900 dark:text-zinc-100"}>{cpfCnpj}</span>}</p>
+                  <p className="flex items-center gap-2"><span className="text-zinc-500">Inscrição Est.:</span> {recuperando ? <span className="w-24 h-4 bg-zinc-200 dark:bg-zinc-700 animate-pulse rounded" /> : <span className="text-zinc-900 dark:text-zinc-100">{ie}</span>}</p>
                   <p className="flex items-center gap-2 mt-2"><Mail size={14} className="text-zinc-500" /> <span className="truncate text-zinc-900 dark:text-zinc-100">{endereco.email || "Sem e-mail"}</span></p>
-                  <p className="flex items-center gap-2"><Phone size={14} className="text-zinc-500" /> {recuperando ? <span className="w-24 h-4 bg-zinc-200 dark:bg-zinc-700 animate-pulse rounded" /> : <span className={dadosRecuperados ? "text-emerald-600 font-bold" : "text-zinc-900 dark:text-zinc-100"}>{telefone}</span>}</p>
+                  <p className="flex items-center gap-2"><Phone size={14} className="text-zinc-500" /> {recuperando ? <span className="w-24 h-4 bg-zinc-200 dark:bg-zinc-700 animate-pulse rounded" /> : <span className={telefone !== 'Não informado' ? "text-emerald-600 font-bold" : "text-zinc-900 dark:text-zinc-100"}>{telefone}</span>}</p>
                 </div>
               </div>
             </div>
@@ -218,12 +241,21 @@ export default function ModalDetalhes({ pedido, onClose, activeTabObj, onUpdateS
             <div className="space-y-6">
               <div className="bg-zinc-50 dark:bg-zinc-900/30 border border-zinc-200 dark:border-zinc-800/50 rounded-xl p-5">
                 <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2 mb-4 border-b border-zinc-200 dark:border-zinc-800 pb-2"><MapPin size={16} className="text-blue-600" /> Cobrança / Entrega</h3>
-                <div className={`space-y-1 text-sm ${dadosRecuperados ? "text-emerald-600 font-bold" : "text-zinc-700 dark:text-zinc-300"}`}>
-                  {recuperando ? <div className="space-y-2 pt-1"><div className="h-3.5 bg-zinc-200 dark:bg-zinc-700 rounded w-full animate-pulse" /><div className="h-3.5 bg-zinc-200 dark:bg-zinc-700 rounded w-2/3 animate-pulse" /></div> : endereco.address_1 ? <><p>{endereco.address_1}{endereco.address_2 ? `, ${endereco.address_2}` : ''}</p><p>{endereco.neighborhood || endereco.city} - {endereco.state}</p><p>CEP: {endereco.postcode}</p></> : <p className="text-zinc-500">Endereço não disponível</p>}
+                <div className={`space-y-1 text-sm ${endereco.address_1 ? "text-emerald-600 font-bold" : "text-zinc-700 dark:text-zinc-300"}`}>
+                  {recuperando ? (
+                    <div className="space-y-2 pt-1"><div className="h-3.5 bg-zinc-200 dark:bg-zinc-700 rounded w-full animate-pulse" /><div className="h-3.5 bg-zinc-200 dark:bg-zinc-700 rounded w-2/3 animate-pulse" /></div>
+                  ) : endereco.address_1 ? (
+                    <>
+                      <p>{endereco.address_1}{endereco.address_2 ? `, ${endereco.address_2}` : ''}</p>
+                      <p>{endereco.neighborhood}{endereco.neighborhood && endereco.city ? ' - ' : ''}{endereco.city} {endereco.state ? `- ${endereco.state}` : ''}</p>
+                      {endereco.postcode && <p>CEP: {endereco.postcode}</p>}
+                    </>
+                  ) : (
+                    <p className="text-zinc-500">Endereço não cadastrado neste pedido.</p>
+                  )}
                 </div>
               </div>
 
-              {/* 🟢 BLOCO RASTREIO INTELIGENTE */}
               {codigoRastreio && (
                 <div className="bg-white dark:bg-[#0c0c0e] border border-blue-200 dark:border-blue-500/20 rounded-xl p-5 animate-in fade-in slide-in-from-top-2">
                   <div className="flex items-center justify-between mb-2">
@@ -248,11 +280,8 @@ export default function ModalDetalhes({ pedido, onClose, activeTabObj, onUpdateS
                     </div>
                   ) : (
                     <div className="mt-6">
-                      {/* 🟢 PROGRESS BAR DINÂMICA E INTELIGENTE */}
                       <div className="relative flex justify-between items-center w-full mb-10 px-2">
                         <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-1.5 bg-zinc-100 dark:bg-zinc-800 rounded-full" />
-                        
-                        {/* Se estiver entregue, a barra enche 100% e fica verde! Se não, fica 50% azul. */}
                         <div className={`absolute left-0 top-1/2 -translate-y-1/2 h-1.5 rounded-full transition-all duration-1000 ${isEntregue ? 'w-full bg-emerald-500' : 'w-1/2 bg-blue-600'}`} />
 
                         <div className="relative flex flex-col items-center z-10 group">
@@ -269,7 +298,6 @@ export default function ModalDetalhes({ pedido, onClose, activeTabObj, onUpdateS
                           <span className={`absolute top-8 text-[11px] font-bold ${isEntregue ? 'text-emerald-600' : 'text-blue-600'}`}>Enviado</span>
                         </div>
 
-                        {/* Step Final inteligente */}
                         <div className="relative flex flex-col items-center z-10 group">
                           <div className={`w-7 h-7 rounded-full border-4 border-white dark:border-[#0c0c0e] flex items-center justify-center shadow-sm transition-transform group-hover:scale-110 ${isEntregue ? 'bg-emerald-500 text-white' : 'bg-zinc-200 dark:bg-zinc-800'}`}>
                             {isEntregue ? <CheckCircle2 size={12} /> : <div className="w-2 h-2 rounded-full bg-zinc-300 dark:bg-zinc-600"></div>}
@@ -281,8 +309,6 @@ export default function ModalDetalhes({ pedido, onClose, activeTabObj, onUpdateS
                       <div className="mt-8 space-y-2 border-t border-zinc-100 dark:border-zinc-800/50 pt-4">
                         <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Últimas Atualizações</p>
                         {timelineRastreio.map((evento, index) => {
-                          
-                          // 🟢 MÁGICA FINAL: Se o pedido caiu no Fallback mas já tá entregue, muda o texto!
                           let textoStatus = evento.status;
                           if (isEntregue && index === 0 && evento.data === "Atualização Automática") {
                             textoStatus = "Objeto Entregue ao Destinatário";

@@ -1,6 +1,5 @@
 import { Package, DollarSign, Archive, Box } from "lucide-react";
 
-
 export default function AbaBasico({ produto, atualizarCampo }) {
   return (
     <div className="space-y-10 animate-in fade-in slide-in-from-right-4 duration-300">
@@ -117,12 +116,10 @@ export default function AbaBasico({ produto, atualizarCampo }) {
               className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3.5 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600 shadow-sm dark:shadow-none"
             />
           </div>
-          
-          <div className="hidden md:block md:col-span-4"></div> {/* Espaçador */}
 
-          {/* Preços */}
-          <div className="space-y-2 md:col-span-4 relative group">
-            <label className="text-sm font-black text-purple-700 dark:text-purple-400 transition-colors">Preço de venda (R$)</label>
+          {/* 🟢 BLOCO DE PREÇOS REFORMULADO (4 COLUNAS IGUAIS) */}
+          <div className="space-y-2 md:col-span-3 relative group">
+            <label className="text-sm font-black text-purple-700 dark:text-purple-400 transition-colors">Preço normal (R$)</label>
             <input 
               type="number" step="0.01" placeholder="0,00"
               value={produto.precos.venda}
@@ -131,14 +128,36 @@ export default function AbaBasico({ produto, atualizarCampo }) {
             />
           </div>
 
-          <div className="space-y-2 md:col-span-4">
-            <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300 transition-colors">Preço promocional (R$)</label>
+          <div className="space-y-2 md:col-span-3">
+            <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300 transition-colors">Preço promoção</label>
             <input 
               type="number" step="0.01" placeholder="0,00"
               value={produto.precos.promocional}
               onChange={(e) => atualizarCampo('precos', 'promocional', e.target.value)}
               className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3.5 text-base text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600 shadow-sm dark:shadow-none font-bold"
             />
+          </div>
+
+          <div className="space-y-2 md:col-span-3">
+            <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300 transition-colors">Qtd. Mínima Promo</label>
+            <input 
+              type="number" placeholder="Ex: 6"
+              value={produto.precos.qtd_minima_promocao}
+              onChange={(e) => atualizarCampo('precos', 'qtd_minima_promocao', e.target.value)}
+              className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3.5 text-base text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600 shadow-sm dark:shadow-none"
+            />
+            <p className="text-[11px] font-medium text-zinc-500 dark:text-zinc-500 transition-colors">Ativa o desconto</p>
+          </div>
+
+          <div className="space-y-2 md:col-span-3">
+            <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300 transition-colors">Qtd. Máx. Promo</label>
+            <input 
+              type="number" placeholder="Opcional"
+              value={produto.precos.qtd_maxima_promocao}
+              onChange={(e) => atualizarCampo('precos', 'qtd_maxima_promocao', e.target.value)}
+              className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3.5 text-base text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600 shadow-sm dark:shadow-none"
+            />
+            <p className="text-[11px] font-medium text-zinc-500 dark:text-zinc-500 transition-colors">Limite por pedido</p>
           </div>
 
         </div>

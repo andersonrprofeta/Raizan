@@ -1,4 +1,4 @@
-import { Loader2, FileDown, CheckCircle2, ChevronLeft, ChevronRight } from "lucide-react"; 
+import { Loader2, FileDown, CheckCircle2, ChevronLeft, ChevronRight, CloudUpload } from "lucide-react"; 
 
 const formatarMoeda = (valor) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor || 0);
 
@@ -31,7 +31,11 @@ const renderStatus = (status) => {
   return <span className={`inline-flex px-2.5 py-1 rounded-md text-xs font-medium border ${style}`}>{labels[s] || s}</span>;
 };
 
-export default function TabelaPedidos({ pedidos, loading, page, totalPages, totalItems, onPageChange, onRowClick, baixados, onDownload, activeTab }) {
+export default function TabelaPedidos({ pedidos, loading, page, totalPages, totalItems, onPageChange, onRowClick, baixados, onDownload, activeTab, plataformaAtiva }) {
+  
+  // 🟢 FORÇAMOS A LEITURA BLINDADA DA PLATAFORMA
+  const isOmie = String(plataformaAtiva || '').toLowerCase().includes('omie');
+
   return (
     <div className="border border-zinc-200 dark:border-zinc-800/60 bg-white dark:bg-zinc-900/40 rounded-2xl overflow-hidden backdrop-blur-sm relative flex flex-col shadow-sm dark:shadow-none transition-colors duration-300">
       
@@ -70,6 +74,14 @@ export default function TabelaPedidos({ pedidos, loading, page, totalPages, tota
                   <td className="px-5 py-4 text-zinc-600 dark:text-zinc-300 font-mono font-medium">#{idReal}</td>
                   <td className="px-5 py-4 font-medium text-zinc-900 dark:text-zinc-200">
                     {clienteNomeLista}
+                    
+                    {/* 🟢 Badge do Vendedor super elegante! */}
+                    {pedido.vendedor_nome && (
+                      <div className="text-[10px] text-zinc-500 font-bold mt-1 bg-zinc-100 dark:bg-zinc-800 w-fit px-2 py-0.5 rounded-full">
+                        👤 {pedido.vendedor_nome}
+                      </div>
+                    )}
+                    
                     {endereco.city && <div className="text-xs text-zinc-500 font-normal mt-0.5">{endereco.city} - {endereco.state}</div>}
                   </td>
                   <td className="px-5 py-4 text-zinc-500 whitespace-nowrap">{dataFormatada}</td>
@@ -79,15 +91,19 @@ export default function TabelaPedidos({ pedidos, loading, page, totalPages, tota
                     <div className="flex items-center justify-center">
                       <button 
                         onClick={(e) => { e.stopPropagation(); onDownload(pedido); }}
-                        title={foiBaixado ? "Baixar Novamente" : "Baixar CSV do Pedido"}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all shadow-sm active:scale-95 ${
+                        title={foiBaixado ? (isOmie ? "Já Enviado" : "Baixar Novamente") : (isOmie ? "Enviar para o ERP" : "Baixar CSV do Pedido")}
+                        
+                        // 🟢 w-fit e whitespace-nowrap AQUI! Botão blindado contra crescimento!
+                        className={`flex w-fit whitespace-nowrap items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all shadow-sm active:scale-95 ${
                           foiBaixado 
                             ? "bg-emerald-100 dark:bg-emerald-500/10 text-emerald-700 border-emerald-200 dark:border-emerald-500/20" 
-                            : "bg-amber-100 dark:bg-amber-500/10 text-amber-700 border-amber-200 dark:border-amber-500/20"
+                            : (isOmie 
+                                ? "bg-purple-100 dark:bg-purple-500/10 text-purple-700 border-purple-200 dark:border-purple-500/20"
+                                : "bg-amber-100 dark:bg-amber-500/10 text-amber-700 border-amber-200 dark:border-amber-500/20")
                         }`}
                       >
-                        {foiBaixado ? <CheckCircle2 size={16} /> : <FileDown size={16} />}
-                        {foiBaixado ? "Baixado" : "Exportar"}
+                        {foiBaixado ? <CheckCircle2 size={16} className="shrink-0" /> : (isOmie ? <CloudUpload size={16} className="shrink-0" /> : <FileDown size={16} className="shrink-0" />)}
+                        {foiBaixado ? (isOmie ? "Enviado" : "Baixado") : (isOmie ? "Enviar ERP" : "Exportar CSV")}
                       </button>
                     </div>
                   </td>

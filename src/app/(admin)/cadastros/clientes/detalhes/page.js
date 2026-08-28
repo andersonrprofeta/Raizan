@@ -8,7 +8,8 @@ import {
   Building2, CreditCard, ShoppingBag, DollarSign, 
   TrendingUp, Package, ExternalLink, Loader2, Store, 
   Globe, MonitorSmartphone, ChevronLeft, ChevronRight, X,
-  Database, Briefcase, ShieldAlert, BadgeCheck, FileText
+  Database, Briefcase, ShieldAlert, BadgeCheck, FileText,
+  CalendarClock, AlertOctagon, Receipt, DownloadCloud
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -20,13 +21,16 @@ function DashboardCliente() {
   const idCliente = searchParams.get("id");
 
   const [loading, setLoading] = useState(true);
+  
+  // 🟢 ESTADO NOVO: Prazos do Omie para traduzir o código no nome bonito
+  const [condicoesOmie, setCondicoesOmie] = useState([]);
+
   const [dados, setDados] = useState({
     cliente: null,
     kpis: { total_gasto: 0, ticket_medio: 0, total_pedidos: 0 },
     pedidos: []
   });
 
-  // 🟢 ESTADOS DA PAGINAÇÃO E DO MODAL
   const [paginaAtual, setPaginaAtual] = useState(1);
   const itensPorPagina = 5; 
   const [modalPedido, setModalPedido] = useState({ open: false, pedido: null });
@@ -54,20 +58,23 @@ function DashboardCliente() {
     }
 
     try {
+      // 🟢 1. Busca os Prazos soltos (Igualzinho ao Editar, sem travar a tela principal)
+      fetch(`https://api.raizan.com.br/api/hub/integracoes/omie/condicoes-pagamento`, {
+        headers: { "x-tenant-id": tenantId }
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) setCondicoesOmie(data.condicoes || []);
+      }).catch(() => {});
+
+      // 🟢 2. Busca os dados reais do Dashboard
       const res = await fetch(`https://api.raizan.com.br/api/hub/clientes/${idCliente}/dashboard`, {
-        headers: { 
-          "Content-Type": "application/json",
-          "x-tenant-id": tenantId 
-        }
+        headers: { "Content-Type": "application/json", "x-tenant-id": tenantId }
       });
       const data = await res.json();
       
-      if (data.success) {
-        setDados(data);
-      } else {
-        toast.error("Cliente não encontrado.");
-        router.push('/cadastros/clientes');
-      }
+      if (data.success) setDados(data);
+      else { toast.error("Cliente não encontrado."); router.push('/cadastros/clientes'); }
     } catch (error) {
       toast.error("Erro ao carregar a Visão 360º.");
     } finally {
@@ -78,6 +85,25 @@ function DashboardCliente() {
   const formatarMoeda = (valor) => Number(valor || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   const formatarData = (dataStr) => new Date(dataStr).toLocaleDateString("pt-BR", { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute:'2-digit' });
 
+  const calcularDiasSemCompra = () => {
+    if (!dados.pedidos || dados.pedidos.length === 0) return "Sem histórico";
+    
+    const statusValidos = ['entregue', 'completed', 'faturado', 'enviado', 'pago', 'aprovado'];
+    const pedidosValidos = dados.pedidos.filter(p => statusValidos.includes((p.status_pedido || p.status || '').toLowerCase()));
+
+    if (pedidosValidos.length === 0) return "Nenhuma compra faturada";
+
+    const ultimoPedido = new Date(pedidosValidos[0].created_at);
+    const hoje = new Date();
+    
+    const diffTempo = Math.abs(hoje - ultimoPedido);
+    const diffDias = Math.floor(diffTempo / (1000 * 60 * 60 * 24)); 
+    
+    if (diffDias === 0) return "Comprou hoje!";
+    if (diffDias === 1) return "1 dia";
+    return `${diffDias} dias`;
+  };
+
   const getCanalFavorito = () => {
     if (!dados.pedidos || dados.pedidos.length === 0) return { nome: "Nenhum", icon: <Store size={14} /> };
     
@@ -86,7 +112,7 @@ function DashboardCliente() {
     let favorito = "";
     
     dados.pedidos.forEach(p => {
-      const origem = p.origem || 'manual';
+      const origem = (p.origem || 'manual').toLowerCase();
       contagem[origem] = (contagem[origem] || 0) + 1;
       if (contagem[origem] > maxCount) {
         maxCount = contagem[origem];
@@ -97,6 +123,8 @@ function DashboardCliente() {
     if (favorito.includes('omie')) return { nome: "Omie ERP", icon: <Database size={14} className="text-emerald-500" /> };
     if (favorito.includes('woo')) return { nome: "WooCommerce", icon: <Globe size={14} className="text-purple-500" /> };
     if (favorito.includes('b2b')) return { nome: "Portal B2B", icon: <MonitorSmartphone size={14} className="text-blue-500" /> };
+    if (favorito.includes('raizan') || favorito.includes('seller') || favorito.includes('forca')) return { nome: "Raizan Seller", icon: <Briefcase size={14} className="text-orange-500" /> };
+    
     return { nome: "Manual / PDV", icon: <Store size={14} className="text-zinc-500" /> };
   };
 
@@ -104,12 +132,14 @@ function DashboardCliente() {
     switch(status?.toLowerCase()) {
       case 'entregue': 
       case 'completed': 
+      case 'faturado': 
         return <span className="px-2.5 py-1 bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 rounded-md text-[10px] font-black uppercase tracking-wider border border-emerald-200 dark:border-emerald-500/20">Entregue</span>;
       case 'enviado': 
         return <span className="px-2.5 py-1 bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400 rounded-md text-[10px] font-black uppercase tracking-wider border border-blue-200 dark:border-blue-500/20">Enviado</span>;
       case 'cancelado': 
       case 'cancelled': 
       case 'refunded':
+      case 'falhou':
         return <span className="px-2.5 py-1 bg-rose-100 text-rose-700 dark:bg-rose-500/10 dark:text-rose-400 rounded-md text-[10px] font-black uppercase tracking-wider border border-rose-200 dark:border-rose-500/20">Cancelado</span>;
       default: 
         return <span className="px-2.5 py-1 bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400 rounded-md text-[10px] font-black uppercase tracking-wider border border-amber-200 dark:border-amber-500/20">Pendente</span>;
@@ -140,6 +170,13 @@ function DashboardCliente() {
         </span>
       );
     }
+    if (nome.includes('raizan') || nome.includes('seller') || nome.includes('forca')) {
+      return (
+        <span className="flex items-center gap-1 w-fit bg-orange-50 text-orange-600 dark:bg-orange-500/10 dark:text-orange-400 border border-orange-200 dark:border-orange-500/20 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider mt-1.5">
+          <Briefcase size={10} /> Raizan Seller
+        </span>
+      );
+    }
     return (
       <span className="flex items-center gap-1 w-fit bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider mt-1.5">
         <Store size={10} /> Manual
@@ -156,21 +193,26 @@ function DashboardCliente() {
   const { cliente, kpis, pedidos } = dados;
   const canalFavorito = getCanalFavorito();
   
-  // 🟢 INTELIGÊNCIA: Verifica se é PJ contando os números do documento! (Salva a pátria do WooCommerce)
   const documentoLimpo = cliente.cpf_cnpj ? String(cliente.cpf_cnpj).replace(/\D/g, '') : '';
   const isPJ = cliente.tipo_pessoa === 'juridica' || documentoLimpo.length > 11;
   
-  // 🟢 INTELIGÊNCIA: Parsing de Metadados e Endereço seguros
   let endereco = {};
   let metadata = {};
   try { endereco = typeof cliente.endereco_json === 'string' ? JSON.parse(cliente.endereco_json) : (cliente.endereco_json || {}); } catch(e){}
   try { metadata = typeof cliente.metadata_json === 'string' ? JSON.parse(cliente.metadata_json) : (cliente.metadata_json || {}); } catch(e){}
 
-  // 🟢 LÓGICA DE PAGINAÇÃO
   const totalPaginas = Math.ceil(pedidos.length / itensPorPagina);
   const indexUltimoPedido = paginaAtual * itensPorPagina;
   const indexPrimeiroPedido = indexUltimoPedido - itensPorPagina;
   const pedidosPaginados = pedidos.slice(indexPrimeiroPedido, indexUltimoPedido);
+
+  const tituloErp = cliente.origem?.includes('omie') ? "Financeiro e CRM (Omie)" : "Financeiro e CRM (ERP)";
+
+  const valorEmAberto = metadata.valor_em_aberto || metadata.total_a_vencer || 0; 
+  const limiteDeCredito = metadata.limite_credito || 0;
+  
+  // 🟢 Pega os códigos permitidos
+  const condicoesPermitidas = metadata.condicoes_permitidas || [];
 
   return (
     <main className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-6 lg:p-8 relative">
@@ -198,8 +240,8 @@ function DashboardCliente() {
         </div>
 
         {/* KPIs */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-2xl p-6 text-white shadow-xl shadow-indigo-500/20 relative overflow-hidden">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-2xl p-6 text-white shadow-xl shadow-indigo-500/20 relative overflow-hidden md:col-span-2">
             <div className="absolute -right-6 -top-6 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
             <div className="absolute -left-6 -bottom-6 w-24 h-24 bg-purple-500/20 rounded-full blur-xl"></div>
             <div className="flex items-center justify-between mb-4 relative z-10">
@@ -235,19 +277,23 @@ function DashboardCliente() {
         {/* Layout de 2 Colunas */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
           
-          {/* Coluna 1: Dados do Cliente e Comercial */}
           <div className="lg:col-span-1 space-y-6">
             
-            {/* Bloco 1: Informações de Contato e Identificação */}
+            {/* Bloco 1: Informações de Contato */}
             <div className="bg-white dark:bg-[#0c0c0e] border border-zinc-200 dark:border-zinc-800/60 rounded-2xl p-6 shadow-sm">
               <div className="flex flex-col items-center text-center pb-6 border-b border-zinc-100 dark:border-zinc-800/60">
                 <div className="w-24 h-24 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-full flex items-center justify-center text-3xl font-black border-4 border-white dark:border-[#0c0c0e] shadow-lg mb-4">
                   {cliente.nome ? cliente.nome.charAt(0).toUpperCase() : <UserIcon size={32} />}
                 </div>
                 <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">{cliente.nome}</h2>
-                <div className="flex items-center gap-2 mt-2">
+                
+                {/* 🟢 EXIBE O NOME FANTASIA SE EXISTIR */}
+                {metadata.nome_fantasia && (
+                  <p className="text-sm font-medium text-zinc-500 mt-1">Fantasia: {metadata.nome_fantasia}</p>
+                )}
+
+                <div className="flex items-center gap-2 mt-3">
                   <p className="text-[10px] font-bold text-zinc-500 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-3 py-1 rounded-full uppercase tracking-widest flex items-center gap-1">
-                    {/* 🟢 A MÁGICA DA CORREÇÃO DE PF/PJ ACONTECE AQUI: */}
                     {isPJ ? <><Building2 size={12}/> PJ</> : <><UserIcon size={12}/> PF</>}
                   </p>
                   <p className="text-[10px] font-bold text-zinc-500 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-3 py-1 rounded-full flex items-center gap-1">
@@ -257,13 +303,22 @@ function DashboardCliente() {
               </div>
 
               <div className="pt-6 space-y-5">
+                <div className="flex items-center justify-between p-3 rounded-xl bg-amber-50 dark:bg-amber-500/10 border border-amber-100 dark:border-amber-500/20 mb-2">
+                  <div className="flex items-center gap-2 text-sm font-bold text-amber-700 dark:text-amber-400">
+                    <CalendarClock size={16} /> Última Compra
+                  </div>
+                  <span className="text-[11px] font-black uppercase tracking-wider text-amber-800 bg-amber-200/50 dark:bg-amber-500/20 dark:text-amber-300 px-2 py-1 rounded-md">
+                    {calcularDiasSemCompra()}
+                  </span>
+                </div>
+
                 <div className="flex items-start gap-3">
                   <div className="w-8 h-8 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 flex items-center justify-center shrink-0 border border-zinc-200 dark:border-zinc-700">
                     <Mail size={14} className="text-zinc-500" />
                   </div>
                   <div className="pt-0.5 min-w-0">
                     <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">E-mail</p>
-                    <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200 truncate">{cliente.email}</p>
+                    <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200 truncate">{cliente.email || "Não informado"}</p>
                   </div>
                 </div>
                 
@@ -286,18 +341,6 @@ function DashboardCliente() {
                     <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{cliente.cpf_cnpj || "Não informado"}</p>
                   </div>
                 </div>
-
-                {cliente.inscricao_estadual && (
-                  <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 flex items-center justify-center shrink-0 border border-zinc-200 dark:border-zinc-700">
-                      <Building2 size={14} className="text-zinc-500" />
-                    </div>
-                    <div className="pt-0.5">
-                      <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Inscrição Estadual (IE)</p>
-                      <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{cliente.inscricao_estadual}</p>
-                    </div>
-                  </div>
-                )}
                 
                 <div className="flex items-start gap-3">
                   <div className="w-8 h-8 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 flex items-center justify-center shrink-0 border border-zinc-200 dark:border-zinc-700">
@@ -312,70 +355,151 @@ function DashboardCliente() {
                     </p>
                   </div>
                 </div>
+
               </div>
             </div>
 
-            {/* 🟢 Bloco 2: O NOVO CARD COM OS DADOS COMERCIAIS DO OMIE ERP */}
-            {(cliente.codigo_vendedor || metadata.limite_credito !== undefined || metadata.condicao_pagamento_padrao) && (
-              <div className="bg-white dark:bg-[#0c0c0e] border border-zinc-200 dark:border-zinc-800/60 rounded-2xl p-6 shadow-sm">
-                <h3 className="text-xs font-black text-zinc-400 uppercase tracking-widest mb-5 flex items-center gap-2">
-                  <Briefcase size={16} className="text-zinc-400" /> Informações Comerciais (ERP)
-                </h3>
+            {/* 🟢 Bloco 2: O FAROL FINANCEIRO (AGORA COM OS TÍTULOS CUSPINDO NA CARA) */}
+            <div className="bg-white dark:bg-[#0c0c0e] border border-zinc-200 dark:border-zinc-800/60 rounded-2xl p-6 shadow-sm">
+              <h3 className="text-xs font-black text-zinc-400 uppercase tracking-widest mb-5 flex items-center gap-2">
+                <Briefcase size={16} className="text-zinc-400" /> {tituloErp}
+              </h3>
+              
+              <div className="space-y-4">
                 
-                <div className="space-y-4">
-                  {/* Status no ERP */}
-                  <div className="flex items-center justify-between p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800/30 border border-zinc-100 dark:border-zinc-800">
-                    <div className="flex items-center gap-2 text-sm font-bold text-zinc-700 dark:text-zinc-300">
-                      {metadata.bloqueado ? <ShieldAlert size={16} className="text-rose-500" /> : <BadgeCheck size={16} className="text-emerald-500" />}
-                      Situação no ERP
+                {/* Status no ERP */}
+                <div className="flex items-center justify-between p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800/30 border border-zinc-100 dark:border-zinc-800">
+                  <div className="flex items-center gap-2 text-sm font-bold text-zinc-700 dark:text-zinc-300">
+                    {metadata.bloqueado ? <ShieldAlert size={16} className="text-rose-500" /> : <BadgeCheck size={16} className="text-emerald-500" />}
+                    Situação de Faturamento
+                  </div>
+                  {metadata.bloqueado ? (
+                    <span className="text-[10px] font-black uppercase tracking-wider text-rose-600 bg-rose-100 dark:bg-rose-500/10 dark:text-rose-400 px-2 py-1 rounded-md">Bloqueado</span>
+                  ) : (
+                    <span className="text-[10px] font-black uppercase tracking-wider text-emerald-600 bg-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400 px-2 py-1 rounded-md">Ativo</span>
+                  )}
+                </div>
+
+                {/* Títulos em Aberto (Sempre Visível) */}
+                <div className="p-4 rounded-xl bg-rose-50 dark:bg-rose-500/10 border border-rose-100 dark:border-rose-500/20 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-sm font-bold text-rose-700 dark:text-rose-400">
+                      <AlertOctagon size={16} className="text-rose-500" />
+                      Boletos a Vencer / Atraso
                     </div>
-                    {metadata.bloqueado ? (
-                      <span className="text-[10px] font-black uppercase tracking-wider text-rose-600 bg-rose-100 dark:bg-rose-500/10 dark:text-rose-400 px-2 py-1 rounded-md">Bloqueado</span>
-                    ) : (
-                      <span className="text-[10px] font-black uppercase tracking-wider text-emerald-600 bg-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400 px-2 py-1 rounded-md">Ativo</span>
-                    )}
+                    <span className="text-sm font-black text-rose-600 dark:text-rose-400">
+                      {formatarMoeda(valorEmAberto)}
+                    </span>
                   </div>
 
-                  {/* Vendedor */}
-                  {cliente.nome_vendedor && (
-                    <div className="flex items-start gap-3 mt-4">
-                      <div className="w-8 h-8 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 flex items-center justify-center shrink-0 border border-zinc-200 dark:border-zinc-700">
-                        <UserIcon size={14} className="text-zinc-500" />
-                      </div>
-                      <div className="pt-0.5">
-                        <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Vendedor Responsável</p>
-                        <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{cliente.nome_vendedor} <span className="text-xs text-zinc-500 font-normal ml-1">(Cód: {cliente.codigo_vendedor})</span></p>
-                      </div>
+                  {/* 🟢 AQUI ENTRA A LISTA DE TÍTULOS CUSPINDO NA CARA */}
+                  {metadata.titulos_em_aberto && metadata.titulos_em_aberto.length > 0 && (
+                    <div className="mt-2 space-y-2">
+                      {metadata.titulos_em_aberto.map((titulo, idx) => (
+                        <div key={idx} className="flex flex-col p-2.5 bg-rose-100/50 dark:bg-rose-900/30 border border-rose-200/50 dark:border-rose-800/50 rounded-lg">
+                          <div className="flex justify-between items-start">
+                            <span className="text-xs font-bold text-rose-800 dark:text-rose-300 pr-2 leading-tight">
+                              🚨 {titulo.situacao}
+                            </span>
+                            <span className="text-xs font-black text-rose-700 dark:text-rose-400 shrink-0">
+                              {formatarMoeda(titulo.valor)}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 mt-1 text-[10px] text-rose-600/80 dark:text-rose-400/80 font-medium uppercase tracking-wider">
+                            <span>Venc: {titulo.vencimento}</span>
+                            {titulo.dias_atraso > 0 && (
+                              <span className="bg-rose-200 dark:bg-rose-800 px-1.5 py-0.5 rounded text-rose-800 dark:text-rose-200 font-bold">
+                                {titulo.dias_atraso} dias de atraso
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   )}
-
-                  {/* Limite de Crédito */}
-                  {metadata.limite_credito !== undefined && (
-                    <div className="flex items-start gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 flex items-center justify-center shrink-0 border border-zinc-200 dark:border-zinc-700">
-                        <DollarSign size={14} className="text-zinc-500" />
-                      </div>
-                      <div className="pt-0.5">
-                        <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Limite de Crédito</p>
-                        <p className="text-sm font-black text-emerald-600 dark:text-emerald-400">{formatarMoeda(metadata.limite_credito)}</p>
-                      </div>
-                    </div>
+                  
+                  {valorEmAberto > 0 && (
+                    <button 
+                      onClick={() => toast.success("Integração com o Portal B2B em breve!")}
+                      className="w-full flex items-center justify-center gap-2 py-2 mt-2 bg-white dark:bg-rose-950 border border-rose-200 dark:border-rose-800/50 rounded-lg text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900 transition-colors"
+                    >
+                      <Receipt size={14} /> 2ª Via / Notas Fiscais no Portal
+                    </button>
                   )}
+                </div>
 
-                  {/* Condição Padrão */}
-                  {metadata.condicao_pagamento_padrao && (
-                    <div className="flex items-start gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 flex items-center justify-center shrink-0 border border-zinc-200 dark:border-zinc-700">
-                        <FileText size={14} className="text-zinc-500" />
-                      </div>
-                      <div className="pt-0.5">
+                {/* Limite de Crédito (Sempre Visível) */}
+                <div className="flex items-center justify-between p-3 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20">
+                  <div className="flex items-center gap-2 text-sm font-bold text-emerald-700 dark:text-emerald-400">
+                    <DollarSign size={16} className="text-emerald-500" />
+                    Limite de Crédito
+                  </div>
+                  <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">
+                    {formatarMoeda(limiteDeCredito)}
+                  </span>
+                </div>
+
+                {/* Vendedor Responsável */}
+                <div className="flex items-start gap-3 mt-4">
+                  <div className="w-8 h-8 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 flex items-center justify-center shrink-0 border border-zinc-200 dark:border-zinc-700">
+                    <UserIcon size={14} className="text-zinc-500" />
+                  </div>
+                  <div className="pt-0.5">
+                    <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Vendedor Responsável</p>
+                    <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
+                      {cliente.nome_vendedor || "Não atribuído"}
+                      {cliente.codigo_vendedor && <span className="text-xs text-zinc-500 font-normal ml-1">(Cód: {cliente.codigo_vendedor})</span>}
+                    </p>
+                  </div>
+                </div>
+
+                {/* 🟢 CONDIÇÕES DE PAGAMENTO (PADRÃO E LIBERADOS PRO APP) */}
+                <div className="flex items-start gap-3 mt-4">
+                  <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 flex items-center justify-center shrink-0 border border-indigo-100 dark:border-indigo-500/20">
+                    <CreditCard size={14} className="text-indigo-500" />
+                  </div>
+                  <div className="pt-0.5">
+                    {metadata.condicao_pagamento_padrao && (
+                      <div className="mb-3">
                         <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Condição Padrão</p>
                         <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{metadata.condicao_pagamento_padrao}</p>
                       </div>
+                    )}
+                    
+                    <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Prazos Liberados (App Seller)</p>
+                    <div className="flex flex-wrap gap-1.5 mt-1.5">
+                      {condicoesOmie.length === 0 ? (
+                        <span className="text-[10px] text-zinc-400 flex items-center gap-2"><Loader2 size={12} className="animate-spin"/> Traduzindo códigos...</span>
+                      ) : condicoesPermitidas.length === 0 ? (
+                        <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-1 rounded border border-emerald-200 dark:border-emerald-500/20">
+                          🟢 Todos os prazos liberados
+                        </span>
+                      ) : (
+                        condicoesPermitidas.map(codigo => {
+                          const cond = condicoesOmie.find(c => String(c.codigo) === String(codigo));
+                          return (
+                            <span key={codigo} className="text-[10px] font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-500/10 px-2 py-1 rounded border border-indigo-200 dark:border-indigo-500/30">
+                              {cond ? cond.descricao : `Cód: ${codigo}`}
+                            </span>
+                          );
+                        })
+                      )}
                     </div>
-                  )}
-
+                  </div>
                 </div>
+
+              </div>
+            </div>
+
+            {/* 🟢 NOVO BLOCO: OBSERVAÇÕES DO CLIENTE */}
+            {metadata.observacoes && (
+              <div className="bg-yellow-50 dark:bg-yellow-500/10 border border-yellow-200 dark:border-yellow-500/20 rounded-2xl p-6 shadow-sm">
+                <h3 className="text-xs font-black text-yellow-600 dark:text-yellow-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+                  <FileText size={16} /> Observações do Cliente
+                </h3>
+                <p className="text-sm text-yellow-800 dark:text-yellow-400 leading-relaxed whitespace-pre-wrap">
+                  {metadata.observacoes}
+                </p>
               </div>
             )}
 

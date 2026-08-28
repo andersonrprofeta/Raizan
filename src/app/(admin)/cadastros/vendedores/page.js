@@ -7,10 +7,16 @@ import { getHubUrl, getHeaders } from "@/components/utils/api";
 import { 
   Users, RefreshCw, Search, Key, ShieldCheck, 
   Mail, X, Lock, UserCog, Ban, CheckCircle, AlertTriangle,
-  LayoutGrid, List
+  LayoutGrid, List, ChevronRight, TrendingUp, Target, DollarSign, Wallet
 } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import toast, { Toaster } from "react-hot-toast";
+
+// 🟢 IMPORTAÇÃO DOS SEUS NOVOS COMPONENTES PREMIUM AQUI!
+import TabContaFlex from "@/components/vendedores/flex";
+import TabComissoes from "@/components/vendedores/comissao";
+import TabMetasCampanhas from "@/components/vendedores/metas";
+import TabVisaoGeral from "@/components/vendedores/relatorio";
 
 export default function VendedoresPage() {
   const [vendedores, setVendedores] = useState([]);
@@ -26,6 +32,11 @@ export default function VendedoresPage() {
 
   const [modalBloqueioAberto, setModalBloqueioAberto] = useState(false);
   const [vendedorParaBloquear, setVendedorParaBloquear] = useState(null);
+
+  // 🟢 NOVO ESTADO: CONTROLE DO PAINEL LATERAL DE DETALHES
+  const [painelAberto, setPainelAberto] = useState(false);
+  const [vendedorDetalhe, setVendedorDetalhe] = useState(null);
+  const [abaAtiva, setAbaAtiva] = useState('resumo');
 
   const carregarVendedores = async () => {
     setLoading(true);
@@ -109,15 +120,24 @@ export default function VendedoresPage() {
     }
   };
 
-  const abrirModalSenha = (vendedor) => {
+  const abrirModalSenha = (vendedor, e) => {
+    if(e) e.stopPropagation(); // Evita abrir o painel lateral
     setVendedorSelecionado(vendedor);
     setNovaSenha("");
     setModalAberto(true);
   };
 
-  const abrirModalBloqueio = (vendedor) => {
+  const abrirModalBloqueio = (vendedor, e) => {
+    if(e) e.stopPropagation(); // Evita abrir o painel lateral
     setVendedorParaBloquear(vendedor);
     setModalBloqueioAberto(true);
+  };
+
+  // 🟢 NOVA FUNÇÃO: ABRIR O PAINEL DE DETALHES
+  const abrirDetalhes = (vendedor) => {
+    setVendedorDetalhe(vendedor);
+    setAbaAtiva('resumo'); // Sempre abre na aba de resumo
+    setPainelAberto(true);
   };
 
   const confirmarBloqueio = async () => {
@@ -158,7 +178,7 @@ export default function VendedoresPage() {
       <Toaster position="top-right" />
       <Sidebar />
       
-      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden relative">
         <Header />
         
         <main className="flex-1 p-4 sm:p-6 md:p-8 overflow-y-auto custom-scrollbar relative">
@@ -238,8 +258,11 @@ export default function VendedoresPage() {
                 viewMode === "grid" ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {vendedoresFiltrados.map((vendedor) => (
-                      <div key={vendedor.id} className="bg-white dark:bg-[#121214] border border-zinc-200/80 dark:border-white/5 rounded-2xl p-4 hover:border-purple-500/50 dark:hover:border-purple-500/40 transition-all duration-300 shadow-sm flex flex-col h-full relative">
-                        
+                      <div 
+                        key={vendedor.id} 
+                        onClick={() => abrirDetalhes(vendedor)}
+                        className="bg-white dark:bg-[#121214] border border-zinc-200/80 dark:border-white/5 rounded-2xl p-4 hover:border-purple-500/50 dark:hover:border-purple-500/40 transition-all duration-300 shadow-sm flex flex-col h-full relative cursor-pointer group"
+                      >
                         <div className="absolute top-3 right-3 flex gap-1">
                           {vendedor.status_app === "bloqueado" ? (
                             <span className="bg-rose-100 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 p-1.5 rounded-md" title="Bloqueado"><Ban size={14} /></span>
@@ -251,8 +274,7 @@ export default function VendedoresPage() {
                         </div>
 
                         <div className="flex items-center gap-3 mb-4 pr-8">
-                          {/* 🟢 MÁGICA DA FOTO NO CARD AQUI: */}
-                          <div className="w-10 h-10 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center shrink-0 overflow-hidden border border-zinc-200 dark:border-zinc-700">
+                          <div className="w-10 h-10 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center shrink-0 overflow-hidden border border-zinc-200 dark:border-zinc-700 group-hover:scale-105 transition-transform">
                             {vendedor.foto ? (
                               <img src={vendedor.foto} alt={vendedor.nome} className="w-full h-full object-cover" />
                             ) : (
@@ -261,7 +283,7 @@ export default function VendedoresPage() {
                           </div>
 
                           <div className="min-w-0 flex-1">
-                            <h3 className="font-bold text-sm text-zinc-900 dark:text-zinc-100 truncate">{vendedor.nome}</h3>
+                            <h3 className="font-bold text-sm text-zinc-900 dark:text-zinc-100 truncate group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">{vendedor.nome}</h3>
                             <p className="text-[10px] text-zinc-500 font-mono mt-0.5">Cod: {vendedor.codigo_erp}</p>
                           </div>
                         </div>
@@ -274,12 +296,12 @@ export default function VendedoresPage() {
                         </div>
 
                         <div className="flex gap-2 mt-auto">
-                          <button onClick={() => abrirModalSenha(vendedor)} className={`flex-1 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 border transition-all ${vendedor.tem_senha ? "bg-white dark:bg-[#121214] border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800" : "bg-purple-50 dark:bg-purple-600/10 border-purple-200 dark:border-purple-500/30 text-purple-700 dark:text-purple-400 hover:bg-purple-100"}`}>
+                          <button onClick={(e) => abrirModalSenha(vendedor, e)} className={`flex-1 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 border transition-all ${vendedor.tem_senha ? "bg-white dark:bg-[#121214] border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800" : "bg-purple-50 dark:bg-purple-600/10 border-purple-200 dark:border-purple-500/30 text-purple-700 dark:text-purple-400 hover:bg-purple-100"}`}>
                             <Key size={14} /> {vendedor.tem_senha ? "Senha" : "Criar Acesso"}
                           </button>
                           
                           {vendedor.tem_senha ? (
-                            <button onClick={() => abrirModalBloqueio(vendedor)} title={vendedor.status_app === "bloqueado" ? "Desbloquear" : "Bloquear"} className={`w-9 shrink-0 flex items-center justify-center rounded-lg border transition-all ${vendedor.status_app === "bloqueado" ? "bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/30 text-emerald-600" : "bg-rose-50 dark:bg-rose-500/10 border-rose-200 dark:border-rose-500/30 text-rose-600"}`}>
+                            <button onClick={(e) => abrirModalBloqueio(vendedor, e)} title={vendedor.status_app === "bloqueado" ? "Desbloquear" : "Bloquear"} className={`w-9 shrink-0 flex items-center justify-center rounded-lg border transition-all ${vendedor.status_app === "bloqueado" ? "bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/30 text-emerald-600" : "bg-rose-50 dark:bg-rose-500/10 border-rose-200 dark:border-rose-500/30 text-rose-600"}`}>
                               {vendedor.status_app === "bloqueado" ? <CheckCircle size={14} /> : <Ban size={14} />}
                             </button>
                           ) : null}
@@ -290,11 +312,14 @@ export default function VendedoresPage() {
                 ) : (
                   <div className="flex flex-col gap-2">
                     {vendedoresFiltrados.map((vendedor) => (
-                      <div key={vendedor.id} className="bg-white dark:bg-[#121214] border border-zinc-200/80 dark:border-white/5 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:border-purple-500/50 transition-all shadow-sm">
+                      <div 
+                        key={vendedor.id} 
+                        onClick={() => abrirDetalhes(vendedor)}
+                        className="bg-white dark:bg-[#121214] border border-zinc-200/80 dark:border-white/5 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:border-purple-500/50 transition-all shadow-sm cursor-pointer group"
+                      >
                         
                         <div className="flex items-center gap-3 min-w-0 flex-1">
-                          {/* 🟢 MÁGICA DA FOTO NA LISTA AQUI TAMBÉM: */}
-                          <div className="w-10 h-10 rounded-xl bg-zinc-100 dark:bg-zinc-800 items-center justify-center shrink-0 overflow-hidden border border-zinc-200 dark:border-zinc-700 hidden sm:flex">
+                          <div className="w-10 h-10 rounded-xl bg-zinc-100 dark:bg-zinc-800 items-center justify-center shrink-0 overflow-hidden border border-zinc-200 dark:border-zinc-700 hidden sm:flex group-hover:scale-105 transition-transform">
                             {vendedor.foto ? (
                               <img src={vendedor.foto} alt={vendedor.nome} className="w-full h-full object-cover" />
                             ) : (
@@ -303,7 +328,7 @@ export default function VendedoresPage() {
                           </div>
 
                           <div className="min-w-0 flex-1">
-                            <h3 className="font-bold text-sm text-zinc-900 dark:text-zinc-100 truncate flex items-center gap-2">
+                            <h3 className="font-bold text-sm text-zinc-900 dark:text-zinc-100 truncate flex items-center gap-2 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
                               {vendedor.nome}
                               <span className="text-[10px] font-mono text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded font-normal">
                                 {vendedor.codigo_erp}
@@ -328,12 +353,12 @@ export default function VendedoresPage() {
                           </div>
 
                           <div className="flex gap-1.5 shrink-0">
-                            <button onClick={() => abrirModalSenha(vendedor)} className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 border transition-all ${vendedor.tem_senha ? "bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800" : "bg-purple-50 dark:bg-purple-600/10 border-purple-200 dark:border-purple-500/30 text-purple-700 dark:text-purple-400 hover:bg-purple-100"}`}>
+                            <button onClick={(e) => abrirModalSenha(vendedor, e)} className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 border transition-all ${vendedor.tem_senha ? "bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800" : "bg-purple-50 dark:bg-purple-600/10 border-purple-200 dark:border-purple-500/30 text-purple-700 dark:text-purple-400 hover:bg-purple-100"}`}>
                               <Key size={14} /> <span className="hidden md:inline">{vendedor.tem_senha ? "Senha" : "Criar Acesso"}</span>
                             </button>
                             
                             {vendedor.tem_senha ? (
-                              <button onClick={() => abrirModalBloqueio(vendedor)} title={vendedor.status_app === "bloqueado" ? "Desbloquear" : "Bloquear"} className={`w-8 h-8 flex items-center justify-center rounded-lg border transition-all ${vendedor.status_app === "bloqueado" ? "bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/30 text-emerald-600" : "bg-rose-50 dark:bg-rose-500/10 border-rose-200 dark:border-rose-500/30 text-rose-600"}`}>
+                              <button onClick={(e) => abrirModalBloqueio(vendedor, e)} title={vendedor.status_app === "bloqueado" ? "Desbloquear" : "Bloquear"} className={`w-8 h-8 flex items-center justify-center rounded-lg border transition-all ${vendedor.status_app === "bloqueado" ? "bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/30 text-emerald-600" : "bg-rose-50 dark:bg-rose-500/10 border-rose-200 dark:border-rose-500/30 text-rose-600"}`}>
                                 {vendedor.status_app === "bloqueado" ? <CheckCircle size={14} /> : <Ban size={14} />}
                               </button>
                             ) : null}
@@ -349,10 +374,73 @@ export default function VendedoresPage() {
 
           </div>
         </main>
+        
+        {/* ========================================================= */}
+        {/* 🟢 O FLOATING DRAWER: PAINEL DE DETALHES PREMIUM 🟢 */}
+        {/* ========================================================= */}
+        <AnimatePresence>
+          {painelAberto && vendedorDetalhe && (
+            <>
+              {/* Fundo Escuro Blur */}
+              <motion.div 
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setPainelAberto(false)}
+                className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[90]"
+              />
+              
+              {/* O Painel Flutuante Arredondado */}
+              <motion.div 
+                initial={{ x: "120%" }} animate={{ x: 0 }} exit={{ x: "120%" }}
+                transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                className="fixed top-3 right-3 sm:top-4 sm:right-4 bottom-3 sm:bottom-4 h-[calc(100vh-24px)] sm:h-[calc(100vh-32px)] w-[calc(100%-24px)] sm:w-full max-w-2xl bg-white dark:bg-[#0c0c0e] shadow-2xl z-[100] border border-zinc-200 dark:border-zinc-800/80 rounded-3xl flex flex-col overflow-hidden"
+              >
+                {/* Cabeçalho do Painel */}
+                <div className="flex items-center justify-between p-6 border-b border-zinc-200 dark:border-zinc-800/80 bg-zinc-50/50 dark:bg-[#121214]/50">
+                  <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 rounded-2xl bg-zinc-200 dark:bg-zinc-800 overflow-hidden border border-zinc-300 dark:border-zinc-700">
+                      {vendedorDetalhe.foto ? (
+                        <img src={vendedorDetalhe.foto} alt="Foto" className="w-full h-full object-cover" />
+                      ) : (
+                        <Users size={24} className="text-zinc-400 m-auto mt-4" />
+                      )}
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-black text-zinc-900 dark:text-white">{vendedorDetalhe.nome}</h2>
+                      <p className="text-sm font-mono text-zinc-500">Cód: {vendedorDetalhe.codigo_erp}</p>
+                    </div>
+                  </div>
+                  
+                  <button onClick={() => setPainelAberto(false)} className="p-2 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-500 rounded-full transition-colors">
+                    <X size={20} />
+                  </button>
+                </div>
+
+                {/* Navegação de Abas (Tabs) */}
+                <div className="flex px-6 pt-4 border-b border-zinc-200 dark:border-zinc-800 overflow-x-auto custom-scrollbar bg-white dark:bg-[#0c0c0e]">
+                  <TabButton id="resumo" icon={TrendingUp} label="Visão Geral" active={abaAtiva} onClick={setAbaAtiva} />
+                  <TabButton id="metas" icon={Target} label="Metas & Campanhas" active={abaAtiva} onClick={setAbaAtiva} />
+                  <TabButton id="comissoes" icon={DollarSign} label="Comissões" active={abaAtiva} onClick={setAbaAtiva} />
+                  <TabButton id="contaflex" icon={Wallet} label="Conta Flex" active={abaAtiva} onClick={setAbaAtiva} />
+                </div>
+
+                {/* Área de Conteúdo Scrollável */}
+                <div className="flex-1 overflow-y-auto p-6 bg-zinc-50/30 dark:bg-[#09090b]/50">
+                  {abaAtiva === 'resumo' && <TabVisaoGeral vendedor={vendedorDetalhe} />}
+                  {abaAtiva === 'metas' && <TabMetasCampanhas vendedor={vendedorDetalhe} />}
+                  {abaAtiva === 'comissoes' && <TabComissoes vendedor={vendedorDetalhe} />}
+                  {abaAtiva === 'contaflex' && <TabContaFlex vendedor={vendedorDetalhe} />}
+                </div>
+
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
       </div>
 
+      {/* OS MODAIS ANTIGOS CONTINUAM AQUI EMBAIXO INTACTOS */}
       {modalAberto && vendedorSelecionado && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in transition-colors">
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in transition-colors">
           <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-3xl w-full max-w-md shadow-2xl p-6 relative animate-in zoom-in-95 duration-200 transition-colors">
             
             <button onClick={() => setModalAberto(false)} className="absolute top-4 right-4 p-2 text-zinc-400 hover:text-zinc-900 dark:text-zinc-500 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-colors">
@@ -405,7 +493,7 @@ export default function VendedoresPage() {
       )}
 
       {modalBloqueioAberto && vendedorParaBloquear && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in transition-colors">
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in transition-colors">
           <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-3xl w-full max-w-sm shadow-2xl p-6 text-center flex flex-col items-center relative animate-in zoom-in-95 duration-200 transition-colors">
             
             <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 transition-colors ${
@@ -450,3 +538,21 @@ export default function VendedoresPage() {
     </div>
   );
 }
+
+// =========================================================================
+// 🟢 COMPONENTES AUXILIARES DAS ABAS (NO FUTURO, JOGAR EM ARQUIVOS SEPARADOS)
+// =========================================================================
+
+const TabButton = ({ id, icon: Icon, label, active, onClick }) => (
+  <button 
+    onClick={() => onClick(id)}
+    className={`flex items-center gap-2 px-4 py-3 border-b-2 font-semibold text-sm transition-all whitespace-nowrap ${
+      active === id 
+        ? "border-purple-600 text-purple-600 dark:text-purple-400 dark:border-purple-500" 
+        : "border-transparent text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-300 hover:border-zinc-300 dark:hover:border-zinc-700"
+    }`}
+  >
+    <Icon size={16} />
+    {label}
+  </button>
+);

@@ -17,7 +17,8 @@ import FormPortalB2B from "@/components/integracoes/FormPortalB2B";
 import FormMercadoPago from "@/components/integracoes/FormMercadoPago";
 import FormFrenet from "@/components/integracoes/FormFrenet";
 import FormOmie from "@/components/integracoes/FormOmie";
-import FormTiny from "@/components/integracoes/FormTiny"; // 🚀 NOSSO NOVO MÓDULO
+import FormTiny from "@/components/integracoes/FormTiny"; 
+import EditarOmie from "@/components/integracoes/EditarOmie"; 
 
 export default function IntegracoesPage() {
   const [integracoesAtivas, setIntegracoesAtivas] = useState([]);
@@ -27,6 +28,9 @@ export default function IntegracoesPage() {
   const [instalando, setInstalando] = useState(null); 
   const [menuAberto, setMenuAberto] = useState(null); 
   const [integracaoParaDeletar, setIntegracaoParaDeletar] = useState(null); 
+  
+  // 🟢 ESTADO PARA CONTROLAR A EDIÇÃO
+  const [editandoInt, setEditandoInt] = useState(null); 
 
   const pegarCnpjLogado = () => {
     if (typeof window !== 'undefined') {
@@ -79,20 +83,93 @@ export default function IntegracoesPage() {
     }
   };
 
+  const [passosSync, setPassosSync] = useState([]);
+  const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
+
+  // 🟢 NOVA FUNÇÃO PREMIUM DE SINCRONIZAÇÃO (COM O CARROSSEL COMPLETO)
   const sincronizarDadosDaLoja = async (idIntegracao) => {
     const cnpj = pegarCnpjLogado();
     setSincronizando(idIntegracao);
-    const toastId = toast.loading("Buscando dados da loja...");
+    setIsSyncModalOpen(true);
+
+    // Passo 1 inicial (Mostrando já as pendentes!)
+    setPassosSync([
+      { id: 1, texto: "Mapeando Vendedores...", status: "loading" },
+      { id: 2, texto: "Sincronizando Clientes e Títulos em Aberto...", status: "pending" },
+      { id: 3, texto: "Carregando Catálogo de Produtos e Preços...", status: "pending" },
+      { id: 4, texto: "Consultando Saldos Físicos de Estoque...", status: "pending" },
+    ]);
+
+    // Animação progressiva das etapas no ecrã
+    let estagio = 1;
+    const temporizadorEtapas = setInterval(() => {
+      estagio++;
+      if (estagio === 2) {
+        setPassosSync([
+          { id: 1, texto: "Vendedores Mapeados", status: "done" },
+          { id: 2, texto: "Sincronizando Clientes e Títulos em Aberto...", status: "loading" },
+          { id: 3, texto: "Carregando Catálogo de Produtos e Preços...", status: "pending" },
+          { id: 4, texto: "Consultando Saldos Físicos de Estoque...", status: "pending" },
+        ]);
+      } else if (estagio === 3) {
+        setPassosSync([
+          { id: 1, texto: "Vendedores Mapeados", status: "done" },
+          { id: 2, texto: "Clientes e Títulos Atualizados", status: "done" },
+          { id: 3, texto: "Carregando Catálogo de Produtos e Preços...", status: "loading" },
+          { id: 4, texto: "Consultando Saldos Físicos de Estoque...", status: "pending" },
+        ]);
+      } else if (estagio === 4) {
+        setPassosSync([
+          { id: 1, texto: "Vendedores Mapeados", status: "done" },
+          { id: 2, texto: "Clientes e Títulos Atualizados", status: "done" },
+          { id: 3, texto: "Produtos e Fotos Atualizados", status: "done" },
+          { id: 4, texto: "Consultando Saldos Físicos de Estoque...", status: "loading" },
+        ]);
+      }
+    }, 2800);
+
     try {
       const res = await fetch(`https://api.raizan.com.br/api/hub/integracoes/sync/${idIntegracao}`, {
         method: "POST", headers: { "x-tenant-id": cnpj } 
       });
       const data = await res.json();
+      
+      clearInterval(temporizadorEtapas);
+
       if (data.success) {
-        toast.success(`Sucesso! Dados sincronizados.`, { id: toastId, duration: 5000 });
-      } else { toast.error(data.message || "Falha ao sincronizar.", { id: toastId }); }
-    } catch (error) { toast.error("Erro ao comunicar com o servidor.", { id: toastId }); } 
-    finally { setSincronizando(null); }
+        // Marca todas as etapas como concluídas com sucesso!
+        setPassosSync([
+          { id: 1, texto: "Vendedores Mapeados", status: "done" },
+          { id: 2, texto: "Clientes e Títulos Atualizados", status: "done" },
+          { id: 3, texto: "Produtos e Fotos Atualizados", status: "done" },
+          { id: 4, texto: "Saldos de Estoque Reais Gravados", status: "done" },
+          { id: 5, texto: "Sincronização Finalizada!", status: "done" },
+        ]);
+
+        toast.success("Carga realizada com sucesso!");
+        setTimeout(() => setIsSyncModalOpen(false), 3000);
+      } else {
+        // Mostra o erro no último passo caso falhe
+        setPassosSync(prev => {
+          const comErro = [...prev];
+          const indiceLoading = comErro.findIndex(p => p.status === 'loading');
+          if (indiceLoading !== -1) comErro[indiceLoading].status = 'error';
+          return [...comErro, { id: 99, texto: data.message || "Erro na sincronização.", status: "error" }];
+        });
+        toast.error(data.message || "Erro na sincronização.");
+        setTimeout(() => setIsSyncModalOpen(false), 4000);
+      }
+    } catch (error) {
+      clearInterval(temporizadorEtapas);
+      setPassosSync(prev => [
+        ...prev.map(p => p.status === 'loading' ? { ...p, status: 'error' } : p),
+        { id: 99, texto: "Erro crítico ao comunicar com o servidor.", status: "error" }
+      ]);
+      toast.error("Falha ao comunicar com o servidor.");
+      setTimeout(() => setIsSyncModalOpen(false), 4000);
+    } finally {
+      setSincronizando(null);
+    }
   };
 
   const confirmarExclusao = async () => {
@@ -115,11 +192,14 @@ export default function IntegracoesPage() {
   };
 
   const editarIntegracao = (int) => {
-    toast("A tela de edição será liberada na próxima atualização!", { icon: '🚧' });
+    if (int.plataforma === 'omie') {
+      setEditandoInt(int); 
+    } else {
+      toast("A tela de edição será liberada na próxima atualização!", { icon: '🚧' });
+    }
     setMenuAberto(null);
   };
 
-  // 🟢 REFINAMENTO VISUAL: Ícones maiores (h-14) e Efeito Frenet (brightness)
   const getPlataformaIcon = (plataforma) => {
     const imgClass = "h-14 w-auto max-w-[150px] object-contain drop-shadow-sm transition-transform hover:scale-105";
     const frenetClass = `${imgClass} brightness-0 dark:brightness-100`; 
@@ -141,6 +221,7 @@ export default function IntegracoesPage() {
 
   const handleSuccess = () => {
     setInstalando(null);
+    setEditandoInt(null);
     carregarIntegracoesEStatus();
   };
 
@@ -153,7 +234,7 @@ export default function IntegracoesPage() {
         <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8" onClick={() => setMenuAberto(null)}>
           <div className="max-w-[1200px] mx-auto space-y-6">
             
-            {/* 🟢 HEADER DA PÁGINA */}
+            {/* HEADER DA PÁGINA */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-white dark:bg-[#0c0c0e] p-6 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm relative overflow-hidden gap-4">
               <div className="absolute -left-10 -top-10 w-40 h-40 bg-purple-100 dark:bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
               <div className="flex items-center gap-4 relative z-10">
@@ -183,7 +264,7 @@ export default function IntegracoesPage() {
               </div>
             ) : (
               <>
-                {/* 🟢 LISTAGEM DAS INTEGRAÇÕES ATIVAS */}
+                {/* LISTAGEM DAS INTEGRAÇÕES ATIVAS */}
                 {!instalando && (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-in fade-in duration-300">
                     
@@ -284,7 +365,7 @@ export default function IntegracoesPage() {
                   </div>
                 )}
 
-                {/* 🟢 O CATÁLOGO MESTRE DE APPs */}
+                {/* O CATÁLOGO MESTRE DE APPs */}
                 {instalando === 'catalogo' && (
                   <div className="bg-white dark:bg-[#0c0c0e] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 sm:p-8 animate-in fade-in zoom-in-95 shadow-sm">
                     <div className="flex items-center justify-between mb-8 pb-4 border-b border-zinc-100 dark:border-zinc-800/60">
@@ -399,7 +480,6 @@ export default function IntegracoesPage() {
                             <button onClick={(e) => { e.stopPropagation(); setInstalando('omie'); }} className="w-full py-2.5 bg-emerald-600 rounded-xl text-sm font-bold text-white hover:bg-emerald-500 shadow-md shadow-emerald-500/20 transition-all">Configurar</button>
                           </div>
 
-                          {/* 🟢 NOSSO NOVO BOTÃO DO TINY ERP */}
                           <div className="border border-blue-200 dark:border-blue-500/30 rounded-2xl p-5 flex flex-col items-center text-center hover:border-blue-500 hover:shadow-xl transition-all cursor-pointer bg-gradient-to-b from-blue-50/50 to-white dark:from-blue-900/10 dark:to-[#0c0c0e] group relative overflow-hidden">
                             <div className="absolute top-0 right-0 bg-blue-600 text-white text-[9px] font-black uppercase px-2 py-1 rounded-bl-lg tracking-wider z-10">Novo</div>
                             <div className="w-16 h-16 bg-white dark:bg-[#121214] shadow-sm rounded-2xl flex items-center justify-center mb-4 border border-blue-100 dark:border-blue-500/20 group-hover:scale-110 transition-transform">
@@ -440,7 +520,7 @@ export default function IntegracoesPage() {
                   </div>
                 )}
 
-                {/* 🟢 COMPONENTES ISOLADOS: RENDERIZADOS AQUI, DENTRO DO FRAGMENT <> */}
+                {/* COMPONENTES ISOLADOS (FORMULÁRIOS) */}
                 {instalando === 'woocommerce' && <FormWooCommerce onCancel={() => setInstalando('catalogo')} onSuccess={handleSuccess} />}
                 {instalando === 'raizan' && <FormRaizanCommerce onCancel={() => setInstalando('catalogo')} onSuccess={handleSuccess} />}
                 {instalando === 'b2b' && <FormPortalB2B onCancel={() => setInstalando('catalogo')} onSuccess={handleSuccess} />}
@@ -456,7 +536,7 @@ export default function IntegracoesPage() {
         </main>
       </div>
 
-      {/* MODAL DE EXCLUSÃO (MANTÉM) */}
+      {/* MODAL DE EXCLUSÃO */}
       {integracaoParaDeletar && (
         <div 
           className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-zinc-950/40 backdrop-blur-sm animate-in fade-in"
@@ -469,28 +549,66 @@ export default function IntegracoesPage() {
             <div className="w-14 h-14 rounded-2xl bg-red-50 dark:bg-red-500/10 flex items-center justify-center mb-5 border border-red-100 dark:border-red-500/20">
               <AlertTriangle className="text-red-600 dark:text-red-400" size={28} />
             </div>
-            
             <h2 className="text-xl font-black text-zinc-900 dark:text-zinc-100 mb-2">Excluir Integração</h2>
-            
             <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-8 leading-relaxed">
               Tem certeza que deseja desconectar e excluir a integração <b className="text-zinc-700 dark:text-zinc-300">{integracaoParaDeletar.nome_integracao}</b>? Esta ação não poderá ser desfeita.
             </p>
-            
             <div className="flex gap-3 justify-end">
-              <button
-                onClick={() => setIntegracaoParaDeletar(null)}
-                className="px-5 py-2.5 rounded-xl font-bold text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-900 hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={confirmarExclusao}
-                className="px-5 py-2.5 rounded-xl font-bold text-white bg-red-600 hover:bg-red-500 shadow-md shadow-red-500/20 transition-all active:scale-95"
-              >
-                Sim, excluir
-              </button>
+              <button onClick={() => setIntegracaoParaDeletar(null)} className="px-5 py-2.5 rounded-xl font-bold text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-900 hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors">Cancelar</button>
+              <button onClick={confirmarExclusao} className="px-5 py-2.5 rounded-xl font-bold text-white bg-red-600 hover:bg-red-500 shadow-md shadow-red-500/20 transition-all active:scale-95">Sim, excluir</button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* 🟢 MODAL CHECKLIST DE ETAPAS */}
+      {isSyncModalOpen && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-zinc-950/60 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-3xl shadow-2xl max-w-md w-full p-6 sm:p-8 animate-in zoom-in-95">
+            <div className="flex items-center gap-3 mb-6 pb-4 border-b border-zinc-100 dark:border-zinc-800/60">
+              <div className="p-3 bg-emerald-50 dark:bg-emerald-500/10 rounded-2xl text-emerald-500">
+                <RefreshCw size={22} className="animate-spin" />
+              </div>
+              <div>
+                <h3 className="font-black text-lg text-zinc-900 dark:text-white">Motor de Sincronização</h3>
+                <p className="text-xs text-zinc-500 font-medium">Processando fluxo Omie ERP em tempo real.</p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              {passosSync.map((p) => (
+                <div key={p.id} className="flex items-center gap-3 animate-in slide-in-from-left-2">
+                  {p.status === 'done' && <CheckCircle2 size={20} className="text-emerald-500 shrink-0" />}
+                  {p.status === 'loading' && <Loader2 size={20} className="animate-spin text-emerald-500 shrink-0" />}
+                  {p.status === 'pending' && <div className="w-5 h-5 rounded-full border-2 border-zinc-200 dark:border-zinc-800 shrink-0" />}
+                  {p.status === 'error' && <AlertTriangle size={20} className="text-rose-500 shrink-0" />}
+                  
+                  <span className={`text-xs ${p.status === 'done' ? "font-bold text-emerald-600 dark:text-emerald-400" : p.status === 'loading' ? "font-bold text-zinc-900 dark:text-white" : "font-medium text-zinc-400"}`}>
+                    {p.texto}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE EDIÇÃO */}
+      {editandoInt && (
+        <div 
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-zinc-950/40 backdrop-blur-sm animate-in fade-in"
+          onClick={() => setEditandoInt(null)} 
+        >
+          {editandoInt.plataforma === 'omie' && (
+            <EditarOmie 
+              integracao={editandoInt} 
+              onCancel={() => setEditandoInt(null)} 
+              onSuccess={() => {
+                setEditandoInt(null);
+                carregarIntegracoesEStatus(); 
+              }} 
+            />
+          )}
         </div>
       )}
 

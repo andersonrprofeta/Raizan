@@ -6,7 +6,6 @@ import Header from "@/components/Header";
 import toast from 'react-hot-toast';
 import { getHubUrl, getHeaders } from "@/components/utils/api";
 
-// 🟢 SEUS COMPONENTES ORGANIZADOS AQUI!
 import TabsLojas from "@/components/pedidos/TabsLojas";
 import TabelaPedidos from "@/components/pedidos/TabelaPedidos";
 import ModalDetalhes from "@/components/pedidos/ModalDetalhes";
@@ -66,7 +65,14 @@ export default function Pedidos() {
     setLoading(true);
     try {
       const tenantId = obterTenantSeguro();
-      const endpoint = activeTabObj.tipo === "b2b" ? `${getHubUrl()}/api/hub/pedidos/b2b` : `${getHubUrl()}/api/hub/pedidos/woo`; 
+      
+      // 🟢 ROTEAMENTO INTELIGENTE DE ENDPOINTS
+      let endpoint = `${getHubUrl()}/api/hub/pedidos/woo`; 
+      if (activeTabObj.tipo === "b2b") {
+        endpoint = `${getHubUrl()}/api/hub/pedidos/b2b`;
+      } else if (activeTabObj.plataforma === "omie" || activeTabObj.tipo === "omie") {
+        endpoint = `${getHubUrl()}/api/hub/pedidos/omie`; // Rota nova que criaremos no Backend
+      }
 
       const res = await fetch(endpoint, {
         method: "POST", 
@@ -74,7 +80,7 @@ export default function Pedidos() {
         body: JSON.stringify({ 
           page, 
           limit: Number(limit), 
-          plataforma: activeTabObj.tipo,
+          plataforma: activeTabObj.plataforma || activeTabObj.tipo,
           integracao_id: activeTabObj.id 
         }) 
       });
@@ -102,21 +108,21 @@ export default function Pedidos() {
     const loadingToast = toast.loading("Atualizando status...");
     try {
       const tenantId = obterTenantSeguro();
-      const endpoint = activeTabObj.tipo === 'b2b' ? `${getHubUrl()}/api/hub/pedidos/mudar-status-b2b` : `${getHubUrl()}/api/hub/pedidos/mudar-status-woo`;
+      
+      let endpoint = `${getHubUrl()}/api/hub/pedidos/mudar-status-woo`;
+      if (activeTabObj.tipo === 'b2b') endpoint = `${getHubUrl()}/api/hub/pedidos/mudar-status-b2b`;
+      if (activeTabObj.plataforma === 'omie') endpoint = `${getHubUrl()}/api/hub/pedidos/mudar-status-omie`;
       
       const res = await fetch(endpoint, {
         method: 'POST', headers: { ...getHeaders(), "x-tenant-id": tenantId },
-        body: JSON.stringify({ pedidoId, novoStatus, integracao_id: activeTabObj.id, plataforma: activeTabObj.tipo })
+        body: JSON.stringify({ pedidoId, novoStatus, integracao_id: activeTabObj.id, plataforma: activeTabObj.plataforma })
       });
       
       const data = await res.json();
       
       if(data.success) {
         toast.success("Status atualizado com sucesso!", { id: loadingToast });
-        setPedidos(pedidos.map(p => {
-          const pId = p.id || p.pedido_id;
-          return pId === pedidoId ? { ...p, status: novoStatus, status_pedido: novoStatus } : p;
-        }));
+        carregarPedidos(); // Recarrega a lista toda para garantir dados frescos
         if((pedidoSelecionado?.id || pedidoSelecionado?.pedido_id) === pedidoId) {
           setPedidoSelecionado({ ...pedidoSelecionado, status: novoStatus, status_pedido: novoStatus });
         }
@@ -128,6 +134,32 @@ export default function Pedidos() {
     }
   };
 
+  // 🟢 NOVA FUNÇÃO: Sincronização direta com o Omie
+  const handleSincronizarOmie = async (pedido) => {
+    const idReal = pedido.id || pedido.pedido_id;
+    const loadingToast = toast.loading("Enviando pedido para o Omie...");
+    
+    try {
+      const tenantId = obterTenantSeguro();
+      const res = await fetch(`${getHubUrl()}/api/hub/pedidos/enviar-omie`, {
+        method: 'POST',
+        headers: { ...getHeaders(), "x-tenant-id": tenantId },
+        body: JSON.stringify({ pedido_id: idReal, integracao_id: activeTabObj.id })
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        toast.success(`Sucesso! Pedido gerado no Omie: ${data.numero_omie}`, { id: loadingToast });
+        carregarPedidos(); // Atualiza a tabela para mostrar o novo status "Integrado"
+      } else {
+        toast.error(data.message || "Falha ao enviar para o Omie.", { id: loadingToast });
+      }
+    } catch (error) {
+      toast.error("Erro de comunicação com a nuvem.", { id: loadingToast });
+    }
+  };
+
+  // 🟢 FUNÇÃO LEGADA: Download de CSV (Mantida para Oracle/Woo)
   const handleBaixarCSV = (pedido) => {
     let csvContent = 'SKU;Quantidade;"Preço Unitário"\n';
     const itensExportar = pedido.line_items || pedido.itens || [];
@@ -155,6 +187,19 @@ export default function Pedidos() {
     setBaixados(novosBaixados);
     localStorage.setItem("raizan_pedidos_baixados", JSON.stringify(novosBaixados));
     toast.success("Arquivo CSV exportado!");
+  };
+
+  // 🟢 BOTÃO DE AÇÃO DINÂMICO BLINDADO
+  const handleAcaoPrimaria = (pedido) => {
+    // Nós varremos todas as opções possíveis que o banco de dados pode ter cuspido:
+    const textoChave = String(activeTabObj?.plataforma || activeTabObj?.tipo || activeTabObj?.iconType || '').toLowerCase();
+    const isOmie = textoChave.includes('omie');
+
+    if (isOmie) {
+      handleSincronizarOmie(pedido);
+    } else {
+      handleBaixarCSV(pedido);
+    }
   };
 
   return (
@@ -197,8 +242,9 @@ export default function Pedidos() {
               onPageChange={setPage} 
               onRowClick={setPedidoSelecionado} 
               baixados={baixados} 
-              onDownload={handleBaixarCSV} 
+              onDownload={handleAcaoPrimaria} // 🟢 Passamos a função dinâmica aqui!
               activeTab={activeTabObj?.id} 
+              plataformaAtiva={activeTabObj?.tipo || activeTabObj?.iconType} // Opcional: Pra sua tabela mudar o nome do botão se quiser
             />
           </div>
         </main>

@@ -2,13 +2,27 @@ import { ShoppingBag, Store, Globe } from "lucide-react";
 
 export default function TabsLojas({ integracoesInstaladas, activeTab, onTabChange }) {
   
-  // O Mapeador de Ícones
-  const getIcon = (iconType) => {
-    if (iconType === 'oracle') return <img src="/oracle.svg" alt="Oracle" className="w-8 h-8 object-contain" />;
-    if (iconType === 'woo') return <img src="/woocommerce.svg" alt="Woo" className="w-8 h-8 object-contain" />;
-    if (iconType === 'raizan') return <img src="/raizan.png" alt="Raizan" className="w-8 h-8 object-contain" />;
-    if (iconType === 'shopee') return <ShoppingBag size={24} className="text-orange-500" />;
-    if (iconType === 'meli') return <Store size={24} className="text-amber-500" />;
+  // 🟢 O Mapeador de Ícones BLINDADO E ATUALIZADO
+  const getIcon = (tab) => {
+    // A MÁGICA: Priorizamos a 'plataforma' verdadeira e ignoramos o iconType 'woo' salvo errado no banco!
+    const key = String(tab.plataforma || tab.tipo || tab.iconType || '').toLowerCase();
+
+    // 🟢 ERPs & Plataformas (Verifica se a palavra chave existe na string)
+    if (key.includes('oracle')) return <img src="/oracle.svg" alt="Oracle" className="w-8 h-8 object-contain" />;
+    if (key.includes('omie')) return <img src="/omie.png" alt="Omie" className="w-8 h-8 object-contain" />;
+    
+    // 🟢 Tiny e Olist adicionados! (Salve o tiny.png ou tiny.svg na pasta public)
+    if (key.includes('tiny')) return <img src="/olist.svg" alt="Tiny" className="w-8 h-8 object-contain" />;
+    if (key.includes('olist')) return <img src="/olist.svg" alt="Olist" className="w-8 h-8 object-contain" />;
+    
+    if (key.includes('woo')) return <img src="/woocommerce.svg" alt="Woo" className="w-8 h-8 object-contain" />;
+    if (key.includes('raizan') || key.includes('b2b')) return <img src="/oracle.svg" alt="Raizan" className="w-8 h-8 object-contain" />;
+    
+    // 🟢 Marketplaces
+    if (key.includes('shopee')) return <ShoppingBag size={24} className="text-orange-500" />;
+    if (key.includes('meli') || key.includes('mercado')) return <Store size={24} className="text-amber-500" />;
+    
+    // Fallback padrão se não achar nenhum
     return <Globe size={24} className="text-zinc-500" />;
   };
 
@@ -39,16 +53,16 @@ export default function TabsLojas({ integracoesInstaladas, activeTab, onTabChang
   return (
     <div className="flex gap-4 pb-4 overflow-x-auto no-scrollbar snap-x">
       {integracoesInstaladas.map(tab => {
-        // Agora o activeTab é o ID único do card (para lidar com 2 lojas woo ao mesmo tempo)
         const isActive = activeTab === tab.id; 
         return (
           <button
             key={tab.id}
-            onClick={() => onTabChange(tab)} // Mandamos o objeto inteiro pro painel pai!
+            onClick={() => onTabChange(tab)} 
             className={`snap-start flex-shrink-0 flex items-center gap-3 p-3 min-w-[260px] rounded-2xl border-2 transition-all duration-300 text-left ${getCardClasses(tab.theme, isActive)}`}
           >
             <div className="w-12 h-12 rounded-xl flex items-center justify-center p-2 bg-white dark:bg-[#0c0c0e] shadow-sm border border-zinc-100 dark:border-zinc-800">
-              {getIcon(tab.iconType)}
+              {/* 🟢 Mandamos o objeto inteiro pro getIcon agora! */}
+              {getIcon(tab)} 
             </div>
             <div className="flex flex-col items-start overflow-hidden w-full">
               <span className={`text-sm font-black truncate w-full ${getCardTextClasses(tab.theme, isActive)}`}>

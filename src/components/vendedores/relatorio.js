@@ -1,73 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   TrendingUp, Users, UserPlus, UserCheck, AlertTriangle, 
-  MapPin, ShoppingBag, DollarSign, Award, CalendarDays,
-  Download, Maximize2, X
+  MapPin, ShoppingBag, Award, CalendarDays,
+  Download, Maximize2, X, RefreshCw
 } from "lucide-react";
 import { 
   ResponsiveContainer, AreaChart, Area, BarChart, Bar, 
   XAxis, YAxis, Tooltip, PieChart, Pie, Cell, CartesianGrid
 } from "recharts";
 import toast from "react-hot-toast";
+import { getHubUrl, getHeaders } from "@/components/utils/api";
 
-// 🟢 MOCKS: DADOS DO ERP OMIE
-const carteiraKPIs = {
-  totalBase: 154,
-  atendidosMes: 89,
-  novosMes: 12,
-  positivados: 65,
-  inativos: 23 // > 60 dias
-};
+const CORES_RESERVA = ["#4f46e5", "#10b981", "#f59e0b", "#ec4899", "#6366f1", "#8b5cf6", "#14b8a6"];
 
-const vendasGeralMensal = [
-  { mes: "Mar", valor: 42000 },
-  { mes: "Abr", valor: 55000 },
-  { mes: "Mai", valor: 48000 },
-  { mes: "Jun", valor: 61000 },
-  { mes: "Jul", valor: 59000 },
-  { mes: "Ago", valor: 74500 },
-];
-
-const vendasDiarias = [
-  { dia: "01", valor: 1200 }, { dia: "05", valor: 3500 },
-  { dia: "10", valor: 2800 }, { dia: "15", valor: 5100 },
-  { dia: "20", valor: 4200 }, { dia: "25", valor: 6800 },
-  { dia: "30", valor: 8500 },
-];
-
-const vendasPorMarca = [
-  { name: "Wella Prof.", value: 35000, color: "#4f46e5" }, // Indigo
-  { name: "Truss Hair", value: 25000, color: "#10b981" },  // Emerald
-  { name: "L'Oréal", value: 15000, color: "#f59e0b" },     // Amber
-  { name: "Kérastase", value: 10000, color: "#ec4899" },   // Pink
-  { name: "Outros", value: 5000, color: "#6366f1" },       // Indigo Light
-];
-
-const vendasPorCidade = [
-  { cidade: "Goiânia", valor: 45000 },
-  { cidade: "Aparecida de G.", valor: 22000 },
-  { cidade: "Anápolis", valor: 15000 },
-  { cidade: "Senador Canedo", valor: 8000 },
-];
-
-const topProdutos = [
-  { id: 1, nome: "Kit Wella Fusion Profissional", qtd: 45, valor: 12500, margem: "35%" },
-  { id: 2, nome: "Truss Net Mask 500g", qtd: 120, valor: 9800, margem: "42%" },
-  { id: 3, nome: "L'Oréal Absolut Repair Shampoo", qtd: 85, valor: 7600, margem: "38%" },
-];
-
-const topClientes = [
-  { id: 1, nome: "Salão Beleza Pura", pedidos: 4, valor: 8500, ticket: 2125 },
-  { id: 2, nome: "Studio Hair Design", pedidos: 2, valor: 5200, ticket: 2600 },
-  { id: 3, nome: "Barbearia do Zé", pedidos: 6, valor: 4800, ticket: 800 },
-];
-
-// Tooltip Customizado para os Gráficos
+// ==========================================
+// COMPONENTES MENORES
+// ==========================================
 const CustomTooltip = ({ active, payload, label }) => {
-  if (active && payload && payload.length) {
+  if (active && payload && payload.length && payload[0].value !== undefined) {
     return (
       <div className="bg-zinc-900/90 backdrop-blur-md border border-zinc-700 p-3 rounded-xl shadow-xl">
         <p className="text-zinc-300 text-xs font-bold mb-1">{label}</p>
@@ -80,19 +33,132 @@ const CustomTooltip = ({ active, payload, label }) => {
   return null;
 };
 
+const CardKPI = ({ titulo, valor, icon: Icon, bdClass, txtClass, icnClass, valClass }) => (
+  <div className={`bg-white dark:bg-[#121214] border rounded-xl p-4 shadow-sm flex flex-col justify-between ${bdClass}`}>
+    <div className="flex justify-between items-start mb-2">
+      <span dangerouslySetInnerHTML={{ __html: titulo }} className={`text-[10px] font-bold uppercase tracking-wider leading-tight ${txtClass}`} />
+      <Icon size={16} className={icnClass} />
+    </div>
+    <h3 className={`text-xl sm:text-2xl font-black ${valClass}`}>{valor}</h3>
+  </div>
+);
+
+const GraficoContainer = ({ titulo, icon: Icon, icnClass, onExpand, extraHead, children, isDonut }) => (
+  <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-5 shadow-sm group flex flex-col">
+    <div className="flex justify-between items-center mb-6">
+      <h4 className="font-bold text-zinc-900 dark:text-white flex items-center gap-2">
+        <Icon size={18} className={icnClass}/> {titulo}
+      </h4>
+      <div className="flex items-center gap-3">
+        {extraHead}
+        {onExpand && (
+          <button onClick={onExpand} className="text-zinc-400 hover:text-blue-500 transition-colors p-1 opacity-0 group-hover:opacity-100" title="Expandir">
+            <Maximize2 size={16} />
+          </button>
+        )}
+      </div>
+    </div>
+    <div className={`w-full ${isDonut ? 'flex-1' : 'h-[250px]'}`}>
+      {children}
+    </div>
+  </div>
+);
+
+const TabelaContainer = ({ titulo, icon: Icon, icnClass, thead, tbody }) => (
+  <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-sm overflow-hidden flex flex-col">
+    <div className="p-5 border-b border-zinc-100 dark:border-zinc-800">
+      <h4 className="font-bold text-zinc-900 dark:text-white flex items-center gap-2">
+        <Icon size={18} className={icnClass}/> {titulo}
+      </h4>
+    </div>
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm text-left">
+        <thead className="bg-zinc-50 dark:bg-[#0c0c0e] text-xs uppercase text-zinc-500">
+          <tr>{thead}</tr>
+        </thead>
+        <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/50">
+          {tbody}
+        </tbody>
+      </table>
+    </div>
+  </div>
+);
+
+// ==========================================
+// COMPONENTE PRINCIPAL
+// ==========================================
 export default function TabVisaoGeral({ vendedor }) {
-  // Estado para controlar o modal de tela cheia dos gráficos
   const [graficoExpandido, setGraficoExpandido] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [dados, setDados] = useState(null);
+
+  useEffect(() => {
+    async function carregarDadosRelatorio() {
+      if (!vendedor?.id) return;
+
+      setLoading(true);
+      try {
+        const tenant_id = JSON.parse(localStorage.getItem("@raizan:user"))?.tenant_id;
+        
+        // REQUISIÇÃO REAL PRO BACKEND
+        const res = await fetch(`${getHubUrl()}/api/hub/vendedores/${vendedor.id}/relatorio?tenant_id=${tenant_id}`, {
+          headers: getHeaders()
+        });
+        
+        const data = await res.json();
+
+        if (data.success && data.relatorio) {
+          setDados(data.relatorio);
+        } else {
+          toast.error("Erro ao carregar dados do ERP.");
+          setDados(null);
+        }
+      } catch (error) {
+        console.error("Erro ao comunicar com a API do Relatório:", error);
+        toast.error("Falha de conexão com o Servidor.");
+        setDados(null);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    carregarDadosRelatorio();
+  }, [vendedor]);
 
   const handleExportarPDF = () => {
-    const toastId = toast.loading("Gerando PDF do relatório...");
-    setTimeout(() => {
-      toast.success("Relatório baixado com sucesso!", { id: toastId });
-      // Lógica real de exportação entra aqui (ex: jsPDF, html2canvas)
-    }, 2000);
+    toast.success("Módulo de PDF em desenvolvimento.");
   };
 
-  // Função para não repetir o código do gráfico na tela cheia
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-32 text-zinc-500">
+        <RefreshCw size={32} className="animate-spin mb-4 text-blue-500" />
+        <p className="font-bold uppercase tracking-widest text-xs">Analisando Vendas no ERP...</p>
+      </div>
+    );
+  }
+
+  if (!dados) {
+    return (
+      <div className="flex flex-col items-center justify-center py-32 text-zinc-500 text-center">
+        <AlertTriangle size={32} className="mb-4 text-rose-500" />
+        <p className="font-bold uppercase tracking-widest text-sm text-zinc-900 dark:text-white">Nenhum dado encontrado</p>
+        <p className="text-xs mt-2">O vendedor não possui histórico de vendas ou ocorreu um erro.</p>
+      </div>
+    );
+  }
+
+  // 🟢 DADOS 100% REAIS VINDO DA SUA API
+  const { 
+    carteiraKPIs = { totalBase: 0, atendidosMes: 0, novosMes: 0, positivados: 0, inativos: 0 }, 
+    vendasGeralMensal = [], 
+    vendasDiarias = [], 
+    vendasPorMarca = [], 
+    vendasPorCidade = [], 
+    topProdutos = [], 
+    topClientes = [] 
+  } = dados;
+
   const renderGrafico = (id) => {
     switch (id) {
       case 'mensal':
@@ -135,7 +201,7 @@ export default function TabVisaoGeral({ vendedor }) {
             <PieChart>
               <Pie data={vendasPorMarca} innerRadius={graficoExpandido ? 120 : 60} outerRadius={graficoExpandido ? 160 : 80} paddingAngle={5} dataKey="value" stroke="none">
                 {vendasPorMarca.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
+                  <Cell key={`cell-${index}`} fill={entry.color || CORES_RESERVA[index % CORES_RESERVA.length]} />
                 ))}
               </Pie>
               <Tooltip content={<CustomTooltip />} />
@@ -159,12 +225,9 @@ export default function TabVisaoGeral({ vendedor }) {
   };
 
   return (
-    <motion.div 
-      initial={{ opacity: 0, y: 10 }} 
-      animate={{ opacity: 1, y: 0 }} 
-      className="space-y-6 pb-10"
-    >
-      {/* 🟢 CABEÇALHO DO RELATÓRIO */}
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 pb-10">
+      
+      {/* CABEÇALHO */}
       <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-5 flex flex-wrap items-center justify-between shadow-sm gap-4">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400">
@@ -172,232 +235,122 @@ export default function TabVisaoGeral({ vendedor }) {
           </div>
           <div>
             <h3 className="font-bold text-lg text-zinc-900 dark:text-white">Desempenho Comercial</h3>
-            <p className="text-sm text-zinc-500 dark:text-zinc-400">
-              Relatório de vendas e carteira sincronizado.
-            </p>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">Relatório de vendas de {vendedor?.nome || 'Vendedor'}.</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <div className="bg-zinc-50 dark:bg-[#0c0c0e]/50 border border-zinc-200 dark:border-zinc-800 px-4 py-2.5 rounded-xl text-sm font-bold text-zinc-700 dark:text-zinc-300 flex items-center gap-2">
-            <CalendarDays size={16} className="text-blue-500"/> Agosto 2026
+            <CalendarDays size={16} className="text-blue-500"/> Mês Atual
           </div>
-          <button 
-            onClick={handleExportarPDF}
-            className="bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-900 px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-all shadow-md"
-          >
+          <button onClick={handleExportarPDF} className="bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-900 px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-all shadow-md">
             <Download size={16} /> PDF
           </button>
         </div>
       </div>
 
-      {/* 🟢 KPIS DE CARTEIRA DE CLIENTES (Design Harmonizado e Compacto) */}
+      {/* KPIS DE CARTEIRA */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-        <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 shadow-sm flex flex-col justify-between">
-          <div className="flex justify-between items-start mb-2">
-            <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider leading-tight">Total<br/>Base</span>
-            <Users size={16} className="text-zinc-400" />
-          </div>
-          <h3 className="text-xl sm:text-2xl font-black text-zinc-900 dark:text-white">{carteiraKPIs.totalBase}</h3>
-        </div>
-
-        <div className="bg-white dark:bg-[#121214] border border-blue-200 dark:border-blue-500/30 rounded-xl p-4 shadow-sm flex flex-col justify-between">
-          <div className="flex justify-between items-start mb-2">
-            <span className="text-[10px] font-bold text-blue-600/70 dark:text-blue-400/70 uppercase tracking-wider leading-tight">Atendidos<br/>(Mês)</span>
-            <ShoppingBag size={16} className="text-blue-500" />
-          </div>
-          <h3 className="text-xl sm:text-2xl font-black text-blue-600 dark:text-blue-400">{carteiraKPIs.atendidosMes}</h3>
-        </div>
-
-        <div className="bg-white dark:bg-[#121214] border border-emerald-200 dark:border-emerald-500/30 rounded-xl p-4 shadow-sm flex flex-col justify-between">
-          <div className="flex justify-between items-start mb-2">
-            <span className="text-[10px] font-bold text-emerald-600/70 dark:text-emerald-400/70 uppercase tracking-wider leading-tight">Novos<br/>Clientes</span>
-            <UserPlus size={16} className="text-emerald-500" />
-          </div>
-          <h3 className="text-xl sm:text-2xl font-black text-emerald-600 dark:text-emerald-400">+{carteiraKPIs.novosMes}</h3>
-        </div>
-
-        <div className="bg-white dark:bg-[#121214] border border-purple-200 dark:border-purple-500/30 rounded-xl p-4 shadow-sm flex flex-col justify-between">
-          <div className="flex justify-between items-start mb-2">
-            <span className="text-[10px] font-bold text-purple-600/70 dark:text-purple-400/70 uppercase tracking-wider leading-tight">Clientes<br/>Positivados</span>
-            <UserCheck size={16} className="text-purple-500" />
-          </div>
-          <h3 className="text-xl sm:text-2xl font-black text-purple-600 dark:text-purple-400">{carteiraKPIs.positivados}</h3>
-        </div>
-
-        <div className="bg-white dark:bg-[#121214] border border-rose-200 dark:border-rose-500/30 rounded-xl p-4 shadow-sm flex flex-col justify-between">
-          <div className="flex justify-between items-start mb-2">
-            <span className="text-[10px] font-bold text-rose-600/70 dark:text-rose-400/70 uppercase tracking-wider leading-tight">Inativos<br/>{'>'} 60 dias</span>
-            <AlertTriangle size={16} className="text-rose-500" />
-          </div>
-          <h3 className="text-xl sm:text-2xl font-black text-rose-600 dark:text-rose-400">{carteiraKPIs.inativos}</h3>
-        </div>
+        <CardKPI titulo="Total<br/>Base" valor={carteiraKPIs.totalBase} icon={Users} bdClass="border-zinc-200 dark:border-zinc-800" txtClass="text-zinc-500" icnClass="text-zinc-400" valClass="text-zinc-900 dark:text-white" />
+        <CardKPI titulo="Atendidos<br/>(Mês)" valor={carteiraKPIs.atendidosMes} icon={ShoppingBag} bdClass="border-blue-200 dark:border-blue-500/30" txtClass="text-blue-600/70 dark:text-blue-400/70" icnClass="text-blue-500" valClass="text-blue-600 dark:text-blue-400" />
+        <CardKPI titulo="Novos<br/>Clientes" valor={`+${carteiraKPIs.novosMes}`} icon={UserPlus} bdClass="border-emerald-200 dark:border-emerald-500/30" txtClass="text-emerald-600/70 dark:text-emerald-400/70" icnClass="text-emerald-500" valClass="text-emerald-600 dark:text-emerald-400" />
+        <CardKPI titulo="Clientes<br/>Positivados" valor={carteiraKPIs.positivados} icon={UserCheck} bdClass="border-purple-200 dark:border-purple-500/30" txtClass="text-purple-600/70 dark:text-purple-400/70" icnClass="text-purple-500" valClass="text-purple-600 dark:text-purple-400" />
+        <CardKPI titulo="Inativos<br/>> 60 dias" valor={carteiraKPIs.inativos} icon={AlertTriangle} bdClass="border-rose-200 dark:border-rose-500/30" txtClass="text-rose-600/70 dark:text-rose-400/70" icnClass="text-rose-500" valClass="text-rose-600 dark:text-rose-400" />
       </div>
 
-      {/* 🟢 GRÁFICOS EMPILHADOS VERTICALMENTE (MELHOR PARA OFFCANVAS) */}
+      {/* GRÁFICOS */}
       <div className="flex flex-col gap-6">
-        
-        {/* Gráfico 1: Mensal (Barras) */}
-        <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-5 shadow-sm group">
-          <div className="flex justify-between items-center mb-6">
-            <h4 className="font-bold text-zinc-900 dark:text-white flex items-center gap-2">
-              <TrendingUp size={18} className="text-blue-500"/> Faturamento Mensal (Últimos 6 meses)
-            </h4>
-            <button onClick={() => setGraficoExpandido('mensal')} className="text-zinc-400 hover:text-blue-500 transition-colors p-1 opacity-0 group-hover:opacity-100" title="Expandir">
-              <Maximize2 size={16} />
-            </button>
-          </div>
-          <div className="h-[250px] w-full">
-            {renderGrafico('mensal')}
-          </div>
-        </div>
+        <GraficoContainer titulo="Faturamento Mensal (Últimos 6 meses)" icon={TrendingUp} icnClass="text-blue-500" onExpand={() => setGraficoExpandido('mensal')}>
+          {renderGrafico('mensal')}
+        </GraficoContainer>
 
-        {/* Gráfico 2: Diário (Área) */}
-        <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-5 shadow-sm group">
-          <div className="flex justify-between items-center mb-6">
-            <h4 className="font-bold text-zinc-900 dark:text-white flex items-center gap-2">
-              <CalendarDays size={18} className="text-indigo-500"/> Vendas Diárias (Mês Atual)
-            </h4>
-            <div className="flex items-center gap-3">
-              <span className="text-xs bg-indigo-500/20 text-indigo-400 px-2 py-1 rounded-md font-bold">Média: R$ 4.2K/dia</span>
-              <button onClick={() => setGraficoExpandido('diario')} className="text-zinc-400 hover:text-indigo-500 transition-colors p-1 opacity-0 group-hover:opacity-100" title="Expandir">
-                <Maximize2 size={16} />
-              </button>
-            </div>
-          </div>
-          <div className="h-[250px] w-full">
-             {renderGrafico('diario')}
-          </div>
-        </div>
+        <GraficoContainer titulo="Vendas Diárias (Mês Atual)" icon={CalendarDays} icnClass="text-indigo-500" onExpand={() => setGraficoExpandido('diario')}>
+          {renderGrafico('diario')}
+        </GraficoContainer>
 
-        {/* Gráfico 3: Marcas (Donut) */}
-        <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-5 shadow-sm flex flex-col group">
-          <div className="flex justify-between items-center mb-2">
-            <h4 className="font-bold text-zinc-900 dark:text-white flex items-center gap-2">
-              <Award size={18} className="text-amber-500"/> Faturamento por Marca
-            </h4>
-            <button onClick={() => setGraficoExpandido('marca')} className="text-zinc-400 hover:text-amber-500 transition-colors p-1 opacity-0 group-hover:opacity-100" title="Expandir">
-              <Maximize2 size={16} />
-            </button>
-          </div>
-          <div className="flex-1 flex flex-col sm:flex-row items-center justify-between gap-6">
-            <div className="h-[200px] w-full sm:w-[200px] shrink-0">
+        <GraficoContainer titulo="Faturamento por Marca" icon={Award} icnClass="text-amber-500" onExpand={() => setGraficoExpandido('marca')} isDonut>
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-6 h-[200px]">
+            <div className="h-full w-full sm:w-[200px] shrink-0">
                {renderGrafico('marca')}
             </div>
-            <div className="w-full grid grid-cols-2 gap-3 sm:block sm:space-y-3">
+            <div className="w-full grid grid-cols-2 gap-3 sm:block sm:space-y-3 overflow-y-auto custom-scrollbar pr-2 h-full">
               {vendasPorMarca.map((marca, i) => (
                 <div key={i} className="flex items-center justify-between text-sm bg-zinc-50 dark:bg-zinc-800/30 p-2 sm:p-0 sm:bg-transparent rounded-lg sm:rounded-none">
                   <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: marca.color }}></div>
+                    <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: marca.color || CORES_RESERVA[i % CORES_RESERVA.length] }}></div>
                     <span className="text-zinc-600 dark:text-zinc-300 font-medium truncate max-w-[100px]">{marca.name}</span>
                   </div>
-                  <span className="font-bold text-zinc-900 dark:text-white">R$ {(marca.value/1000).toFixed(1)}k</span>
+                  <span className="font-bold text-zinc-900 dark:text-white shrink-0">R$ {(marca.value/1000).toFixed(1)}k</span>
                 </div>
               ))}
             </div>
           </div>
-        </div>
+        </GraficoContainer>
 
-        {/* Gráfico 4: Cidades (Barras Horizontais) */}
-        <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-5 shadow-sm group">
-          <div className="flex justify-between items-center mb-6">
-            <h4 className="font-bold text-zinc-900 dark:text-white flex items-center gap-2">
-              <MapPin size={18} className="text-emerald-500"/> Mapa de Calor (Cidades)
-            </h4>
-            <button onClick={() => setGraficoExpandido('cidade')} className="text-zinc-400 hover:text-emerald-500 transition-colors p-1 opacity-0 group-hover:opacity-100" title="Expandir">
-              <Maximize2 size={16} />
-            </button>
-          </div>
-          <div className="h-[250px] w-full">
-            {renderGrafico('cidade')}
-          </div>
-        </div>
-
+        <GraficoContainer titulo="Mapa de Calor (Cidades)" icon={MapPin} icnClass="text-emerald-500" onExpand={() => setGraficoExpandido('cidade')}>
+          {renderGrafico('cidade')}
+        </GraficoContainer>
       </div>
 
-      {/* 🟢 TABELAS: TOP PRODUTOS E RANKING DE CLIENTES (Empilhadas) */}
+      {/* TABELAS */}
       <div className="flex flex-col gap-6 mt-6">
-        
-        {/* TOP PRODUTOS */}
-        <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-sm overflow-hidden flex flex-col">
-          <div className="p-5 border-b border-zinc-100 dark:border-zinc-800">
-            <h4 className="font-bold text-zinc-900 dark:text-white flex items-center gap-2">
-              <ShoppingBag size={18} className="text-purple-500"/> Curva A - Top Produtos
-            </h4>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
-              <thead className="bg-zinc-50 dark:bg-[#0c0c0e] text-xs uppercase text-zinc-500">
-                <tr>
-                  <th className="px-5 py-3 font-bold">Produto</th>
-                  <th className="px-5 py-3 font-bold text-center">Qtd</th>
-                  <th className="px-5 py-3 font-bold text-right">Valor Total</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/50">
-                {topProdutos.map((prod) => (
-                  <tr key={prod.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors">
-                    <td className="px-5 py-4 font-medium text-zinc-800 dark:text-zinc-200 truncate max-w-[200px]">{prod.nome}</td>
-                    <td className="px-5 py-4 text-center text-zinc-500 dark:text-zinc-400">{prod.qtd}</td>
-                    <td className="px-5 py-4 text-right font-bold text-purple-600 dark:text-purple-400">R$ {prod.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <TabelaContainer 
+          titulo="Curva A - Top Produtos" icon={ShoppingBag} icnClass="text-purple-500"
+          thead={
+            <>
+              <th className="px-5 py-3 font-bold">Produto</th>
+              <th className="px-5 py-3 font-bold text-center">Qtd</th>
+              <th className="px-5 py-3 font-bold text-right">Valor Total</th>
+            </>
+          }
+          tbody={
+            topProdutos.map((prod, i) => (
+              <tr key={i} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors">
+                <td className="px-5 py-4 font-medium text-zinc-800 dark:text-zinc-200 truncate max-w-[200px]" title={prod.nome}>{prod.nome}</td>
+                <td className="px-5 py-4 text-center text-zinc-500 dark:text-zinc-400">{prod.qtd}</td>
+                <td className="px-5 py-4 text-right font-bold text-purple-600 dark:text-purple-400">R$ {prod.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+              </tr>
+            ))
+          }
+        />
 
-        {/* RANKING DE CLIENTES */}
-        <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-sm overflow-hidden flex flex-col">
-          <div className="p-5 border-b border-zinc-100 dark:border-zinc-800">
-            <h4 className="font-bold text-zinc-900 dark:text-white flex items-center gap-2">
-              <Users size={18} className="text-orange-500"/> Top Clientes do Mês
-            </h4>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
-              <thead className="bg-zinc-50 dark:bg-[#0c0c0e] text-xs uppercase text-zinc-500">
-                <tr>
-                  <th className="px-5 py-3 font-bold">Cliente</th>
-                  <th className="px-5 py-3 font-bold text-center">Pedidos</th>
-                  <th className="px-5 py-3 font-bold text-right">Faturamento</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/50">
-                {topClientes.map((cli, idx) => (
-                  <tr key={cli.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors">
-                    <td className="px-5 py-4 font-medium text-zinc-800 dark:text-zinc-200">
-                      <div className="flex items-center gap-2">
-                        <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${idx === 0 ? 'bg-amber-100 text-amber-600' : idx === 1 ? 'bg-zinc-200 text-zinc-600' : idx === 2 ? 'bg-orange-100 text-orange-600' : 'bg-zinc-800 text-zinc-400'}`}>
-                          {idx + 1}
-                        </span>
-                        <span className="truncate max-w-[150px]">{cli.nome}</span>
-                      </div>
-                    </td>
-                    <td className="px-5 py-4 text-center text-zinc-500 dark:text-zinc-400">{cli.pedidos}</td>
-                    <td className="px-5 py-4 text-right font-bold text-emerald-600 dark:text-emerald-400">R$ {cli.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
+        <TabelaContainer 
+          titulo="Top Clientes do Mês" icon={Users} icnClass="text-orange-500"
+          thead={
+            <>
+              <th className="px-5 py-3 font-bold">Cliente</th>
+              <th className="px-5 py-3 font-bold text-center">Pedidos</th>
+              <th className="px-5 py-3 font-bold text-right">Faturamento</th>
+            </>
+          }
+          tbody={
+            topClientes.map((cli, idx) => (
+              <tr key={idx} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors">
+                <td className="px-5 py-4 font-medium text-zinc-800 dark:text-zinc-200">
+                  <div className="flex items-center gap-2">
+                    <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${idx === 0 ? 'bg-amber-100 text-amber-600' : idx === 1 ? 'bg-zinc-200 text-zinc-600' : idx === 2 ? 'bg-orange-100 text-orange-600' : 'bg-zinc-800 text-zinc-400'}`}>
+                      {idx + 1}
+                    </span>
+                    <span className="truncate max-w-[150px]" title={cli.nome}>{cli.nome}</span>
+                  </div>
+                </td>
+                <td className="px-5 py-4 text-center text-zinc-500 dark:text-zinc-400">{cli.pedidos}</td>
+                <td className="px-5 py-4 text-right font-bold text-emerald-600 dark:text-emerald-400">R$ {cli.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+              </tr>
+            ))
+          }
+        />
       </div>
 
-      {/* 🟢 MODAL TELA CHEIA (FULLSCREEN CHART) */}
+      {/* MODAL TELA CHEIA */}
       <AnimatePresence>
         {graficoExpandido && (
           <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 sm:p-8 bg-black/90 backdrop-blur-md">
             <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }} 
-              animate={{ opacity: 1, scale: 1 }} 
-              exit={{ opacity: 0, scale: 0.95 }} 
+              initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} 
               className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-3xl w-full h-full max-h-screen shadow-2xl flex flex-col overflow-hidden"
             >
               <div className="flex justify-between items-center p-6 border-b border-zinc-200 dark:border-zinc-800">
-                <h3 className="text-xl font-black text-zinc-900 dark:text-white uppercase tracking-wider">
-                  Visualização Expandida
-                </h3>
+                <h3 className="text-xl font-black text-zinc-900 dark:text-white uppercase tracking-wider">Visualização Expandida</h3>
                 <button onClick={() => setGraficoExpandido(null)} className="p-2 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-500 rounded-full transition-colors">
                   <X size={24} />
                 </button>

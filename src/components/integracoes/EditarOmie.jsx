@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-// 🟢 Adicionados Loader2 e CreditCard para o Seletor de Contas!
-import { Database, RefreshCw, ShoppingCart, Users, Receipt, Briefcase, Clock, Save, X, Zap, Loader2, CreditCard } from "lucide-react";
+// 🟢 Adicionado 'Tag' para o ícone de Marcas
+import { Database, RefreshCw, ShoppingCart, Users, Receipt, Briefcase, Clock, Save, X, Zap, Loader2, CreditCard, Tag } from "lucide-react";
 import toast from 'react-hot-toast';
 
 export default function EditarOmie({ integracao, onCancel, onSuccess }) {
@@ -27,8 +27,9 @@ export default function EditarOmie({ integracao, onCancel, onSuccess }) {
     sync_produtos: true,
     sync_financeiro: false,
     sync_vendedores: true,
+    sync_marcas: true, // 🟢 NOVA CHAVINHA DE MARCAS!
     auto_enviar_pedidos: false, 
-    conta_padrao: "", // 🟢 AQUI ESTÁ A VARIÁVEL DA CONTA
+    conta_padrao: "", 
   });
 
   useEffect(() => {
@@ -68,8 +69,9 @@ export default function EditarOmie({ integracao, onCancel, onSuccess }) {
       sync_produtos: configParsed.sync_produtos ?? true,
       sync_financeiro: configParsed.sync_financeiro ?? false,
       sync_vendedores: configParsed.sync_vendedores ?? true,
+      sync_marcas: configParsed.sync_marcas ?? true, // 🟢 RECUPERA DA NUVEM (Padrão: true)
       auto_enviar_pedidos: configParsed.auto_enviar_pedidos ?? false,
-      conta_padrao: configParsed.conta_padrao || "", // 🟢 RECUPERA DA NUVEM
+      conta_padrao: configParsed.conta_padrao || "", 
     }));
   }, [integracao]);
 
@@ -243,7 +245,9 @@ export default function EditarOmie({ integracao, onCancel, onSuccess }) {
                 { key: 'sync_pedidos', title: 'Pedidos de Venda', desc: 'Injeta pedidos no ERP.', icon: <ShoppingCart size={18} />, color: 'emerald' },
                 { key: 'sync_produtos', title: 'Produtos & Estoque', desc: 'Baixa preços e estoque.', icon: <Database size={18} />, color: 'purple' },
                 { key: 'sync_vendedores', title: 'Força de Vendas', desc: 'Importa vendedores.', icon: <Briefcase size={18} />, color: 'orange' },
-                { key: 'sync_financeiro', title: 'Financeiro (Boletos)', desc: 'Lê pendências.', icon: <Receipt size={18} />, color: 'rose' }
+                { key: 'sync_financeiro', title: 'Financeiro (Boletos)', desc: 'Lê pendências.', icon: <Receipt size={18} />, color: 'rose' },
+                // 🟢 A NOSSA NOVA CHAVINHA DE MARCAS AQUI!
+                { key: 'sync_marcas', title: 'Marcas & Famílias', desc: 'Importa famílias de produtos.', icon: <Tag size={18} />, color: 'pink' }
               ].map(item => (
                 <div key={item.key} className="flex items-center justify-between p-4 border border-zinc-200 dark:border-zinc-800 rounded-2xl">
                   <div className="flex items-center gap-3">

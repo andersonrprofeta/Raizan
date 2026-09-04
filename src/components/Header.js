@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { AlertTriangle, Bell, ShoppingCart, Tag, ArrowRight, Zap, X, Plus, Minus, Package, FileText, Menu, Sun, Moon, Loader2 } from "lucide-react";
+import { AlertTriangle, Bell, ShoppingCart, Tag, ArrowRight, Zap, X, Plus, Minus, Package, FileText, Menu, Sun, Moon, Loader2, Grip } from "lucide-react";
 import Link from "next/link";
 import { useTheme } from "next-themes";
 import { getApiUrl, getHeaders, getHubUrl } from "@/components/utils/api";
@@ -203,6 +203,9 @@ export default function Header() {
   const [listaOfertas, setListaOfertas] = useState([]);
   const [isCarrinhoModalOpen, setIsCarrinhoModalOpen] = useState(false);
   
+  // 🟢 ESTADO DO MENU WAFFLE (GOOGLE)
+  const [isWaffleOpen, setIsWaffleOpen] = useState(false);
+  
   const gerarIniciais = (nome) => {
     if (!nome) return "R";
     const partes = nome.trim().split(" ");
@@ -254,12 +257,18 @@ export default function Header() {
         isLojista = userObj.tipo === "lojista";
         
         if (isLojista) {
-          const nomeOficial = userObj.nome || userObj.RAZAO || userObj.razao_social || "Cliente B2B";
-          const primeiroNome = nomeOficial.trim().split(' ')[0];
+          let nomeOficial = userObj.nome || userObj.RAZAO || userObj.razao_social || "Cliente B2B";
+          
+          // 🟢 LIMPEZA DO CNPJ: Remove números, pontos, traços e barras do início
+          nomeOficial = nomeOficial.replace(/^[\d\.\-\/\s]+/, '').trim();
+          
+          // 🟢 FANTASIA MENOR: Pega até as duas primeiras palavras limpas
+          const palavras = nomeOficial.split(' ').filter(p => p.length > 0);
+          const nomeExibicao = palavras.length > 1 ? `${palavras[0]} ${palavras[1]}` : (palavras[0] || "Cliente");
 
-          setUserName(primeiroNome);
+          setUserName(nomeExibicao);
           setUserEmail(userObj.cnpj || userObj.email || ""); 
-          setUserInitial(gerarIniciais(primeiroNome));
+          setUserInitial(gerarIniciais(nomeExibicao));
         }
       } catch(e) {
         console.error("Erro ao ler Lojista:", e);
@@ -359,10 +368,16 @@ export default function Header() {
 
           if (data.ultimoPedido && data.ultimoPedido.id !== memoriaUltimoPedidoId) {
             try { new Audio('/plim.mp3').play().catch(()=>{}); } catch (e) {}
+            
+            // 🟢 AVISO DO SELLER: Identifica a origem do pedido para a notificação
+            const isSeller = data.ultimoPedido.origem === 'raizan_seller' || data.ultimoPedido.origem === 'app';
+            const nomeVendedor = data.ultimoPedido.vendedor_nome || data.ultimoPedido.vendedor || 'Vendedor';
+            const textoSeller = isSeller ? ` pelo Digital Seller (${nomeVendedor})` : '';
+
             try {
               if (Notification.permission === "granted") {
                 new Notification(`🛒 Pedido: ${data.ultimoPedido.nome}`, {
-                  body: `Pedido #${data.ultimoPedido.id} recebido!`,
+                  body: `Pedido #${data.ultimoPedido.id} recebido${textoSeller}!`,
                   icon: "https://raizan.com.br/wp-content/uploads/2024/02/favicon.png",
                   silent: true 
                 });
@@ -373,7 +388,9 @@ export default function Header() {
               <div className={`${t.visible ? 'animate-enter' : 'animate-leave'} max-w-md w-full bg-white dark:bg-[#0c0c0e]/90 backdrop-blur-xl shadow-[0_0_30px_rgba(16,185,129,0.15)] rounded-2xl pointer-events-auto flex ring-1 ring-emerald-500/30 p-4 border-l-4 border-emerald-500`}>
                 <div className="flex-1">
                   <p className="text-sm font-bold text-zinc-900 dark:text-white flex items-center gap-2"><ShoppingCart size={16} className="text-emerald-500 dark:text-emerald-400"/> Novo Pedido Registrado!</p>
-                  <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">O cliente <span className="font-bold text-emerald-600 dark:text-emerald-400">{data.ultimoPedido.nome}</span> fez uma compra (ID: {data.ultimoPedido.id}).</p>
+                  <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">
+                    O cliente <span className="font-bold text-emerald-600 dark:text-emerald-400">{data.ultimoPedido.nome}</span> fez uma compra{textoSeller} (ID: {data.ultimoPedido.id}).
+                  </p>
                 </div>
               </div>
             ), { duration: 6000 });
@@ -492,6 +509,44 @@ export default function Header() {
               >
                 {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
               </button>
+            )}
+
+            {/* 🟢 WAFFLE MENU DO SUPER APP (Apenas para Admin) */}
+            {userRole === "admin" && (
+              <div className="relative group shrink-0">
+                <button 
+                  onClick={() => setIsWaffleOpen(!isWaffleOpen)}
+                  onBlur={() => setTimeout(() => setIsWaffleOpen(false), 200)} 
+                  className="relative p-2 text-zinc-500 dark:text-zinc-400 hover:text-emerald-600 dark:hover:text-emerald-400 bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700/50 transition-all"
+                  title="Aplicativos Integrados"
+                >
+                  <Grip size={18} />
+                </button>
+
+                {isWaffleOpen && (
+                  <div className="absolute right-0 top-full mt-4 w-72 bg-white/95 dark:bg-[#121214]/95 backdrop-blur-xl border border-zinc-200 dark:border-zinc-800 rounded-2xl p-4 shadow-2xl ring-1 ring-black/5 dark:ring-white/5 z-[100] animate-in slide-in-from-top-2">
+                    <h4 className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-widest mb-3 border-b border-zinc-100 dark:border-zinc-800/50 pb-2">Seus Favoritos</h4>
+                    
+                    <div className="grid grid-cols-3 gap-2">
+                       <button 
+                          onMouseDown={() => window.dispatchEvent(new CustomEvent('abrirAppExterno', { detail: { nome: 'OMIE', url: 'https://app.omie.com.br/' }}))} 
+                          className="flex flex-col items-center justify-center p-3 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800/80 transition-colors gap-2"
+                       >
+                          <div className="w-10 h-10 rounded-full bg-[#001D4A] flex items-center justify-center text-white font-black text-xs shadow-sm">OM</div>
+                          <span className="text-[10px] font-bold text-zinc-700 dark:text-zinc-300">OMIE</span>
+                       </button>
+                       
+                       <button 
+                          onMouseDown={() => window.dispatchEvent(new CustomEvent('abrirAppExterno', { detail: { nome: 'Hostinger', url: 'https://mail.hostinger.com/' }}))} 
+                          className="flex flex-col items-center justify-center p-3 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800/80 transition-colors gap-2"
+                       >
+                          <div className="w-10 h-10 rounded-full bg-[#673DE6] flex items-center justify-center text-white font-black text-xs shadow-sm">@</div>
+                          <span className="text-[10px] font-bold text-zinc-700 dark:text-zinc-300">Webmail</span>
+                       </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
 
             {userRole === "admin" && diasRestantes !== null && diasRestantes <= 15 && diasRestantes > 0 && (

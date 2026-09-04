@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Database, Key, Link as LinkIcon, Fingerprint, RefreshCw, ShoppingCart, Users, Receipt, Briefcase, Clock, Save, Lock, Zap } from "lucide-react";
+// 🟢 Adicionado o ícone 'Tag' na importação
+import { Database, Key, Link as LinkIcon, Fingerprint, RefreshCw, ShoppingCart, Users, Receipt, Briefcase, Clock, Save, Lock, Zap, Tag } from "lucide-react";
 import toast from 'react-hot-toast';
 
 export default function FormOmie({ onCancel, onSuccess, integracaoEditar }) {
@@ -18,7 +19,8 @@ export default function FormOmie({ onCancel, onSuccess, integracaoEditar }) {
     sync_produtos: true,
     sync_financeiro: false,
     sync_vendedores: true,
-    auto_enviar_pedidos: false, // 🟢 AQUI ESTÁ NOSSA VARIÁVEL NOVA!
+    sync_marcas: true, // 🟢 NOVA CHAVINHA DE MARCAS
+    auto_enviar_pedidos: false, 
   });
 
   const isEditando = !!integracaoEditar;
@@ -52,7 +54,8 @@ export default function FormOmie({ onCancel, onSuccess, integracaoEditar }) {
         sync_produtos: configParsed.sync_produtos ?? true,
         sync_financeiro: configParsed.sync_financeiro ?? false,
         sync_vendedores: configParsed.sync_vendedores ?? true,
-        auto_enviar_pedidos: configParsed.auto_enviar_pedidos ?? false, // 🟢 RECUPERA NA EDIÇÃO
+        sync_marcas: configParsed.sync_marcas ?? true, // 🟢 RECUPERA NA EDIÇÃO
+        auto_enviar_pedidos: configParsed.auto_enviar_pedidos ?? false, 
       }));
     }
   }, [integracaoEditar]);
@@ -278,6 +281,21 @@ export default function FormOmie({ onCancel, onSuccess, integracaoEditar }) {
                   <span className={`w-4 h-4 bg-white rounded-full shadow-md transform transition-transform ${formOmie.sync_financeiro ? 'translate-x-6' : 'translate-x-1'}`} />
                 </button>
               </div>
+
+              {/* 🟢 NOSSA NOVA CHAVINHA DE MARCAS & FAMÍLIAS */}
+              <div className="flex items-center justify-between p-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-sm">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-pink-50 dark:bg-pink-500/10 rounded-lg text-pink-500"><Tag size={18} /></div>
+                  <div>
+                    <p className="text-sm font-bold text-zinc-800 dark:text-zinc-200">Marcas & Famílias</p>
+                    <p className="text-[10px] text-zinc-500">Importa famílias de produtos do ERP.</p>
+                  </div>
+                </div>
+                <button type="button" onClick={() => toggleSync('sync_marcas')} className={`w-11 h-6 rounded-full transition-colors relative flex items-center ${formOmie.sync_marcas ? 'bg-emerald-500' : 'bg-zinc-300 dark:bg-zinc-700'}`}>
+                  <span className={`w-4 h-4 bg-white rounded-full shadow-md transform transition-transform ${formOmie.sync_marcas ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
+              </div>
+
             </div>
 
             {/* TEMPORIZADOR */}

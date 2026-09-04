@@ -10,54 +10,99 @@ const parseEndereco = (pedido) => {
   return {};
 };
 
+// 🟢 DICIONÁRIO VISUAL DOS STATUS PARA O CORE (Rede de Titânio com WooCommerce)
 const renderStatus = (status) => {
-  // 🟢 Transforma em minúsculo para garantir que o front-end não tropece em letras maiúsculas
-  const s = status ? status.toLowerCase() : 'pendente'; 
+  // .trim() tira espaços extras nas pontas para não dar erro
+  const s = status ? String(status).toLowerCase().trim() : 'pendente'; 
   
   const styles = {
-    // Status do WooCommerce
-    'processing': 'bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-500/20',
-    'completed': 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/20',
-    'on-hold': 'bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-500/20',
-    'cancelled': 'bg-rose-50 dark:bg-red-500/10 text-rose-700 dark:text-red-400 border-rose-200 dark:border-red-500/20',
+    // 🟡 STATUS LOCAIS
+    'orcamento': 'bg-amber-50 dark:bg-amber-500/10 text-amber-700 border-amber-200',
+    'pendente': 'bg-blue-50 dark:bg-blue-500/10 text-blue-700 border-blue-200',
     
-    // 🟢 Novos Status do Omie / Raizan Core
-    'aguardando-pagamento': 'bg-orange-50 dark:bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-200 dark:border-orange-500/20',
-    'pendente': 'bg-orange-50 dark:bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-200 dark:border-orange-500/20',
-    'pago': 'bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-500/20',
-    'aprovado': 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border-indigo-200 dark:border-indigo-500/20',
-    'faturado': 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/20',
-    'enviado': 'bg-purple-50 dark:bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-200 dark:border-purple-500/20',
-    'entregue': 'bg-teal-50 dark:bg-teal-500/10 text-teal-700 dark:text-teal-400 border-teal-200 dark:border-teal-500/20',
-    'cancelado': 'bg-rose-50 dark:bg-red-500/10 text-rose-700 dark:text-red-400 border-rose-200 dark:border-red-500/20',
-    'sincronizado': 'bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-500/20',
+    // 🟢 ETAPA 1: Gerado (Omie Etapa 10)
+    '10': 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 border-emerald-200',
+    'sincronizado': 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 border-emerald-200',
+    'gerado': 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 border-emerald-200',
+    'pedido de venda': 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 border-emerald-200',
+    
+    // 🔵 ETAPA 2: Separar Estoque (Omie Etapa 20)
+    '20': 'bg-blue-50 dark:bg-blue-500/10 text-blue-700 border-blue-200',
+    'processando': 'bg-blue-50 dark:bg-blue-500/10 text-blue-700 border-blue-200',
+    'separacao': 'bg-blue-50 dark:bg-blue-500/10 text-blue-700 border-blue-200',
+    'separar estoque': 'bg-blue-50 dark:bg-blue-500/10 text-blue-700 border-blue-200',
+    
+    // 🟣 ETAPA 3: Faturar (Omie Etapa 50)
+    '50': 'bg-purple-50 dark:bg-purple-500/10 text-purple-700 border-purple-200',
+    'aprovado': 'bg-purple-50 dark:bg-purple-500/10 text-purple-700 border-purple-200',
+    'faturar': 'bg-purple-50 dark:bg-purple-500/10 text-purple-700 border-purple-200',
+    'a faturar': 'bg-purple-50 dark:bg-purple-500/10 text-purple-700 border-purple-200',
+    'a_faturar': 'bg-purple-50 dark:bg-purple-500/10 text-purple-700 border-purple-200',
+    
+    // 🟢 ETAPA 4: Faturado (Omie Etapa 60)
+    '60': 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 border-emerald-200',
+    'faturado': 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 border-emerald-200',
+    'nfe_emitida': 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 border-emerald-200',
+    
+    // 🚚 ETAPA 5: Entrega / Enviar (Omie Etapa 70 e 80)
+    '70': 'bg-teal-50 dark:bg-teal-500/10 text-teal-700 border-teal-200', // 🟢 70 AQUI!
+    '80': 'bg-teal-50 dark:bg-teal-500/10 text-teal-700 border-teal-200',
+    
+    // 🔴 CANCELAMENTOS
+    'cancelado': 'bg-rose-50 dark:bg-red-500/10 text-rose-700 border-rose-200',
+    'excluido': 'bg-rose-50 dark:bg-red-500/10 text-rose-700 border-rose-200',
+
+    // ⚪ EXTRAS WOOCOMMERCE
+    'completed': 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 border-emerald-200',
+    'on-hold': 'bg-amber-50 dark:bg-amber-500/10 text-amber-700 border-amber-200',
+    'aguardando-pagamento': 'bg-orange-50 dark:bg-orange-500/10 text-orange-700 border-orange-200',
+    'pago': 'bg-blue-50 dark:bg-blue-500/10 text-blue-700 border-blue-200'
   };
 
   const labels = {
-    'processing': 'Processando', 
+    'orcamento': 'Orçamento',
+    'pendente': 'Pendente', 
+    
+    '10': 'Gerado',
+    'sincronizado': 'Gerado',
+    'gerado': 'Gerado',
+    'pedido de venda': 'Gerado',
+
+    '20': 'Em Separação',
+    'processando': 'Em Separação',
+    'separacao': 'Em Separação',
+    'separar estoque': 'Em Separação',
+
+    '50': 'A Faturar',
+    'aprovado': 'A Faturar', 
+    'faturar': 'A Faturar',
+    'a faturar': 'A Faturar',
+    'a_faturar': 'A Faturar',
+
+    '60': 'NFE Emitida',
+    'faturado': 'NFE Emitida', 
+    'nfe_emitida': 'NFE Emitida',
+
+    '70': 'Enviado', // 🟢 70 AQUI!
+    '80': 'Enviado',
+    'cancelado': 'Cancelado',
+    'excluido': 'Cancelado',
+
+    // Extras Woo
     'completed': 'Concluído', 
     'on-hold': 'Aguardando', 
-    'cancelled': 'Cancelado',
     'aguardando-pagamento': 'Aguard. Pag.', 
-    'pendente': 'Pendente', 
-    'pago': 'Pago', 
-    'aprovado': 'Aprovado', 
-    'faturado': 'Faturado', 
-    'enviado': 'Enviado', 
-    'entregue': 'Entregue',
-    'cancelado': 'Cancelado',
-    'sincronizado': 'Sincronizado',
+    'pago': 'Pago'
   };
 
-  const style = styles[s] || 'bg-zinc-100 dark:bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-300 dark:border-zinc-500/20';
+  const style = styles[s] || 'bg-zinc-100 text-zinc-600 border-zinc-300';
+  const fallbackLabel = s.charAt(0).toUpperCase() + s.slice(1);
   
-  // O || s no final garante que se vier um status doido que não mapeamos, ele escreve o nome original na tela!
-  return <span className={`inline-flex px-2.5 py-1 rounded-md text-xs font-medium border ${style}`}>{labels[s] || s}</span>;
+  return <span className={`inline-flex px-2.5 py-1 rounded-md text-xs font-medium border ${style}`}>{labels[s] || fallbackLabel}</span>;
 };
 
 export default function TabelaPedidos({ pedidos, loading, page, totalPages, totalItems, onPageChange, onRowClick, baixados, onDownload, activeTab, plataformaAtiva }) {
   
-  // 🟢 FORÇAMOS A LEITURA BLINDADA DA PLATAFORMA
   const isOmie = String(plataformaAtiva || '').toLowerCase().includes('omie');
 
   return (
@@ -73,7 +118,7 @@ export default function TabelaPedidos({ pedidos, loading, page, totalPages, tota
         <table className="w-full text-sm text-left">
           <thead className="bg-zinc-50 dark:bg-zinc-800/30 text-zinc-500 dark:text-zinc-400 font-medium transition-colors">
             <tr>
-              <th className="px-5 py-4 w-20">ID</th>
+              <th className="px-5 py-4 w-28">ID</th>
               <th className="px-5 py-4 w-full">Cliente</th>
               <th className="px-5 py-4 whitespace-nowrap">Data</th>
               <th className="px-5 py-4 text-right">Total</th>
@@ -93,19 +138,36 @@ export default function TabelaPedidos({ pedidos, loading, page, totalPages, tota
               const clienteNomeLista = endereco.first_name ? `${endereco.first_name || ''} ${endereco.last_name || ''}` : `Cliente #${pedido.cliente_id || 'Varejo'}`;
               const dataFormatada = new Date(pedido.date_created || pedido.data_criacao || pedido.criado_em).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute:'2-digit' });
 
+              const statusAtual = String(pedido.status || pedido.status_pedido || "pendente").toLowerCase();
+              const codigoBanco = String(pedido.codigo_erp || pedido.codigo_omie || pedido.codigo_externo || "");
+              
+              const codigoOmieReal = codigoBanco.startsWith("APP-") ? null : codigoBanco;
+              const codigoMostrar = typeof foiBaixado === 'string' ? foiBaixado : codigoOmieReal;
+
+              const taEnviado = !!foiBaixado || !!codigoOmieReal || (isOmie && statusAtual !== 'pendente' && statusAtual !== 'cancelado');
+
               return (
                 <tr key={idReal} onClick={() => onRowClick(pedido)} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors cursor-pointer group">
-                  <td className="px-5 py-4 text-zinc-600 dark:text-zinc-300 font-mono font-medium">#{idReal}</td>
+                  
+                  {/* 🟢 O NOVO LAYOUT PREMIUM DA COLUNA DE ID */}
+                  <td className="px-5 py-4 font-medium">
+                    <div className="flex flex-col items-start gap-1.5">
+                      <span className="text-zinc-800 dark:text-zinc-200 font-mono font-bold text-sm">#{idReal}</span>
+                      {taEnviado && codigoMostrar && !String(codigoMostrar).startsWith('APP') && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-purple-50 dark:bg-purple-500/10 border border-purple-200 dark:border-purple-500/20 text-purple-600 dark:text-purple-400 text-[10px] font-black tracking-wider uppercase shadow-sm">
+                          OMIE #{Number(codigoMostrar)}
+                        </span>
+                      )}
+                    </div>
+                  </td>
+
                   <td className="px-5 py-4 font-medium text-zinc-900 dark:text-zinc-200">
                     {clienteNomeLista}
-                    
-                    {/* 🟢 Badge do Vendedor super elegante! */}
                     {pedido.vendedor_nome && (
                       <div className="text-[10px] text-zinc-500 font-bold mt-1 bg-zinc-100 dark:bg-zinc-800 w-fit px-2 py-0.5 rounded-full">
                         👤 {pedido.vendedor_nome}
                       </div>
                     )}
-                    
                     {endereco.city && <div className="text-xs text-zinc-500 font-normal mt-0.5">{endereco.city} - {endereco.state}</div>}
                   </td>
                   <td className="px-5 py-4 text-zinc-500 whitespace-nowrap">{dataFormatada}</td>
@@ -113,33 +175,20 @@ export default function TabelaPedidos({ pedidos, loading, page, totalPages, tota
                   <td className="px-5 py-4 text-center">{renderStatus(pedido.status || pedido.status_pedido)}</td>
                   <td className="px-5 py-4">
                     <div className="flex items-center justify-center">
-                      {(() => {
-                        // 🟢 INTELIGÊNCIA DO BOTÃO (UX Premium)
-                        const codigoGerado = typeof foiBaixado === 'string' ? foiBaixado : (pedido.codigo_erp || pedido.codigo_omie || pedido.codigo_externo);
-                        const taEnviado = foiBaixado === true || (typeof foiBaixado === 'string') || (isOmie && codigoGerado && String(codigoGerado).length > 3);
-                        
-                        return (
-                          <button 
-                            // Se já foi enviado, o onClick não faz nada (evita duplicar clique)
-                            onClick={(e) => { e.stopPropagation(); if(!taEnviado) onDownload(pedido); }}
-                            title={taEnviado ? "Já Enviado para o ERP" : (isOmie ? "Enviar para o ERP" : "Baixar CSV")}
-                            className={`flex w-fit whitespace-nowrap items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all shadow-sm ${
-                              taEnviado 
-                                ? "bg-emerald-100 dark:bg-emerald-500/10 text-emerald-700 border-emerald-200 dark:border-emerald-500/20 cursor-default" 
-                                : (isOmie 
-                                    ? "bg-purple-100 dark:bg-purple-500/10 text-purple-700 hover:bg-purple-200 dark:hover:bg-purple-500/20 border-purple-200 dark:border-purple-500/20 active:scale-95"
-                                    : "bg-amber-100 dark:bg-amber-500/10 text-amber-700 hover:bg-amber-200 dark:hover:bg-amber-500/20 border-amber-200 dark:border-amber-500/20 active:scale-95")
-                            }`}
-                          >
-                            {taEnviado ? <CheckCircle2 size={16} className="shrink-0" /> : (isOmie ? <CloudUpload size={16} className="shrink-0" /> : <FileDown size={16} className="shrink-0" />)}
-                            
-                            {/* O texto mostra o código do Omie se ele existir! */}
-                            {taEnviado 
-                                ? (isOmie ? (codigoGerado ? `Enviado (#${codigoGerado})` : "Enviado ERP") : "Baixado") 
-                                : (isOmie ? "Enviar ERP" : "Exportar CSV")}
-                          </button>
-                        );
-                      })()}
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); if(!taEnviado) onDownload(pedido); }}
+                        title={taEnviado ? "Já Enviado para o ERP" : (isOmie ? "Enviar para o ERP" : "Baixar CSV")}
+                        className={`flex w-fit whitespace-nowrap items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all shadow-sm ${
+                          taEnviado 
+                            ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 border border-emerald-200 dark:border-emerald-500/20 cursor-default" 
+                            : (isOmie 
+                                ? "bg-purple-600 text-white hover:bg-purple-700 active:scale-95"
+                                : "bg-amber-100 text-amber-700 hover:bg-amber-200 active:scale-95")
+                        }`}
+                      >
+                        {taEnviado ? <CheckCircle2 size={16} className="shrink-0" /> : (isOmie ? <CloudUpload size={16} className="shrink-0" /> : <FileDown size={16} className="shrink-0" />)}
+                        {taEnviado ? (isOmie ? "Enviado ERP" : "Baixado") : (isOmie ? "Enviar ERP" : "Exportar CSV")}
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -152,7 +201,6 @@ export default function TabelaPedidos({ pedidos, loading, page, totalPages, tota
       <div className="p-4 border-t border-zinc-200 dark:border-zinc-800/60 bg-zinc-50 dark:bg-zinc-800/10 flex items-center justify-between text-sm transition-colors">
         <span className="text-zinc-500 dark:text-zinc-400">
           Mostrando pág <span className="font-medium text-zinc-900 dark:text-zinc-300">{page}</span> de <span className="font-medium text-zinc-900 dark:text-zinc-300">{totalPages || 1}</span>
-          <span className="ml-2 hidden sm:inline">({totalItems} pedidos no total)</span>
         </span>
         <div className="flex items-center gap-2">
           <button onClick={() => onPageChange(Math.max(1, page - 1))} disabled={page === 1} className="bg-white dark:bg-zinc-800 px-3 py-1.5 rounded-lg text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-transparent shadow-sm hover:bg-zinc-50 disabled:opacity-50 transition-all"><ChevronLeft size={16} /></button>

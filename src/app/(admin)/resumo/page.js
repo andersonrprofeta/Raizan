@@ -252,25 +252,16 @@ const RankingEstados = ({ estados }) => {
 };
 
 // ==========================================
-// 🧩 COMPONENTE 4: RANKING DE VENDEDORES (MOCK)
+// 🧩 COMPONENTE 4: RANKING DE VENDEDORES (REAL - AGORA VAI!)
 // ==========================================
-const RankingVendedores = () => {
-  const formatarMoeda = (valor) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor);
+const RankingVendedores = ({ vendedores }) => {
+  const formatarMoeda = (valor) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor || 0);
   
-  const mockVendedores = [
-    { nome: "Carlos Silva", valor: 18500.50, pedidos: 42 },
-    { nome: "Ana Paula Mendes", valor: 15300.00, pedidos: 38 },
-    { nome: "Roberto Alves", valor: 11800.20, pedidos: 25 },
-    { nome: "Mariana Costa", valor: 9500.00, pedidos: 22 },
-    { nome: "Fernando Gomes", valor: 8200.75, pedidos: 18 },
-    { nome: "Juliana Rocha", valor: 6400.00, pedidos: 15 },
-    { nome: "Lucas Mendes", valor: 5100.90, pedidos: 12 },
-    { nome: "Beatriz Lima", valor: 4800.00, pedidos: 10 },
-    { nome: "Ricardo Dias", valor: 3500.00, pedidos: 8 },
-    { nome: "Camila Barros", valor: 2100.00, pedidos: 5 },
-  ];
-
-  const maxValor = mockVendedores[0].valor;
+  // 🟢 Pega os dados reais vindos da prop, ou deixa vazio
+  const listaVendedores = vendedores && vendedores.length > 0 ? vendedores : [];
+  
+  // 🟢 Calcula a barra baseado no melhor da lista (se não for zero)
+  const maxValor = listaVendedores.length > 0 ? Math.max(...listaVendedores.map(v => parseFloat(v.valor) || 0)) : 1;
 
   return (
     <div className="lg:col-span-2 bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800/80 rounded-2xl p-5 w-full shadow-sm relative overflow-hidden flex flex-col h-full min-h-[350px]">
@@ -289,47 +280,55 @@ const RankingVendedores = () => {
         </span>
       </h2>
       
-      <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-4 relative z-10">
-        {mockVendedores.map((vend, index) => {
-          const percent = Math.max((vend.valor / maxValor) * 100, 2);
-          const isTop3 = index < 3;
-          
-          return (
-            <div key={index} className="flex items-center gap-4 group">
-              <div className="w-6 font-black text-sm text-center text-zinc-400 group-hover:text-indigo-500 transition-colors">
-                {index + 1}º
-              </div>
-              
-              <div className="flex-1 space-y-1.5">
-                <div className="flex justify-between items-end text-sm">
-                  <span className={`font-bold truncate max-w-[150px] md:max-w-[200px] ${isTop3 ? 'text-zinc-900 dark:text-zinc-100' : 'text-zinc-700 dark:text-zinc-300'}`}>
-                    {vend.nome}
-                  </span>
-                  <span className={`font-bold ${isTop3 ? 'text-indigo-600 dark:text-indigo-400' : 'text-zinc-900 dark:text-zinc-100'}`}>
-                    {formatarMoeda(vend.valor)}
-                  </span>
+      {listaVendedores.length === 0 ? (
+        <div className="flex-1 flex flex-col items-center justify-center text-zinc-400 text-sm gap-2 relative z-10">
+          <Briefcase size={32} className="opacity-20" />
+          Nenhum vendedor com vendas neste mês.
+        </div>
+      ) : (
+        <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-4 relative z-10">
+          {listaVendedores.map((vend, index) => {
+            const valorReal = parseFloat(vend.valor) || 0;
+            const percent = Math.max((valorReal / maxValor) * 100, 2);
+            const isTop3 = index < 3;
+            
+            return (
+              <div key={index} className="flex items-center gap-4 group">
+                <div className="w-6 font-black text-sm text-center text-zinc-400 group-hover:text-indigo-500 transition-colors">
+                  {index + 1}º
                 </div>
                 
-                <div className="flex items-center gap-3">
-                  <div className="flex-1 bg-zinc-100 dark:bg-zinc-800/60 rounded-full h-1.5 overflow-hidden">
-                    <div 
-                      className={`h-full rounded-full transition-all duration-1000 ease-out group-hover:opacity-80
-                        ${index === 0 ? 'bg-gradient-to-r from-indigo-400 to-indigo-600' : 
-                          index === 1 ? 'bg-gradient-to-r from-blue-400 to-blue-500' : 
-                          index === 2 ? 'bg-gradient-to-r from-sky-400 to-sky-500' : 
-                          'bg-zinc-300 dark:bg-zinc-600'}`}
-                      style={{ width: `${percent}%` }}
-                    />
+                <div className="flex-1 space-y-1.5">
+                  <div className="flex justify-between items-end text-sm">
+                    <span className={`font-bold truncate max-w-[150px] md:max-w-[200px] ${isTop3 ? 'text-zinc-900 dark:text-zinc-100' : 'text-zinc-700 dark:text-zinc-300'}`}>
+                      {vend.nome || vend.vendedor_nome || "Vendedor Desconhecido"}
+                    </span>
+                    <span className={`font-bold ${isTop3 ? 'text-indigo-600 dark:text-indigo-400' : 'text-zinc-900 dark:text-zinc-100'}`}>
+                      {formatarMoeda(valorReal)}
+                    </span>
                   </div>
-                  <span className="text-[10px] text-zinc-400 font-medium w-16 text-right">
-                    {vend.pedidos} pedidos
-                  </span>
+                  
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1 bg-zinc-100 dark:bg-zinc-800/60 rounded-full h-1.5 overflow-hidden">
+                      <div 
+                        className={`h-full rounded-full transition-all duration-1000 ease-out group-hover:opacity-80
+                          ${index === 0 ? 'bg-gradient-to-r from-indigo-400 to-indigo-600' : 
+                            index === 1 ? 'bg-gradient-to-r from-blue-400 to-blue-500' : 
+                            index === 2 ? 'bg-gradient-to-r from-sky-400 to-sky-500' : 
+                            'bg-zinc-300 dark:bg-zinc-600'}`}
+                        style={{ width: `${percent}%` }}
+                      />
+                    </div>
+                    <span className="text-[10px] text-zinc-400 font-medium w-16 text-right">
+                      {vend.pedidos || vend.qtd_pedidos || 0} pedidos
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };
@@ -606,7 +605,8 @@ export default function DashboardAnalitico() {
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch mt-6">
                   <VendasPorCanal canais={dados?.canais || []} />
-                  <RankingVendedores />
+                  {/* 🟢 AQUI CHAMAMOS O COMPONENTE COM OS DADOS REAIS! */}
+                  <RankingVendedores vendedores={dados?.rankingVendedores || []} />
                 </div>
               </>
             )}

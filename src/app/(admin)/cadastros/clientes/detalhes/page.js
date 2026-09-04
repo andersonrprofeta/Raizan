@@ -9,7 +9,7 @@ import {
   TrendingUp, Package, ExternalLink, Loader2, Store, 
   Globe, MonitorSmartphone, ChevronLeft, ChevronRight, X,
   Database, Briefcase, ShieldAlert, BadgeCheck, FileText,
-  CalendarClock, AlertOctagon, Receipt, DownloadCloud
+  CalendarClock, AlertOctagon, Receipt, DownloadCloud, Truck
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -24,6 +24,9 @@ function DashboardCliente() {
   
   // 🟢 ESTADO NOVO: Prazos do Omie para traduzir o código no nome bonito
   const [condicoesOmie, setCondicoesOmie] = useState([]);
+
+  // 🟢 ESTADO NOVO: Rota do Cliente
+  const [rotaCliente, setRotaCliente] = useState(null);
 
   const [dados, setDados] = useState({
     cliente: null,
@@ -58,7 +61,7 @@ function DashboardCliente() {
     }
 
     try {
-      // 🟢 1. Busca os Prazos soltos (Igualzinho ao Editar, sem travar a tela principal)
+      // 1. Busca os Prazos soltos (Igualzinho ao Editar, sem travar a tela principal)
       fetch(`https://api.raizan.com.br/api/hub/integracoes/omie/condicoes-pagamento`, {
         headers: { "x-tenant-id": tenantId }
       })
@@ -67,14 +70,27 @@ function DashboardCliente() {
         if (data.success) setCondicoesOmie(data.condicoes || []);
       }).catch(() => {});
 
-      // 🟢 2. Busca os dados reais do Dashboard
-      const res = await fetch(`https://api.raizan.com.br/api/hub/clientes/${idCliente}/dashboard`, {
-        headers: { "Content-Type": "application/json", "x-tenant-id": tenantId }
-      });
-      const data = await res.json();
+      // 🟢 2. Busca os dados reais do Dashboard E as Rotas de Frete simultaneamente
+      const [resDashboard, resRotas] = await Promise.all([
+        fetch(`https://api.raizan.com.br/api/hub/clientes/${idCliente}/dashboard`, { headers: { "Content-Type": "application/json", "x-tenant-id": tenantId } }),
+        fetch(`https://api.raizan.com.br/api/hub/rotas-frete`, { headers: { "Content-Type": "application/json", "x-tenant-id": tenantId } })
+      ]);
       
-      if (data.success) setDados(data);
-      else { toast.error("Cliente não encontrado."); router.push('/cadastros/clientes'); }
+      const data = await resDashboard.json();
+      const dataRotas = await resRotas.json();
+      
+      if (data.success) {
+        setDados(data);
+        
+        // 🟢 3. Cruza os dados do Cliente com a lista de Rotas de Frete
+        if (data.cliente.id_rota_frete && dataRotas.success && dataRotas.rotas) {
+          const rotaEncontrada = dataRotas.rotas.find(r => String(r.id) === String(data.cliente.id_rota_frete));
+          setRotaCliente(rotaEncontrada);
+        }
+      } else { 
+        toast.error("Cliente não encontrado."); 
+        router.push('/cadastros/clientes'); 
+      }
     } catch (error) {
       toast.error("Erro ao carregar a Visão 360º.");
     } finally {
@@ -211,7 +227,7 @@ function DashboardCliente() {
   const valorEmAberto = metadata.valor_em_aberto || metadata.total_a_vencer || 0; 
   const limiteDeCredito = metadata.limite_credito || 0;
   
-  // 🟢 Pega os códigos permitidos
+  // Pega os códigos permitidos
   const condicoesPermitidas = metadata.condicoes_permitidas || [];
 
   return (
@@ -287,7 +303,6 @@ function DashboardCliente() {
                 </div>
                 <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">{cliente.nome}</h2>
                 
-                {/* 🟢 EXIBE O NOME FANTASIA SE EXISTIR */}
                 {metadata.nome_fantasia && (
                   <p className="text-sm font-medium text-zinc-500 mt-1">Fantasia: {metadata.nome_fantasia}</p>
                 )}
@@ -359,7 +374,45 @@ function DashboardCliente() {
               </div>
             </div>
 
-            {/* 🟢 Bloco 2: O FAROL FINANCEIRO (AGORA COM OS TÍTULOS CUSPINDO NA CARA) */}
+            {/* 🟢 BLOCO 2: LOGÍSTICA E FRETE (NOVO) */}
+            <div className="bg-white dark:bg-[#0c0c0e] border border-zinc-200 dark:border-zinc-800/60 rounded-2xl p-6 shadow-sm">
+              <h3 className="text-xs font-black text-zinc-400 uppercase tracking-widest mb-5 flex items-center gap-2">
+                <Truck size={16} className="text-zinc-400" /> Logística e Frete
+              </h3>
+
+              {rotaCliente ? (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between p-3 rounded-xl bg-purple-50 dark:bg-purple-500/10 border border-purple-100 dark:border-purple-500/20">
+                    <div className="flex items-center gap-2 text-sm font-bold text-purple-700 dark:text-purple-400">
+                      <MapPin size={16} className="text-purple-500" />
+                      Região
+                    </div>
+                    <span className="text-xs font-black uppercase tracking-wider text-purple-600 dark:text-purple-400 truncate max-w-[120px]" title={rotaCliente.nome}>
+                      {rotaCliente.nome}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20">
+                    <div className="flex items-center gap-2 text-sm font-bold text-emerald-700 dark:text-emerald-400">
+                      <DollarSign size={16} className="text-emerald-500" />
+                      Mínimo CIF
+                    </div>
+                    <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">
+                      {formatarMoeda(rotaCliente.valor_minimo)}
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center p-4 border border-dashed border-zinc-200 dark:border-zinc-800 rounded-xl bg-zinc-50 dark:bg-zinc-900/30">
+                  <p className="text-xs text-zinc-500 font-medium">Nenhuma regra de frete vinculada.</p>
+                  <Link href={`/cadastros/clientes/editar?id=${cliente.id}`}>
+                    <button className="mt-2 text-[10px] uppercase font-bold text-purple-600 dark:text-purple-400 hover:text-purple-700 transition-colors">Vincular Rota</button>
+                  </Link>
+                </div>
+              )}
+            </div>
+
+            {/* Bloco 3: O FAROL FINANCEIRO */}
             <div className="bg-white dark:bg-[#0c0c0e] border border-zinc-200 dark:border-zinc-800/60 rounded-2xl p-6 shadow-sm">
               <h3 className="text-xs font-black text-zinc-400 uppercase tracking-widest mb-5 flex items-center gap-2">
                 <Briefcase size={16} className="text-zinc-400" /> {tituloErp}
@@ -380,7 +433,7 @@ function DashboardCliente() {
                   )}
                 </div>
 
-                {/* Títulos em Aberto (Sempre Visível) */}
+                {/* Títulos em Aberto */}
                 <div className="p-4 rounded-xl bg-rose-50 dark:bg-rose-500/10 border border-rose-100 dark:border-rose-500/20 space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 text-sm font-bold text-rose-700 dark:text-rose-400">
@@ -392,7 +445,6 @@ function DashboardCliente() {
                     </span>
                   </div>
 
-                  {/* 🟢 AQUI ENTRA A LISTA DE TÍTULOS CUSPINDO NA CARA */}
                   {metadata.titulos_em_aberto && metadata.titulos_em_aberto.length > 0 && (
                     <div className="mt-2 space-y-2">
                       {metadata.titulos_em_aberto.map((titulo, idx) => (
@@ -428,7 +480,7 @@ function DashboardCliente() {
                   )}
                 </div>
 
-                {/* Limite de Crédito (Sempre Visível) */}
+                {/* Limite de Crédito */}
                 <div className="flex items-center justify-between p-3 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20">
                   <div className="flex items-center gap-2 text-sm font-bold text-emerald-700 dark:text-emerald-400">
                     <DollarSign size={16} className="text-emerald-500" />
@@ -453,7 +505,7 @@ function DashboardCliente() {
                   </div>
                 </div>
 
-                {/* 🟢 CONDIÇÕES DE PAGAMENTO (PADRÃO E LIBERADOS PRO APP) */}
+                {/* CONDIÇÕES DE PAGAMENTO */}
                 <div className="flex items-start gap-3 mt-4">
                   <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 flex items-center justify-center shrink-0 border border-indigo-100 dark:border-indigo-500/20">
                     <CreditCard size={14} className="text-indigo-500" />
@@ -491,7 +543,7 @@ function DashboardCliente() {
               </div>
             </div>
 
-            {/* 🟢 NOVO BLOCO: OBSERVAÇÕES DO CLIENTE */}
+            {/* OBSERVAÇÕES DO CLIENTE */}
             {metadata.observacoes && (
               <div className="bg-yellow-50 dark:bg-yellow-500/10 border border-yellow-200 dark:border-yellow-500/20 rounded-2xl p-6 shadow-sm">
                 <h3 className="text-xs font-black text-yellow-600 dark:text-yellow-500 uppercase tracking-widest mb-3 flex items-center gap-2">

@@ -19,6 +19,8 @@
     "electron-serve": "^3.0.1",
     "electron-updater": "^6.8.3",
     "framer-motion": "^13.1.0",
+    "html-to-image": "^1.11.13",
+    "html2canvas": "^1.4.1",
     "lucide-react": "^0.577.0",
     "mysql2": "^3.20.0",
     "next": "16.2.0",

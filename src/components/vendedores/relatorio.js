@@ -1,3 +1,5 @@
+//essa página usa o controller desempenhoVendedorController para buscar os dados do relatório de vendas do vendedor selecionado. Ela exibe KPIs, gráficos e tabelas com informações detalhadas sobre o desempenho comercial do vendedor, incluindo faturamento, quantidade de pedidos, evolução diária, faturamento por marca e cidade, além de listas dos top produtos e clientes faturados. A página também permite a exportação do relatório em PDF (em desenvolvimento) e a visualização expandida dos gráficos.
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -8,7 +10,7 @@ import {
   Download, Maximize2, X, RefreshCw
 } from "lucide-react";
 import { 
-  ResponsiveContainer, AreaChart, Area, BarChart, Bar, 
+  ResponsiveContainer, AreaChart, Area, BarChart, Bar, Line, ComposedChart,
   XAxis, YAxis, Tooltip, PieChart, Pie, Cell, CartesianGrid
 } from "recharts";
 import toast from "react-hot-toast";
@@ -19,6 +21,29 @@ const CORES_RESERVA = ["#4f46e5", "#10b981", "#f59e0b", "#ec4899", "#6366f1", "#
 // ==========================================
 // COMPONENTES MENORES
 // ==========================================
+
+// 🟢 NOVO TOOLTIP: Mostra Dinheiro e Quantidade!
+const CustomTooltipComposed = ({ active, payload, label }) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-zinc-900/90 backdrop-blur-md border border-zinc-700 p-3 rounded-xl shadow-xl min-w-[160px]">
+        <p className="text-zinc-300 text-xs font-bold mb-2 border-b border-zinc-700 pb-1">{label}</p>
+        {payload.map((item, idx) => (
+          <div key={idx} className="flex justify-between items-center gap-4 mb-1">
+            <span style={{ color: item.color }} className="text-xs font-bold uppercase">
+              {item.name === 'valor' ? 'Faturamento' : 'Pedidos (Qtd)'}
+            </span>
+            <span className="text-white font-black text-sm">
+              {item.name === 'valor' ? `R$ ${item.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : item.value}
+            </span>
+          </div>
+        ))}
+      </div>
+    );
+  }
+  return null;
+};
+
 const CustomTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length && payload[0].value !== undefined) {
     return (
@@ -99,12 +124,9 @@ export default function TabVisaoGeral({ vendedor }) {
       setLoading(true);
       try {
         const tenant_id = JSON.parse(localStorage.getItem("@raizan:user"))?.tenant_id;
-        
-        // REQUISIÇÃO REAL PRO BACKEND
         const res = await fetch(`${getHubUrl()}/api/hub/vendedores/${vendedor.id}/relatorio?tenant_id=${tenant_id}`, {
           headers: getHeaders()
         });
-        
         const data = await res.json();
 
         if (data.success && data.relatorio) {
@@ -121,7 +143,6 @@ export default function TabVisaoGeral({ vendedor }) {
         setLoading(false);
       }
     }
-
     carregarDadosRelatorio();
   }, [vendedor]);
 
@@ -148,7 +169,6 @@ export default function TabVisaoGeral({ vendedor }) {
     );
   }
 
-  // 🟢 DADOS 100% REAIS VINDO DA SUA API
   const { 
     carteiraKPIs = { totalBase: 0, atendidosMes: 0, novosMes: 0, positivados: 0, inativos: 0 }, 
     vendasGeralMensal = [], 
@@ -164,23 +184,24 @@ export default function TabVisaoGeral({ vendedor }) {
       case 'mensal':
         return (
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={vendasGeralMensal} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+            <ComposedChart data={vendasGeralMensal} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#333" opacity={0.3} />
               <XAxis dataKey="mes" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#888' }} dy={10} />
-              <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#888' }} tickFormatter={(val) => `R$${val/1000}k`} />
-              <Tooltip content={<CustomTooltip />} cursor={{ fill: 'transparent' }} />
-              <Bar dataKey="valor" radius={[6, 6, 0, 0]}>
-                {vendasGeralMensal.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={index === vendasGeralMensal.length - 1 ? "#3b82f6" : "#3b82f640"} />
-                ))}
-              </Bar>
-            </BarChart>
+              
+              <YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#888' }} tickFormatter={(val) => `R$${val/1000}k`} />
+              <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#888' }} />
+              
+              <Tooltip content={<CustomTooltipComposed />} cursor={{ fill: 'transparent' }} />
+              
+              <Bar yAxisId="left" dataKey="valor" radius={[6, 6, 0, 0]} fill="#3b82f6" fillOpacity={0.8} />
+              <Line yAxisId="right" type="monotone" dataKey="pedidos" stroke="#f59e0b" strokeWidth={3} dot={{ r: 4, fill: '#f59e0b' }} />
+            </ComposedChart>
           </ResponsiveContainer>
         );
       case 'diario':
         return (
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={vendasDiarias} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+            <ComposedChart data={vendasDiarias} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
               <defs>
                 <linearGradient id="colorValor" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#6366f1" stopOpacity={0.4}/>
@@ -189,10 +210,15 @@ export default function TabVisaoGeral({ vendedor }) {
               </defs>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#333" opacity={0.3} />
               <XAxis dataKey="dia" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#888' }} dy={10} />
-              <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#888' }} tickFormatter={(val) => `R$${val/1000}k`} />
-              <Tooltip content={<CustomTooltip />} />
-              <Area type="monotone" dataKey="valor" stroke="#6366f1" strokeWidth={3} fillOpacity={1} fill="url(#colorValor)" />
-            </AreaChart>
+              
+              <YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#888' }} tickFormatter={(val) => `R$${val/1000}k`} />
+              <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#888' }} />
+              
+              <Tooltip content={<CustomTooltipComposed />} />
+              
+              <Area yAxisId="left" type="monotone" dataKey="valor" stroke="#6366f1" strokeWidth={3} fillOpacity={1} fill="url(#colorValor)" />
+              <Line yAxisId="right" type="monotone" dataKey="pedidos" stroke="#f59e0b" strokeWidth={2} dot={{ r: 3, fill: '#f59e0b' }} />
+            </ComposedChart>
           </ResponsiveContainer>
         );
       case 'marca':
@@ -259,15 +285,35 @@ export default function TabVisaoGeral({ vendedor }) {
 
       {/* GRÁFICOS */}
       <div className="flex flex-col gap-6">
-        <GraficoContainer titulo="Faturamento Mensal (Últimos 6 meses)" icon={TrendingUp} icnClass="text-blue-500" onExpand={() => setGraficoExpandido('mensal')}>
+        <GraficoContainer 
+          titulo="Faturamento vs Quantidade (Últimos 6 meses)" 
+          icon={TrendingUp} icnClass="text-blue-500" 
+          onExpand={() => setGraficoExpandido('mensal')}
+          extraHead={
+            <div className="flex items-center gap-3 text-[10px] font-bold uppercase">
+              <span className="flex items-center gap-1 text-blue-500"><div className="w-2 h-2 bg-blue-500 rounded-sm"></div> Faturamento</span>
+              <span className="flex items-center gap-1 text-amber-500"><div className="w-2 h-2 bg-amber-500 rounded-full"></div> Pedidos</span>
+            </div>
+          }
+        >
           {renderGrafico('mensal')}
         </GraficoContainer>
 
-        <GraficoContainer titulo="Vendas Diárias (Mês Atual)" icon={CalendarDays} icnClass="text-indigo-500" onExpand={() => setGraficoExpandido('diario')}>
+        <GraficoContainer 
+          titulo="Evolução Diária (Mês Atual)" 
+          icon={CalendarDays} icnClass="text-indigo-500" 
+          onExpand={() => setGraficoExpandido('diario')}
+          extraHead={
+            <div className="flex items-center gap-3 text-[10px] font-bold uppercase">
+              <span className="flex items-center gap-1 text-indigo-500"><div className="w-2 h-2 bg-indigo-500 rounded-sm"></div> Faturamento</span>
+              <span className="flex items-center gap-1 text-amber-500"><div className="w-2 h-2 bg-amber-500 rounded-full"></div> Pedidos</span>
+            </div>
+          }
+        >
           {renderGrafico('diario')}
         </GraficoContainer>
 
-        <GraficoContainer titulo="Faturamento por Marca" icon={Award} icnClass="text-amber-500" onExpand={() => setGraficoExpandido('marca')} isDonut>
+        <GraficoContainer titulo="Faturamento por Marca (NFE Emitida)" icon={Award} icnClass="text-amber-500" onExpand={() => setGraficoExpandido('marca')} isDonut>
           <div className="flex flex-col sm:flex-row items-center justify-between gap-6 h-[200px]">
             <div className="h-full w-full sm:w-[200px] shrink-0">
                {renderGrafico('marca')}
@@ -286,7 +332,7 @@ export default function TabVisaoGeral({ vendedor }) {
           </div>
         </GraficoContainer>
 
-        <GraficoContainer titulo="Mapa de Calor (Cidades)" icon={MapPin} icnClass="text-emerald-500" onExpand={() => setGraficoExpandido('cidade')}>
+        <GraficoContainer titulo="Mapa de Calor (Faturamento por Cidade)" icon={MapPin} icnClass="text-emerald-500" onExpand={() => setGraficoExpandido('cidade')}>
           {renderGrafico('cidade')}
         </GraficoContainer>
       </div>
@@ -294,12 +340,12 @@ export default function TabVisaoGeral({ vendedor }) {
       {/* TABELAS */}
       <div className="flex flex-col gap-6 mt-6">
         <TabelaContainer 
-          titulo="Curva A - Top Produtos" icon={ShoppingBag} icnClass="text-purple-500"
+          titulo="Curva A - Top Produtos Faturados" icon={ShoppingBag} icnClass="text-purple-500"
           thead={
             <>
               <th className="px-5 py-3 font-bold">Produto</th>
-              <th className="px-5 py-3 font-bold text-center">Qtd</th>
-              <th className="px-5 py-3 font-bold text-right">Valor Total</th>
+              <th className="px-5 py-3 font-bold text-center">Qtd Vendida</th>
+              <th className="px-5 py-3 font-bold text-right">Faturamento Real</th>
             </>
           }
           tbody={
@@ -314,12 +360,12 @@ export default function TabVisaoGeral({ vendedor }) {
         />
 
         <TabelaContainer 
-          titulo="Top Clientes do Mês" icon={Users} icnClass="text-orange-500"
+          titulo="Top Clientes Faturados (Mês)" icon={Users} icnClass="text-orange-500"
           thead={
             <>
               <th className="px-5 py-3 font-bold">Cliente</th>
-              <th className="px-5 py-3 font-bold text-center">Pedidos</th>
-              <th className="px-5 py-3 font-bold text-right">Faturamento</th>
+              <th className="px-5 py-3 font-bold text-center">Qtd Pedidos</th>
+              <th className="px-5 py-3 font-bold text-right">Faturamento Real</th>
             </>
           }
           tbody={

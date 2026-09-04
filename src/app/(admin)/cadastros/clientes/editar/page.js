@@ -6,7 +6,7 @@ import Header from "@/components/Header";
 import { 
   UserPen, ArrowLeft, Save, Building2, User as UserIcon,
   Mail, Phone, CreditCard, MapPin, Loader2, Database, ShieldAlert,
-  AlertOctagon
+  AlertOctagon, Truck // 🟢 IMPORTAMOS O CAMINHÃO AQUI
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -22,13 +22,17 @@ function FormularioEdicao() {
   const [buscandoCep, setBuscandoCep] = useState(false);
   const [origemERP, setOrigemERP] = useState(null); 
   
-  // 🟢 ESTADO NOVO: Prazos do Omie para montar os botões
+  // Prazos do Omie para montar os botões
   const [condicoesOmie, setCondicoesOmie] = useState([]);
+  
+  // 🟢 ESTADO NOVO: Guardar as Rotas de Frete disponíveis
+  const [rotasFrete, setRotasFrete] = useState([]);
 
   const [formData, setFormData] = useState({
     tipo_pessoa: 'fisica', nome: '', email: '', telefone: '', cpf_cnpj: '', inscricao_estadual: '',
     cep: '', logradouro: '', numero: '', complemento: '', bairro: '', cidade: '', uf: '',
     codigo_vendedor: '', nome_vendedor: '', codigo_erp: '',
+    id_rota_frete: '', // 🟢 NOVO: Campo para vincular a regra de frete
     metadata: {
       nome_fantasia: '', 
       observacoes: '',   
@@ -36,7 +40,7 @@ function FormularioEdicao() {
       valor_em_aberto: 0, 
       condicao_pagamento_padrao: '',
       bloqueado: false,
-      condicoes_permitidas: [] // 🟢 NOVO: Array que vai guardar as restrições!
+      condicoes_permitidas: [] 
     }
   });
 
@@ -63,7 +67,7 @@ function FormularioEdicao() {
     }
 
     try {
-      // 🟢 1. Busca os Prazos de Pagamento do Omie para montar a lista
+      // 1. Busca os Prazos de Pagamento do Omie
       fetch(`https://api.raizan.com.br/api/hub/integracoes/omie/condicoes-pagamento`, {
         headers: { "x-tenant-id": tenantId }
       })
@@ -72,7 +76,17 @@ function FormularioEdicao() {
         if (data.success) setCondicoesOmie(data.condicoes || []);
       }).catch(() => {});
 
-      // 🟢 2. Busca os Dados do Cliente
+      // 🟢 2. Busca as Rotas de Frete Cadastradas no Hub
+      fetch(`https://api.raizan.com.br/api/hub/rotas-frete`, {
+        headers: { "x-tenant-id": tenantId }
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.rotas) setRotasFrete(data.rotas);
+        else if (Array.isArray(data)) setRotasFrete(data);
+      }).catch(() => {});
+
+      // 3. Busca os Dados do Cliente
       const res = await fetch(`https://api.raizan.com.br/api/hub/clientes/${idCliente}`, {
         headers: { "x-tenant-id": tenantId }
       });
@@ -94,6 +108,7 @@ function FormularioEdicao() {
           tipo_pessoa: tipoCerto, nome: c.nome || '', email: c.email || '', telefone: c.telefone || '',
           cpf_cnpj: c.cpf_cnpj || '', inscricao_estadual: c.inscricao_estadual || '', 
           codigo_erp: c.codigo_erp || '', codigo_vendedor: c.codigo_vendedor || '', nome_vendedor: c.nome_vendedor || '',
+          id_rota_frete: c.id_rota_frete || '', // 🟢 Recebe a Rota que já está gravada
           cep: end.cep || '', logradouro: end.logradouro || '', numero: end.numero || '',
           complemento: end.complemento || '', bairro: end.bairro || '', cidade: end.cidade || '', uf: end.uf || '',
           metadata: {
@@ -103,7 +118,7 @@ function FormularioEdicao() {
             valor_em_aberto: meta.valor_em_aberto || meta.total_a_vencer || 0,
             condicao_pagamento_padrao: meta.condicao_pagamento_padrao || '',
             bloqueado: meta.bloqueado || false,
-            condicoes_permitidas: meta.condicoes_permitidas || [] // 🟢 Alimenta a lista
+            condicoes_permitidas: meta.condicoes_permitidas || [] 
           }
         });
       } else {
@@ -131,13 +146,12 @@ function FormularioEdicao() {
     setFormData(prev => ({ ...prev, metadata: { ...prev.metadata, [name]: parsedValue } }));
   };
 
-  // 🟢 FUNÇÃO NOVA: Liga e desliga a condição de pagamento permitida
   const toggleCondicaoPermitida = (codigo) => {
     setFormData(prev => {
       const atuais = prev.metadata.condicoes_permitidas || [];
       const novas = atuais.includes(codigo)
-        ? atuais.filter(c => c !== codigo) // Remove se já tiver
-        : [...atuais, codigo];             // Adiciona se não tiver
+        ? atuais.filter(c => c !== codigo) 
+        : [...atuais, codigo];             
       return { ...prev, metadata: { ...prev.metadata, condicoes_permitidas: novas } };
     });
   };
@@ -174,6 +188,7 @@ function FormularioEdicao() {
       nome: formData.nome, email: formData.email, telefone: formData.telefone, cpf_cnpj: formData.cpf_cnpj, 
       inscricao_estadual: formData.inscricao_estadual, tipo_pessoa: formData.tipo_pessoa,
       codigo_vendedor: formData.codigo_vendedor, nome_vendedor: formData.nome_vendedor, codigo_erp: formData.codigo_erp, 
+      id_rota_frete: formData.id_rota_frete ? parseInt(formData.id_rota_frete) : null, // 🟢 Manda pro backend!
       metadata: formData.metadata, 
       endereco: { cep: formData.cep, logradouro: formData.logradouro, numero: formData.numero, complemento: formData.complemento, bairro: formData.bairro, cidade: formData.cidade, uf: formData.uf }
     };
@@ -278,6 +293,88 @@ function FormularioEdicao() {
             </div>
           </div>
 
+          {/* DADOS DE ENDEREÇO */}
+          <div className="bg-white dark:bg-[#0c0c0e] border border-zinc-200 dark:border-zinc-800/60 rounded-2xl p-6 sm:p-8 shadow-sm">
+            <h2 className="text-lg font-bold mb-6 flex items-center gap-2 text-zinc-800 dark:text-zinc-200 border-b border-zinc-100 dark:border-zinc-800/60 pb-4">
+              <MapPin size={20} className="text-emerald-500" /> Endereço de Entrega
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <div className="space-y-2 md:col-span-1">
+                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-2">CEP {buscandoCep && <Loader2 size={12} className="animate-spin text-emerald-500" />}</label>
+                <input type="text" name="cep" value={formData.cep} onChange={handleCepChange} maxLength={9} className="w-full p-3 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl outline-none focus:border-emerald-500" />
+              </div>
+              <div className="space-y-2 md:col-span-3">
+                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Logradouro (Rua/Av)</label>
+                <input type="text" name="logradouro" value={formData.logradouro} onChange={handleChange} className="w-full p-3 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl outline-none focus:border-emerald-500" />
+              </div>
+              <div className="space-y-2 md:col-span-1">
+                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Número</label>
+                <input type="text" name="numero" value={formData.numero} onChange={handleChange} className="w-full p-3 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl outline-none focus:border-emerald-500" />
+              </div>
+              <div className="space-y-2 md:col-span-3">
+                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Complemento</label>
+                <input type="text" name="complemento" value={formData.complemento} onChange={handleChange} className="w-full p-3 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl outline-none focus:border-emerald-500" />
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Bairro</label>
+                <input type="text" name="bairro" value={formData.bairro} onChange={handleChange} className="w-full p-3 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl outline-none focus:border-emerald-500" />
+              </div>
+              <div className="space-y-2 md:col-span-1">
+                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Cidade</label>
+                <input type="text" name="cidade" value={formData.cidade} onChange={handleChange} className="w-full p-3 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl outline-none focus:border-emerald-500" />
+              </div>
+              <div className="space-y-2 md:col-span-1">
+                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">UF</label>
+                <input type="text" name="uf" value={formData.uf} onChange={handleChange} maxLength={2} className="w-full p-3 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl outline-none focus:border-emerald-500 uppercase" />
+              </div>
+            </div>
+          </div>
+
+          {/* 🟢 DADOS DE LOGÍSTICA E FRETE (NOVO BLOCO) */}
+          <div className="bg-white dark:bg-[#0c0c0e] border border-zinc-200 dark:border-zinc-800/60 rounded-2xl p-6 sm:p-8 shadow-sm">
+            <h2 className="text-lg font-bold mb-6 flex items-center gap-2 text-zinc-800 dark:text-zinc-200 border-b border-zinc-100 dark:border-zinc-800/60 pb-4">
+              <Truck size={20} className="text-purple-500" /> Logística e Frete
+            </h2>
+            <div className="grid grid-cols-1 gap-6">
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Rota de Entrega (Regra de Frete)</label>
+                <select 
+                  name="id_rota_frete" 
+                  value={formData.id_rota_frete} 
+                  onChange={handleChange} 
+                  className="w-full p-3 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl outline-none focus:border-purple-500 transition-colors cursor-pointer text-zinc-700 dark:text-zinc-300 font-medium"
+                >
+                  <option value="">Padrão (Sem regra vinculada / Frete Fixo)</option>
+                  
+                  {/* GRUPO 1: REGRAS MANUAIS */}
+                  {rotasFrete.filter(r => r.tipo_vinculo === 'manual').length > 0 && (
+                    <optgroup label="📍 REGRAS MANUAIS (Para escolha livre)">
+                      {rotasFrete.filter(r => r.tipo_vinculo === 'manual').map(rota => (
+                        <option key={rota.id} value={rota.id}>
+                          {rota.nome} — Mínimo (CIF): {Number(rota.valor_minimo).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+
+                  {/* GRUPO 2: REGRAS AUTOMÁTICAS (Sincronizadas por cidade ou UF) */}
+                  {rotasFrete.filter(r => r.tipo_vinculo !== 'manual').length > 0 && (
+                    <optgroup label="⚡ REGRAS AUTOMÁTICAS (Via Sincronização)">
+                      {rotasFrete.filter(r => r.tipo_vinculo !== 'manual').map(rota => (
+                        <option key={rota.id} value={rota.id}>
+                          {rota.nome} — Mínimo (CIF): {Number(rota.valor_minimo).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                </select>
+                <p className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400 mt-1.5 leading-relaxed">
+                  Ao vincular o cliente a uma rota, o App Raizan Seller calculará o frete dinâmico com base na regra dessa região e exibirá a barra de progresso para frete grátis (CIF).
+                </p>
+              </div>
+            </div>
+          </div>
+
           {/* DADOS DO ERP E VENDEDOR */}
           <div className="bg-white dark:bg-[#0c0c0e] border border-zinc-200 dark:border-zinc-800/60 rounded-2xl p-6 sm:p-8 shadow-sm">
             <h2 className="text-lg font-bold mb-2 flex items-center gap-2 text-zinc-800 dark:text-zinc-200 border-b border-zinc-100 dark:border-zinc-800/60 pb-4">
@@ -338,7 +435,7 @@ function FormularioEdicao() {
                 </label>
               </div>
 
-              {/* 🟢 LISTA DINÂMICA DE CONDIÇÕES PERMITIDAS */}
+              {/* LISTA DINÂMICA DE CONDIÇÕES PERMITIDAS */}
               <div className="space-y-3 md:col-span-3 pt-4 border-t border-zinc-100 dark:border-zinc-800/60">
                 <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider flex flex-col gap-1">
                   <span>Prazos de Pagamento Liberados (App Vendedor)</span>
@@ -369,42 +466,6 @@ function FormularioEdicao() {
             </div>
           </div>
 
-          {/* DADOS DE ENDEREÇO */}
-          <div className="bg-white dark:bg-[#0c0c0e] border border-zinc-200 dark:border-zinc-800/60 rounded-2xl p-6 sm:p-8 shadow-sm">
-            <h2 className="text-lg font-bold mb-6 flex items-center gap-2 text-zinc-800 dark:text-zinc-200 border-b border-zinc-100 dark:border-zinc-800/60 pb-4">
-              <MapPin size={20} className="text-emerald-500" /> Endereço de Entrega
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <div className="space-y-2 md:col-span-1">
-                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-2">CEP {buscandoCep && <Loader2 size={12} className="animate-spin text-emerald-500" />}</label>
-                <input type="text" name="cep" value={formData.cep} onChange={handleCepChange} maxLength={9} className="w-full p-3 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl outline-none focus:border-emerald-500" />
-              </div>
-              <div className="space-y-2 md:col-span-3">
-                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Logradouro (Rua/Av)</label>
-                <input type="text" name="logradouro" value={formData.logradouro} onChange={handleChange} className="w-full p-3 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl outline-none focus:border-emerald-500" />
-              </div>
-              <div className="space-y-2 md:col-span-1">
-                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Número</label>
-                <input type="text" name="numero" value={formData.numero} onChange={handleChange} className="w-full p-3 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl outline-none focus:border-emerald-500" />
-              </div>
-              <div className="space-y-2 md:col-span-3">
-                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Complemento</label>
-                <input type="text" name="complemento" value={formData.complemento} onChange={handleChange} className="w-full p-3 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl outline-none focus:border-emerald-500" />
-              </div>
-              <div className="space-y-2 md:col-span-2">
-                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Bairro</label>
-                <input type="text" name="bairro" value={formData.bairro} onChange={handleChange} className="w-full p-3 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl outline-none focus:border-emerald-500" />
-              </div>
-              <div className="space-y-2 md:col-span-1">
-                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Cidade</label>
-                <input type="text" name="cidade" value={formData.cidade} onChange={handleChange} className="w-full p-3 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl outline-none focus:border-emerald-500" />
-              </div>
-              <div className="space-y-2 md:col-span-1">
-                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">UF</label>
-                <input type="text" name="uf" value={formData.uf} onChange={handleChange} maxLength={2} className="w-full p-3 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl outline-none focus:border-emerald-500 uppercase" />
-              </div>
-            </div>
-          </div>
         </form>
       </div>
     </main>

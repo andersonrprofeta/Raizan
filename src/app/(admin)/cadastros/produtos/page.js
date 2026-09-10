@@ -4,11 +4,12 @@ import { useState, useEffect, useRef } from "react";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import MenuAcoesProduto from "@/components/produtos/MenuAcoesProduto";
+import ModalEnvios from "@/components/produtos/ModalEnvios"; // 🟢 OLHA ELE AQUI!
 import { 
   Package, Search, Plus, Edit, Trash2, 
   Image as ImageIcon, Loader2, Filter,
-  MoreHorizontal, PackageOpen, Layers, Box, X,
-  ChevronLeft, ChevronRight, TrendingUp, Barcode, AlertTriangle, CloudSync
+  MoreHorizontal, Box, Layers, X,
+  ChevronLeft, ChevronRight, Barcode, AlertTriangle, CloudSync, LayoutTemplate
 } from "lucide-react";
 import Link from "next/link";
 import toast from 'react-hot-toast';
@@ -21,7 +22,7 @@ export default function ListaProdutosHub() {
   const [menuAberto, setMenuAberto] = useState(null); 
 
   const [paginaAtual, setPaginaAtual] = useState(1);
-  const [itensPorPagina, setItensPorPagina] = useState(10); // 🟢 ESTADO DINÂMICO PARA O SELETOR
+  const [itensPorPagina, setItensPorPagina] = useState(10); 
 
   const [modalDelete, setModalDelete] = useState({ open: false, produto: null, temVendas: false });
   const menuRef = useRef(null);
@@ -31,9 +32,8 @@ export default function ListaProdutosHub() {
     status: "", tipo: "", estoque: "", marca: "", variacao: "", categoria: "" 
   });
   
-  const [modalEnvio, setModalEnvio] = useState({
-    open: false, produto: null, categoriasWoo: [], categoriaSelecionada: "", loadingCategorias: false
-  }); 
+  // 🟢 ESTADO DO NOVO MODAL (MUITO MAIS LIMPO!)
+  const [modalEnvio, setModalEnvio] = useState({ open: false, produto: null }); 
 
   const pegarCnpjLogado = () => {
     if (typeof window !== 'undefined') {
@@ -63,7 +63,6 @@ export default function ListaProdutosHub() {
     if (!tenantId) return toast.error("Erro de sessão.");
 
     try {
-      // 🟢 O PULO DO GATO: Passando limite=5000 na URL para o Backend liberar tudo!
       const res = await fetch("https://api.raizan.com.br/api/hub/produtos?limit=5000", { headers: { "x-tenant-id": tenantId } });
       const data = await res.json();
       if (data.success) {
@@ -86,62 +85,42 @@ export default function ListaProdutosHub() {
     } catch (error) { console.error("Erro ao puxar categorias"); }
   };
 
-  const prepararEnvioParaLoja = async (produto) => {
-    const tenantId = pegarCnpjLogado();
+  // 🟢 Apenas seta o estado e abre o modal isolado!
+  const prepararEnvioParaLoja = (produto) => {
     setMenuAberto(null);
-    setModalEnvio({ open: true, produto, categoriasWoo: [], categoriaSelecionada: "", loadingCategorias: true });
-
-    try {
-      const res = await fetch("https://api.raizan.com.br/api/hub/sincronizar/woocommerce/categorias", { headers: { "x-tenant-id": tenantId } });
-      const data = await res.json();
-      if (data.success) {
-        setModalEnvio(prev => ({ ...prev, categoriasWoo: data.categorias, loadingCategorias: false }));
-      } else {
-        toast.error("Erro ao buscar categorias.");
-        setModalEnvio(prev => ({ ...prev, loadingCategorias: false }));
-      }
-    } catch (error) {
-      toast.error("Falha na comunicação.");
-      setModalEnvio(prev => ({ ...prev, loadingCategorias: false }));
-    }
+    setModalEnvio({ open: true, produto });
   };
 
-  const confirmarEnvioLoja = async () => {
-    const { produto, categoriaSelecionada } = modalEnvio;
+  // 🟢 O BOTÃO AGORA É REAL E FALA COM O BANCO!
+  const enviarParaForcaDeVendas = async (produto) => {
+    setMenuAberto(null);
     const tenantId = pegarCnpjLogado();
-    
-    if (!categoriaSelecionada) return toast.error("Selecione uma categoria!");
-
-    const toastId = toast.loading(`Sincronizando ${produto.nome}...`);
+    const toastId = toast.loading(`Enviando ${produto.nome} para o App dos vendedores...`);
     
     try {
-      const res = await fetch('https://api.raizan.com.br/api/hub/sincronizar/woocommerce', { 
-        method: 'POST', 
+      // ⚠️ ATENÇÃO: Ajuste a URL se a sua rota no backend ficou diferente!
+      const res = await fetch('https://api.raizan.com.br/api/hub/produtos/forca-vendas', { 
+        method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-tenant-id': tenantId },
-        body: JSON.stringify({ produto_id: produto.id, categoria_woo_id: categoriaSelecionada }) 
+        body: JSON.stringify({ produto_id: produto.id })
       });
       
       const data = await res.json();
       
       if (data.success) {
-        toast.success(`Enviado com sucesso!`, { id: toastId });
-        setModalEnvio({ open: false, produto: null, categoriasWoo: [], categoriaSelecionada: "", loadingCategorias: false });
-        setProdutos(produtos.map(p => p.id === produto.id ? { ...p, canais_ativos: [...(p.canais_ativos || []), 'woocommerce'] } : p));
+        toast.success(`Catálogo do App atualizado!`, { id: toastId });
+        // Atualiza a tabela na hora com o ícone roxo da maletinha!
+        setProdutos(produtos.map(p => 
+          p.id === produto.id && !(p.canais_ativos || []).includes('raizan') 
+            ? { ...p, canais_ativos: [...(p.canais_ativos || []), 'raizan'] } 
+            : p
+        ));
       } else {
-        toast.error(data.message, { id: toastId });
+        toast.error(data.message || "Erro ao ativar no App", { id: toastId });
       }
     } catch (error) {
-      toast.error(`Falha ao enviar.`, { id: toastId });
+      toast.error("Falha na comunicação com o servidor.", { id: toastId });
     }
-  };
-
-  const enviarParaForcaDeVendas = async (produto) => {
-    setMenuAberto(null);
-    const toastId = toast.loading(`Atualizando app dos vendedores com ${produto.nome}...`);
-    setTimeout(() => {
-        toast.success(`Catálogo App atualizado com sucesso!`, { id: toastId });
-        setProdutos(produtos.map(p => p.id === produto.id ? { ...p, canais_ativos: [...(p.canais_ativos || []), 'raizan'] } : p));
-    }, 1500);
   };
 
   const abrirModalDelete = (produto) => {
@@ -246,7 +225,13 @@ export default function ListaProdutosHub() {
       case 'magalu': return <div key={canal} className={`${baseClasses} bg-white border-blue-400`} title="Magalu"><img src="/magalu.svg" alt="Magalu" className={iconClasses} /></div>;
       case 'shopify': return <div key={canal} className={`${baseClasses} bg-white border-emerald-200`} title="Shopify"><img src="/shopify.svg" alt="Shopify" className={iconClasses} /></div>;
       case 'tiktok': return <div key={canal} className={`${baseClasses} bg-white border-zinc-300`} title="TikTok"><img src="/tiktok.svg" alt="TikTok" className={iconClasses} /></div>;
+      
+      // 🟢 O SEU APP FORÇA DE VENDAS
       case 'raizan': return <div key={canal} className={`${baseClasses} bg-purple-50 border-purple-200 dark:bg-purple-900/20 dark:border-purple-800`} title="Força de Vendas (Raizan Seller)"><Package size={14} className="text-purple-600 dark:text-purple-400" /></div>;
+      
+      // 🟢 O NOVO ÍCONE DO PORTAL B2B
+      case 'b2b': return <div key={canal} className={`${baseClasses} bg-sky-50 border-sky-200 dark:bg-sky-900/20 dark:border-sky-800`} title="Portal B2B"><LayoutTemplate size={14} className="text-sky-600 dark:text-sky-400" /></div>;
+      
       default: return null;
     }
   };
@@ -454,15 +439,13 @@ export default function ListaProdutosHub() {
                       </p>
                       
                       <div className="flex items-center gap-6">
-                        
-                        {/* 🟢 O SEU NOVO SELETOR DE QUANTIDADE */}
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-bold text-zinc-500 dark:text-zinc-400">Exibir:</span>
                           <select 
                             value={itensPorPagina} 
                             onChange={(e) => {
                               setItensPorPagina(Number(e.target.value));
-                              setPaginaAtual(1); // Volta pra pág 1 ao mudar a quantidade
+                              setPaginaAtual(1); 
                             }}
                             className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 text-xs font-bold rounded-lg px-2 py-1.5 outline-none focus:border-purple-500 cursor-pointer shadow-sm"
                           >
@@ -473,7 +456,6 @@ export default function ListaProdutosHub() {
                           </select>
                         </div>
 
-                        {/* Botões de Navegação */}
                         <div className="flex items-center gap-2">
                           <button 
                             onClick={() => setPaginaAtual(prev => Math.max(prev - 1, 1))}
@@ -503,89 +485,17 @@ export default function ListaProdutosHub() {
               )}
             </div>
 
-            {/* MODAL DE MAPEAMENTO E ENVIO */}
-            {modalEnvio.open && (
-              <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-                <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-2xl w-full max-w-2xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
-                  
-                  <div className="flex items-center justify-between p-6 border-b border-zinc-200 dark:border-zinc-800/60 bg-zinc-50 dark:bg-[#0c0c0e]">
-                    <div>
-                      <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">Enviar para o e-commerce</h2>
-                      <p className="text-sm text-zinc-500 mt-1">Mapeie as informações antes de sincronizar.</p>
-                    </div>
-                    <button onClick={() => setModalEnvio({ ...modalEnvio, open: false })} className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300">
-                      <X size={24} />
-                    </button>
-                  </div>
-
-                  <div className="p-6 space-y-6">
-                    <div className="flex items-center gap-4 p-4 bg-purple-50 dark:bg-purple-900/10 rounded-xl border border-purple-100 dark:border-purple-800/30">
-                      <div className="w-12 h-12 bg-white dark:bg-zinc-900 rounded-lg flex items-center justify-center shadow-sm border border-purple-100 dark:border-purple-800/30">
-                        <PackageOpen size={24} className="text-purple-600" />
-                      </div>
-                      <div>
-                        <p className="text-xs font-bold text-purple-600 dark:text-purple-400 uppercase tracking-wider mb-1">Produto Selecionado</p>
-                        <h3 className="font-bold text-zinc-900 dark:text-zinc-100">{modalEnvio.produto?.nome}</h3>
-                        <p className="text-sm text-zinc-500">SKU: {modalEnvio.produto?.sku || 'N/A'}</p>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
-                      <div className="space-y-2 relative">
-                        <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Categoria no ERP (Raizan)</label>
-                        <div className="p-3 bg-zinc-100 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 rounded-xl text-zinc-700 dark:text-zinc-300 font-medium">
-                          {modalEnvio.produto?.categoria || "Sem Categoria"}
-                        </div>
-                        <div className="hidden md:flex absolute -right-4 top-1/2 translate-x-1/2 items-center justify-center w-8 h-8 bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-full z-10 shadow-sm">
-                          <ChevronRight size={16} className="text-zinc-400" />
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <label className="text-xs font-bold text-purple-600 dark:text-purple-400 uppercase tracking-wider flex items-center gap-2">
-                          <img src="/woocommerce.svg" alt="Woo" className="w-4 h-4 object-contain" /> 
-                          Categoria na Loja
-                        </label>
-                        {modalEnvio.loadingCategorias ? (
-                          <div className="flex items-center gap-3 p-3 border border-zinc-200 dark:border-zinc-700 rounded-xl bg-zinc-50 dark:bg-zinc-900/50 text-sm text-zinc-500">
-                            <Loader2 size={16} className="animate-spin" /> Buscando categorias...
-                          </div>
-                        ) : (
-                          <select 
-                            value={modalEnvio.categoriaSelecionada} 
-                            onChange={(e) => setModalEnvio({...modalEnvio, categoriaSelecionada: e.target.value})}
-                            className="w-full p-3 bg-white dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded-xl outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 text-zinc-900 dark:text-zinc-100 font-medium cursor-pointer shadow-sm"
-                          >
-                            <option value="" disabled>Selecione a categoria correspondente</option>
-                            {modalEnvio.categoriasWoo.map(cat => (
-                              <option key={cat.id} value={cat.id}>{cat.nome}</option>
-                            ))}
-                          </select>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="p-6 border-t border-zinc-200 dark:border-zinc-800/60 bg-zinc-50 dark:bg-[#0c0c0e] flex justify-end gap-3">
-                    <button 
-                      onClick={() => setModalEnvio({ ...modalEnvio, open: false })}
-                      className="px-6 py-2.5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-xl font-bold hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors shadow-sm"
-                    >
-                      Cancelar
-                    </button>
-                    <button 
-                      onClick={confirmarEnvioLoja}
-                      disabled={!modalEnvio.categoriaSelecionada || modalEnvio.loadingCategorias}
-                      className="px-6 py-2.5 bg-purple-600 text-white rounded-xl font-bold shadow-md shadow-purple-500/20 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
-                    >
-                      <img src="/woocommerce.svg" alt="Woo" className="w-4 h-4 object-contain brightness-0 invert" />
-                      Sincronizar Produto
-                    </button>
-                  </div>
-
-                </div>
-              </div>
-            )}
+            {/* 🟢 O SEU COMPONENTE NOVO É CHAMADO AQUI! */}
+            <ModalEnvios 
+              isOpen={modalEnvio.open}
+              produto={modalEnvio.produto}
+              onClose={() => setModalEnvio({ open: false, produto: null })}
+              onSuccess={(produtoId) => {
+                setProdutos(produtos.map(p => 
+                  p.id === produtoId ? { ...p, canais_ativos: [...(p.canais_ativos || []), 'woocommerce'] } : p
+                ));
+              }}
+            />
 
           </div>
 
@@ -712,15 +622,12 @@ export default function ListaProdutosHub() {
               <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
                 <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-3xl w-full max-w-md shadow-2xl p-8 text-center flex flex-col items-center relative overflow-hidden animate-in zoom-in-95 duration-200">
                   
-                  {/* Faixa decorativa no topo do modal */}
                   <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-rose-500 to-orange-500" />
                   
-                  {/* Ícone Redondo */}
                   <div className="w-20 h-20 bg-rose-100 dark:bg-rose-500/10 text-rose-600 rounded-full flex items-center justify-center mb-6 shadow-inner">
                     {modalDelete.temVendas ? <AlertTriangle size={36} strokeWidth={2.5} /> : <Trash2 size={36} strokeWidth={2.5} />}
                   </div>
                   
-                  {/* Textos */}
                   <h2 className="text-2xl font-black text-zinc-900 dark:text-zinc-100 mb-3">Excluir Produto?</h2>
                   <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-8 leading-relaxed px-2">
                     Tem certeza que deseja apagar o produto <strong className="text-zinc-800 dark:text-zinc-200">"{modalDelete.produto?.nome}"</strong>? <br />
@@ -730,7 +637,6 @@ export default function ListaProdutosHub() {
                       : <span className="mt-2 block">Esta ação é irreversível e o apagará completamente do seu Hub.</span>}
                   </p>
                   
-                  {/* Botões */}
                   <div className="flex gap-3 w-full justify-center">
                     <button 
                       onClick={() => setModalDelete({ open: false, produto: null, temVendas: false })} 

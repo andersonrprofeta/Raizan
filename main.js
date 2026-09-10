@@ -31,7 +31,8 @@ function createWindow() {
       contextIsolation: true, // Liga a blindagem de segurança (Obrigatório pro Preload funcionar)
       preload: path.join(__dirname, 'preload.js'),
       // 🟢 ADICIONE ESTA LINHA: Ela desativa a trava de segurança de áudio do navegador!
-    autoplayPolicy: 'no-user-gesture-required'
+    autoplayPolicy: 'no-user-gesture-required',
+    webviewTag: true // 🟢 A MÁGICA AQUI: Isso permite rodar o OMIE e o Webmail dentro do app!
     },
   });
 

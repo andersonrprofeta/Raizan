@@ -5,8 +5,8 @@ import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import toast from 'react-hot-toast';
 import { getHubUrl, getHeaders } from "@/components/utils/api";
+import { ShoppingBag, Store, LayoutTemplate, Box, Layers, Search } from "lucide-react";
 
-import TabsLojas from "@/components/pedidos/TabsLojas";
 import TabelaPedidos from "@/components/pedidos/TabelaPedidos";
 import ModalDetalhes from "@/components/pedidos/ModalDetalhes";
 
@@ -49,8 +49,34 @@ export default function Pedidos() {
         const data = await res.json();
         
         if (data.success && data.ativas.length > 0) {
-          setIntegracoesInstaladas(data.ativas);
-          setActiveTabObj(data.ativas[0]); 
+          
+          // ✝️💦 O EXORCISMO DEFINITIVO (Agora permite várias lojas iguais!)
+          const canaisLimpados = data.ativas.filter(int => {
+            // 1. Se não tem ID (null ou undefined), é o fantasma do Backend. VAZA!
+            if (int.id === null || int.id === undefined) return false;
+            
+            // 2. Integrações do banco têm ID numérico (ex: 39, 46). Se tiver letras no ID, VAZA!
+            if (isNaN(Number(int.id))) return false;
+            
+            // 3. Se por acaso a plataforma se chamar Oracle ou Motor Local, VAZA TAMBÉM!
+            const plat = String(int.plataforma || int.tipo || '').toLowerCase();
+            if (plat.includes('oracle') || plat.includes('motor')) return false;
+
+            return true; // Só passa quem é real e tá salvo bonitinho no MySQL!
+          });
+
+          // 🧹 FILTRO ANTI-DUPLICATAS CORRIGIDO (Filtra pelo ID real do banco!)
+          const integracoesUnicas = canaisLimpados.filter((integracao, index, self) =>
+            index === self.findIndex((t) => (
+              t.id === integracao.id // 🟢 AQUI A MÁGICA: Permite 10 WooCommerce, desde que cada um tenha seu próprio ID!
+            ))
+          );
+
+          setIntegracoesInstaladas(integracoesUnicas);
+          
+          if (integracoesUnicas.length > 0) {
+            setActiveTabObj(integracoesUnicas[0]); 
+          }
         }
       } catch (e) {}
     };
@@ -65,13 +91,14 @@ export default function Pedidos() {
     setLoading(true);
     try {
       const tenantId = obterTenantSeguro();
+      const plataformaReal = (activeTabObj.plataforma || activeTabObj.tipo || "").toLowerCase();
       
-      // 🟢 ROTEAMENTO INTELIGENTE DE ENDPOINTS
+      // 🟢 ROTEAMENTO LIMPO E BLINDADO
       let endpoint = `${getHubUrl()}/api/hub/pedidos/woo`; 
-      if (activeTabObj.tipo === "b2b") {
+      if (plataformaReal.includes("b2b") || plataformaReal.includes("portal")) {
         endpoint = `${getHubUrl()}/api/hub/pedidos/b2b`;
-      } else if (activeTabObj.plataforma === "omie" || activeTabObj.tipo === "omie") {
-        endpoint = `${getHubUrl()}/api/hub/pedidos/omie`; // Rota nova que criaremos no Backend
+      } else if (plataformaReal.includes("omie")) {
+        endpoint = `${getHubUrl()}/api/hub/pedidos/omie`;
       }
 
       const res = await fetch(endpoint, {
@@ -80,7 +107,7 @@ export default function Pedidos() {
         body: JSON.stringify({ 
           page, 
           limit: Number(limit), 
-          plataforma: activeTabObj.plataforma || activeTabObj.tipo,
+          plataforma: plataformaReal,
           integracao_id: activeTabObj.id 
         }) 
       });
@@ -108,21 +135,22 @@ export default function Pedidos() {
     const loadingToast = toast.loading("Atualizando status...");
     try {
       const tenantId = obterTenantSeguro();
+      const plataformaReal = (activeTabObj.plataforma || activeTabObj.tipo || "").toLowerCase();
       
       let endpoint = `${getHubUrl()}/api/hub/pedidos/mudar-status-woo`;
-      if (activeTabObj.tipo === 'b2b') endpoint = `${getHubUrl()}/api/hub/pedidos/mudar-status-b2b`;
-      if (activeTabObj.plataforma === 'omie') endpoint = `${getHubUrl()}/api/hub/pedidos/mudar-status-omie`;
+      if (plataformaReal.includes('b2b')) endpoint = `${getHubUrl()}/api/hub/pedidos/mudar-status-b2b`;
+      if (plataformaReal.includes('omie')) endpoint = `${getHubUrl()}/api/hub/pedidos/mudar-status-omie`;
       
       const res = await fetch(endpoint, {
         method: 'POST', headers: { ...getHeaders(), "x-tenant-id": tenantId },
-        body: JSON.stringify({ pedidoId, novoStatus, integracao_id: activeTabObj.id, plataforma: activeTabObj.plataforma })
+        body: JSON.stringify({ pedidoId, novoStatus, integracao_id: activeTabObj.id, plataforma: plataformaReal })
       });
       
       const data = await res.json();
       
       if(data.success) {
         toast.success("Status atualizado com sucesso!", { id: loadingToast });
-        carregarPedidos(); // Recarrega a lista toda para garantir dados frescos
+        carregarPedidos(); 
         if((pedidoSelecionado?.id || pedidoSelecionado?.pedido_id) === pedidoId) {
           setPedidoSelecionado({ ...pedidoSelecionado, status: novoStatus, status_pedido: novoStatus });
         }
@@ -134,7 +162,6 @@ export default function Pedidos() {
     }
   };
 
-  // 🟢 NOVA FUNÇÃO: Sincronização direta com o Omie
   const handleSincronizarOmie = async (pedido) => {
     const idReal = pedido.id || pedido.pedido_id;
     const loadingToast = toast.loading("Enviando pedido para o Omie...");
@@ -149,17 +176,16 @@ export default function Pedidos() {
       const data = await res.json();
 
       if (data.success) {
-        toast.success(`Sucesso! Pedido gerado no Omie: ${data.numero_omie}`, { id: loadingToast });
-        carregarPedidos(); // Atualiza a tabela para mostrar o novo status "Integrado"
+        toast.success(`Sucesso! Pedido Omie: ${data.numero_omie}`, { id: loadingToast });
+        carregarPedidos(); 
       } else {
-        toast.error(data.message || "Falha ao enviar para o Omie.", { id: loadingToast });
+        toast.error(data.message || "Falha ao enviar.", { id: loadingToast });
       }
     } catch (error) {
-      toast.error("Erro de comunicação com a nuvem.", { id: loadingToast });
+      toast.error("Erro de comunicação.", { id: loadingToast });
     }
   };
 
-  // 🟢 FUNÇÃO LEGADA: Download de CSV (Mantida para Oracle/Woo)
   const handleBaixarCSV = (pedido) => {
     let csvContent = 'SKU;Quantidade;"Preço Unitário"\n';
     const itensExportar = pedido.line_items || pedido.itens || [];
@@ -189,63 +215,127 @@ export default function Pedidos() {
     toast.success("Arquivo CSV exportado!");
   };
 
-  // 🟢 BOTÃO DE AÇÃO DINÂMICO BLINDADO
   const handleAcaoPrimaria = (pedido) => {
-    // Nós varremos todas as opções possíveis que o banco de dados pode ter cuspido:
-    const textoChave = String(activeTabObj?.plataforma || activeTabObj?.tipo || activeTabObj?.iconType || '').toLowerCase();
-    const isOmie = textoChave.includes('omie');
-
-    if (isOmie) {
+    const textoChave = String(activeTabObj?.plataforma || activeTabObj?.tipo || '').toLowerCase();
+    if (textoChave.includes('omie')) {
       handleSincronizarOmie(pedido);
     } else {
       handleBaixarCSV(pedido);
     }
   };
 
+  // 🍎 Ícone dinâmico elegante para as abas
+  const renderIconTab = (plataforma) => {
+    const plat = String(plataforma).toLowerCase();
+    if (plat.includes('woo')) return <Store size={14} />;
+    if (plat.includes('b2b') || plat.includes('portal')) return <LayoutTemplate size={14} />;
+    if (plat.includes('omie')) return <Box size={14} />;
+    return <ShoppingBag size={14} />;
+  };
+
+  // 🍎 MAPEADOR INTELIGENTE DE NOMES
+  const obterNomeAba = (tab) => {
+    // 1. Prioriza o nome cadastrado no painel ou o label enviado pelo backend!
+    const nomeSalvo = tab.nome_integracao || tab.label || "";
+    if (nomeSalvo.trim() !== "" && nomeSalvo !== "Integração") {
+      return nomeSalvo;
+    }
+    
+    // 2. Fallback de segurança se o backend e o banco mandarem vazio
+    const p = String(tab.plataforma || tab.tipo || '').toLowerCase();
+    if (p.includes('woo')) return 'WooCommerce';
+    if (p.includes('omie')) return 'Omie ERP';
+    if (p.includes('b2b') || p.includes('portal')) return 'Portal B2B';
+    if (p.includes('oracle') || p.includes('motor')) return 'Oracle';
+    if (p.includes('tiny')) return 'Tiny ERP';
+    if (p.includes('olist')) return 'Olist';
+    if (p.includes('shopee')) return 'Shopee';
+    if (p.includes('mercado') || p.includes('meli')) return 'Mercado Livre';
+    
+    return "Loja";
+  };
+
   return (
-    <div className="flex min-h-screen bg-zinc-50 dark:bg-[#09090b] text-zinc-900 dark:text-zinc-200 font-sans transition-colors duration-300">
+    <div className="flex min-h-screen bg-[#f5f5f7] dark:bg-[#000000] text-zinc-900 dark:text-zinc-100 font-sans transition-colors duration-300">
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
         <Header />
-        <main className="flex-1 p-8 overflow-y-auto custom-scrollbar">
+        
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto custom-scrollbar">
           <div className="max-w-7xl mx-auto space-y-6">
             
-            <div className="flex justify-between items-end">
+            {/* 🍎 HEADER APPLE STYLE */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
               <div>
-                <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 tracking-tight transition-colors">Gerenciador de Pedidos</h1>
-                <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1 transition-colors">Gerencie status e exporte as vendas para o ERP.</p>
+                <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">Pedidos</h1>
+                <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1 font-medium">Gestão unificada de vendas e sincronização.</p>
               </div>
               
-              <div className="flex items-center gap-3">
-                <span className="text-sm text-zinc-500 dark:text-zinc-400">Exibir:</span>
-                <select value={limit} onChange={(e) => { setLimit(e.target.value); setPage(1); }} className="bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 px-3 py-1.5 rounded-lg text-sm outline-none focus:border-purple-500 cursor-pointer shadow-sm dark:shadow-none transition-colors">
-                  <option value="10">10 por pág</option>
-                  <option value="20">20 por pág</option>
-                  <option value="50">50 por pág</option>
-                  <option value="100">100 por pág</option>
+              <div className="flex items-center gap-3 bg-white dark:bg-zinc-900/50 p-1.5 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                <span className="text-xs font-bold text-zinc-400 px-2 uppercase tracking-wider hidden sm:block">Exibir</span>
+                <select value={limit} onChange={(e) => { setLimit(e.target.value); setPage(1); }} className="bg-transparent text-zinc-700 dark:text-zinc-300 px-2 py-1 rounded-xl text-sm font-bold outline-none cursor-pointer">
+                  <option value="10">10 itens</option>
+                  <option value="20">20 itens</option>
+                  <option value="50">50 itens</option>
                 </select>
               </div>
             </div>
 
-            <TabsLojas 
-              integracoesInstaladas={integracoesInstaladas} 
-              activeTab={activeTabObj?.id} 
-              onTabChange={(tab) => { setActiveTabObj(tab); setPage(1); }} 
-            />
+            {/* 🍎 ABAS ESTILO iOS */}
+            {integracoesInstaladas.length > 0 ? (
+              <div className="relative w-full">
+                <div className="flex items-center gap-2 p-1.5 bg-zinc-200/50 dark:bg-zinc-900/80 rounded-2xl overflow-x-auto no-scrollbar w-max max-w-full shadow-inner border border-zinc-200/50 dark:border-white/5">
+                  {integracoesInstaladas.map(tab => {
+                    const isActive = activeTabObj?.id === tab.id;
+                    return (
+                      <button
+                        key={tab.id}
+                        onClick={() => { setActiveTabObj(tab); setPage(1); }}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all duration-300 whitespace-nowrap outline-none select-none
+                          ${isActive 
+                            ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-sm ring-1 ring-black/5 dark:ring-white/10' 
+                            : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50'
+                          }`}
+                      >
+                        <span className={isActive ? 'text-purple-600 dark:text-purple-400' : 'opacity-70'}>
+                          {renderIconTab(tab.plataforma || tab.tipo)}
+                        </span>
+                        {/* 🟢 O NOME REAL DOS WOOCOMMERCES AQUI! */}
+                        {obterNomeAba(tab)}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            ) : (
+              <div className="bg-white dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 flex items-center gap-4 shadow-sm">
+                <div className="w-12 h-12 bg-amber-100 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-full flex items-center justify-center shrink-0">
+                  <Layers size={20} />
+                </div>
+                <div>
+                  <h3 className="font-bold text-zinc-900 dark:text-white">Nenhum canal ativo</h3>
+                  <p className="text-sm text-zinc-500">Conecte uma loja ou ERP no menu de integrações para receber pedidos.</p>
+                </div>
+              </div>
+            )}
 
-            <TabelaPedidos 
-              pedidos={pedidos} 
-              loading={loading} 
-              page={page} 
-              totalPages={totalPages} 
-              totalItems={totalItems} 
-              onPageChange={setPage} 
-              onRowClick={setPedidoSelecionado} 
-              baixados={baixados} 
-              onDownload={handleAcaoPrimaria} // 🟢 Passamos a função dinâmica aqui!
-              activeTab={activeTabObj?.id} 
-              plataformaAtiva={activeTabObj?.tipo || activeTabObj?.iconType} // Opcional: Pra sua tabela mudar o nome do botão se quiser
-            />
+            {/* 🍎 CONTAINER DA TABELA */}
+            <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800/80 rounded-[2rem] shadow-sm overflow-hidden transition-colors duration-300">
+              <TabelaPedidos 
+                pedidos={pedidos} 
+                loading={loading} 
+                page={page} 
+                totalPages={totalPages} 
+                totalItems={totalItems} 
+                onPageChange={setPage} 
+                onRowClick={setPedidoSelecionado} 
+                baixados={baixados} 
+                onDownload={handleAcaoPrimaria} 
+                activeTab={activeTabObj?.id} 
+                plataformaAtiva={activeTabObj?.tipo || activeTabObj?.iconType} 
+              />
+            </div>
+
           </div>
         </main>
       </div>

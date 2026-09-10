@@ -529,7 +529,7 @@ export default function Header() {
                     
                     <div className="grid grid-cols-3 gap-2">
                        <button 
-                          onMouseDown={() => window.dispatchEvent(new CustomEvent('abrirAppExterno', { detail: { nome: 'OMIE', url: 'https://app.omie.com.br/' }}))} 
+                          onMouseDown={() => window.dispatchEvent(new CustomEvent('abrirAppExterno', { detail: { nome: 'OMIE', url: 'https://app.omie.com.br/gestao/oliveira-hucf57e5/' }}))} //lembrar do omie pra tirar o chumbo depois 
                           className="flex flex-col items-center justify-center p-3 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800/80 transition-colors gap-2"
                        >
                           <div className="w-10 h-10 rounded-full bg-[#001D4A] flex items-center justify-center text-white font-black text-xs shadow-sm">OM</div>

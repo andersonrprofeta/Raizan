@@ -1,11 +1,12 @@
 import "./globals.css";
 import { Toaster } from 'react-hot-toast';
+import WorkspaceExterno from "@/components/WorkspaceExterno"; // 🟢 Cortina comprada!
 
 // 🟢 Provedor com caminho relativo (se Providers estiver na mesma pasta app)
 import Providers from "./Providers"; 
 
 export const metadata = {
-  title: "Hub de integrações Raizan Core",
+  title: "Portal Raizan Core",
   description: "Dashboard ERP",
 };
 
@@ -30,6 +31,10 @@ export default function RootLayout({ children }) {
               error: { iconTheme: { primary: '#f43f5e', secondary: '#18181b' } },
             }} 
           />
+
+          {/* 🟢 CORTINA PENDURADA! Agora ela vai escutar o clique lá no Header! */}
+          <WorkspaceExterno />
+
         </Providers>
       </body>
     </html>

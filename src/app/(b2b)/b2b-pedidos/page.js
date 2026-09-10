@@ -7,25 +7,28 @@ import { Search, ShoppingCart, CheckCircle2, AlertCircle, Package, Barcode, Load
 import { getApiUrl, getHubUrl, getHeaders } from "@/components/utils/api";
 import toast from 'react-hot-toast';
 import { initMercadoPago, Payment } from '@mercadopago/sdk-react';
-//REGRAS DE EDIÇÃO DO CÓDIGO: NUNCA MEXER NO LAYOUT, NUNCA CHUMBAR TENANT ID
-// ==========================================
-// CONFIGURAÇÕES DO MOTOR DE IMAGENS 
-// ==========================================
-const BASE_URL_IMAGENS = "https://portalseller.com.br/img_pro/";
-
-const getProductImageUrl = (ean) => {
-  if (ean && ean.trim() !== "") return `${BASE_URL_IMAGENS}${ean}.webp`;
-  return "https://placehold.co/100x100/18181b/52525b?text=Sem+Foto";
-};
 
 const formatarMoeda = (valor) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor || 0);
 };
 
+// 🟢 NOVO MOTOR DE IMAGENS DO HUB RAIZAN
+const obterCapa = (produto) => {
+  if (produto && produto.imagens_anexos) {
+    try {
+      const imagens = typeof produto.imagens_anexos === 'string' ? JSON.parse(produto.imagens_anexos) : produto.imagens_anexos;
+      if (Array.isArray(imagens) && imagens.length > 0 && imagens[0]) {
+        return imagens[0];
+      }
+    } catch(e) {}
+  }
+  return "https://placehold.co/100x100/18181b/52525b?text=Sem+Foto"; 
+};
+
 // ==========================================
 // COMPONENTE: MODAL DE CHECKOUT B2B
 // ==========================================
-function ModalCheckout({ isOpen, onClose, carrinho, produtos, tabelaAtiva, onFinalizarPedido, onRemoverItem }) {
+function ModalCheckout({ isOpen, onClose, carrinho, onFinalizarPedido, onRemoverItem }) {
   const [metodoPagamento, setMetodoPagamento] = useState('faturado');
   const [prazoBoleto, setPrazoBoleto] = useState('30'); 
   const [metodoEnvio, setMetodoEnvio] = useState('transportadora');
@@ -74,7 +77,6 @@ function ModalCheckout({ isOpen, onClose, carrinho, produtos, tabelaAtiva, onFin
             }
           }
         } catch (e) {
-          console.log("Erro ao buscar métodos na Nuvem", e);
           setMpKeyMissing(true);
           setMetodoPagamento('faturado');
         }
@@ -131,12 +133,13 @@ function ModalCheckout({ isOpen, onClose, carrinho, produtos, tabelaAtiva, onFin
 
   if (!isOpen) return null;
 
-  // 🟢 TRAVA DE MATEMÁTICA: Evita que itens com preço nulo causem Erro 500 no Banco de Dados
+  // 🟢 NOVA LÓGICA DE CARRINHO LENDO DO HUB
   const itensComprados = Object.values(carrinho).map(p => {
-    const precoOriginal = parseFloat(p[tabelaAtiva] || p.PDPRECO || 0) || 0;
+    const precoOriginal = parseFloat(p.preco_venda || 0);
     const minExigido = parseInt(p.qtd_minima_promocao) || 1;
-    const atingiuMinimo = p.em_promocao && p.qtd >= minExigido;
-    const precoFinal = atingiuMinimo ? parseFloat(p.preco_promocional || 0) : precoOriginal;
+    const temPromo = parseFloat(p.preco_promocional) > 0;
+    const atingiuMinimo = temPromo && p.qtd >= minExigido;
+    const precoFinal = atingiuMinimo ? parseFloat(p.preco_promocional) : precoOriginal;
     
     return { 
       ...p, 
@@ -421,11 +424,11 @@ function ModalCheckout({ isOpen, onClose, carrinho, produtos, tabelaAtiva, onFin
               <div className="flex-1 overflow-y-auto custom-scrollbar p-2">
                 <ul className="divide-y divide-zinc-200 dark:divide-zinc-800/50 px-2">
                   {itensComprados.map(item => (
-                    <li key={item.PDCODPRO} className="py-3 flex items-start justify-between gap-3 sm:gap-4 group">
+                    <li key={item.id} className="py-3 flex items-start justify-between gap-3 sm:gap-4 group">
                       <div className="flex-1">
-                        <p className="text-sm sm:text-base font-medium text-zinc-800 dark:text-zinc-200 line-clamp-2 break-words">{item.PDNOME}</p>
+                        <p className="text-sm sm:text-base font-medium text-zinc-800 dark:text-zinc-200 line-clamp-2 break-words">{item.nome}</p>
                         <p className="text-xs text-zinc-500">
-                          SKU: {item.PDCODPRO} | {item.qtd}x {formatarMoeda(item.precoUsado)} 
+                          SKU: {item.sku} | {item.qtd}x {formatarMoeda(item.precoUsado)} 
                           {item.atingiuMinimo && <span className="text-emerald-600 dark:text-emerald-400 font-bold ml-1">(Oferta Aplicada)</span>}
                         </p>
                       </div>
@@ -434,7 +437,7 @@ function ModalCheckout({ isOpen, onClose, carrinho, produtos, tabelaAtiva, onFin
                           {formatarMoeda(item.totalItem)}
                         </div>
                         <button 
-                          onClick={() => onRemoverItem(item.PDCODPRO)}
+                          onClick={() => onRemoverItem(item.id)}
                           className="text-zinc-400 dark:text-zinc-500 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 px-2 py-1 rounded transition-colors flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider"
                           title="Remover do carrinho"
                         >
@@ -496,18 +499,15 @@ function SeletorQuantidade({ id, qtd, onQtdChange }) {
 // ==========================================
 export default function CatalogoB2B() {
   const [carrinho, setCarrinho] = useState({});
-  const [produtos, setProdutos] = useState([]);
+  const [produtosDb, setProdutosDb] = useState([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
-  const [tabelaAtiva, setTabelaAtiva] = useState("PDPRECO");
   
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20); 
-  const [totalPages, setTotalPages] = useState(1);
 
   const [somenteOfertas, setSomenteOfertas] = useState(false);
-  const [listaOfertas, setListaOfertas] = useState([]);
 
   useEffect(() => {
     const carregarCarrinhoEListners = () => {
@@ -516,7 +516,6 @@ export default function CatalogoB2B() {
         try { setCarrinho(JSON.parse(carrinhoSalvo)); } catch(e) { }
       }
     };
-    
     carregarCarrinhoEListners();
 
     const syncCarrinho = () => {
@@ -525,107 +524,74 @@ export default function CatalogoB2B() {
     };
     window.addEventListener('storage', syncCarrinho);
 
-    carregarListaOfertasGlobais();
-
     return () => window.removeEventListener('storage', syncCarrinho);
   }, []);
 
-  const carregarListaOfertasGlobais = async () => {
-    try {
-      const res = await fetch(`${getApiUrl()}/api/admin/promocoes`, { headers: getHeaders() });
-      const data = await res.json();
-      if(data.success) {
-        const hoje = new Date();
-        const ofertasAtivas = data.promocoes.filter(promo => {
-          const inicio = new Date(promo.data_inicio);
-          const fim = new Date(promo.data_fim);
-          fim.setHours(23, 59, 59);
-          return promo.ativo && hoje >= inicio && hoje <= fim;
-        });
-        setListaOfertas(ofertasAtivas);
-      }
-    } catch(e) { console.error("Erro ao buscar ofertas do modal"); }
-  };
-
+  // 🟢 AGORA BUSCA DO HUB OFICIAL (COM PAGINAÇÃO LOCAL SUPER RÁPIDA)
   useEffect(() => {
-    carregarProdutos();
-  }, [page, limit, somenteOfertas]); 
-
-  const carregarProdutos = async () => {
-    if (somenteOfertas && listaOfertas.length === 0) {
-      setProdutos([]);
-      setTotalPages(1);
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const payload = { 
-        search, 
-        hideBlocked: true, 
-        hideSamples: true, 
-        page, 
-        limit: Number(limit),
-        skusFiltro: somenteOfertas ? listaOfertas.map(o => o.sku) : []
-      };
-      
-      const response = await fetch(`${getApiUrl()}/api/produtos`, {
-        method: "POST", 
-        headers: getHeaders(), 
-        body: JSON.stringify(payload),
-      });
-      const data = await response.json();
-      
-      if (data.success) {
-        const produtosFiltrados = data.produtos.filter(p => p.PDSTATUS !== 6 && p.PDSTATUS !== 8);
-        setProdutos(produtosFiltrados); 
+    const carregarTudo = async () => {
+      setLoading(true);
+      try {
+        const tenantId = process.env.NEXT_PUBLIC_TENANT_ID || "28389424000109";
+        const response = await fetch(`${getHubUrl()}/api/hub/produtos?limit=5000`, {
+          method: "GET", 
+          headers: { "x-tenant-id": tenantId }
+        });
+        const data = await response.json();
         
-        if (data.totalPages) setTotalPages(data.totalPages);
-        if (data.tabelaPrecoBase) setTabelaAtiva(data.tabelaPrecoBase);
-      } else {
-        toast.error(data.message || "Erro ao conectar com o banco de dados.");
+        if (data.success) {
+          // Filtra produtos bloqueados ou inativos se houver status assim
+          const ativos = data.produtos.filter(p => p.status !== 'inativo');
+          setProdutosDb(ativos); 
+        } else {
+          toast.error("Erro ao conectar com o banco de dados.");
+        }
+      } catch (error) { 
+        toast.error("Erro ao carregar catálogo.");
       }
-    } catch (error) { 
-      toast.error("Erro ao carregar catálogo.");
-    }
-    setLoading(false);
-  };
+      setLoading(false);
+    };
+
+    carregarTudo();
+  }, []); 
 
   const handleSearch = (e) => {
     e.preventDefault();
     setPage(1);
-    carregarProdutos();
   };
 
-  const produtosComPromocaoCarimbada = produtos.map(p => {
-    const oferta = listaOfertas.find(o => o.sku === p.PDCODPRO.toString());
-    if (oferta) {
-      return { 
-        ...p, 
-        em_promocao: true, 
-        preco_promocional: oferta.preco_promocional,
-        qtd_minima_promocao: oferta.qtd_minima || 1 
-      };
-    }
-    return { ...p, em_promocao: false };
+  // 🟢 FILTRAGEM LOCAL (RÁPIDA COMO A LUZ)
+  const produtosFiltrados = produtosDb.filter(p => {
+    const termo = search.toLowerCase();
+    const matchBusca = (p.nome && p.nome.toLowerCase().includes(termo)) || 
+                       (p.sku && p.sku.toLowerCase().includes(termo)) || 
+                       (p.gtin && p.gtin.toLowerCase().includes(termo));
+    
+    const temPromo = parseFloat(p.preco_promocional) > 0;
+    const matchOferta = somenteOfertas ? temPromo : true;
+
+    return matchBusca && matchOferta;
   });
+
+  // 🟢 PAGINAÇÃO LOCAL
+  const totalPages = Math.ceil(produtosFiltrados.length / limit);
+  const offset = (page - 1) * limit;
+  const produtosPaginados = produtosFiltrados.slice(offset, offset + Number(limit));
 
   const handleQuantidade = (produto, qtd) => {
     setCarrinho(prev => {
       const novo = { ...prev };
       if (qtd === 0) {
-        delete novo[produto.PDCODPRO];
+        delete novo[produto.id];
       } else {
-        novo[produto.PDCODPRO] = { ...produto, qtd };
+        novo[produto.id] = { ...produto, qtd };
       }
       localStorage.setItem("@raizan:carrinho", JSON.stringify(novo));
-      
       window.dispatchEvent(new Event('storage'));
       return novo;
     });
   };
 
-// 🟢 A MÁGICA DE INJETAR O CRACHÁ ACONTECE AQUI!
   const handleFinalizarPedido = async (dadosDoPedido) => {
     const savedUser = localStorage.getItem("raizan_user");
     if (!savedUser) {
@@ -637,19 +603,24 @@ export default function CatalogoB2B() {
     const userLogado = JSON.parse(savedUser);
     const cabecalhosPadrao = getHeaders();
     
-    // 🔥 O FIM DO CHUMBADO! 
-    // Tenta pegar do usuário logado -> Se não achar, pega dos Headers globais -> Se não achar, pega do .env
     const tenant_id = userLogado.tenant_id || cabecalhosPadrao["x-tenant-id"] || process.env.NEXT_PUBLIC_TENANT_ID; 
 
     if (!tenant_id) {
-       console.error("FALHA CRÍTICA: Tenant ID não encontrado.");
        toast.error("Erro de identificação da loja. Limpe o cache e faça login novamente.");
        return null;
     }
 
+    // 🟢 ENVIANDO OS NOMES E SKUS CORRETOS PARA O MOTOR
+    const itensParaBackend = dadosDoPedido.itens.map(i => ({
+      ...i,
+      nome_produto: i.nome,
+      sku: i.sku
+    }));
+
     const payloadCompleto = {
       ...dadosDoPedido, 
-      tenant_id: tenant_id, // 🟢 100% DINÂMICO
+      itens: itensParaBackend,
+      tenant_id: tenant_id,
       cliente: {
         codigo: userLogado.codigo,
         nome: userLogado.nome, 
@@ -662,7 +633,6 @@ export default function CatalogoB2B() {
     const toastId = toast.loading("Gerando pedido na distribuidora..."); 
     
     try {
-      // 🟢 CABEÇALHOS BLINDADOS
       const cabecalhosComCracha = {
         ...cabecalhosPadrao,
         "Content-Type": "application/json", 
@@ -723,16 +693,6 @@ export default function CatalogoB2B() {
       return null;
     }
   };
-  //FIM DA MÁGICA AQUI
-
-  const getEstiloTabelaPreco = (tabela) => {
-    switch(tabela) {
-      case 'PDPRECO2': return { cor: 'text-amber-600 dark:text-amber-400' };
-      case 'PDPRECO3': return { cor: 'text-teal-600 dark:text-teal-400' };
-      default: return { cor: 'text-emerald-600 dark:text-emerald-400' };
-    }
-  };
-  const infoTabela = getEstiloTabelaPreco(tabelaAtiva);
 
   return (
     <div className="flex h-screen bg-zinc-50 dark:bg-[#09090b] text-zinc-900 dark:text-zinc-100 overflow-hidden transition-colors duration-300">
@@ -783,8 +743,8 @@ export default function CatalogoB2B() {
                   <input 
                     type="text" 
                     value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Buscar por nome, EAN ou código..." 
+                    onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                    placeholder="Buscar por nome, SKU ou EAN..." 
                     className="w-full bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-200 pl-10 pr-4 py-2.5 rounded-xl text-sm outline-none focus:border-emerald-500 transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600"
                   />
                 </form>
@@ -806,12 +766,12 @@ export default function CatalogoB2B() {
                       <th className="px-3 sm:px-5 py-3 sm:py-4 w-[40%]">Produto</th>
                       <th className="px-3 sm:px-5 py-3 sm:py-4 w-32">Marca</th>
                       <th className="px-3 sm:px-5 py-3 sm:py-4 text-center">Estoque</th>
-                      <th className={`px-3 sm:px-5 py-3 sm:py-4 text-right font-bold ${infoTabela.cor}`}>Preço Unitário</th>
+                      <th className="px-3 sm:px-5 py-3 sm:py-4 text-right font-bold text-emerald-600 dark:text-emerald-400">Preço Unitário</th>
                       <th className="px-3 sm:px-5 py-3 sm:py-4 text-center w-40 rounded-tr-2xl">Compra</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800/40">
-                    {produtosComPromocaoCarimbada.length === 0 && !loading && (
+                    {produtosPaginados.length === 0 && !loading && (
                       <tr>
                         <td colSpan="6" className="px-5 py-12 text-center text-zinc-500 dark:text-zinc-500">
                           Nenhum produto encontrado. Verifique sua busca ou remova os filtros.
@@ -819,42 +779,44 @@ export default function CatalogoB2B() {
                       </tr>
                     )}
 
-                    {produtosComPromocaoCarimbada.map((produto) => {
-                      const qtdNoCarrinho = carrinho[produto.PDCODPRO]?.qtd || 0;
-                      const imageUrl = getProductImageUrl(produto.PDCODBARRA);
-                      const temEstoque = produto.PDSALDO > 0;
+                    {produtosPaginados.map((produto) => {
+                      const qtdNoCarrinho = carrinho[produto.id]?.qtd || 0;
+                      const imageUrl = obterCapa(produto);
+                      const temEstoque = produto.estoque_inicial > 0;
                       
-                      const precoOriginal = produto[tabelaAtiva] !== undefined ? parseFloat(produto[tabelaAtiva]) : parseFloat(produto.PDPRECO);
-                      const minExigido = produto.qtd_minima_promocao || 1;
-                      const atingiuMinimo = produto.em_promocao && qtdNoCarrinho >= minExigido;
+                      const precoOriginal = parseFloat(produto.preco_venda || 0);
+                      const minExigido = parseInt(produto.qtd_minima_promocao) || 1;
+                      const emPromocao = parseFloat(produto.preco_promocional) > 0;
+                      const atingiuMinimo = emPromocao && qtdNoCarrinho >= minExigido;
+                      
                       const precoExibicao = atingiuMinimo ? parseFloat(produto.preco_promocional) : precoOriginal;
                       const desconto = atingiuMinimo && precoOriginal > 0 ? Math.round(((precoOriginal - precoExibicao) / precoOriginal) * 100) : 0;
 
                       return (
-                        <tr key={produto.PDCODPRO} className={`transition-colors group ${!temEstoque ? 'opacity-50 grayscale' : 'hover:bg-zinc-50 dark:hover:bg-zinc-800/20'}`}>
+                        <tr key={produto.id} className={`transition-colors group ${!temEstoque ? 'opacity-50 grayscale' : 'hover:bg-zinc-50 dark:hover:bg-zinc-800/20'}`}>
                           <td className="px-3 sm:px-5 py-3 sm:py-4">
                             
                             <div className="relative w-[72px] h-[72px] bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl flex items-center justify-center overflow-hidden shrink-0 group-hover:border-emerald-500/50 transition-all mx-auto">
-                              {produto.em_promocao && desconto > 0 && (
+                              {emPromocao && desconto > 0 && (
                                 <div className="absolute top-0 right-0 bg-rose-600 text-white text-[10px] font-black px-1.5 py-0.5 rounded-bl-lg shadow-md z-10 flex items-center gap-0.5 animate-pulse">
                                   <Zap size={10} fill="currentColor" />-{desconto}%
                                 </div>
                               )}
-                              <img src={imageUrl} alt={produto.PDNOME} className="w-full h-full object-contain p-1" onError={(e) => { e.target.src = "https://placehold.co/100x100/18181b/52525b?text=Sem+Foto"; }} />
+                              <img src={imageUrl} alt={produto.nome} className="w-full h-full object-contain p-1" onError={(e) => { e.target.src = "https://placehold.co/100x100/18181b/52525b?text=Sem+Foto"; }} />
                             </div>
 
                           </td>
                           <td className="px-3 sm:px-5 py-3 sm:py-4">
-                            <h3 className="font-bold text-zinc-900 dark:text-zinc-100 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors line-clamp-2 break-words">{produto.PDNOME}</h3>
+                            <h3 className="font-bold text-zinc-900 dark:text-zinc-100 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors line-clamp-2 break-words">{produto.nome}</h3>
                             <div className="flex items-center gap-1.5 mt-1.5 text-xs text-zinc-500 font-mono">
-                              <Barcode size={13} className="text-zinc-400 dark:text-zinc-600" /> {produto.PDCODBARRA || "SEM EAN"} <span className="text-zinc-300 dark:text-zinc-700 mx-1">|</span> <span className="text-zinc-500 dark:text-zinc-400">SKU: {produto.PDCODPRO}</span>
+                              <Barcode size={13} className="text-zinc-400 dark:text-zinc-600" /> {produto.gtin || "SEM EAN"} <span className="text-zinc-300 dark:text-zinc-700 mx-1">|</span> <span className="text-zinc-500 dark:text-zinc-400">SKU: {produto.sku}</span>
                             </div>
                           </td>
-                          <td className="px-3 sm:px-5 py-3 sm:py-4 text-zinc-600 dark:text-zinc-400">{produto.PDMARCA || "-"}</td>
+                          <td className="px-3 sm:px-5 py-3 sm:py-4 text-zinc-600 dark:text-zinc-400">{produto.marca || "-"}</td>
                           <td className="px-3 sm:px-5 py-3 sm:py-4 text-center">
                             {temEstoque ? (
                               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-semibold border border-emerald-200 dark:border-emerald-500/20">
-                                <CheckCircle2 size={13}/> Disp: {produto.PDSALDO}
+                                <CheckCircle2 size={13}/> Disp: {produto.estoque_inicial}
                               </div>
                             ) : (
                               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-100 dark:bg-red-500/10 text-red-600 dark:text-red-400 text-xs font-semibold border border-red-200 dark:border-red-500/20">
@@ -862,8 +824,8 @@ export default function CatalogoB2B() {
                               </div>
                             )}
                           </td>
-                          <td className={`px-3 sm:px-5 py-3 sm:py-4 text-right text-sm sm:text-base whitespace-nowrap ${infoTabela.cor}`}>
-                            {produto.em_promocao ? (
+                          <td className="px-3 sm:px-5 py-3 sm:py-4 text-right text-sm sm:text-base whitespace-nowrap text-emerald-600 dark:text-emerald-400">
+                            {emPromocao ? (
                               <div className="flex flex-col items-end">
                                 {atingiuMinimo && <span className="text-zinc-500 dark:text-zinc-500 line-through text-[11px] font-medium leading-none mb-0.5">{formatarMoeda(precoOriginal)}</span>}
                                 
@@ -887,7 +849,7 @@ export default function CatalogoB2B() {
                           </td>
                           <td className="px-3 sm:px-5 py-3 sm:py-4">
                             {temEstoque ? (
-                              <SeletorQuantidade id={produto.PDCODPRO} qtd={qtdNoCarrinho} onQtdChange={(id, qtd) => handleQuantidade(produto, qtd)} />
+                              <SeletorQuantidade id={produto.id} qtd={qtdNoCarrinho} onQtdChange={(id, qtd) => handleQuantidade(produto, qtd)} />
                             ) : (
                               <span className="text-xs text-zinc-500 dark:text-zinc-600 font-medium block text-center">Indisponível</span>
                             )}
@@ -911,7 +873,6 @@ export default function CatalogoB2B() {
 
             </div>
             
-            {/* 🟢 4. O ESPAÇADOR FANTASMA AQUI! */}
             {Object.keys(carrinho).length > 0 && <div className="h-28 w-full shrink-0"></div>}
 
           </div>
@@ -939,15 +900,12 @@ export default function CatalogoB2B() {
 
       </div>
 
-      {/* 🟢 3. PASSANDO A FUNÇÃO DE REMOVER PARA O MODAL */}
       <ModalCheckout 
         isOpen={isCheckoutOpen} 
         onClose={() => setIsCheckoutOpen(false)} 
         carrinho={carrinho} 
-        produtos={produtos} 
-        tabelaAtiva={tabelaAtiva} 
         onFinalizarPedido={handleFinalizarPedido} 
-        onRemoverItem={(id) => handleQuantidade({ PDCODPRO: id }, 0)} 
+        onRemoverItem={(id) => handleQuantidade({ id }, 0)} 
       />
       
     </div>

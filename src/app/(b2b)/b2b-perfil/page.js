@@ -12,7 +12,7 @@ export default function MeuPerfilB2B() {
   const [loading, setLoading] = useState(false);
   const [buscandoCep, setBuscandoCep] = useState(false);
   
-  // 🟢 NOVO ESTADO: O Lacre!
+  // 🟢 ESTADO: O Lacre!
   const [isLocked, setIsLocked] = useState(false);
 
   // Estados do Formulário
@@ -41,20 +41,40 @@ export default function MeuPerfilB2B() {
           
           if (data.success) {
             if (data.telefone) setTelefone(data.telefone);
+            
             if (data.endereco && data.endereco.cep) {
               setCep(data.endereco.cep || "");
               setLogradouro(data.endereco.logradouro || "");
               setNumero(data.endereco.numero || "");
               setComplemento(data.endereco.complemento || "");
               setBairro(data.endereco.bairro || "");
-              setCidade(data.endereco.cidade || "");
-              setEstado(data.endereco.estado || "");
+              
+              // ========================================================
+              // 🟢 A MÁGICA DA LIMPEZA DE ERP (Ex: Goiânia (GO) -> Goiânia | GO)
+              // ========================================================
+              let cidadeSuja = data.endereco.cidade || "";
+              let ufReal = data.endereco.estado || data.endereco.uf || "";
+
+              // Detecta se a string termina com a sigla do estado entre parênteses, traço ou barra
+              const ufRegex = /[-(/]\s*([a-zA-Z]{2})\s*[)]?$/;
+              const match = cidadeSuja.match(ufRegex);
+
+              if (match) {
+                // Se não tinha UF definida ainda, rouba a sigla que achou na cidade
+                if (!ufReal) ufReal = match[1].toUpperCase();
+                // Limpa a cidade arrancando a sigla dela
+                cidadeSuja = cidadeSuja.replace(ufRegex, '').trim();
+              }
+
+              setCidade(cidadeSuja);
+              setEstado(ufReal.toUpperCase());
+              // ========================================================
 
               const userAtualizado = { ...parsedUser, telefone: data.telefone, endereco: data.endereco };
               localStorage.setItem("raizan_user", JSON.stringify(userAtualizado));
               setUser(userAtualizado);
               
-              // 🟢 Se achou o endereço no banco, tranca o formulário!
+              // Se achou o endereço perfeitinho no banco, tranca o formulário!
               setIsLocked(true);
             }
           }
@@ -82,7 +102,7 @@ export default function MeuPerfilB2B() {
         setLogradouro(data.logradouro);
         setBairro(data.bairro);
         setCidade(data.localidade);
-        setEstado(data.uf);
+        setEstado(data.uf.toUpperCase());
         toast.success("Endereço preenchido automaticamente!");
         document.getElementById('input_numero').focus(); 
       }
@@ -140,7 +160,6 @@ export default function MeuPerfilB2B() {
         localStorage.setItem("raizan_user", JSON.stringify(userAtualizado));
         setUser(userAtualizado);
         
-        // 🟢 Fecha o Lacre após salvar com sucesso!
         setIsLocked(true);
       } else {
         toast.error(data.message || "Erro ao salvar perfil na Nuvem.");
@@ -154,139 +173,147 @@ export default function MeuPerfilB2B() {
   if (!user) return null;
 
   return (
-    <div className="flex h-screen bg-zinc-50 dark:bg-[#09090b] transition-colors duration-300">
+    <div className="flex h-screen bg-zinc-50 dark:bg-[#09090b] transition-colors duration-300 overflow-hidden">
       <Sidebar />
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 relative h-screen">
         <Header />
         
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-10 custom-scrollbar">
-          <div className="max-w-4xl mx-auto space-y-6">
+        <main className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-6 lg:p-8 relative">
+          
+          {/* EFEITO GLOW RAIZAN (APPLE STYLE) */}
+          <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-purple-600/5 dark:bg-purple-600/10 rounded-full blur-[120px] pointer-events-none -z-10" />
+
+          <div className="max-w-4xl mx-auto space-y-6 sm:space-y-8 relative z-10 pb-20">
             
-            <div className="bg-white dark:bg-[#0c0c0e] p-6 rounded-2xl border border-zinc-200 dark:border-zinc-800/60 shadow-sm flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-500/10 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+            {/* HEADER DO PERFIL */}
+            <div className="bg-white/70 dark:bg-[#121214]/70 backdrop-blur-xl p-6 sm:p-8 rounded-[2rem] border border-zinc-200 dark:border-zinc-800/80 shadow-sm flex items-center gap-5 transition-colors duration-300">
+              <div className="w-14 h-14 rounded-2xl bg-purple-50 dark:bg-purple-500/10 flex items-center justify-center text-purple-600 dark:text-purple-400 shadow-inner shrink-0">
                 <User size={24} />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">Meu Perfil de Empresa</h1>
-                <p className="text-sm text-zinc-500">Mantenha seus dados de entrega e contato atualizados para faturamento.</p>
+                <h1 className="text-xl sm:text-2xl font-black text-zinc-900 dark:text-zinc-100 tracking-tight">Meu Perfil de Empresa</h1>
+                <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1 font-medium">Mantenha seus dados de entrega e contato atualizados para faturamento.</p>
               </div>
             </div>
 
-            <form onSubmit={handleSalvarPerfil} className="space-y-6">
+            <form onSubmit={handleSalvarPerfil} className="space-y-6 sm:space-y-8">
               
               {/* BLOCO 1: DADOS FISCAIS DO ERP (BLOQUEADOS) */}
-              <div className="bg-white dark:bg-[#0c0c0e] p-6 rounded-2xl border border-zinc-200 dark:border-zinc-800/60 shadow-sm space-y-4 relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-zinc-200 dark:bg-zinc-800 rounded-full blur-[60px] opacity-50 pointer-events-none" />
+              <div className="bg-white/70 dark:bg-[#121214]/70 backdrop-blur-xl p-6 sm:p-8 rounded-[2rem] border border-zinc-200 dark:border-zinc-800/60 shadow-sm space-y-5 relative overflow-hidden transition-colors duration-300">
+                <div className="absolute top-0 right-0 w-40 h-40 bg-zinc-200 dark:bg-zinc-800 rounded-full blur-[80px] opacity-40 pointer-events-none" />
                 
-                <h3 className="text-base font-bold text-zinc-800 dark:text-zinc-200 flex items-center gap-2 border-b border-zinc-100 dark:border-zinc-800 pb-3">
-                  <Building2 size={18} className="text-zinc-500" /> Dados Fiscais Oficiais <span className="ml-auto text-[10px] bg-zinc-100 dark:bg-zinc-800 text-zinc-500 px-2 py-1 rounded-md font-mono flex items-center gap-1"><Lock size={10}/> Importado do ERP</span>
+                <h3 className="text-sm font-black text-zinc-900 dark:text-zinc-100 flex items-center gap-2 border-b border-zinc-100 dark:border-zinc-800/80 pb-4 uppercase tracking-wider">
+                  <Building2 size={16} className="text-zinc-400" /> Dados Fiscais Oficiais 
+                  <span className="ml-auto text-[9px] bg-zinc-100 dark:bg-zinc-800 text-zinc-500 px-2.5 py-1 rounded-md font-bold uppercase flex items-center gap-1">
+                    <Lock size={10}/> Importado do ERP
+                  </span>
                 </h3>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Razão Social / Nome</label>
-                    <input type="text" value={user.nome} disabled className="w-full bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 px-4 py-2.5 rounded-xl text-sm cursor-not-allowed font-medium" />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-1 block">Razão Social / Nome</label>
+                    <input type="text" value={user.nome} disabled className="w-full bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800/80 text-zinc-500 dark:text-zinc-400 px-4 py-3.5 rounded-2xl text-sm cursor-not-allowed font-medium shadow-inner" />
                   </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">CNPJ</label>
-                    <input type="text" value={user.cnpj} disabled className="w-full bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 px-4 py-2.5 rounded-xl text-sm cursor-not-allowed font-medium font-mono" />
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-1 block">CNPJ / CPF</label>
+                    <input type="text" value={user.cnpj} disabled className="w-full bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800/80 text-zinc-500 dark:text-zinc-400 px-4 py-3.5 rounded-2xl text-sm cursor-not-allowed font-medium font-mono shadow-inner" />
                   </div>
-                  <div className="space-y-1 md:col-span-2">
-                    <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">E-mail Principal</label>
-                    <input type="email" value={user.email} disabled className="w-full bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 px-4 py-2.5 rounded-xl text-sm cursor-not-allowed font-medium" />
+                  <div className="space-y-1.5 md:col-span-2">
+                    <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-1 block">E-mail Principal</label>
+                    <input type="email" value={user.email} disabled className="w-full bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800/80 text-zinc-500 dark:text-zinc-400 px-4 py-3.5 rounded-2xl text-sm cursor-not-allowed font-medium shadow-inner" />
                   </div>
                 </div>
-                <p className="text-[11px] text-zinc-400 flex items-start gap-1 mt-2">
-                  <AlertCircle size={12} className="shrink-0 mt-0.5" />
-                  Para alterar os dados fiscais acima, por favor entre em contato com o suporte ou seu representante comercial.
+                <p className="text-[11px] text-zinc-400 dark:text-zinc-500 flex items-start gap-1.5 mt-2 font-medium">
+                  <AlertCircle size={14} className="shrink-0 text-zinc-300 dark:text-zinc-600" />
+                  Para alterar os dados fiscais da sua empresa, por favor, entre em contato com o suporte ou seu representante comercial.
                 </p>
               </div>
 
-              {/* BLOCO 2: DADOS EDITÁVEIS (NUVEM) */}
-              <div className={`bg-white dark:bg-[#0c0c0e] p-6 rounded-2xl border transition-all duration-500 shadow-sm ${isLocked ? 'border-zinc-200 dark:border-zinc-800/60 opacity-90' : 'border-emerald-500/30 shadow-emerald-500/5 ring-4 ring-emerald-500/10'} space-y-4`}>
+              {/* BLOCO 2: DADOS EDITÁVEIS (NUVEM) - O LACRE INTELIGENTE */}
+              <div className={`bg-white/90 dark:bg-[#121214]/90 backdrop-blur-xl p-6 sm:p-8 rounded-[2rem] border transition-all duration-500 shadow-sm relative overflow-hidden ${isLocked ? 'border-zinc-200 dark:border-zinc-800/60 opacity-95' : 'border-purple-500/30 shadow-[0_0_30px_rgba(147,51,234,0.1)] ring-4 ring-purple-500/10'} space-y-5`}>
                 
-                {/* 🟢 CABEÇALHO COM O BOTÃO EDITAR E O LACRE */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-100 dark:border-zinc-800 pb-3">
-                  <h3 className="text-base font-bold text-zinc-800 dark:text-zinc-200 flex items-center gap-2">
-                    <MapPin size={18} className={isLocked ? "text-zinc-500" : "text-emerald-500"} /> 
+                {/* CABEÇALHO COM O BOTÃO EDITAR E O LACRE */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-100 dark:border-zinc-800/80 pb-4">
+                  <h3 className="text-sm font-black text-zinc-900 dark:text-zinc-100 flex items-center gap-2 uppercase tracking-wider">
+                    <MapPin size={16} className={isLocked ? "text-zinc-400" : "text-purple-500"} /> 
                     Endereço de Entrega e Contato
                   </h3>
 
                   {isLocked ? (
                     <div className="flex items-center gap-3">
-                      <span className="text-[10px] bg-emerald-100 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 py-1 rounded-md font-bold uppercase tracking-wider flex items-center gap-1">
+                      <span className="text-[9px] bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2.5 py-1.5 rounded-md font-black uppercase tracking-widest flex items-center gap-1 border border-emerald-100 dark:border-emerald-500/20">
                         <CheckCircle2 size={12} /> Salvo e Validado
                       </span>
-                      <button type="button" onClick={() => setIsLocked(false)} className="text-xs flex items-center gap-1.5 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 px-3 py-1.5 rounded-lg font-bold text-zinc-700 dark:text-zinc-300 transition-colors">
+                      <button type="button" onClick={() => setIsLocked(false)} className="text-[10px] uppercase tracking-wider flex items-center gap-1.5 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 px-3 py-1.5 rounded-lg font-bold text-zinc-700 dark:text-zinc-300 transition-colors">
                         <Edit2 size={12} /> Editar
                       </button>
                     </div>
                   ) : (
-                    <span className="text-[10px] bg-amber-100 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 px-2 py-1 rounded-md font-bold uppercase tracking-wider flex items-center gap-1">
+                    <span className="text-[9px] bg-purple-50 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400 px-2.5 py-1.5 rounded-md font-black uppercase tracking-widest flex items-center gap-1 border border-purple-100 dark:border-purple-500/20 animate-pulse">
                       Modo Edição
                     </span>
                   )}
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">Celular / WhatsApp *</label>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-widest ml-1 block">Celular / WhatsApp *</label>
                     <div className="relative">
-                      <Phone size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
-                      <input type="tel" disabled={isLocked} placeholder="(00) 00000-0000" value={telefone} onChange={handleTelefoneChange} maxLength={15} required className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 disabled:border-transparent disabled:bg-zinc-100 dark:disabled:bg-zinc-900/50 disabled:text-zinc-500 focus:border-emerald-500 text-zinc-900 dark:text-zinc-100 pl-10 pr-4 py-2.5 rounded-xl text-sm outline-none transition-all" />
+                      <Phone size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" />
+                      <input type="tel" disabled={isLocked} placeholder="(00) 00000-0000" value={telefone} onChange={handleTelefoneChange} maxLength={15} required className="w-full bg-zinc-50 dark:bg-[#09090b] border border-zinc-200 dark:border-zinc-800 disabled:border-transparent disabled:bg-zinc-50 dark:disabled:bg-zinc-900/50 disabled:text-zinc-500 focus:border-purple-500 focus:ring-4 focus:ring-purple-500/10 text-zinc-900 dark:text-zinc-100 pl-12 pr-4 py-3.5 rounded-2xl text-sm font-medium outline-none transition-all" />
                     </div>
                   </div>
 
-                  <div className="space-y-1 relative">
-                    <label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">CEP *</label>
+                  <div className="space-y-1.5 relative">
+                    <label className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-widest ml-1 block">CEP *</label>
                     <div className="relative">
-                      <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
-                      <input type="text" disabled={isLocked} placeholder="00000-000" value={cep} onChange={handleCepChange} maxLength={9} required className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 disabled:border-transparent disabled:bg-zinc-100 dark:disabled:bg-zinc-900/50 disabled:text-zinc-500 focus:border-emerald-500 text-zinc-900 dark:text-zinc-100 pl-10 pr-10 py-2.5 rounded-xl text-sm outline-none transition-all font-mono" />
-                      {buscandoCep && <Loader2 size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-500 animate-spin" />}
+                      <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" />
+                      <input type="text" disabled={isLocked} placeholder="00000-000" value={cep} onChange={handleCepChange} maxLength={9} required className="w-full bg-zinc-50 dark:bg-[#09090b] border border-zinc-200 dark:border-zinc-800 disabled:border-transparent disabled:bg-zinc-50 dark:disabled:bg-zinc-900/50 disabled:text-zinc-500 focus:border-purple-500 focus:ring-4 focus:ring-purple-500/10 text-zinc-900 dark:text-zinc-100 pl-12 pr-10 py-3.5 rounded-2xl text-sm font-medium outline-none transition-all font-mono" />
+                      {buscandoCep && <Loader2 size={18} className="absolute right-4 top-1/2 -translate-y-1/2 text-purple-500 animate-spin" />}
                     </div>
                   </div>
 
-                  <div className="space-y-1 lg:col-span-2">
-                    <label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">Endereço (Rua/Av) *</label>
-                    <input type="text" disabled={isLocked} value={logradouro} onChange={e => setLogradouro(e.target.value)} required placeholder="Ex: Av. Paulista" className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 disabled:border-transparent disabled:bg-zinc-100 dark:disabled:bg-zinc-900/50 disabled:text-zinc-500 focus:border-emerald-500 text-zinc-900 dark:text-zinc-100 px-4 py-2.5 rounded-xl text-sm outline-none transition-all" />
+                  <div className="space-y-1.5 lg:col-span-2">
+                    <label className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-widest ml-1 block">Endereço (Rua/Av) *</label>
+                    <input type="text" disabled={isLocked} value={logradouro} onChange={e => setLogradouro(e.target.value)} required placeholder="Ex: Av. Paulista" className="w-full bg-zinc-50 dark:bg-[#09090b] border border-zinc-200 dark:border-zinc-800 disabled:border-transparent disabled:bg-zinc-50 dark:disabled:bg-zinc-900/50 disabled:text-zinc-500 focus:border-purple-500 focus:ring-4 focus:ring-purple-500/10 text-zinc-900 dark:text-zinc-100 px-5 py-3.5 rounded-2xl text-sm font-medium outline-none transition-all" />
                   </div>
 
-                  <div className="space-y-1">
-                    <label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">Número *</label>
-                    <input id="input_numero" type="text" disabled={isLocked} value={numero} onChange={e => setNumero(e.target.value)} required placeholder="Ex: 1000" className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 disabled:border-transparent disabled:bg-zinc-100 dark:disabled:bg-zinc-900/50 disabled:text-zinc-500 focus:border-emerald-500 text-zinc-900 dark:text-zinc-100 px-4 py-2.5 rounded-xl text-sm outline-none transition-all" />
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-widest ml-1 block">Número *</label>
+                    <input id="input_numero" type="text" disabled={isLocked} value={numero} onChange={e => setNumero(e.target.value)} required placeholder="Ex: 1000" className="w-full bg-zinc-50 dark:bg-[#09090b] border border-zinc-200 dark:border-zinc-800 disabled:border-transparent disabled:bg-zinc-50 dark:disabled:bg-zinc-900/50 disabled:text-zinc-500 focus:border-purple-500 focus:ring-4 focus:ring-purple-500/10 text-zinc-900 dark:text-zinc-100 px-5 py-3.5 rounded-2xl text-sm font-medium outline-none transition-all" />
                   </div>
 
-                  <div className="space-y-1">
-                    <label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">Complemento</label>
-                    <input type="text" disabled={isLocked} value={complemento} onChange={e => setComplemento(e.target.value)} placeholder="Ex: Galpão B, Sala 12" className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 disabled:border-transparent disabled:bg-zinc-100 dark:disabled:bg-zinc-900/50 disabled:text-zinc-500 focus:border-emerald-500 text-zinc-900 dark:text-zinc-100 px-4 py-2.5 rounded-xl text-sm outline-none transition-all" />
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-widest ml-1 block">Complemento</label>
+                    <input type="text" disabled={isLocked} value={complemento} onChange={e => setComplemento(e.target.value)} placeholder="Ex: Galpão B, Sala 12" className="w-full bg-zinc-50 dark:bg-[#09090b] border border-zinc-200 dark:border-zinc-800 disabled:border-transparent disabled:bg-zinc-50 dark:disabled:bg-zinc-900/50 disabled:text-zinc-500 focus:border-purple-500 focus:ring-4 focus:ring-purple-500/10 text-zinc-900 dark:text-zinc-100 px-5 py-3.5 rounded-2xl text-sm font-medium outline-none transition-all" />
                   </div>
 
-                  <div className="space-y-1">
-                    <label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">Bairro *</label>
-                    <input type="text" disabled={isLocked} value={bairro} onChange={e => setBairro(e.target.value)} required placeholder="Ex: Centro" className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 disabled:border-transparent disabled:bg-zinc-100 dark:disabled:bg-zinc-900/50 disabled:text-zinc-500 focus:border-emerald-500 text-zinc-900 dark:text-zinc-100 px-4 py-2.5 rounded-xl text-sm outline-none transition-all" />
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-widest ml-1 block">Bairro *</label>
+                    <input type="text" disabled={isLocked} value={bairro} onChange={e => setBairro(e.target.value)} required placeholder="Ex: Centro" className="w-full bg-zinc-50 dark:bg-[#09090b] border border-zinc-200 dark:border-zinc-800 disabled:border-transparent disabled:bg-zinc-50 dark:disabled:bg-zinc-900/50 disabled:text-zinc-500 focus:border-purple-500 focus:ring-4 focus:ring-purple-500/10 text-zinc-900 dark:text-zinc-100 px-5 py-3.5 rounded-2xl text-sm font-medium outline-none transition-all" />
                   </div>
 
-                  <div className="space-y-1 lg:col-span-2">
-                    <label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">Cidade *</label>
-                    <input type="text" disabled={isLocked} value={cidade} onChange={e => setCidade(e.target.value)} required className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 disabled:border-transparent disabled:bg-zinc-100 dark:disabled:bg-zinc-900/50 disabled:text-zinc-500 focus:border-emerald-500 text-zinc-900 dark:text-zinc-100 px-4 py-2.5 rounded-xl text-sm outline-none transition-all" />
+                  <div className="space-y-1.5 lg:col-span-2">
+                    <label className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-widest ml-1 block">Cidade *</label>
+                    <input type="text" disabled={isLocked} value={cidade} onChange={e => setCidade(e.target.value)} required className="w-full bg-zinc-50 dark:bg-[#09090b] border border-zinc-200 dark:border-zinc-800 disabled:border-transparent disabled:bg-zinc-50 dark:disabled:bg-zinc-900/50 disabled:text-zinc-500 focus:border-purple-500 focus:ring-4 focus:ring-purple-500/10 text-zinc-900 dark:text-zinc-100 px-5 py-3.5 rounded-2xl text-sm font-medium outline-none transition-all" />
                   </div>
 
-                  <div className="space-y-1">
-                    <label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">UF *</label>
-                    <input type="text" disabled={isLocked} value={estado} onChange={e => setEstado(e.target.value.toUpperCase())} maxLength={2} required className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 disabled:border-transparent disabled:bg-zinc-100 dark:disabled:bg-zinc-900/50 disabled:text-zinc-500 focus:border-emerald-500 text-zinc-900 dark:text-zinc-100 px-4 py-2.5 rounded-xl text-sm outline-none transition-all uppercase" />
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-widest ml-1 block">UF *</label>
+                    <input type="text" disabled={isLocked} value={estado} onChange={e => setEstado(e.target.value.toUpperCase())} maxLength={2} required className="w-full bg-zinc-50 dark:bg-[#09090b] border border-zinc-200 dark:border-zinc-800 disabled:border-transparent disabled:bg-zinc-50 dark:disabled:bg-zinc-900/50 disabled:text-zinc-500 focus:border-purple-500 focus:ring-4 focus:ring-purple-500/10 text-zinc-900 dark:text-zinc-100 px-5 py-3.5 rounded-2xl text-sm font-medium outline-none transition-all uppercase" />
                   </div>
                 </div>
+
+                {/* 🟢 O BOTÃO DE SALVAR SOME SE ESTIVER LACRADO */}
+                {!isLocked && (
+                  <div className="flex justify-end pt-5 animate-in fade-in slide-in-from-top-2">
+                    <button type="submit" disabled={loading} className="w-full sm:w-auto bg-purple-600 hover:bg-purple-500 text-white px-8 py-3.5 rounded-2xl font-black shadow-[0_10px_30px_rgba(147,51,234,0.25)] transition-all flex items-center justify-center gap-2 active:scale-95 text-xs uppercase tracking-wider">
+                      {loading ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                      Salvar Endereço
+                    </button>
+                  </div>
+                )}
               </div>
-
-              {/* 🟢 O BOTÃO DE SALVAR SOME SE ESTIVER LACRADO */}
-              {!isLocked && (
-                <div className="flex justify-end pt-4 animate-in fade-in slide-in-from-top-2">
-                  <button type="submit" disabled={loading} className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-500 text-white px-8 py-3.5 rounded-xl font-bold shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-all flex items-center justify-center gap-2 hover:scale-105 active:scale-95">
-                    {loading ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
-                    Salvar Dados do Perfil
-                  </button>
-                </div>
-              )}
 
             </form>
           </div>

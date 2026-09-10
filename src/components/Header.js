@@ -36,20 +36,20 @@ function ModalResumoCarrinho({ isOpen, onClose }) {
 
   return (
     <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-end p-0 sm:p-6 bg-black/60 backdrop-blur-sm transition-all animate-in fade-in overflow-x-hidden" onClick={onClose}>
-      <div className="bg-zinc-50 dark:bg-[#0c0c0e] border-t sm:border border-zinc-200 dark:border-zinc-800/80 rounded-t-3xl sm:rounded-3xl shadow-2xl w-full sm:max-w-md h-[85vh] sm:h-full sm:max-h-[80vh] flex flex-col overflow-hidden animate-in slide-in-from-bottom-full sm:slide-in-from-right-8" onClick={e => e.stopPropagation()}>
+      <div className="bg-zinc-50 dark:bg-[#0c0c0e] border-t sm:border border-zinc-200 dark:border-zinc-800/80 rounded-t-[2rem] sm:rounded-[2rem] shadow-2xl w-full sm:max-w-md h-[85vh] sm:h-full sm:max-h-[80vh] flex flex-col overflow-hidden animate-in slide-in-from-bottom-full sm:slide-in-from-right-8" onClick={e => e.stopPropagation()}>
         
-        <div className="flex items-center justify-between p-5 border-b border-zinc-200 dark:border-zinc-800/80 bg-white dark:bg-zinc-900/40">
-          <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
-            <ShoppingCart className="text-emerald-500 dark:text-emerald-400" size={20} /> Seu Pedido Atual
+        <div className="flex items-center justify-between p-5 border-b border-zinc-200 dark:border-zinc-800/80 bg-white/70 dark:bg-[#121214]/70 backdrop-blur-xl">
+          <h2 className="text-lg font-black text-zinc-900 dark:text-zinc-100 flex items-center gap-2 tracking-tight">
+            <ShoppingCart className="text-purple-600 dark:text-purple-400" size={20} /> Seu Pedido Atual
           </h2>
-          <button onClick={onClose} className="text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white p-1.5 bg-zinc-100 dark:bg-zinc-800 rounded-lg transition-colors"><X size={18}/></button>
+          <button onClick={onClose} className="text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white p-2 bg-zinc-100 dark:bg-zinc-800/80 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full transition-colors"><X size={16}/></button>
         </div>
 
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-5 space-y-3">
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-5 space-y-3 bg-zinc-50/50 dark:bg-transparent">
           {itens.length === 0 ? (
             <div className="text-center py-12 flex flex-col items-center gap-3">
-              <Package size={48} className="text-zinc-400 dark:text-zinc-700" />
-              <p className="text-zinc-500 text-sm">Seu carrinho está vazio.</p>
+              <Package size={48} className="text-zinc-300 dark:text-zinc-800" />
+              <p className="text-zinc-500 text-sm font-medium">Seu carrinho está vazio.</p>
             </div>
           ) : (
             itens.map(item => {
@@ -58,18 +58,18 @@ function ModalResumoCarrinho({ isOpen, onClose }) {
               const precoFinal = atingiuMinimo ? parseFloat(item.preco_promocional) : precoOriginal;
               
               return (
-                <div key={item.PDCODPRO} className="flex items-center justify-between gap-2 bg-white dark:bg-zinc-900/50 p-3 rounded-xl border border-zinc-200 dark:border-zinc-800/60 min-w-0 shadow-sm dark:shadow-none">
+                <div key={item.PDCODPRO} className="flex items-center justify-between gap-2 bg-white dark:bg-[#121214] p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800/80 min-w-0 shadow-sm dark:shadow-none">
                   <div className="flex-1 pr-1 sm:pr-2 min-w-0">
                     <p className="text-sm md:text-base font-bold text-zinc-800 dark:text-zinc-200 line-clamp-1">{item.PDNOME}</p>
                     
-                    <p className="text-xs text-zinc-500 mt-0.5">
+                    <p className="text-xs text-zinc-500 mt-1 font-medium">
                       {item.qtd}x {formatarMoeda(precoFinal)} 
-                      {item.em_promocao && atingiuMinimo && <span className="text-emerald-600 dark:text-emerald-400 ml-1 font-bold">(Oferta Aplicada)</span>}
-                      {item.em_promocao && !atingiuMinimo && <span className="text-rose-600 dark:text-rose-500 ml-1 font-bold">⚠️ Leve {item.qtd_minima_promocao} para Oferta</span>}
+                      {item.em_promocao && atingiuMinimo && <span className="text-purple-600 dark:text-purple-400 ml-1 font-bold inline-flex items-center gap-0.5"><Zap size={10}/> Oferta Aplicada</span>}
+                      {item.em_promocao && !atingiuMinimo && <span className="text-rose-500 dark:text-rose-400 ml-1 font-bold inline-flex items-center gap-0.5"><AlertTriangle size={10}/> Leve {item.qtd_minima_promocao} para Oferta</span>}
                     </p>
                   </div>
                   
-                  <div className="text-sm md:text-base font-bold text-emerald-600 dark:text-emerald-400 pl-1 sm:pl-3 shrink-0">
+                  <div className="text-sm md:text-base font-black text-purple-600 dark:text-purple-400 pl-1 sm:pl-3 shrink-0">
                     {formatarMoeda(precoFinal * item.qtd)}
                   </div>
                 </div>
@@ -79,16 +79,16 @@ function ModalResumoCarrinho({ isOpen, onClose }) {
         </div>
 
         {itens.length > 0 && (
-          <div className="p-5 border-t border-zinc-200 dark:border-zinc-800/80 bg-white dark:bg-zinc-900/80 space-y-4">
+          <div className="p-5 sm:p-6 border-t border-zinc-200 dark:border-zinc-800/80 bg-white/90 dark:bg-[#121214]/90 backdrop-blur-md space-y-4 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] dark:shadow-none">
             <div className="flex items-center justify-between gap-3">
-              <span className="text-zinc-600 dark:text-zinc-400 text-sm md:text-base">Subtotal Estimado:</span>
-              <span className="text-lg md:text-xl font-bold text-emerald-600 dark:text-emerald-400">{formatarMoeda(subtotal)}</span>
+              <span className="text-zinc-500 dark:text-zinc-400 text-xs font-bold uppercase tracking-wider">Subtotal Estimado</span>
+              <span className="text-xl md:text-2xl font-black text-purple-600 dark:text-purple-400">{formatarMoeda(subtotal)}</span>
             </div>
             
             <Link 
               href="/b2b-pedidos" 
               onClick={onClose}
-              className="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-[0_0_15px_rgba(16,185,129,0.3)]"
+              className="w-full bg-purple-600 hover:bg-purple-500 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-[0_5px_20px_rgba(147,51,234,0.25)] hover:shadow-[0_5px_25px_rgba(147,51,234,0.4)] active:scale-95"
             >
               Ir para o Checkout <ArrowRight size={18} />
             </Link>
@@ -113,26 +113,26 @@ function ModalOfertasGlobal({ isOpen, onClose, ofertas, onComprar }) {
 
   return (
     <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-sm transition-all animate-in fade-in overflow-x-hidden" onClick={onClose}>
-      <div className="bg-zinc-50 dark:bg-[#0c0c0e] border-t sm:border border-rose-200 dark:border-rose-500/30 rounded-t-3xl sm:rounded-3xl shadow-[0_0_50px_rgba(244,63,94,0.15)] w-full max-w-2xl h-[90vh] sm:h-auto sm:max-h-[85vh] flex flex-col overflow-hidden animate-in slide-in-from-bottom-full sm:zoom-in-95" onClick={e => e.stopPropagation()}>
+      <div className="bg-zinc-50 dark:bg-[#0c0c0e] border-t sm:border border-rose-200 dark:border-rose-500/30 rounded-t-3xl sm:rounded-[2rem] shadow-[0_0_50px_rgba(244,63,94,0.15)] w-full max-w-2xl h-[90vh] sm:h-auto sm:max-h-[85vh] flex flex-col overflow-hidden animate-in slide-in-from-bottom-full sm:zoom-in-95" onClick={e => e.stopPropagation()}>
         
-        <div className="bg-gradient-to-r from-rose-600 to-pink-600 p-4 sm:p-6 relative overflow-hidden shrink-0">
-          <div className="absolute -right-10 -top-10 opacity-20"><Tag size={120} /></div>
+        <div className="bg-gradient-to-r from-rose-600 to-pink-600 p-5 sm:p-8 relative overflow-hidden shrink-0">
+          <div className="absolute -right-10 -top-10 opacity-20"><Tag size={140} /></div>
           <div className="flex justify-between items-center relative z-10">
             <div>
-              <h2 className="text-base sm:text-2xl font-bold text-white flex items-center gap-2">
-                <Zap className="fill-white text-white" /> Ofertas Exclusivas
+              <h2 className="text-xl sm:text-3xl font-black text-white flex items-center gap-2 tracking-tight">
+                <Zap className="fill-white text-white" size={28} /> Ofertas Exclusivas
               </h2>
-              <p className="text-rose-100 text-xs sm:text-sm mt-1">Aproveite os descontos especiais para o seu CNPJ hoje!</p>
+              <p className="text-rose-100 text-xs sm:text-sm mt-1.5 font-medium">Aproveite os descontos especiais para o seu cadastro hoje!</p>
             </div>
-            <button onClick={onClose} className="bg-white/20 hover:bg-white/30 text-white p-2 rounded-full transition-colors"><X size={20}/></button>
+            <button onClick={onClose} className="bg-white/20 hover:bg-white/30 backdrop-blur-md text-white p-2.5 rounded-full transition-colors"><X size={20}/></button>
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-6 space-y-4">
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-6 space-y-4 bg-zinc-50/50 dark:bg-transparent">
           {ofertas.length === 0 ? (
-            <div className="text-center py-10 text-zinc-500 flex flex-col items-center gap-2">
-              <Loader2 className="animate-spin text-zinc-400" size={24} />
-              Buscando ofertas...
+            <div className="text-center py-16 flex flex-col items-center gap-3">
+              <Loader2 className="animate-spin text-zinc-400" size={32} />
+              <span className="text-zinc-500 font-medium">Buscando ofertas...</span>
             </div>
           ) : (
             ofertas.map(promo => {
@@ -140,18 +140,18 @@ function ModalOfertasGlobal({ isOpen, onClose, ofertas, onComprar }) {
               const qtdAtual = quantidades[promo.sku] || minExigido;
 
               return (
-                <div key={promo.sku} className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white dark:bg-zinc-900/50 p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 hover:border-rose-400 dark:hover:border-rose-500/50 transition-all group gap-4 min-w-0 shadow-sm dark:shadow-none">
+                <div key={promo.sku} className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white dark:bg-[#121214] p-5 rounded-2xl border border-zinc-200 dark:border-zinc-800 hover:border-rose-400 dark:hover:border-rose-500/50 transition-all group gap-4 min-w-0 shadow-sm dark:shadow-none">
                   <div className="flex-1 w-full min-w-0">
-                    <span className="text-[10px] bg-rose-100 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 px-2 py-0.5 rounded font-bold uppercase tracking-wider border border-rose-200 dark:border-rose-500/20 inline-block mb-2">SKU {promo.sku}</span>
+                    <span className="text-[10px] bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 px-2.5 py-1 rounded-md font-black uppercase tracking-widest border border-rose-100 dark:border-rose-500/20 inline-block mb-3">SKU {promo.sku}</span>
                     <p className="font-bold text-zinc-800 dark:text-zinc-200 leading-snug text-sm sm:text-base break-words">{promo.nome_produto}</p>
-                    <p className="text-lg sm:text-xl font-bold text-emerald-600 dark:text-emerald-400 mt-2">{formatarMoeda(promo.preco_promocional)}</p>
+                    <p className="text-xl sm:text-2xl font-black text-purple-600 dark:text-purple-400 mt-2 tracking-tight">{formatarMoeda(promo.preco_promocional)}</p>
                   </div>
                   
-                  <div className="flex flex-col items-stretch sm:items-end gap-2 w-full sm:w-auto">
-                    <div className="flex items-center justify-between bg-zinc-50 dark:bg-zinc-950 border border-emerald-500/30 rounded-lg overflow-hidden h-10 w-full sm:w-32">
-                      <button onClick={() => handleQtdChange(promo.sku, qtdAtual - 1, minExigido)} className="w-10 h-full flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white transition-colors"><Minus size={14}/></button>
-                      <span className="font-bold text-emerald-600 dark:text-emerald-400 text-sm w-8 text-center">{qtdAtual}</span>
-                      <button onClick={() => handleQtdChange(promo.sku, qtdAtual + 1, minExigido)} className="w-10 h-full flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white transition-colors"><Plus size={14}/></button>
+                  <div className="flex flex-col items-stretch sm:items-end gap-3 w-full sm:w-auto">
+                    <div className="flex items-center justify-between bg-zinc-50 dark:bg-zinc-900 border border-purple-500/30 rounded-xl overflow-hidden h-11 w-full sm:w-36 shadow-inner">
+                      <button onClick={() => handleQtdChange(promo.sku, qtdAtual - 1, minExigido)} className="w-12 h-full flex items-center justify-center text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white transition-colors"><Minus size={16}/></button>
+                      <span className="font-black text-purple-600 dark:text-purple-400 text-sm w-10 text-center">{qtdAtual}</span>
+                      <button onClick={() => handleQtdChange(promo.sku, qtdAtual + 1, minExigido)} className="w-12 h-full flex items-center justify-center text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white transition-colors"><Plus size={16}/></button>
                     </div>
 
                     <button 
@@ -166,7 +166,7 @@ function ModalOfertasGlobal({ isOpen, onClose, ofertas, onComprar }) {
                         }, qtdAtual);
                         toast.success(`${qtdAtual}x adicionado ao carrinho!`);
                       }} 
-                      className="w-full sm:w-32 bg-emerald-600 hover:bg-emerald-500 text-white h-10 rounded-lg font-bold text-sm md:text-base flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
+                      className="w-full sm:w-36 bg-purple-600 hover:bg-purple-500 text-white h-11 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all shadow-[0_5px_15px_rgba(147,51,234,0.25)] active:scale-95"
                     >
                       <ShoppingCart size={16} /> Adicionar
                     </button>
@@ -259,10 +259,10 @@ export default function Header() {
         if (isLojista) {
           let nomeOficial = userObj.nome || userObj.RAZAO || userObj.razao_social || "Cliente B2B";
           
-          // 🟢 LIMPEZA DO CNPJ: Remove números, pontos, traços e barras do início
+          // 🟢 LIMPEZA DO CNPJ
           nomeOficial = nomeOficial.replace(/^[\d\.\-\/\s]+/, '').trim();
           
-          // 🟢 FANTASIA MENOR: Pega até as duas primeiras palavras limpas
+          // 🟢 FANTASIA MENOR
           const palavras = nomeOficial.split(' ').filter(p => p.length > 0);
           const nomeExibicao = palavras.length > 1 ? `${palavras[0]} ${palavras[1]}` : (palavras[0] || "Cliente");
 
@@ -367,12 +367,19 @@ export default function Header() {
           }
 
           if (data.ultimoPedido && data.ultimoPedido.id !== memoriaUltimoPedidoId) {
-            try { new Audio('/plim.mp3').play().catch(()=>{}); } catch (e) {}
             
-            // 🟢 AVISO DO SELLER: Identifica a origem do pedido para a notificação
+            // 🟢 AVISO DO SELLER: Identifica a origem e toca a MÁQUINA DE DINHEIRO
             const isSeller = data.ultimoPedido.origem === 'raizan_seller' || data.ultimoPedido.origem === 'app';
             const nomeVendedor = data.ultimoPedido.vendedor_nome || data.ultimoPedido.vendedor || 'Vendedor';
             const textoSeller = isSeller ? ` pelo Digital Seller (${nomeVendedor})` : '';
+
+            try {
+              if (isSeller) {
+                new Audio('/plim.mp3').play().catch(()=>{}); // O Som da Felicidade! 💰
+              } else {
+                new Audio('/plim.mp3').play().catch(()=>{}); 
+              }
+            } catch (e) {}
 
             try {
               if (Notification.permission === "granted") {
@@ -385,11 +392,11 @@ export default function Header() {
             } catch (e) {}
 
             toast.custom((t) => (
-              <div className={`${t.visible ? 'animate-enter' : 'animate-leave'} max-w-md w-full bg-white dark:bg-[#0c0c0e]/90 backdrop-blur-xl shadow-[0_0_30px_rgba(16,185,129,0.15)] rounded-2xl pointer-events-auto flex ring-1 ring-emerald-500/30 p-4 border-l-4 border-emerald-500`}>
+              <div className={`${t.visible ? 'animate-enter' : 'animate-leave'} max-w-md w-full bg-white dark:bg-[#0c0c0e]/95 backdrop-blur-2xl shadow-[0_10px_40px_rgba(147,51,234,0.25)] rounded-2xl pointer-events-auto flex ring-1 ring-purple-500/30 p-4 border-l-4 border-purple-600`}>
                 <div className="flex-1">
-                  <p className="text-sm font-bold text-zinc-900 dark:text-white flex items-center gap-2"><ShoppingCart size={16} className="text-emerald-500 dark:text-emerald-400"/> Novo Pedido Registrado!</p>
-                  <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">
-                    O cliente <span className="font-bold text-emerald-600 dark:text-emerald-400">{data.ultimoPedido.nome}</span> fez uma compra{textoSeller} (ID: {data.ultimoPedido.id}).
+                  <p className="text-sm font-black text-zinc-900 dark:text-white flex items-center gap-2"><ShoppingCart size={16} className="text-purple-600 dark:text-purple-400"/> Novo Pedido Registrado!</p>
+                  <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300 font-medium">
+                    O cliente <span className="font-bold text-purple-600 dark:text-purple-400">{data.ultimoPedido.nome}</span> fez uma compra{textoSeller} (ID: {data.ultimoPedido.id}).
                   </p>
                 </div>
               </div>
@@ -412,10 +419,10 @@ export default function Header() {
             } catch (e) {}
 
             toast.custom((t) => (
-              <div className={`${t.visible ? 'animate-enter' : 'animate-leave'} max-w-md w-full bg-white dark:bg-[#0c0c0e]/90 backdrop-blur-xl shadow-[0_0_30px_rgba(244,63,94,0.15)] rounded-2xl pointer-events-auto flex ring-1 ring-rose-500/30 p-4 border-l-4 border-rose-500`}>
+              <div className={`${t.visible ? 'animate-enter' : 'animate-leave'} max-w-md w-full bg-white dark:bg-[#0c0c0e]/95 backdrop-blur-2xl shadow-[0_10px_40px_rgba(244,63,94,0.25)] rounded-2xl pointer-events-auto flex ring-1 ring-rose-500/30 p-4 border-l-4 border-rose-500`}>
                 <div className="flex-1">
-                  <p className="text-sm font-bold text-zinc-900 dark:text-white flex items-center gap-2"><FileText size={16} className="text-rose-500 dark:text-rose-400"/> Solicitação de Documento</p>
-                  <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300"><span className="font-bold text-rose-500 dark:text-rose-400">{data.ultimaSolicitacao.nome}</span> aguarda o XML do pedido #${data.ultimaSolicitacao.id}.</p>
+                  <p className="text-sm font-black text-zinc-900 dark:text-white flex items-center gap-2"><FileText size={16} className="text-rose-500 dark:text-rose-400"/> Solicitação de Documento</p>
+                  <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300 font-medium"><span className="font-bold text-rose-500 dark:text-rose-400">{data.ultimaSolicitacao.nome}</span> aguarda o XML do pedido #${data.ultimaSolicitacao.id}.</p>
                 </div>
               </div>
             ), { duration: 8000 });
@@ -477,10 +484,15 @@ export default function Header() {
 
   return (
     <>
-      {/* 🔥 A MÁGICA DO HEADER FLUTUANTE (FLOATING PILL) ESTÁ NESTA DIV ABAIXO */}
-      <div className="w-full px-2 sm:px-4 md:px-6 pt-2 sm:pt-4 md:pt-6 pb-2" style={{ WebkitAppRegion: 'drag' }}>
+      {/* 🔥 O SEGREDO DO GLASSMORPHISM: O WRAPPER FICA STICKY ZERO E O HEADER GANHA MARGENS */}
+      <div className="sticky top-0 z-40 w-full px-2 sm:px-4 md:px-6 pt-2 sm:pt-4 md:pt-6 pb-2 pointer-events-none" style={{ WebkitAppRegion: 'drag' }}>
+        
+        {/* LUZ DE FUNDO PARA REFRATAR O GLASSMORPHISM */}
+        <div className="absolute top-1/2 left-1/4 w-64 h-32 bg-purple-600/20 blur-[60px] rounded-full pointer-events-none -translate-y-1/2 -z-10 hidden dark:block"></div>
+        <div className="absolute top-1/2 right-1/4 w-64 h-32 bg-indigo-600/20 blur-[60px] rounded-full pointer-events-none -translate-y-1/2 -z-10 hidden dark:block"></div>
+
         <header 
-          className="sticky top-4 z-30 w-full min-h-16 md:h-[72px] bg-white/90 dark:bg-[#121214]/90 backdrop-blur-xl border border-zinc-200/80 dark:border-white/5 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] flex items-center justify-between px-4 sm:px-6 py-2 md:py-0 transition-all duration-300" 
+          className="pointer-events-auto w-full min-h-16 md:h-[72px] bg-white/70 dark:bg-[#121214]/70 backdrop-blur-2xl border border-zinc-200/50 dark:border-white/5 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] flex items-center justify-between px-4 sm:px-6 py-2 md:py-0 transition-all duration-300" 
           style={{ WebkitAppRegion: 'no-drag' }}
         >
           
@@ -491,7 +503,7 @@ export default function Header() {
 
             <div className="flex flex-col justify-center min-w-0">
               <h2 className="text-sm md:text-[17px] font-black text-zinc-900 dark:text-zinc-100 flex items-center gap-1 md:gap-2 truncate">
-                Olá, <span className={userRole === "lojista" ? "text-emerald-600 dark:text-emerald-400" : "text-purple-600 dark:text-purple-400"}>
+                Olá, <span className="text-purple-600 dark:text-purple-400">
                   {userName}
                 </span>! <span className="animate-wave origin-bottom-right inline-block">👋</span>
               </h2>
@@ -504,7 +516,7 @@ export default function Header() {
             {montado && (
               <button 
                 onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-                className="relative shrink-0 p-2 text-zinc-500 dark:text-zinc-400 hover:text-amber-500 dark:hover:text-amber-400 bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700/50 transition-all"
+                className="relative shrink-0 p-2.5 text-zinc-500 dark:text-zinc-400 hover:text-amber-500 dark:hover:text-amber-400 bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700/50 transition-all"
                 title="Alternar Tema Claro/Escuro"
               >
                 {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
@@ -517,30 +529,30 @@ export default function Header() {
                 <button 
                   onClick={() => setIsWaffleOpen(!isWaffleOpen)}
                   onBlur={() => setTimeout(() => setIsWaffleOpen(false), 200)} 
-                  className="relative p-2 text-zinc-500 dark:text-zinc-400 hover:text-emerald-600 dark:hover:text-emerald-400 bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700/50 transition-all"
+                  className="relative p-2.5 text-zinc-500 dark:text-zinc-400 hover:text-purple-600 dark:hover:text-purple-400 bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700/50 transition-all"
                   title="Aplicativos Integrados"
                 >
                   <Grip size={18} />
                 </button>
 
                 {isWaffleOpen && (
-                  <div className="absolute right-0 top-full mt-4 w-72 bg-white/95 dark:bg-[#121214]/95 backdrop-blur-xl border border-zinc-200 dark:border-zinc-800 rounded-2xl p-4 shadow-2xl ring-1 ring-black/5 dark:ring-white/5 z-[100] animate-in slide-in-from-top-2">
-                    <h4 className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-widest mb-3 border-b border-zinc-100 dark:border-zinc-800/50 pb-2">Seus Favoritos</h4>
+                  <div className="absolute right-0 top-full mt-4 w-72 bg-white/95 dark:bg-[#121214]/95 backdrop-blur-xl border border-zinc-200 dark:border-zinc-800 rounded-3xl p-5 shadow-2xl ring-1 ring-black/5 dark:ring-white/5 z-[100] animate-in slide-in-from-top-2">
+                    <h4 className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-widest mb-4 border-b border-zinc-100 dark:border-zinc-800/50 pb-2">Seus Favoritos</h4>
                     
                     <div className="grid grid-cols-3 gap-2">
                        <button 
-                          onMouseDown={() => window.dispatchEvent(new CustomEvent('abrirAppExterno', { detail: { nome: 'OMIE', url: 'https://app.omie.com.br/gestao/oliveira-hucf57e5/' }}))} //lembrar do omie pra tirar o chumbo depois 
-                          className="flex flex-col items-center justify-center p-3 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800/80 transition-colors gap-2"
+                          onMouseDown={() => window.dispatchEvent(new CustomEvent('abrirAppExterno', { detail: { nome: 'OMIE', url: 'https://app.omie.com.br/gestao/oliveira-hucf57e5/' }}))} 
+                          className="flex flex-col items-center justify-center p-3 rounded-2xl hover:bg-zinc-100 dark:hover:bg-zinc-800/80 transition-colors gap-2"
                        >
-                          <div className="w-10 h-10 rounded-full bg-[#001D4A] flex items-center justify-center text-white font-black text-xs shadow-sm">OM</div>
+                          <div className="w-12 h-12 rounded-full bg-[#001D4A] flex items-center justify-center text-white font-black text-xs shadow-md">OM</div>
                           <span className="text-[10px] font-bold text-zinc-700 dark:text-zinc-300">OMIE</span>
                        </button>
                        
                        <button 
                           onMouseDown={() => window.dispatchEvent(new CustomEvent('abrirAppExterno', { detail: { nome: 'Hostinger', url: 'https://mail.hostinger.com/' }}))} 
-                          className="flex flex-col items-center justify-center p-3 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800/80 transition-colors gap-2"
+                          className="flex flex-col items-center justify-center p-3 rounded-2xl hover:bg-zinc-100 dark:hover:bg-zinc-800/80 transition-colors gap-2"
                        >
-                          <div className="w-10 h-10 rounded-full bg-[#673DE6] flex items-center justify-center text-white font-black text-xs shadow-sm">@</div>
+                          <div className="w-12 h-12 rounded-full bg-[#673DE6] flex items-center justify-center text-white font-black text-xs shadow-md">@</div>
                           <span className="text-[10px] font-bold text-zinc-700 dark:text-zinc-300">Webmail</span>
                        </button>
                     </div>
@@ -560,7 +572,7 @@ export default function Header() {
               <div className="flex items-center gap-2 sm:gap-3">
                 <button 
                   onClick={() => { setIsOfertasModalOpen(true); carregarOfertasGlobais(); }}
-                  className="flex items-center gap-1.5 md:gap-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 text-white px-3 py-2 md:px-4 md:py-2 rounded-xl text-xs font-bold shadow-lg shadow-orange-500/20 transition-all transform hover:-translate-y-0.5 border border-orange-400/50"
+                  className="flex items-center gap-1.5 md:gap-2 bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-500 hover:to-pink-500 text-white px-4 py-2.5 rounded-xl text-xs font-bold shadow-lg shadow-rose-500/20 transition-all transform hover:-translate-y-0.5 border border-rose-400/50"
                 >
                   <Tag size={14} /> 
                   <span className="hidden sm:inline">Ofertas do Dia</span>
@@ -569,12 +581,12 @@ export default function Header() {
 
                 <button 
                   onClick={() => setIsCarrinhoModalOpen(true)} 
-                  className="relative shrink-0 p-2 text-zinc-500 dark:text-zinc-400 hover:text-emerald-600 dark:hover:text-emerald-400 bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700/50 transition-all" 
+                  className="relative shrink-0 p-2.5 text-zinc-500 dark:text-zinc-400 hover:text-purple-600 dark:hover:text-purple-400 bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700/50 transition-all" 
                   title="Ver Resumo do Carrinho"
                 >
                   <ShoppingCart size={18} />
                   {qtdCarrinho > 0 && (
-                    <span className="absolute -top-2 -right-2 bg-emerald-500 text-white dark:text-black text-[10px] font-black min-w-[20px] h-5 px-1 rounded-full flex items-center justify-center border-2 border-white dark:border-[#121214] shadow-sm">
+                    <span className="absolute -top-2 -right-2 bg-purple-600 text-white text-[10px] font-black min-w-[20px] h-5 px-1 rounded-full flex items-center justify-center border-2 border-white dark:border-[#121214] shadow-sm">
                       {qtdCarrinho}
                     </span>
                   )}
@@ -584,7 +596,7 @@ export default function Header() {
 
             {userRole === "admin" && (
               <div className="relative group cursor-pointer shrink-0">
-                <Link href="/xml" className="transition-all relative block p-2 bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700/50" title="Ver Central de Documentos">
+                <Link href="/xml" className="transition-all relative block p-2.5 bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700/50" title="Ver Central de Documentos">
                   <Bell size={18} className={updateStatus ? "text-rose-500 dark:text-rose-400 animate-pulse" : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"} />
                   {updateStatus && (
                     <span className="absolute -top-2 -right-2 bg-rose-500 text-white text-[10px] font-black min-w-[20px] h-5 px-1 rounded-full flex items-center justify-center border-2 border-white dark:border-[#121214] shadow-sm">
@@ -594,13 +606,13 @@ export default function Header() {
                 </Link>
 
                 <div className="hidden lg:block absolute right-0 top-full mt-4 w-64 invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-2 group-hover:translate-y-0 z-[100]">
-                  <div className="bg-white/95 dark:bg-[#121214]/95 backdrop-blur-xl border border-zinc-200 dark:border-zinc-800 rounded-2xl p-4 shadow-2xl ring-1 ring-black/5 dark:ring-white/5">
+                  <div className="bg-white/95 dark:bg-[#121214]/95 backdrop-blur-xl border border-zinc-200 dark:border-zinc-800 rounded-3xl p-5 shadow-2xl ring-1 ring-black/5 dark:ring-white/5">
                     <h4 className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-widest mb-3 border-b border-zinc-100 dark:border-zinc-800/50 pb-2">Resumo Pendente</h4>
                     <div className="space-y-4">
                       {!updateStatus && <p className="text-xs text-zinc-400 dark:text-zinc-500 text-center py-2 font-medium">Nenhuma notificação nova.</p>}
                       {lastPedidoId && (
                         <div className="flex items-start gap-3">
-                          <div className="p-1.5 bg-emerald-100 dark:bg-emerald-500/10 rounded-lg"><ShoppingCart size={14} className="text-emerald-600 dark:text-emerald-400" /></div>
+                          <div className="p-2 bg-purple-100 dark:bg-purple-500/10 rounded-lg"><ShoppingCart size={14} className="text-purple-600 dark:text-purple-400" /></div>
                           <div className="overflow-hidden">
                             <p className="text-[11px] font-bold text-zinc-800 dark:text-zinc-200 truncate">Último Pedido</p>
                             <p className="text-[10px] text-zinc-500 dark:text-zinc-400 truncate font-mono mt-0.5">ID: {lastPedidoId}</p>
@@ -608,8 +620,8 @@ export default function Header() {
                         </div>
                       )}
                       {lastXmlId && (
-                        <div className="flex items-start gap-3">
-                          <div className="p-1.5 bg-rose-100 dark:bg-rose-500/10 rounded-lg"><FileText size={14} className="text-rose-600 dark:text-rose-400" /></div>
+                        <div className="flex items-start gap-3 mt-3">
+                          <div className="p-2 bg-rose-100 dark:bg-rose-500/10 rounded-lg"><FileText size={14} className="text-rose-600 dark:text-rose-400" /></div>
                           <div className="overflow-hidden">
                             <p className="text-[11px] font-bold text-zinc-800 dark:text-zinc-200 truncate">Aguardando XML</p>
                             <p className="text-[10px] text-rose-600 dark:text-rose-400 font-medium truncate mt-0.5 hover:underline">Pedido #{lastXmlId}</p>
@@ -625,11 +637,11 @@ export default function Header() {
             <div className="flex items-center gap-3 pl-3 sm:pl-4 border-l border-zinc-200 dark:border-zinc-800 shrink-0 ml-1 sm:ml-2">
               <div className="hidden sm:flex flex-col items-end">
                 <span className="text-sm font-bold text-zinc-900 dark:text-zinc-100 leading-none mb-1">{userRole === "lojista" ? "Meu Perfil" : "Operador"}</span>
-                <span className={`text-[10px] font-bold tracking-wide uppercase max-w-[150px] truncate ${userRole === "lojista" ? "text-emerald-600 dark:text-emerald-500" : "text-zinc-500 dark:text-zinc-400"}`}>{userRole === "lojista" ? `CNPJ: ${userEmail}` : userEmail}</span>
+                <span className={`text-[10px] font-bold tracking-widest uppercase max-w-[150px] truncate ${userRole === "lojista" ? "text-purple-600 dark:text-purple-500" : "text-zinc-500 dark:text-zinc-400"}`}>{userRole === "lojista" ? `CNPJ: ${userEmail}` : userEmail}</span>
               </div>
               
               <Link href={userRole === "lojista" ? "/b2b-perfil" : "/conta"}>
-                <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shadow-md hover:shadow-xl hover:-translate-y-0.5 transition-all cursor-pointer font-black text-white text-sm ${userRole === "lojista" ? "bg-gradient-to-br from-emerald-500 to-teal-600 shadow-emerald-500/20" : "bg-gradient-to-br from-purple-500 to-indigo-600 shadow-purple-500/20"}`}>
+                <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center shadow-md hover:shadow-xl hover:-translate-y-0.5 transition-all cursor-pointer font-black text-white text-sm ${userRole === "lojista" ? "bg-gradient-to-br from-purple-500 to-indigo-600 shadow-purple-500/20" : "bg-gradient-to-br from-indigo-500 to-blue-600 shadow-indigo-500/20"}`}>
                   {userInitial}
                 </div>
               </Link>

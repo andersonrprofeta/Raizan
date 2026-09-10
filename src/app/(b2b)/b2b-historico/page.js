@@ -6,33 +6,33 @@ import Header from "@/components/Header";
 import { 
   ShoppingBag, Search, Eye, Clock, Package, 
   CheckCircle2, AlertCircle, Calendar, X, FileText, Loader2, ChevronLeft, ChevronRight, RefreshCw, Truck,
-  CreditCard, QrCode, CalendarDays 
+  CreditCard, QrCode, CalendarDays, ArrowRight, Zap, ShieldCheck
 } from "lucide-react";
 import { getHubUrl, getHeaders } from "@/components/utils/api";
 import toast from 'react-hot-toast';
 import { initMercadoPago, Payment } from '@mercadopago/sdk-react';
 
 // ==========================================
-// COMPONENTE: BADGE DE STATUS DINÂMICO
+// COMPONENTE: BADGE DE STATUS DINÂMICO (IOS STYLE)
 // ==========================================
 const StatusBadge = ({ status }) => {
   const statusMap = {
-    'aguardando-pagamento': { cor: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-100 dark:bg-amber-500/10', border: 'border-amber-200 dark:border-amber-500/20', icone: Clock, label: 'Aguardando Pagamento' },
-    'pago': { cor: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-100 dark:bg-blue-500/10', border: 'border-blue-200 dark:border-blue-500/20', icone: CheckCircle2, label: 'Pago / Aprovado' },
-    'processing': { cor: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-100 dark:bg-blue-500/10', border: 'border-blue-200 dark:border-blue-500/20', icone: Package, label: 'Em Separação' },
-    'enviado': { cor: 'text-purple-600 dark:text-purple-400', bg: 'bg-purple-100 dark:bg-purple-500/10', border: 'border-purple-200 dark:border-purple-500/20', icone: Truck, label: 'Enviado / Em Trânsito' },
-    'entregue': { cor: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-100 dark:bg-emerald-500/10', border: 'border-emerald-200 dark:border-emerald-500/20', icone: CheckCircle2, label: 'Entregue' },
-    'completed': { cor: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-100 dark:bg-emerald-500/10', border: 'border-emerald-200 dark:border-emerald-500/20', icone: CheckCircle2, label: 'Concluído' },
-    'cancelled': { cor: 'text-rose-600 dark:text-rose-400', bg: 'bg-rose-100 dark:bg-rose-500/10', border: 'border-rose-200 dark:border-rose-500/20', icone: AlertCircle, label: 'Cancelado' },
-    'cancelado': { cor: 'text-rose-600 dark:text-rose-400', bg: 'bg-rose-100 dark:bg-rose-500/10', border: 'border-rose-200 dark:border-rose-500/20', icone: AlertCircle, label: 'Cancelado' }
+    'aguardando-pagamento': { cor: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-50 dark:bg-amber-500/10', border: 'border-amber-200 dark:border-amber-500/20', icone: Clock, label: 'Aguardando Pagamento' },
+    'pago': { cor: 'text-indigo-600 dark:text-indigo-400', bg: 'bg-indigo-50 dark:bg-indigo-500/10', border: 'border-indigo-200 dark:border-indigo-500/20', icone: CheckCircle2, label: 'Pago / Aprovado' },
+    'processing': { cor: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-50 dark:bg-blue-500/10', border: 'border-blue-200 dark:border-blue-500/20', icone: Package, label: 'Em Separação' },
+    'enviado': { cor: 'text-purple-600 dark:text-purple-400', bg: 'bg-purple-50 dark:bg-purple-500/10', border: 'border-purple-200 dark:border-purple-500/20', icone: Truck, label: 'Enviado / Trânsito' },
+    'entregue': { cor: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-500/10', border: 'border-emerald-200 dark:border-emerald-500/20', icone: CheckCircle2, label: 'Entregue' },
+    'completed': { cor: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-500/10', border: 'border-emerald-200 dark:border-emerald-500/20', icone: CheckCircle2, label: 'Concluído' },
+    'cancelled': { cor: 'text-rose-600 dark:text-rose-400', bg: 'bg-rose-50 dark:bg-rose-500/10', border: 'border-rose-200 dark:border-rose-500/20', icone: AlertCircle, label: 'Cancelado' },
+    'cancelado': { cor: 'text-rose-600 dark:text-rose-400', bg: 'bg-rose-50 dark:bg-rose-500/10', border: 'border-rose-200 dark:border-rose-500/20', icone: AlertCircle, label: 'Cancelado' }
   };
 
-  const config = statusMap[status] || statusMap['aguardando-pagamento'];
+  const config = statusMap[status?.toLowerCase()] || statusMap['aguardando-pagamento'];
   const Icon = config.icone;
 
   return (
-    <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${config.bg} ${config.cor} ${config.border}`}>
-      <Icon size={14} /> {config.label}
+    <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border ${config.bg} ${config.cor} ${config.border}`}>
+      <Icon size={12} /> {config.label}
     </div>
   );
 };
@@ -48,10 +48,13 @@ function ModalPagamentoRetentativa({ isOpen, onClose, pedido, user, onSucesso })
   const [mpKeyMissing, setMpKeyMissing] = useState(false);
   const [step, setStep] = useState('resumo');
   const [dadosPix, setDadosPix] = useState(null);
+  const [tempoExpiracao, setTempoExpiracao] = useState(1800);
+  const [isVerificando, setIsVerificando] = useState(false);
+  const [copiado, setCopiado] = useState(false);
 
   useEffect(() => {
     if (isOpen && pedido) {
-      setStep('resumo'); setDadosPix(null); setIsProcessando(false);
+      setStep('resumo'); setDadosPix(null); setIsProcessando(false); setTempoExpiracao(1800);
       if (user?.prazos_liberados && user.prazos_liberados.length > 0) {
         setPrazoBoleto(user.prazos_liberados[0]);
       }
@@ -69,6 +72,28 @@ function ModalPagamentoRetentativa({ isOpen, onClose, pedido, user, onSucesso })
       buscarChave();
     }
   }, [isOpen, pedido, user]);
+
+  useEffect(() => {
+    let timer;
+    if (step === 'sucesso_pix' && tempoExpiracao > 0) {
+      timer = setInterval(() => setTempoExpiracao(prev => prev - 1), 1000);
+    }
+    return () => clearInterval(timer);
+  }, [step, tempoExpiracao]);
+
+  useEffect(() => {
+    let intervalo;
+    if (step === 'sucesso_pix' && dadosPix?.pedidoId) {
+      intervalo = setInterval(async () => {
+        try {
+          const res = await fetch(`${getHubUrl()}/api/hub/pedidos/status/${dadosPix.pedidoId}`, { headers: getHeaders() });
+          const data = await res.json();
+          if (data.status === 'pago') { setStep('concluido'); onSucesso(); }
+        } catch (e) {}
+      }, 5000); 
+    }
+    return () => clearInterval(intervalo);
+  }, [step, dadosPix]);
 
   if (!isOpen || !pedido) return null;
 
@@ -92,22 +117,13 @@ function ModalPagamentoRetentativa({ isOpen, onClose, pedido, user, onSucesso })
       valor: pedido.total,
       metodo: metodoPagamento,
       dadosCartao: dadosCartaoMp,
-      cliente: {
-        codigo: user.codigo,
-        nome: user.nome,
-        cnpj: user.cnpj,
-        email: user.email,
-        telefone: user.telefone
-      }
+      cliente: { codigo: user.codigo, nome: user.nome, cnpj: user.cnpj, email: user.email, telefone: user.telefone }
     };
 
     try {
       const res = await fetch(`${getHubUrl()}/api/hub/pagamentos/gerar`, {
-        method: "POST", 
-        headers: getHeaders(), 
-        body: JSON.stringify(payload)
+        method: "POST", headers: getHeaders(), body: JSON.stringify(payload)
       });
-      
       const data = await res.json();
       
       if (data.success) {
@@ -122,85 +138,140 @@ function ModalPagamentoRetentativa({ isOpen, onClose, pedido, user, onSucesso })
       } else { 
         toast.error(data.message || "Erro ao processar o pagamento."); 
       }
-
-    } catch (e) { 
-      toast.error(`Falha na requisição: ${e.message}`); 
-    }
+    } catch (e) { toast.error(`Falha na requisição: ${e.message}`); }
     setIsProcessando(false);
   };
 
+  const verificarPagamentoManual = async () => {
+    setIsVerificando(true);
+    try {
+      const res = await fetch(`${getHubUrl()}/api/hub/pedidos/status/${dadosPix.pedidoId}`, { headers: getHeaders() });
+      const data = await res.json();
+      if (data.status === 'pago') { setStep('concluido'); onSucesso(); }
+      else toast.error("Pagamento não identificado. Aguarde e tente novamente.", { duration: 4000 });
+    } catch (e) { toast.error("Erro ao comunicar com a Nuvem."); }
+    setTimeout(() => setIsVerificando(false), 1000); 
+  };
+
+  const copiarPix = () => {
+    navigator.clipboard.writeText(dadosPix.qr_code);
+    setCopiado(true); toast.success("Código PIX copiado!");
+    setTimeout(() => setCopiado(false), 3000);
+  };
+
+  const formatarTempo = (segundos) => {
+    const m = Math.floor(segundos / 60).toString().padStart(2, '0');
+    const s = (segundos % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+  };
+
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-4 bg-zinc-900/60 dark:bg-black/80 backdrop-blur-sm transition-all">
-      <div className="bg-white dark:bg-[#0c0c0e] border border-zinc-200 dark:border-zinc-800/80 rounded-2xl shadow-2xl w-full max-w-xl max-h-[92vh] overflow-y-auto animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-4 bg-zinc-900/40 dark:bg-black/80 backdrop-blur-sm transition-all animate-in fade-in" onClick={step === 'resumo' ? onClose : null}>
+      <div className="bg-white dark:bg-[#0c0c0e] border border-zinc-200/50 dark:border-zinc-800/80 rounded-3xl shadow-2xl w-full max-w-xl max-h-[95vh] flex flex-col overflow-hidden animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
         
-        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50">
-          <h2 className="text-base sm:text-lg font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
-            <CreditCard className="text-emerald-600 dark:text-emerald-400" /> Realizar Pagamento
+        {/* HEADER GLASSMORPHISM */}
+        <div className="flex items-center justify-between gap-3 px-6 py-4 border-b border-zinc-200 dark:border-zinc-800/80 bg-white/70 dark:bg-[#121214]/70 backdrop-blur-xl">
+          <h2 className="text-lg font-black text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+            <CreditCard className="text-purple-600 dark:text-purple-400" size={20} /> Realizar Pagamento
           </h2>
-          <button onClick={onClose} disabled={isProcessando} className="text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"><X size={20} /></button>
+          <button onClick={onClose} disabled={isProcessando} className="w-8 h-8 rounded-full flex items-center justify-center bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-500 transition-colors disabled:opacity-50">
+            <X size={18} />
+          </button>
         </div>
 
-        {step === 'sucesso_pix' && dadosPix ? (
-          <div className="p-4 sm:p-8 text-center flex flex-col items-center justify-center">
-            <h2 className="text-lg sm:text-xl font-bold text-zinc-900 dark:text-zinc-100 mb-2">Escaneie o QR Code</h2>
-            <div className="bg-white p-3 rounded-2xl mb-6 shadow-lg border-4 border-teal-500/20">
-              <img src={`data:image/png;base64,${dadosPix.qr_code_base64}`} alt="PIX" className="w-40 h-40 sm:w-48 sm:h-48" />
-            </div>
-            <input type="text" readOnly value={dadosPix.qr_code} className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 px-3 sm:px-4 py-3 rounded-xl text-xs outline-none font-mono truncate mb-4" />
-            <button onClick={() => { toast.success("Código copiado!"); navigator.clipboard.writeText(dadosPix.qr_code); }} className="px-6 py-3 bg-teal-600 hover:bg-teal-500 text-white rounded-xl font-bold transition-all w-full shadow-md">
-              Copiar Código Pix
-            </button>
-          </div>
-        ) : (
-          <div className="p-4 sm:p-6">
-            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2 bg-zinc-50 dark:bg-zinc-900/50 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 mb-6 shadow-sm dark:shadow-none">
-              <span className="text-zinc-600 dark:text-zinc-400 font-medium">Total a pagar:</span>
-              <span className="text-xl sm:text-2xl font-black text-emerald-600 dark:text-emerald-400 break-words">{totalFormatado}</span>
-            </div>
-
-            <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 mb-3 border-b border-zinc-200 dark:border-zinc-800 pb-2">Selecione a forma de pagamento</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
-              <button onClick={() => setMetodoPagamento('pix')} className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all ${metodoPagamento === 'pix' ? 'bg-teal-50 dark:bg-teal-500/10 border-teal-500 text-teal-600 dark:text-teal-400' : 'bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-700'}`}>
-                <QrCode size={20} className="mb-1.5" /> <span className="text-xs font-semibold">PIX</span>
-              </button>
-              <button onClick={() => setMetodoPagamento('cartao')} className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all ${metodoPagamento === 'cartao' ? 'bg-blue-50 dark:bg-blue-500/10 border-blue-500 text-blue-600 dark:text-blue-400' : 'bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-700'}`}>
-                <CreditCard size={20} className="mb-1.5" /> <span className="text-xs font-semibold">Cartão</span>
-              </button>
-              <button onClick={() => setMetodoPagamento('faturado')} className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all ${metodoPagamento === 'faturado' ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-500 text-emerald-600 dark:text-emerald-400' : 'bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-700'}`}>
-                <FileText size={20} className="mb-1.5" /> <span className="text-xs font-semibold">Boleto</span>
-              </button>
-            </div>
-
-            {metodoPagamento === 'faturado' && user?.prazos_liberados && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
-                {user.prazos_liberados.map(prazo => (
-                  <button key={prazo} onClick={() => setPrazoBoleto(prazo)} className={`p-3 rounded-xl border text-left transition-all ${prazoBoleto === prazo ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-500/10 ring-1 ring-emerald-500/50' : 'border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/80 hover:border-zinc-300 dark:hover:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}>
-                    <p className="font-bold text-zinc-900 dark:text-zinc-100">{prazo}</p>
-                    <p className="text-[10px] text-emerald-600 dark:text-emerald-500 uppercase tracking-wider">Aprovado ERP</p>
-                  </button>
-                ))}
+        <div className="flex-1 overflow-y-auto custom-scrollbar">
+          {step === 'sucesso_pix' && dadosPix ? (
+            <div className="p-6 sm:p-10 text-center flex flex-col items-center justify-center">
+              <div className="w-16 h-16 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-full flex items-center justify-center mb-4 border border-indigo-100 dark:border-indigo-500/20 shadow-sm">
+                <QrCode size={32} />
               </div>
-            )}
-
-            {metodoPagamento === 'cartao' && (
-              <div className="mt-4 mb-6">
-                {mpKeyMissing ? <p className="text-rose-500 text-sm text-center">Chave do Mercado Pago ausente.</p> : !isMpReady ? <p className="text-zinc-500 dark:text-zinc-400 text-sm text-center animate-pulse">Carregando cofre...</p> : (
-                  <Payment
-                    initialization={{ amount: Number(pedido.total) }}
-                    customization={{ visual: { style: { theme: 'default' } }, paymentMethods: { creditCard: 'all', debitCard: 'all' } }}
-                    onSubmit={async (param) => processarPagamento(param.formData)}
-                  />
+              <h2 className="text-xl font-black text-zinc-900 dark:text-zinc-100 mb-2">Pague via PIX</h2>
+              <p className="text-zinc-500 dark:text-zinc-400 text-sm mb-6 max-w-xs">Abra o aplicativo do seu banco e escaneie o código abaixo.</p>
+              
+              <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl px-5 py-3 mb-6 flex items-center justify-center gap-3 shadow-sm">
+                <Clock size={18} className="text-indigo-500" />
+                <span className="text-sm font-medium text-zinc-500">Expira em:</span>
+                <span className={`text-xl font-mono font-black ${tempoExpiracao < 300 ? 'text-rose-500 animate-pulse' : 'text-indigo-600 dark:text-indigo-400'}`}>
+                  {formatarTempo(tempoExpiracao)}
+                </span>
+              </div>
+              
+              <div className="w-full max-w-[240px] bg-white p-3 rounded-3xl mb-6 shadow-sm border border-zinc-200 dark:border-zinc-800 relative overflow-hidden flex items-center justify-center min-h-[220px]">
+                {dadosPix.qr_code_base64 && dadosPix.qr_code_base64.length > 50 ? (
+                  <img src={`data:image/png;base64,${dadosPix.qr_code_base64}`} alt="PIX" className="w-48 h-48 relative z-10 object-contain" />
+                ) : (
+                  <img src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(dadosPix.qr_code)}`} alt="PIX" className="w-48 h-48 relative z-10 object-contain" />
                 )}
               </div>
-            )}
+              
+              <div className="w-full max-w-sm space-y-2 mb-6">
+                <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider text-left block ml-1">Pix Copia e Cola</label>
+                <div className="flex flex-col sm:flex-row items-stretch gap-2">
+                  <input type="text" readOnly value={dadosPix.qr_code} className="w-full sm:flex-1 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 px-4 py-3 rounded-xl text-xs outline-none font-mono truncate shadow-inner" />
+                  <button onClick={copiarPix} className={`px-6 py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 ${copiado ? 'bg-indigo-50 text-indigo-600 border border-indigo-200' : 'bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900'}`}>
+                    {copiado ? <CheckCircle2 size={16} /> : 'Copiar'}
+                  </button>
+                </div>
+              </div>
 
-            {metodoPagamento !== 'cartao' && (
-              <button onClick={() => processarPagamento(null)} disabled={isProcessando} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-3.5 rounded-xl font-bold shadow-lg transition-all flex justify-center items-center gap-2">
-                {isProcessando ? <Loader2 size={18} className="animate-spin" /> : 'Confirmar e Pagar'}
+              <button onClick={verificarPagamentoManual} disabled={isVerificando} className="flex items-center gap-2 text-xs text-zinc-500 hover:text-indigo-600 transition-colors px-4 py-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800/50 mb-2 font-medium">
+                <RefreshCw size={14} className={isVerificando ? "animate-spin text-indigo-500" : ""} />
+                {isVerificando ? "Verificando com o banco..." : "Já paguei, mas a tela não mudou"}
               </button>
-            )}
-          </div>
-        )}
+            </div>
+          ) : step === 'concluido' ? (
+            <div className="p-10 flex flex-col items-center justify-center text-center">
+              <div className="w-20 h-20 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mb-6 shadow-sm border border-emerald-100">
+                <CheckCircle2 size={40} className="animate-bounce" />
+              </div>
+              <h2 className="text-2xl font-black text-zinc-900 dark:text-zinc-100 mb-2 tracking-tight">Pagamento Aprovado!</h2>
+              <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-8 max-w-sm">Obrigado! Seu pagamento foi processado com sucesso e o pedido já está sendo preparado.</p>
+              <button onClick={onClose} className="w-full max-w-xs py-3 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-sm font-bold shadow-md transition-all">
+                Fechar
+              </button>
+            </div>
+          ) : (
+            <div className="p-6">
+              <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2 bg-white dark:bg-[#121214] p-5 rounded-2xl border border-zinc-200 dark:border-zinc-800 mb-6 shadow-sm">
+                <span className="text-zinc-500 dark:text-zinc-400 text-xs font-bold uppercase tracking-wider">Total a pagar</span>
+                <span className="text-2xl sm:text-3xl font-black text-purple-600 dark:text-purple-400 break-words">{totalFormatado}</span>
+              </div>
+
+              <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-3 ml-1">Selecione a forma de pagamento</h3>
+              <div className="grid grid-cols-2 gap-3 mb-6">
+                <button onClick={() => setMetodoPagamento('pix')} className={`flex items-center gap-3 p-4 rounded-2xl border transition-all ${metodoPagamento === 'pix' ? 'border-indigo-500 bg-white dark:bg-[#121214] shadow-sm' : 'border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 hover:border-zinc-300 dark:hover:border-zinc-700'}`}>
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${metodoPagamento === 'pix' ? 'bg-indigo-50 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-400'}`}><QrCode size={18} /></div>
+                  <div className="text-left"><p className={`text-sm font-bold leading-tight ${metodoPagamento === 'pix' ? 'text-indigo-700 dark:text-indigo-400' : 'text-zinc-700 dark:text-zinc-300'}`}>PIX</p><p className="text-[10px] text-zinc-400 mt-0.5">À Vista</p></div>
+                </button>
+                <button onClick={() => setMetodoPagamento('cartao')} className={`flex items-center gap-3 p-4 rounded-2xl border transition-all ${metodoPagamento === 'cartao' ? 'border-blue-500 bg-white dark:bg-[#121214] shadow-sm' : 'border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 hover:border-zinc-300 dark:hover:border-zinc-700'}`}>
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${metodoPagamento === 'cartao' ? 'bg-blue-50 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-400'}`}><CreditCard size={18} /></div>
+                  <div className="text-left"><p className={`text-sm font-bold leading-tight ${metodoPagamento === 'cartao' ? 'text-blue-700 dark:text-blue-400' : 'text-zinc-700 dark:text-zinc-300'}`}>Cartão</p><p className="text-[10px] text-zinc-400 mt-0.5">Crédito</p></div>
+                </button>
+              </div>
+
+              {metodoPagamento === 'cartao' && (
+                <div className="mt-4 mb-6">
+                  {mpKeyMissing ? <p className="text-rose-500 text-sm text-center font-medium">O gateway de pagamento não está ativo.</p> : !isMpReady ? <div className="flex flex-col items-center p-6"><Loader2 size={24} className="animate-spin text-purple-500 mb-2"/><p className="text-xs text-zinc-500 uppercase">Conectando...</p></div> : (
+                    <div className="bg-zinc-50 dark:bg-[#121214] p-2 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                      <Payment
+                        initialization={{ amount: Number(pedido.total) }}
+                        customization={{ visual: { style: { theme: 'default' } }, paymentMethods: { creditCard: 'all', debitCard: 'all' } }}
+                        onSubmit={async (param) => processarPagamento(param.formData)}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {metodoPagamento !== 'cartao' && (
+                <button onClick={() => processarPagamento(null)} disabled={isProcessando} className="w-full bg-purple-600 hover:bg-purple-500 text-white py-4 rounded-xl text-sm font-bold shadow-[0_5px_15px_rgba(147,51,234,0.25)] transition-all flex justify-center items-center gap-2 active:scale-95">
+                  {isProcessando ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />}
+                  {isProcessando ? 'Processando...' : 'Gerar Código de Pagamento'}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -269,43 +340,44 @@ function ModalDetalhes({ pedido, onClose, onPagarAgora }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-zinc-900/60 dark:bg-black/80 backdrop-blur-sm transition-all animate-in fade-in" onClick={onClose}>
-      <div className="bg-white dark:bg-[#0c0c0e] border border-zinc-200 dark:border-zinc-800/80 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-zinc-900/40 dark:bg-black/80 backdrop-blur-sm transition-all animate-in fade-in" onClick={onClose}>
+      <div className="bg-white dark:bg-[#0c0c0e] border border-zinc-200/50 dark:border-zinc-800/80 rounded-3xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
         
-        <div className="flex items-start sm:items-center justify-between gap-3 px-4 sm:px-6 py-4 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 shrink-0">
+        {/* HEADER GLASSMORPHISM */}
+        <div className="flex items-center justify-between gap-3 px-6 py-4 border-b border-zinc-200 dark:border-zinc-800/80 bg-white/70 dark:bg-[#121214]/70 backdrop-blur-xl shrink-0">
           <div className="min-w-0">
-            <h2 className="text-lg sm:text-xl font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2 break-words">
-              <ShoppingBag className="text-emerald-600 dark:text-emerald-400" /> Pedido #{pedido.id}
+            <h2 className="text-lg sm:text-xl font-black text-zinc-900 dark:text-zinc-100 flex items-center gap-2 break-words tracking-tight">
+              <ShoppingBag className="text-purple-600 dark:text-purple-400" size={20} /> Pedido #{pedido.id}
             </h2>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 flex items-center gap-1"><Calendar size={12}/> {dataAjustada}</p>
+            <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1 flex items-center gap-1 font-medium"><Calendar size={12}/> {dataAjustada}</p>
           </div>
-          <button onClick={onClose} className="p-2 text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl transition-colors"><X size={20} /></button>
+          <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-500 transition-colors"><X size={18} /></button>
         </div>
 
         <div className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-6 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 shrink-0">
-            <div className="bg-zinc-50 dark:bg-zinc-900/50 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm dark:shadow-none">
-              <p className="text-xs text-zinc-500 font-medium mb-1 uppercase tracking-wider">Status Atual</p>
+            <div className="bg-white dark:bg-[#121214] p-5 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+              <p className="text-[10px] text-zinc-400 font-bold mb-2 uppercase tracking-widest">Status Atual</p>
               <StatusBadge status={pedido.status} />
             </div>
-            <div className="bg-zinc-50 dark:bg-zinc-900/50 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm dark:shadow-none">
-              <p className="text-xs text-zinc-500 font-medium mb-1 uppercase tracking-wider">Pagamento e Envio</p>
-              <p className="text-sm text-zinc-800 dark:text-zinc-200 font-bold uppercase break-words">{metodoFormatado} {getMeta('prazo_boleto') !== 'Não informado' && <span className="text-zinc-500 font-normal normal-case">({getMeta('prazo_boleto')})</span>}</p>
-              <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-1 capitalize"><span className="text-zinc-500">Envio:</span> {envioFormatado}</p>
+            <div className="bg-white dark:bg-[#121214] p-5 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+              <p className="text-[10px] text-zinc-400 font-bold mb-1 uppercase tracking-widest">Pagamento e Envio</p>
+              <p className="text-sm text-zinc-800 dark:text-zinc-200 font-bold uppercase break-words">{metodoFormatado} {getMeta('prazo_boleto') !== 'Não informado' && <span className="text-purple-600 dark:text-purple-400 ml-1">({getMeta('prazo_boleto')})</span>}</p>
+              <p className="text-[11px] text-zinc-500 mt-1.5 capitalize font-medium flex items-center gap-1"><Truck size={12} className="text-zinc-400" /> {envioFormatado}</p>
             </div>
           </div>
 
           {historicoEdicoes.length > 0 && (
-            <div className="bg-amber-50 dark:bg-amber-500/5 border border-amber-200 dark:border-amber-500/20 rounded-xl p-4 shrink-0 shadow-inner">
-              <h3 className="text-sm font-bold text-amber-600 dark:text-amber-500 flex items-center gap-2 mb-3">
-                <AlertCircle size={16} /> Avisos e Edições do Pedido
+            <div className="bg-amber-50/50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/30 rounded-2xl p-5 shrink-0">
+              <h3 className="text-xs font-black text-amber-700 dark:text-amber-500 flex items-center gap-2 mb-3 uppercase tracking-wider">
+                <AlertCircle size={14} /> Avisos e Edições do Pedido
               </h3>
-              <div className="space-y-3 divide-y divide-amber-200 dark:divide-amber-500/10">
+              <div className="space-y-3 divide-y divide-amber-200/50 dark:divide-amber-800/30">
                 {historicoEdicoes.map((hist, index) => (
                   <div key={index} className="pt-3 first:pt-0">
-                    <p className="text-sm text-zinc-700 dark:text-zinc-300">
-                      <span className="text-xs text-zinc-500 font-bold mr-2 uppercase tracking-wider">Atualização:</span> 
-                      {/* 🟢 A MÁGICA DO REGEX APLICADA AQUI */}
+                    <p className="text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed font-medium">
+                      <span className="text-[10px] text-amber-600/80 dark:text-amber-500/80 font-black mr-2 uppercase tracking-widest">Atualização:</span> 
+                      {/* 🟢 A MÁGICA DO REGEX CONTINUA AQUI */}
                       {formatarTextoHistorico(hist.value)}
                     </p>
                   </div>
@@ -315,26 +387,26 @@ function ModalDetalhes({ pedido, onClose, onPagarAgora }) {
           )}
 
           <div className="flex flex-col">
-            <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 mb-3 flex items-center gap-2 border-b border-zinc-200 dark:border-zinc-800 pb-2 shrink-0">
-              <Package size={16} className="text-emerald-600 dark:text-emerald-500" /> Itens do Pedido ({pedido.line_items?.length})
+            <h3 className="text-xs font-black text-zinc-400 uppercase tracking-widest mb-3 flex items-center gap-2 ml-1">
+              Itens do Pedido ({pedido.line_items?.length})
             </h3>
-            <div className="bg-zinc-50 dark:bg-zinc-900/30 border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden flex flex-col shadow-sm dark:shadow-none">
-              <div className="max-h-[40vh] overflow-y-auto custom-scrollbar">
-                <ul className="divide-y divide-zinc-200 dark:divide-zinc-800/50">
+            <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-2xl overflow-hidden flex flex-col shadow-sm">
+              <div className="max-h-[35vh] overflow-y-auto custom-scrollbar p-1">
+                <ul className="divide-y divide-zinc-100 dark:divide-zinc-800/50 px-3">
                   {pedido.line_items?.map((item, idx) => {
                     const precoItem = parseFloat(item.price || item.preco_unitario || 0);
                     const qtdItem = parseInt(item.quantity || item.qtd || 1);
                     const totalItem = item.total ? parseFloat(item.total) : (precoItem * qtdItem);
 
                     return (
-                      <li key={item.id || item.sku || idx} className="p-3 flex flex-col sm:flex-row sm:items-start justify-between gap-2 sm:gap-4 hover:bg-white dark:hover:bg-zinc-800/30 transition-colors">
+                      <li key={item.id || item.sku || idx} className="py-3 flex flex-col sm:flex-row sm:items-start justify-between gap-2 sm:gap-4 hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition-colors rounded-xl px-2">
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{item.name}</p>
-                          <p className="text-xs text-zinc-500 mt-0.5 break-words">
-                            SKU: {item.sku || 'N/A'} | {qtdItem} un. x {formatarMoeda(precoItem)}
+                          <p className="text-xs font-bold text-zinc-800 dark:text-zinc-200 leading-snug">{item.name}</p>
+                          <p className="text-[10px] text-zinc-500 mt-1 font-medium break-words">
+                            SKU: {item.sku || 'N/A'} | <span className="text-zinc-700 dark:text-zinc-300 font-bold">{qtdItem}x</span> {formatarMoeda(precoItem)}
                           </p>
                         </div>
-                        <div className="text-sm font-bold text-zinc-900 dark:text-zinc-100 whitespace-nowrap sm:mt-1">
+                        <div className="text-sm font-black text-zinc-900 dark:text-zinc-100 whitespace-nowrap sm:mt-0.5">
                           {formatarMoeda(totalItem)}
                         </div>
                       </li>
@@ -342,62 +414,57 @@ function ModalDetalhes({ pedido, onClose, onPagarAgora }) {
                   })}
                 </ul>
               </div>
-
-              {/* 🟢 RODAPÉ FINANCEIRO COMPLETO */}
-              <div className="p-4 sm:p-6 bg-zinc-100 dark:bg-zinc-900/80 border-t border-zinc-200 dark:border-zinc-800 flex flex-col gap-3 shrink-0 shadow-inner dark:shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.2)]">
-                
-                <div className="flex flex-col gap-2 w-full sm:w-72 self-end text-sm">
-                  <div className="flex justify-between items-center text-zinc-500 dark:text-zinc-400">
-                    <span>Subtotal dos Itens:</span>
-                    <span className="font-bold text-zinc-900 dark:text-zinc-100">{formatarMoeda(subtotalItens)}</span>
-                  </div>
-                  
-                  {Math.abs(diferencaValores) > 0.01 && (
-                    <div className="flex justify-between items-center text-zinc-500 dark:text-zinc-400">
-                      <span>{diferencaValores > 0 ? 'Frete / Acréscimos (+):' : 'Descontos Aplicados (-):'}</span>
-                      <span className={`font-bold ${diferencaValores > 0 ? 'text-zinc-900 dark:text-zinc-100' : 'text-rose-500'}`}>
-                        {formatarMoeda(Math.abs(diferencaValores))}
-                      </span>
-                    </div>
-                  )}
-
-                  <div className="pt-3 border-t border-zinc-200 dark:border-zinc-800/60 flex justify-between items-center gap-3">
-                    <span className="text-base font-bold text-zinc-900 dark:text-zinc-100">Total Final:</span>
-                    <span className="text-xl sm:text-2xl font-black text-emerald-600 dark:text-emerald-400">{formatarMoeda(totalPedido)}</span>
-                  </div>
-                </div>
-
-              </div>
-              
-              <div className="p-4 bg-white dark:bg-zinc-950 border-t border-zinc-200 dark:border-zinc-800 shrink-0 flex flex-col gap-3">
-                
-                {/* 🟢 BOTÃO DE PAGAR MAIS ELEGANTE */}
-                {pedido.status === 'aguardando-pagamento' && (
-                  <div className="flex justify-end pt-2">
-                    <button onClick={() => { onClose(); onPagarAgora(pedido); }} className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-500 text-white px-8 py-2.5 rounded-xl font-bold shadow-md transition-all flex items-center justify-center gap-2">
-                      <CreditCard size={18} /> Pagar Agora
-                    </button>
-                  </div>
-                )}
-
-                {getMeta('link_xml_boleto') !== "Não informado" ? (
-                  <a href={getMeta('link_xml_boleto')} target="_blank" rel="noreferrer" className="w-full bg-blue-600 hover:bg-blue-500 text-white py-3.5 rounded-xl font-bold transition-all flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(37,99,235,0.2)]">
-                    <FileText size={18} /> Baixar XML / Boleto Anexado
-                  </a>
-                ) : getMeta('solicitacao_documentos') === 'pendente' ? (
-                  <div className="w-full bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 text-amber-600 dark:text-amber-400 py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 cursor-not-allowed">
-                    <Clock size={18} /> Documentos Solicitados (Em Análise)
-                  </div>
-                ) : (pedido.status !== 'aguardando-pagamento' && pedido.status !== 'cancelled' && pedido.status !== 'cancelado') ? (
-                  <button onClick={handleSolicitarDocs} className="w-full bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-800 dark:text-white py-3.5 rounded-xl font-bold transition-all flex items-center justify-center gap-2 border border-zinc-200 dark:border-zinc-700">
-                    <FileText size={18} className="text-zinc-500 dark:text-zinc-400" /> Solicitar 2ª Via do Boleto ou XML
-                  </button>
-                ) : null}
-
-              </div>
-              
             </div>
           </div>
+        </div>
+
+        {/* 🟢 RODAPÉ FINANCEIRO COMPLETO (CLEAN) */}
+        <div className="p-5 sm:p-6 bg-zinc-50/80 dark:bg-zinc-900/40 border-t border-zinc-200 dark:border-zinc-800 flex flex-col gap-4 shrink-0">
+          
+          <div className="flex flex-col gap-2 w-full sm:w-72 self-end text-xs font-medium">
+            <div className="flex justify-between items-center text-zinc-500 dark:text-zinc-400">
+              <span>Subtotal dos Itens:</span>
+              <span className="text-zinc-900 dark:text-zinc-100">{formatarMoeda(subtotalItens)}</span>
+            </div>
+            
+            {Math.abs(diferencaValores) > 0.01 && (
+              <div className="flex justify-between items-center text-zinc-500 dark:text-zinc-400">
+                <span>{diferencaValores > 0 ? 'Frete / Acréscimos (+):' : 'Descontos Aplicados (-):'}</span>
+                <span className={`${diferencaValores > 0 ? 'text-zinc-900 dark:text-zinc-100' : 'text-emerald-500'}`}>
+                  {formatarMoeda(Math.abs(diferencaValores))}
+                </span>
+              </div>
+            )}
+
+            <div className="pt-3 pb-1 border-t border-zinc-200 dark:border-zinc-800/60 flex justify-between items-end gap-3 mt-1">
+              <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1">Total Final</span>
+              <span className="text-2xl font-black text-purple-600 dark:text-purple-400 leading-none">{formatarMoeda(totalPedido)}</span>
+            </div>
+          </div>
+
+          <div className="w-full flex flex-col gap-3 mt-2">
+            {/* 🟢 BOTÃO DE PAGAR MAIS ELEGANTE */}
+            {pedido.status === 'aguardando-pagamento' && (
+              <button onClick={() => { onClose(); onPagarAgora(pedido); }} className="w-full bg-purple-600 hover:bg-purple-500 text-white py-3.5 rounded-xl text-sm font-bold shadow-[0_5px_15px_rgba(147,51,234,0.25)] transition-all flex items-center justify-center gap-2 active:scale-95">
+                <CreditCard size={18} /> Pagar Agora
+              </button>
+            )}
+
+            {getMeta('link_xml_boleto') !== "Não informado" ? (
+              <a href={getMeta('link_xml_boleto')} target="_blank" rel="noreferrer" className="w-full bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 hover:border-blue-500 text-blue-600 dark:text-blue-400 py-3.5 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 shadow-sm">
+                <FileText size={18} /> Baixar XML / Boleto Anexado
+              </a>
+            ) : getMeta('solicitacao_documentos') === 'pendente' ? (
+              <div className="w-full bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 text-amber-600 dark:text-amber-400 py-3.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 cursor-not-allowed">
+                <Clock size={18} /> Documentos Solicitados (Em Análise)
+              </div>
+            ) : (pedido.status !== 'aguardando-pagamento' && pedido.status !== 'cancelled' && pedido.status !== 'cancelado') ? (
+              <button onClick={handleSolicitarDocs} className="w-full bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-900/50 text-zinc-700 dark:text-zinc-300 py-3.5 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 shadow-sm">
+                <FileText size={18} className="text-zinc-400" /> Solicitar 2ª Via do Boleto ou XML
+              </button>
+            ) : null}
+          </div>
+          
         </div>
       </div>
     </div>
@@ -456,61 +523,70 @@ export default function HistoricoPedidosB2B() {
       <div className="flex-1 flex flex-col h-screen relative min-w-0">
         <Header />
         
-        <main className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-6 lg:p-8">
-          <div className="max-w-7xl mx-auto space-y-6">
+        <main className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-6 lg:p-8 relative">
+          
+          {/* EFEITO GLOW RAIZAN */}
+          <div className="absolute right-0 top-0 w-[500px] h-[500px] bg-purple-600/5 dark:bg-purple-600/10 rounded-full blur-[120px] pointer-events-none" />
+
+          <div className="max-w-7xl mx-auto space-y-6 relative z-10">
             
-            <div className="bg-white dark:bg-[#0c0c0e] p-4 sm:p-6 rounded-2xl border border-zinc-200 dark:border-zinc-800/60 shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4 relative overflow-hidden transition-colors duration-300">
-              <div className="absolute right-0 top-0 w-64 h-64 bg-emerald-600/5 dark:bg-emerald-600/10 rounded-full blur-[80px] pointer-events-none" />
+            <div className="bg-white/70 dark:bg-[#121214]/70 backdrop-blur-xl p-5 sm:p-8 rounded-[2rem] border border-zinc-200 dark:border-zinc-800/80 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-5 relative overflow-hidden transition-colors duration-300">
               <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between w-full gap-4">
                 <div className="min-w-0">
-                  <h1 className="text-xl sm:text-2xl font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-3">
-                    <FileText className="text-emerald-600 dark:text-emerald-400" /> Meus Pedidos
+                  <h1 className="text-2xl sm:text-3xl font-black text-zinc-900 dark:text-zinc-100 flex items-center gap-3 tracking-tight">
+                    <FileText className="text-purple-600 dark:text-purple-400" size={28} /> Meus Pedidos
                   </h1>
-                  <p className="text-sm md:text-base text-zinc-500 dark:text-zinc-400 mt-1">Acompanhe o status das suas compras e acesse os comprovantes.</p>
+                  <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1 font-medium">Acompanhe o status das suas compras e acesse os comprovantes.</p>
                 </div>
-                <button onClick={carregarPedidos} disabled={loading} className="w-full sm:w-auto justify-center p-2.5 bg-zinc-50 dark:bg-zinc-900/80 hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-700/50 rounded-xl text-zinc-600 dark:text-zinc-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-all shadow-sm group flex items-center gap-2">
-                  <RefreshCw size={18} className={loading ? "animate-spin text-emerald-500" : "group-hover:rotate-180 transition-transform duration-500"} />
-                  <span className="text-sm font-medium hidden sm:block">Atualizar</span>
+                <button onClick={carregarPedidos} disabled={loading} className="w-full sm:w-auto justify-center px-6 py-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-zinc-600 dark:text-zinc-300 hover:border-purple-300 dark:hover:border-purple-700 hover:text-purple-600 dark:hover:text-purple-400 transition-all shadow-sm group flex items-center gap-2 font-bold text-sm">
+                  <RefreshCw size={16} className={loading ? "animate-spin text-purple-500" : "group-hover:rotate-180 transition-transform duration-500"} />
+                  <span className="hidden sm:block">Atualizar</span>
                 </button>
               </div>
             </div>
 
-            <div className="border border-zinc-200 dark:border-zinc-800/60 bg-white dark:bg-[#0c0c0e] rounded-2xl overflow-hidden relative shadow-lg dark:shadow-xl min-h-[400px] transition-colors duration-300">
+            <div className="border border-zinc-200/80 dark:border-zinc-800/80 bg-white/80 dark:bg-[#121214]/80 backdrop-blur-xl rounded-[2rem] overflow-hidden relative shadow-lg shadow-zinc-200/20 dark:shadow-none min-h-[400px] transition-colors duration-300">
               {loading && (
-                <div className="absolute inset-0 z-10 bg-white/60 dark:bg-[#0c0c0e]/60 backdrop-blur-sm flex items-center justify-center">
-                  <Loader2 size={32} className="text-emerald-500 animate-spin" />
+                <div className="absolute inset-0 z-10 bg-white/50 dark:bg-[#121214]/50 backdrop-blur-sm flex items-center justify-center">
+                  <Loader2 size={32} className="text-purple-600 animate-spin" />
                 </div>
               )}
 
-              <div className="w-full overflow-x-auto">
-                <table className="w-full min-w-[720px] text-xs sm:text-sm text-left">
-                  <thead className="bg-zinc-50 dark:bg-zinc-900/80 text-zinc-500 dark:text-zinc-400 font-medium border-b border-zinc-200 dark:border-zinc-800/60">
+              <div className="w-full overflow-x-auto p-2">
+                <table className="w-full min-w-[720px] text-xs sm:text-sm text-left border-collapse">
+                  <thead className="text-zinc-400 dark:text-zinc-500 font-bold border-b border-zinc-100 dark:border-zinc-800/60 uppercase tracking-wider text-[10px]">
                     <tr>
-                      <th className="px-6 py-4 rounded-tl-2xl">ID do Pedido</th>
-                      <th className="px-6 py-4">Data da Compra</th>
-                      <th className="px-6 py-4">Valor Total</th>
-                      <th className="px-6 py-4">Status</th>
-                      <th className="px-6 py-4 text-center rounded-tr-2xl">Ação</th>
+                      <th className="px-5 py-4">ID do Pedido</th>
+                      <th className="px-5 py-4">Data da Compra</th>
+                      <th className="px-5 py-4 text-right">Valor Total</th>
+                      <th className="px-5 py-4 text-center">Status</th>
+                      <th className="px-5 py-4 text-center w-32">Ação</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800/40">
+                  <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/40">
                     {pedidos.length === 0 && !loading && (
                       <tr>
-                        <td colSpan="5" className="px-6 py-12 text-center text-zinc-400 dark:text-zinc-500">
-                          <Package size={48} className="mx-auto mb-4 opacity-20" />
-                          <p>Você ainda não realizou nenhum pedido no portal B2B.</p>
+                        <td colSpan="5" className="px-5 py-20 text-center text-zinc-500">
+                          <Package size={48} className="mx-auto mb-4 opacity-30" />
+                          <p className="font-medium text-sm">Você ainda não realizou nenhum pedido no portal B2B.</p>
                         </td>
                       </tr>
                     )}
                     {pedidos.map((pedido) => (
-                      <tr key={pedido.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/20 transition-colors group">
-                        <td className="px-6 py-4"><span className="font-bold text-zinc-800 dark:text-zinc-200 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">#{pedido.id}</span></td>
-                        <td className="px-6 py-4 text-zinc-500 dark:text-zinc-400">{new Date(pedido.date_created).toLocaleDateString("pt-BR", { day: '2-digit', month: 'short', year: 'numeric' })}</td>
-                        <td className="px-6 py-4 font-bold text-zinc-900 dark:text-zinc-100">{formatarMoeda(pedido.total)}</td>
-                        <td className="px-6 py-4"><StatusBadge status={pedido.status} /></td>
-                        <td className="px-6 py-4 text-center">
-                          <button onClick={() => setPedidoSelecionado(pedido)} className="inline-flex items-center gap-2 px-3 py-1.5 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 rounded-lg text-xs font-medium transition-all">
-                            <Eye size={14} /> Detalhes
+                      <tr key={pedido.id} className="hover:bg-purple-50/50 dark:hover:bg-purple-500/5 transition-colors group cursor-pointer" onClick={() => setPedidoSelecionado(pedido)}>
+                        <td className="px-5 py-4">
+                          <span className="font-black text-zinc-900 dark:text-zinc-100 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors text-base">#{pedido.id}</span>
+                        </td>
+                        <td className="px-5 py-4 text-zinc-500 dark:text-zinc-400 font-medium">
+                          {new Date(pedido.date_created).toLocaleDateString("pt-BR", { day: '2-digit', month: 'short', year: 'numeric' })}
+                        </td>
+                        <td className="px-5 py-4 text-right">
+                          <span className="font-black text-zinc-900 dark:text-zinc-100 text-sm">{formatarMoeda(pedido.total)}</span>
+                        </td>
+                        <td className="px-5 py-4 text-center"><StatusBadge status={pedido.status} /></td>
+                        <td className="px-5 py-4 text-center">
+                          <button onClick={(e) => { e.stopPropagation(); setPedidoSelecionado(pedido); }} className="inline-flex items-center justify-center w-8 h-8 bg-zinc-100 dark:bg-zinc-900 hover:bg-purple-100 hover:text-purple-600 dark:hover:bg-purple-500/20 dark:hover:text-purple-400 text-zinc-500 rounded-xl transition-all shadow-sm">
+                            <Eye size={16} />
                           </button>
                         </td>
                       </tr>
@@ -520,11 +596,13 @@ export default function HistoricoPedidosB2B() {
               </div>
 
               {totalPages > 1 && (
-                <div className="p-4 border-t border-zinc-200 dark:border-zinc-800/60 bg-zinc-50 dark:bg-zinc-900/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-sm">
-                  <span className="text-zinc-500">Página <span className="text-zinc-900 dark:text-zinc-300 font-bold">{page}</span> de {totalPages}</span>
-                  <div className="flex gap-2">
-                    <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="p-2 bg-zinc-200 dark:bg-zinc-800 rounded-lg text-zinc-600 dark:text-zinc-300 hover:bg-zinc-300 dark:hover:bg-zinc-700 disabled:opacity-50"><ChevronLeft size={16} /></button>
-                    <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="p-2 bg-zinc-200 dark:bg-zinc-800 rounded-lg text-zinc-600 dark:text-zinc-300 hover:bg-zinc-300 dark:hover:bg-zinc-700 disabled:opacity-50"><ChevronRight size={16} /></button>
+                <div className="p-4 border-t border-zinc-100 dark:border-zinc-800/60 flex flex-col sm:flex-row items-center gap-4 justify-between text-sm bg-zinc-50/50 dark:bg-[#121214]/50">
+                  <span className="text-zinc-500 dark:text-zinc-400 text-[11px] font-bold uppercase tracking-wider">
+                    Pág. <span className="text-zinc-900 dark:text-zinc-100">{page}</span> / {totalPages}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800 w-8 h-8 rounded-lg flex items-center justify-center text-zinc-500 transition-colors disabled:opacity-50 shadow-sm"><ChevronLeft size={16} /></button>
+                    <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800 w-8 h-8 rounded-lg flex items-center justify-center text-zinc-500 transition-colors disabled:opacity-50 shadow-sm"><ChevronRight size={16} /></button>
                   </div>
                 </div>
               )}

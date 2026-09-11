@@ -608,6 +608,11 @@ export default function CatalogoB2B() {
         ]);
         
         if (dataProd && dataProd.success) {
+
+          // 🟢 OS DOIS ESPIÕES:
+          console.log("🕵️‍♂️ CNPJ (Tenant) Enviado:", tenantId);
+          console.log("📦 Produtos crus que chegaram:", dataProd.produtos);
+
           const mapped = dataProd.produtos.map(p => ({
             id: p.id,
             sku: p.sku || p.id,

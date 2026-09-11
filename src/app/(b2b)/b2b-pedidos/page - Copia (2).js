@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
-import { Search, ShoppingCart, CheckCircle2, AlertCircle, Package, Barcode, Loader2, Zap, X, FileText, QrCode, Building2, Truck, MapPin, CreditCard, CalendarDays, ChevronLeft, ChevronRight, Tag, Clock, ShieldCheck, RefreshCw, Trash2, ArrowRight, Map } from "lucide-react";
+import { Search, ShoppingCart, CheckCircle2, AlertCircle, Package, Barcode, Loader2, DollarSign, Zap, ShoppingBag, X, FileText, QrCode, Building2, Truck, MapPin, CreditCard, CalendarDays, ChevronLeft, ChevronRight, Tag, Clock, ShieldCheck, RefreshCw, Trash2, Sparkles, Map, ArrowRight } from "lucide-react";
 import { getApiUrl, getHubUrl, getHeaders } from "@/components/utils/api";
 import toast from 'react-hot-toast';
 import { initMercadoPago, Payment } from '@mercadopago/sdk-react';
@@ -12,7 +12,7 @@ const formatarMoeda = (valor) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor || 0);
 };
 
-// 🟢 MOTOR DE IMAGENS DO HUB RAIZAN
+// 🟢 NOVO MOTOR DE IMAGENS DO HUB RAIZAN
 const obterCapa = (produto) => {
   if (produto && produto.imagens_anexos) {
     try {
@@ -49,6 +49,9 @@ function ModalCheckout({ isOpen, onClose, carrinho, onFinalizarPedido, onRemover
   const [isMpReady, setIsMpReady] = useState(false);
   const [mpKeyMissing, setMpKeyMissing] = useState(false);
 
+  // ==========================================
+  // 🟢 LÓGICA DE FORMAS DE PAGAMENTO DO OMIE
+  // ==========================================
   let condicoesPermitidas = [];
   if (clienteMestre?.metadata_json) {
     try {
@@ -65,12 +68,18 @@ function ModalCheckout({ isOpen, onClose, carrinho, onFinalizarPedido, onRemover
     pagamentosFiltrados = condicoesPermitidas.map(cod => ({ codigo: cod, descricao: `Cód: ${cod}` }));
   }
 
+  // ==========================================
+  // 🟢 TODOS OS USE-EFFECTS AQUI NO TOPO!
+  // ==========================================
+  
+  // 1. Pré-seleciona a primeira condição válida 
   useEffect(() => {
     if (!prazoBoleto && pagamentosFiltrados.length > 0) {
       setPrazoBoleto(pagamentosFiltrados[0].codigo);
     }
   }, [pagamentosFiltrados, prazoBoleto]);
 
+  // 2. Reseta o modal ao abrir
   useEffect(() => {
     if (isOpen) {
       setStep('resumo'); setDadosPix(null); setCopiado(false); setIsProcessando(false); setTempoExpiracao(1800);
@@ -106,6 +115,7 @@ function ModalCheckout({ isOpen, onClose, carrinho, onFinalizarPedido, onRemover
     }
   }, [isOpen]);
 
+  // 3. Busca Métodos de Pagamento
   useEffect(() => {
     if (isOpen) {
       const buscarMetodos = async () => {
@@ -132,6 +142,7 @@ function ModalCheckout({ isOpen, onClose, carrinho, onFinalizarPedido, onRemover
     }
   }, [isOpen]);
 
+  // 4. Timer do PIX
   useEffect(() => {
     let timer;
     if (step === 'sucesso_pix' && tempoExpiracao > 0) {
@@ -140,6 +151,7 @@ function ModalCheckout({ isOpen, onClose, carrinho, onFinalizarPedido, onRemover
     return () => clearInterval(timer);
   }, [step, tempoExpiracao]);
 
+  // 5. Verificação automática do PIX
   useEffect(() => {
     let intervalo;
     if (step === 'sucesso_pix' && dadosPix?.pedidoId) {
@@ -154,6 +166,9 @@ function ModalCheckout({ isOpen, onClose, carrinho, onFinalizarPedido, onRemover
     return () => clearInterval(intervalo);
   }, [step, dadosPix]);
 
+  // ==========================================
+  // 🟢 TRAVAS E CÁLCULOS
+  // ==========================================
   if (!isOpen) return null;
 
   const formatarTempo = (segundos) => {
@@ -162,9 +177,8 @@ function ModalCheckout({ isOpen, onClose, carrinho, onFinalizarPedido, onRemover
     return `${m}:${s}`;
   };
 
-  // 🟢 CÁLCULOS DO CARRINHO (USANDO O IDIOMA LIMPO)
   const itensComprados = Object.values(carrinho).map(p => {
-    const precoOriginal = parseFloat(p.preco_venda || 0);
+    const precoOriginal = parseFloat(p.PDPRECO || 0);
     const minExigido = parseInt(p.qtd_minima_promocao) || 1;
     const temPromo = parseFloat(p.preco_promocional) > 0;
     const atingiuMinimo = temPromo && p.qtd >= minExigido;
@@ -180,13 +194,16 @@ function ModalCheckout({ isOpen, onClose, carrinho, onFinalizarPedido, onRemover
 
   const subtotal = itensComprados.reduce((acc, item) => acc + item.totalItem, 0);
 
+  // 🟢 LÓGICA DE FRETE DINÂMICA
   let minCif = 0;
   if (clienteMestre && clienteMestre.id_rota_frete) {
     const rota = rotasFrete.find(r => String(r.id) === String(clienteMestre.id_rota_frete));
     if (rota) minCif = Number(rota.valor_minimo) || 0;
   }
   const isCif = minCif > 0 && subtotal >= minCif;
-  const labelTransportadora = rotaCliente ? (isCif ? "Frete CIF (Grátis)" : "Frete FOB (A Combinar)") : "Transportadora Parceira";
+  const labelTransportadora = rotaCliente 
+    ? (isCif ? "Frete CIF (Grátis)" : "Frete FOB (A Combinar)") 
+    : "Transportadora Parceira";
 
   const verificarPagamentoManual = async () => {
     setIsVerificando(true);
@@ -231,6 +248,7 @@ function ModalCheckout({ isOpen, onClose, carrinho, onFinalizarPedido, onRemover
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 bg-zinc-900/40 dark:bg-black/80 backdrop-blur-sm transition-all" onClick={step === 'resumo' ? onClose : null}>
       <div className="bg-white dark:bg-[#0c0c0e] border border-zinc-200/50 dark:border-zinc-800/80 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.1)] w-full max-w-5xl max-h-[95vh] sm:max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
         
+        {/* HEADER LIMPO E MODERNO */}
         <div className="flex items-center justify-between gap-3 px-6 py-4 border-b border-zinc-200 dark:border-zinc-800/80 bg-zinc-50/50 dark:bg-[#121214]">
           <h2 className="text-lg font-black text-zinc-900 dark:text-zinc-100 flex items-center gap-2 tracking-tight">
             {step === 'resumo' && <><ShoppingCart className="text-purple-600 dark:text-purple-400" size={20} /> Finalizar Pedido</>}
@@ -242,6 +260,7 @@ function ModalCheckout({ isOpen, onClose, carrinho, onFinalizarPedido, onRemover
           </button>
         </div>
 
+        {/* TELA 3: SUCESSO ABSOLUTO */}
         {step === 'concluido' && (
           <div className="flex flex-col items-center justify-center p-6 sm:p-10 lg:p-16 text-center animate-in zoom-in-90 duration-500">
             <div className="w-20 h-20 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 rounded-full flex items-center justify-center mb-6 shadow-sm border border-emerald-100 dark:border-emerald-500/20">
@@ -264,6 +283,7 @@ function ModalCheckout({ isOpen, onClose, carrinho, onFinalizarPedido, onRemover
           </div>
         )}
 
+        {/* TELA 2: QR CODE PIX */}
         {step === 'sucesso_pix' && dadosPix && (
           <div className="flex flex-col items-center justify-center p-6 sm:p-10 text-center animate-in slide-in-from-right-8 overflow-y-auto custom-scrollbar">
             <div className="w-16 h-16 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-500 dark:text-indigo-400 rounded-full flex items-center justify-center mb-4 border border-indigo-100 dark:border-indigo-500/20 shadow-sm">
@@ -305,10 +325,12 @@ function ModalCheckout({ isOpen, onClose, carrinho, onFinalizarPedido, onRemover
           </div>
         )}
 
+        {/* TELA 1: RESUMO DO PEDIDO */}
         {step === 'resumo' && (
           <div className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6 animate-in slide-in-from-left-8">
             <div className="space-y-6">
               
+              {/* FORMA DE PAGAMENTO */}
               <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-3xl p-5 sm:p-6 shadow-sm">
                 <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 border-b border-zinc-100 dark:border-zinc-800/60 pb-3 mb-4 flex items-center gap-2">
                   <CreditCard size={16} className="text-purple-500" /> Forma de Pagamento
@@ -416,6 +438,7 @@ function ModalCheckout({ isOpen, onClose, carrinho, onFinalizarPedido, onRemover
                 </div>
               </div>
 
+              {/* MÉTODO DE ENVIO (FRETE INTELIGENTE OTIMIZADO) */}
               <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-3xl p-5 sm:p-6 shadow-sm">
                 <div className="flex items-center justify-between mb-4 border-b border-zinc-100 dark:border-zinc-800/60 pb-3">
                   <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
@@ -468,6 +491,7 @@ function ModalCheckout({ isOpen, onClose, carrinho, onFinalizarPedido, onRemover
               </div>
             </div>
 
+            {/* BARRA LATERAL: RESUMO BEM LIMPO */}
             <div className="flex flex-col bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-3xl overflow-hidden shadow-sm h-max lg:sticky lg:top-6">
               <div className="p-5 border-b border-zinc-100 dark:border-zinc-800/80 bg-zinc-50/50 dark:bg-[#121214]">
                 <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 flex items-center justify-between">
@@ -479,9 +503,9 @@ function ModalCheckout({ isOpen, onClose, carrinho, onFinalizarPedido, onRemover
               <div className="flex-1 overflow-y-auto custom-scrollbar p-1 max-h-[35vh]">
                 <ul className="divide-y divide-zinc-50 dark:divide-zinc-800/40 px-4">
                   {itensComprados.map(item => (
-                    <li key={item.sku} className="py-3 flex items-center justify-between gap-3 group">
+                    <li key={item.PDCODPRO} className="py-3 flex items-center justify-between gap-3 group">
                       <div className="flex-1">
-                        <p className="text-xs font-bold text-zinc-800 dark:text-zinc-200 line-clamp-1">{item.nome}</p>
+                        <p className="text-xs font-bold text-zinc-800 dark:text-zinc-200 line-clamp-1">{item.PDNOME}</p>
                         <p className="text-[10px] text-zinc-500 mt-0.5 font-medium">
                           {item.qtd}x {formatarMoeda(item.precoUsado)} 
                           {item.atingiuMinimo && <span className="text-emerald-500 font-bold ml-1 inline-flex items-center gap-0.5"><Zap size={8}/> Promo</span>}
@@ -489,7 +513,7 @@ function ModalCheckout({ isOpen, onClose, carrinho, onFinalizarPedido, onRemover
                       </div>
                       <div className="flex flex-col items-end gap-1 shrink-0">
                         <div className="text-sm font-black text-zinc-900 dark:text-zinc-100">{formatarMoeda(item.totalItem)}</div>
-                        <button onClick={() => onRemoverItem(item.sku)} className="text-zinc-300 hover:text-rose-500 transition-colors"><Trash2 size={12} /></button>
+                        <button onClick={() => onRemoverItem(item.PDCODPRO)} className="text-zinc-300 hover:text-rose-500 transition-colors"><Trash2 size={12} /></button>
                       </div>
                     </li>
                   ))}
@@ -529,6 +553,9 @@ function ModalCheckout({ isOpen, onClose, carrinho, onFinalizarPedido, onRemover
   );
 }
 
+// ==========================================
+// COMPONENTE AUXILIAR DO SELECTOR DE QTD
+// ==========================================
 function SeletorQuantidade({ id, qtd, onQtdChange }) {
   if (qtd > 0) {
     return (
@@ -546,6 +573,9 @@ function SeletorQuantidade({ id, qtd, onQtdChange }) {
   );
 }
 
+// ==========================================
+// TELA PRINCIPAL: CATÁLOGO B2B
+// ==========================================
 export default function CatalogoB2B() {
   const [carrinho, setCarrinho] = useState({});
   const [produtosDb, setProdutosDb] = useState([]);
@@ -558,6 +588,7 @@ export default function CatalogoB2B() {
 
   const [somenteOfertas, setSomenteOfertas] = useState(false);
 
+  // ESTADOS GLOBAIS DE CONTEXTO
   const [clienteMestre, setClienteMestre] = useState(null);
   const [rotasFrete, setRotasFrete] = useState([]);
   const [condicoesOmie, setCondicoesOmie] = useState([]);
@@ -580,7 +611,7 @@ export default function CatalogoB2B() {
     return () => window.removeEventListener('storage', syncCarrinho);
   }, []);
 
-  // 🟢 BUSCA DOS DADOS E PRODUTOS DO HUB (BLINDADA CONTRA ERROS E COM NOMES LIMPOS)
+  // 🟢 BUSCA DOS DADOS E PRODUTOS DO HUB
   useEffect(() => {
     const carregarTudo = async () => {
       setLoading(true);
@@ -589,51 +620,46 @@ export default function CatalogoB2B() {
         const userEmail = localStorage.getItem("raizan_user") ? JSON.parse(localStorage.getItem("raizan_user")).email : null;
         const headers = { "x-tenant-id": tenantId };
 
-        const safeFetch = async (url) => {
-          try {
-            const res = await fetch(url, { headers });
-            if (!res.ok) return null; 
-            return await res.json();
-          } catch (e) {
-            return null; 
-          }
-        };
-
-        const [dataProd, dataCli, dataRotas, dataCond] = await Promise.all([
-          safeFetch(`${getHubUrl()}/api/hub/produtos?limit=5000`),
-          safeFetch(`${getHubUrl()}/api/hub/clientes`),
-          safeFetch(`${getHubUrl()}/api/hub/rotas-frete`),
-          safeFetch(`${getHubUrl()}/api/hub/integracoes/omie/condicoes-pagamento`)
+        const [resProd, resCli, resRotas, resCond] = await Promise.all([
+          fetch(`${getHubUrl()}/api/hub/produtos?limit=5000`, { headers }).catch(()=>null),
+          fetch(`${getHubUrl()}/api/hub/clientes`, { headers }).catch(()=>null),
+          fetch(`${getHubUrl()}/api/hub/rotas-frete`, { headers }).catch(()=>null),
+          fetch(`${getHubUrl()}/api/hub/integracoes/omie/condicoes-pagamento`, { headers }).catch(()=>null)
         ]);
         
-        if (dataProd && dataProd.success) {
-          // 🟢 FANTASMAS EXORCIZADOS! USANDO A NOMENCLATURA PURA DA API
-          const mapped = dataProd.produtos.map(p => ({
-            id: p.id,
-            sku: p.sku || p.id,
-            nome: p.nome,
-            gtin: p.gtin,
-            marca: p.marca,
-            estoque_inicial: p.estoque_inicial,
-            preco_venda: p.preco_venda,
-            preco_promocional: p.preco_promocional,
-            qtd_minima_promocao: p.qtd_minima_promocao,
-            imagens_anexos: p.imagens_anexos,
-            status: p.status
-          })).filter(p => p.status !== 'inativo');
-          setProdutosDb(mapped); 
+        if (resProd) {
+          const dataProd = await resProd.json();
+          if (dataProd.success) {
+            const mapped = dataProd.produtos.map(p => ({
+              id: p.id,
+              PDCODPRO: p.sku || p.id,
+              PDNOME: p.nome,
+              PDCODBARRA: p.gtin,
+              PDMARCA: p.marca,
+              PDSALDO: p.estoque_inicial,
+              PDPRECO: p.preco_venda,
+              preco_promocional: p.preco_promocional,
+              qtd_minima_promocao: p.qtd_minima_promocao,
+              imagens_anexos: p.imagens_anexos,
+              status: p.status
+            })).filter(p => p.status !== 'inativo');
+            setProdutosDb(mapped); 
+          }
         }
 
-        if (dataCli && dataCli.success && userEmail) {
-          setClienteMestre(dataCli.clientes.find(c => c.email === userEmail));
+        if (resCli && userEmail) {
+          const dataCli = await resCli.json();
+          if (dataCli.success) setClienteMestre(dataCli.clientes.find(c => c.email === userEmail));
         }
 
-        if (dataRotas && dataRotas.success) {
-          setRotasFrete(dataRotas.rotas);
+        if (resRotas) {
+          const dataRotas = await resRotas.json();
+          if (dataRotas.success) setRotasFrete(dataRotas.rotas);
         }
 
-        if (dataCond && dataCond.success) {
-          setCondicoesOmie(dataCond.condicoes);
+        if (resCond) {
+          const dataCond = await resCond.json();
+          if (dataCond.success) setCondicoesOmie(dataCond.condicoes);
         }
 
       } catch (error) { 
@@ -650,11 +676,12 @@ export default function CatalogoB2B() {
     setPage(1);
   };
 
+  // 🟢 FILTRAGEM LOCAL 
   const produtosFiltrados = produtosDb.filter(p => {
     const termo = search.toLowerCase();
-    const matchBusca = (p.nome && p.nome.toLowerCase().includes(termo)) || 
-                       (p.sku && String(p.sku).toLowerCase().includes(termo)) || 
-                       (p.gtin && String(p.gtin).toLowerCase().includes(termo));
+    const matchBusca = (p.PDNOME && p.PDNOME.toLowerCase().includes(termo)) || 
+                       (p.PDCODPRO && String(p.PDCODPRO).toLowerCase().includes(termo)) || 
+                       (p.PDCODBARRA && String(p.PDCODBARRA).toLowerCase().includes(termo));
     
     const temPromo = parseFloat(p.preco_promocional) > 0;
     const matchOferta = somenteOfertas ? temPromo : true;
@@ -666,23 +693,18 @@ export default function CatalogoB2B() {
   const offset = (page - 1) * limit;
   const produtosPaginados = produtosFiltrados.slice(offset, offset + Number(limit));
 
-  // 🟢 CORREÇÃO DO ERRO DO REACT (MICRO-ATRASO NO AVISO PARA NÃO CHOCAR COM A TELA)
   const handleQuantidade = (produto, qtd) => {
-    const novoCarrinho = { ...carrinho };
-    
-    if (qtd === 0) {
-      delete novoCarrinho[produto.sku];
-    } else {
-      novoCarrinho[produto.sku] = { ...produto, qtd };
-    }
-    
-    setCarrinho(novoCarrinho);
-    localStorage.setItem("@raizan:carrinho", JSON.stringify(novoCarrinho));
-    
-    // O pulo do gato: avisa as outras telas 1 milissegundo DEPOIS de desenhar esta, evitando o Erro Vermelho
-    setTimeout(() => {
+    setCarrinho(prev => {
+      const novo = { ...prev };
+      if (qtd === 0) {
+        delete novo[produto.PDCODPRO];
+      } else {
+        novo[produto.PDCODPRO] = { ...produto, qtd };
+      }
+      localStorage.setItem("@raizan:carrinho", JSON.stringify(novo));
       window.dispatchEvent(new Event('storage'));
-    }, 0);
+      return novo;
+    });
   };
 
   const handleFinalizarPedido = async (dadosDoPedido) => {
@@ -697,9 +719,8 @@ export default function CatalogoB2B() {
     const cabecalhosPadrao = getHeaders();
     const tenant_id = userLogado.tenant_id || cabecalhosPadrao["x-tenant-id"] || process.env.NEXT_PUBLIC_TENANT_ID; 
 
-    // 🟢 ITENS ENVIADOS COM NOMENCLATURA LIMPA
     const itensParaBackend = dadosDoPedido.itens.map(i => ({
-      ...i, nome_produto: i.nome, sku: i.sku
+      ...i, nome_produto: i.PDNOME, sku: i.PDCODPRO
     }));
 
     const payloadCompleto = {
@@ -772,6 +793,7 @@ export default function CatalogoB2B() {
         <main className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar p-4 lg:p-8 pb-32">
           <div className="max-w-7xl mx-auto space-y-6">
             
+            {/* CABEÇALHO B2B */}
             <div className="bg-white dark:bg-[#121214] p-5 sm:p-6 rounded-[2rem] border border-zinc-200 dark:border-zinc-800/80 flex flex-col xl:flex-row gap-4 items-start xl:items-center justify-between shadow-sm transition-colors duration-300">
               <div className="w-full xl:w-auto">
                 <h1 className="text-xl sm:text-2xl font-black text-zinc-900 dark:text-zinc-100 flex items-center gap-3 tracking-tight">
@@ -800,6 +822,7 @@ export default function CatalogoB2B() {
               </div>
             </div>
 
+            {/* TABELA DE PRODUTOS */}
             <div className="border border-zinc-200 dark:border-zinc-800/80 bg-white dark:bg-[#121214] rounded-[2rem] overflow-hidden relative min-h-[400px] flex flex-col shadow-sm transition-colors duration-300">
               {loading && <div className="absolute inset-0 z-10 bg-white/50 dark:bg-[#121214]/50 backdrop-blur-sm flex items-center justify-center"><Loader2 size={32} className="text-purple-600 animate-spin" /></div>}
 
@@ -811,10 +834,10 @@ export default function CatalogoB2B() {
                     )}
 
                     {produtosPaginados.map((produto) => {
-                      const qtdNoCarrinho = carrinho[produto.sku]?.qtd || 0;
+                      const qtdNoCarrinho = carrinho[produto.PDCODPRO]?.qtd || 0;
                       const imageUrl = obterCapa(produto);
-                      const temEstoque = produto.estoque_inicial > 0;
-                      const precoOriginal = parseFloat(produto.preco_venda || 0);
+                      const temEstoque = produto.PDSALDO > 0;
+                      const precoOriginal = parseFloat(produto.PDPRECO || 0);
                       const minExigido = parseInt(produto.qtd_minima_promocao) || 1;
                       const emPromocao = parseFloat(produto.preco_promocional) > 0;
                       const atingiuMinimo = emPromocao && qtdNoCarrinho >= minExigido;
@@ -822,38 +845,34 @@ export default function CatalogoB2B() {
                       const desconto = atingiuMinimo && precoOriginal > 0 ? Math.round(((precoOriginal - precoExibicao) / precoOriginal) * 100) : 0;
                       
                       return (
-                        <tr key={produto.sku} className={`transition-colors group ${!temEstoque ? 'opacity-50 grayscale bg-zinc-50 dark:bg-zinc-900/10' : 'hover:bg-zinc-50/50 dark:hover:bg-zinc-800/30'}`}>
+                        <tr key={produto.PDCODPRO} className={`transition-colors group ${!temEstoque ? 'opacity-50 grayscale bg-zinc-50 dark:bg-zinc-900/10' : 'hover:bg-zinc-50/50 dark:hover:bg-zinc-800/30'}`}>
                           <td className="px-4 py-4 w-20">
                             <div className="relative w-14 h-14 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl flex items-center justify-center overflow-hidden shrink-0 mx-auto">
                               
+                              {/* 🟢 A TAG DE DESCONTO VOLTOU AQUI! */}
                               {emPromocao && desconto > 0 && (
                                 <div className="absolute top-0 right-0 bg-rose-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-bl-lg shadow-sm z-10 flex items-center gap-0.5 animate-pulse">
                                   <Zap size={8} fill="currentColor" />-{desconto}%
                                 </div>
                               )}
 
-                              <img src={imageUrl} alt={produto.nome} className="w-full h-full object-contain p-1" onError={(e) => { e.target.src = "https://placehold.co/100x100/18181b/52525b?text=Sem+Foto"; }} />
+                              <img src={imageUrl} alt={produto.PDNOME} className="w-full h-full object-contain p-1" onError={(e) => { e.target.src = "https://placehold.co/100x100/18181b/52525b?text=Sem+Foto"; }} />
                             </div>
                           </td>
                           <td className="px-4 py-4">
-                            <h3 className="font-bold text-zinc-800 dark:text-zinc-200 text-sm leading-snug line-clamp-2">{produto.nome}</h3>
+                            <h3 className="font-bold text-zinc-800 dark:text-zinc-200 text-sm leading-snug line-clamp-2">{produto.PDNOME}</h3>
                             <div className="flex items-center gap-3 mt-1 text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">
-                              <span>{produto.marca || "SEM MARCA"}</span>
+                              <span>{produto.PDMARCA || "SEM MARCA"}</span>
                               <span className="w-1 h-1 rounded-full bg-zinc-300 dark:bg-zinc-700"></span>
-                              <span>SKU: {produto.sku}</span>
-                              {produto.gtin && (
-                                <>
-                                  <span className="w-1 h-1 rounded-full bg-zinc-300 dark:bg-zinc-700"></span>
-                                  <span className="flex items-center gap-1"><Barcode size={10}/> {produto.gtin}</span>
-                                </>
-                              )}
+                              <span>SKU: {produto.PDCODPRO}</span>
                             </div>
                           </td>
                           
+                          {/* 🟢 O BADGE DE ESTOQUE VOLTOU AQUI! */}
                           <td className="px-4 py-4 text-center w-28">
                             {temEstoque ? (
                               <div className="inline-flex items-center justify-center bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-bold px-2.5 py-1 rounded-lg border border-emerald-100 dark:border-emerald-500/20">
-                                {produto.estoque_inicial} UN
+                                {produto.PDSALDO} UN
                               </div>
                             ) : (
                               <div className="inline-flex items-center justify-center bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 text-[10px] font-bold px-2.5 py-1 rounded-lg uppercase tracking-wider">
@@ -879,7 +898,7 @@ export default function CatalogoB2B() {
                           </td>
                           <td className="px-4 py-4 w-32">
                             {temEstoque ? (
-                              <SeletorQuantidade id={produto.sku} qtd={qtdNoCarrinho} onQtdChange={(id, qtd) => handleQuantidade(produto, qtd)} />
+                              <SeletorQuantidade id={produto.PDCODPRO} qtd={qtdNoCarrinho} onQtdChange={(id, qtd) => handleQuantidade(produto, qtd)} />
                             ) : (
                               <div className="w-24 h-8 flex items-center justify-center bg-zinc-100 dark:bg-zinc-900 text-zinc-400 rounded-lg text-[10px] font-bold uppercase tracking-wider">Esgotado</div>
                             )}
@@ -891,6 +910,7 @@ export default function CatalogoB2B() {
                 </table>
               </div>
 
+              {/* FOOTER DA TABELA */}
               <div className="p-4 border-t border-zinc-100 dark:border-zinc-800/60 flex items-center justify-between text-sm">
                 <span className="text-zinc-400 text-[11px] font-bold uppercase tracking-wider">
                   Pág. <span className="text-zinc-900 dark:text-zinc-100">{page}</span> / {totalPages || 1}
@@ -902,11 +922,10 @@ export default function CatalogoB2B() {
               </div>
             </div>
             
-            {Object.keys(carrinho).length > 0 && <div className="h-32 w-full shrink-0"></div>}
-
           </div>
         </main>
 
+        {/* CARRINHO FLUTUANTE DARK (APPLE STYLE COM GLASSMORPHISM ROXO) */}
         {Object.keys(carrinho).length > 0 && (
           <div className="fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 w-[92%] sm:w-[90%] max-w-lg bg-[#0d0514]/80 backdrop-blur-xl border border-purple-500/30 p-1.5 sm:p-2 rounded-full flex items-center justify-between animate-in slide-in-from-bottom-10 z-30 shadow-[0_10px_40px_rgba(109,40,217,0.25)]">
             
@@ -938,7 +957,7 @@ export default function CatalogoB2B() {
         onClose={() => setIsCheckoutOpen(false)} 
         carrinho={carrinho} 
         onFinalizarPedido={handleFinalizarPedido} 
-        onRemoverItem={(id) => handleQuantidade({ sku: id }, 0)} 
+        onRemoverItem={(id) => handleQuantidade({ PDCODPRO: id }, 0)} 
         clienteMestre={clienteMestre}
         rotasFrete={rotasFrete}
         condicoesOmie={condicoesOmie}

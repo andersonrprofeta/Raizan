@@ -586,12 +586,28 @@ export default function CatalogoB2B() {
     const carregarTudo = async () => {
       setLoading(true);
       try {
-        const tenantId = process.env.NEXT_PUBLIC_TENANT_ID || (localStorage.getItem("raizan_user") ? JSON.parse(localStorage.getItem("raizan_user")).tenant_id : "28389424000109");
-        const userEmail = localStorage.getItem("raizan_user") ? JSON.parse(localStorage.getItem("raizan_user")).email : null;
+        
+        // 🟢 ZERO DADOS CHUMBADOS! Busca a identidade real gerada no Login B2B
+        const userSalvo = localStorage.getItem("raizan_user");
+        const userObj = userSalvo ? JSON.parse(userSalvo) : null;
+        
+        const tenantId = process.env.NEXT_PUBLIC_TENANT_ID || 
+                         localStorage.getItem("@raizan:b2b_tenant_id") || 
+                         userObj?.tenant_id;
+
+        if (!tenantId) {
+          console.error("🚨 ERRO CRÍTICO: Identidade (Tenant ID) não encontrada no navegador.");
+          toast.error("Erro de identificação da loja. Faça login novamente.");
+          setLoading(false);
+          return;
+        }
+
+        const userEmail = userObj?.email || null;
         const headers = { "x-tenant-id": tenantId };
 
         const safeFetch = async (url) => {
           try {
+            console.log(`[🚀 Disparando] Buscando dados de: ${url}`);
             const res = await fetch(url, { headers });
             if (!res.ok) return null; 
             return await res.json();
@@ -609,7 +625,7 @@ export default function CatalogoB2B() {
         
         if (dataProd && dataProd.success) {
 
-          // 🟢 OS DOIS ESPIÕES:
+          // 🟢 ESPIÃO: Para provar que o CNPJ correto foi puxado dinamicamente
           console.log("🕵️‍♂️ CNPJ (Tenant) Enviado:", tenantId);
           console.log("📦 Produtos crus que chegaram:", dataProd.produtos);
 

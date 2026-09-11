@@ -17,7 +17,7 @@ export default function LoginB2B() {
   const [isConfiguring, setIsConfiguring] = useState(true);
 
   // ======================================================================
-  // 🟢 A MÁGICA ESTILO "TINY ERP": DESCOBRINDO A IDENTIDADE
+  // 🟢 A MÁGICA: DESCOBRINDO A IDENTIDADE (SEM FANTASMAS)
   // ======================================================================
   useEffect(() => {
     const identificarPortal = async () => {
@@ -36,13 +36,16 @@ export default function LoginB2B() {
         
         if (data.success) {
           localStorage.setItem("@raizan:b2b_tenant_id", data.tenant_id);
-          localStorage.setItem("@raizan:b2b_api_url", data.url_api_local);
+          // 🟢 Blindagem: Se o banco de dados antigo tentar mandar rafany, a gente força raizan!
+          const urlCorreta = data.url_api_local?.includes("rafany") ? "https://api.raizan.com.br" : data.url_api_local;
+          localStorage.setItem("@raizan:b2b_api_url", urlCorreta || "https://api.raizan.com.br");
           console.log(`🔥 Identidade confirmada: ${data.tenant_id} | Nuvem Ativada!`);
           setConfiguracaoPronta(true);
         } else {
           if (host === 'localhost' || host === '127.0.0.1') {
-            localStorage.setItem("@raizan:b2b_tenant_id", "28389424000109");
-            localStorage.setItem("@raizan:b2b_api_url", "https://api.rafany.com.br");
+            // 🟢 Usando as variáveis limpas do ambiente
+            localStorage.setItem("@raizan:b2b_tenant_id", process.env.NEXT_PUBLIC_TENANT_ID || "28389424000109");
+            localStorage.setItem("@raizan:b2b_api_url", process.env.NEXT_PUBLIC_HUB_URL || "https://api.raizan.com.br");
             setConfiguracaoPronta(true);
           } else {
             setErrorMsg("Portal não registrado. Verifique a URL no painel administrativo.");
@@ -51,8 +54,9 @@ export default function LoginB2B() {
       } catch (e) {
         console.error("Falha ao comunicar com o Hub Central.", e);
         if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-          localStorage.setItem("@raizan:b2b_tenant_id", "28389424000109");
-          localStorage.setItem("@raizan:b2b_api_url", "https://api.rafany.com.br");
+          // 🟢 Usando as variáveis limpas do ambiente no fallback de erro
+          localStorage.setItem("@raizan:b2b_tenant_id", process.env.NEXT_PUBLIC_TENANT_ID || "28389424000109");
+          localStorage.setItem("@raizan:b2b_api_url", process.env.NEXT_PUBLIC_HUB_URL || "https://api.raizan.com.br");
           setConfiguracaoPronta(true);
         } else {
           setErrorMsg("Servidor Central indisponível. Verifique as rotas da Hostinger.");

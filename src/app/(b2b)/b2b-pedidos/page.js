@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
-import { Search, ShoppingCart, CheckCircle2, AlertCircle, Package, Barcode, Loader2, Zap, X, FileText, QrCode, Building2, Truck, MapPin, CreditCard, CalendarDays, ChevronLeft, ChevronRight, Tag, Clock, ShieldCheck, RefreshCw, Trash2, ArrowRight, Map } from "lucide-react";
+// 🟢 ERRO DO MAP CORRIGIDO (Map as MapIcon)
+import { Search, ShoppingCart, CheckCircle2, AlertCircle, Package, Barcode, Loader2, Zap, X, FileText, QrCode, Building2, Truck, MapPin, CreditCard, CalendarDays, ChevronLeft, ChevronRight, Tag, Clock, ShieldCheck, RefreshCw, Trash2, ArrowRight, Map as MapIcon } from "lucide-react";
 import { getApiUrl, getHubUrl, getHeaders } from "@/components/utils/api";
 import toast from 'react-hot-toast';
 import { initMercadoPago, Payment } from '@mercadopago/sdk-react';
@@ -12,7 +13,7 @@ const formatarMoeda = (valor) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor || 0);
 };
 
-// 🟢 MOTOR DE IMAGENS DO HUB RAIZAN
+// 🟢 NOVO MOTOR DE IMAGENS DO HUB RAIZAN
 const obterCapa = (produto) => {
   if (produto && produto.imagens_anexos) {
     try {
@@ -162,7 +163,6 @@ function ModalCheckout({ isOpen, onClose, carrinho, onFinalizarPedido, onRemover
     return `${m}:${s}`;
   };
 
-  // 🟢 CÁLCULOS DO CARRINHO (USANDO O IDIOMA LIMPO)
   const itensComprados = Object.values(carrinho).map(p => {
     const precoOriginal = parseFloat(p.preco_venda || 0);
     const minExigido = parseInt(p.qtd_minima_promocao) || 1;
@@ -419,7 +419,7 @@ function ModalCheckout({ isOpen, onClose, carrinho, onFinalizarPedido, onRemover
               <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-3xl p-5 sm:p-6 shadow-sm">
                 <div className="flex items-center justify-between mb-4 border-b border-zinc-100 dark:border-zinc-800/60 pb-3">
                   <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
-                    <Map size={16} className="text-purple-500" /> Logística e Frete
+                    <MapIcon size={16} className="text-purple-500" /> Logística e Frete
                   </h3>
                   {rotaCliente && (
                     <span className="text-[9px] font-black uppercase tracking-wider text-purple-600 bg-purple-50 dark:bg-purple-500/10 dark:text-purple-400 px-2 py-1 rounded">
@@ -557,6 +557,7 @@ export default function CatalogoB2B() {
   const [limit, setLimit] = useState(20); 
 
   const [somenteOfertas, setSomenteOfertas] = useState(false);
+  const [marcaSelecionada, setMarcaSelecionada] = useState(""); // 🟢 NOVO ESTADO
 
   const [clienteMestre, setClienteMestre] = useState(null);
   const [rotasFrete, setRotasFrete] = useState([]);
@@ -607,7 +608,6 @@ export default function CatalogoB2B() {
         ]);
         
         if (dataProd && dataProd.success) {
-          // 🟢 FANTASMAS EXORCIZADOS! USANDO A NOMENCLATURA PURA DA API
           const mapped = dataProd.produtos.map(p => ({
             id: p.id,
             sku: p.sku || p.id,
@@ -650,6 +650,12 @@ export default function CatalogoB2B() {
     setPage(1);
   };
 
+  // 🟢 AS MARCAS VOLTARAM! EXTRAI AS MARCAS ÚNICAS (Ignorando nulos e "Provador")
+  const marcasUnicas = Array.from(new Set(produtosDb.map(p => p.marca?.trim()).filter(Boolean)))
+    .filter(marca => !marca.toLowerCase().includes('provador'))
+    .sort();
+
+  // 🟢 FILTRAGEM LOCAL ATUALIZADA COM MARCA
   const produtosFiltrados = produtosDb.filter(p => {
     const termo = search.toLowerCase();
     const matchBusca = (p.nome && p.nome.toLowerCase().includes(termo)) || 
@@ -659,7 +665,10 @@ export default function CatalogoB2B() {
     const temPromo = parseFloat(p.preco_promocional) > 0;
     const matchOferta = somenteOfertas ? temPromo : true;
 
-    return matchBusca && matchOferta;
+    // Se tiver marca selecionada, filtra por ela
+    const matchMarca = marcaSelecionada === "" || p.marca?.trim() === marcaSelecionada;
+
+    return matchBusca && matchOferta && matchMarca;
   });
 
   const totalPages = Math.ceil(produtosFiltrados.length / limit);
@@ -772,32 +781,61 @@ export default function CatalogoB2B() {
         <main className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar p-4 lg:p-8 pb-32">
           <div className="max-w-7xl mx-auto space-y-6">
             
-            <div className="bg-white dark:bg-[#121214] p-5 sm:p-6 rounded-[2rem] border border-zinc-200 dark:border-zinc-800/80 flex flex-col xl:flex-row gap-4 items-start xl:items-center justify-between shadow-sm transition-colors duration-300">
-              <div className="w-full xl:w-auto">
-                <h1 className="text-xl sm:text-2xl font-black text-zinc-900 dark:text-zinc-100 flex items-center gap-3 tracking-tight">
-                  <Package className="text-purple-600 dark:text-purple-400" size={24} /> Catálogo de produtos
-                </h1>
-                <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">Faça a reposição do seu estoque com facilidade.</p>
+            {/* CABEÇALHO B2B COM FILTRO DE MARCAS */}
+            <div className="bg-white/70 dark:bg-[#121214]/70 backdrop-blur-xl p-5 sm:p-6 rounded-[2rem] border border-zinc-200 dark:border-zinc-800/80 shadow-sm transition-colors duration-300 flex flex-col">
+              
+              <div className="flex flex-col xl:flex-row gap-4 items-start xl:items-center justify-between w-full">
+                <div className="w-full xl:w-auto shrink-0">
+                  <h1 className="text-xl sm:text-2xl font-black text-zinc-900 dark:text-zinc-100 flex items-center gap-3 tracking-tight">
+                    <Package className="text-purple-600 dark:text-purple-400" size={24} /> Catálogo de produtos
+                  </h1>
+                  <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">Faça a reposição do seu estoque com facilidade.</p>
+                </div>
+
+                <div className="flex w-full xl:w-auto items-stretch sm:items-center gap-3 flex-col sm:flex-row sm:flex-wrap xl:justify-end">
+                  <label className="w-full sm:w-auto flex items-center gap-2 cursor-pointer bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 px-4 py-2.5 rounded-xl transition-all shadow-sm hover:border-purple-300 dark:hover:border-purple-700">
+                    <input type="checkbox" checked={somenteOfertas} onChange={(e) => { setSomenteOfertas(e.target.checked); setPage(1); }} className="w-4 h-4 rounded border-zinc-300 text-purple-600 focus:ring-purple-600 cursor-pointer"/>
+                    <Zap size={14} className={somenteOfertas ? "text-amber-500 fill-amber-500" : "text-zinc-400"} />
+                    <span className={`text-xs font-bold uppercase tracking-wider ${somenteOfertas ? "text-zinc-900 dark:text-zinc-100" : "text-zinc-500 dark:text-zinc-400"}`}>Ofertas</span>
+                  </label>
+
+                  <select value={limit} onChange={(e) => { setLimit(e.target.value); setPage(1); }} className="w-full sm:w-auto bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider outline-none focus:border-purple-500 cursor-pointer shadow-sm">
+                    <option value="20">20 itens</option>
+                    <option value="50">50 itens</option>
+                    <option value="100">100 itens</option>
+                  </select>
+
+                  <form onSubmit={handleSearch} className="relative w-full sm:w-72 lg:w-80 shadow-sm">
+                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
+                    <input type="text" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder="Buscar por produto, SKU ou EAN..." className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 pl-9 pr-4 py-2.5 rounded-xl text-sm outline-none focus:border-purple-500 transition-all placeholder:text-zinc-400" />
+                  </form>
+                </div>
               </div>
 
-              <div className="flex w-full xl:w-auto items-stretch sm:items-center gap-3 flex-col sm:flex-row sm:flex-wrap xl:justify-end">
-                <label className="w-full sm:w-auto flex items-center gap-2 cursor-pointer bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 px-4 py-2.5 rounded-xl transition-all">
-                  <input type="checkbox" checked={somenteOfertas} onChange={(e) => { setSomenteOfertas(e.target.checked); setPage(1); }} className="w-4 h-4 rounded border-zinc-300 text-purple-600 focus:ring-purple-600 cursor-pointer"/>
-                  <Zap size={14} className={somenteOfertas ? "text-rose-500 fill-rose-500" : "text-zinc-400"} />
-                  <span className={`text-xs font-bold uppercase tracking-wider ${somenteOfertas ? "text-zinc-900 dark:text-zinc-100" : "text-zinc-500 dark:text-zinc-400"}`}>Ofertas</span>
-                </label>
+              {/* 🟢 BARRA DE MARCAS (SCROLL HORIZONTAL) */}
+              {marcasUnicas.length > 0 && (
+                <div className="flex items-center gap-2 mt-5 pt-4 border-t border-zinc-100 dark:border-zinc-800/60 overflow-x-auto custom-scrollbar pb-1 w-full">
+                  <span className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-widest shrink-0 mr-2">Filtro Rápido:</span>
+                  
+                  <button 
+                    onClick={() => { setMarcaSelecionada(""); setPage(1); }} 
+                    className={`shrink-0 px-4 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wider transition-all border ${marcaSelecionada === "" ? "bg-purple-600 text-white border-purple-600 shadow-md shadow-purple-500/20" : "bg-zinc-50 dark:bg-zinc-900 text-zinc-500 dark:text-zinc-400 border-zinc-200 dark:border-zinc-800 hover:border-purple-300 dark:hover:border-purple-700 hover:text-purple-600 dark:hover:text-purple-400"}`}
+                  >
+                    Todas
+                  </button>
+                  
+                  {marcasUnicas.map(marca => (
+                    <button 
+                      key={marca}
+                      onClick={() => { setMarcaSelecionada(marca); setPage(1); }} 
+                      className={`shrink-0 px-4 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wider transition-all border ${marcaSelecionada === marca ? "bg-purple-600 text-white border-purple-600 shadow-md shadow-purple-500/20" : "bg-zinc-50 dark:bg-zinc-900 text-zinc-500 dark:text-zinc-400 border-zinc-200 dark:border-zinc-800 hover:border-purple-300 dark:hover:border-purple-700 hover:text-purple-600 dark:hover:text-purple-400"}`}
+                    >
+                      {marca}
+                    </button>
+                  ))}
+                </div>
+              )}
 
-                <select value={limit} onChange={(e) => { setLimit(e.target.value); setPage(1); }} className="w-full sm:w-auto bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider outline-none focus:border-purple-500 cursor-pointer">
-                  <option value="20">20 itens</option>
-                  <option value="50">50 itens</option>
-                  <option value="100">100 itens</option>
-                </select>
-
-                <form onSubmit={handleSearch} className="relative w-full sm:w-72 lg:w-80">
-                  <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
-                  <input type="text" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder="Buscar por produto, SKU ou EAN..." className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 pl-9 pr-4 py-2.5 rounded-xl text-sm outline-none focus:border-purple-500 transition-all placeholder:text-zinc-400" />
-                </form>
-              </div>
             </div>
 
             <div className="border border-zinc-200 dark:border-zinc-800/80 bg-white dark:bg-[#121214] rounded-[2rem] overflow-hidden relative min-h-[400px] flex flex-col shadow-sm transition-colors duration-300">

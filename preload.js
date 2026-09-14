@@ -7,5 +7,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   instalarAtualizacao: () => ipcRenderer.send('instalar-atualizacao'),
   // Fica escutando as fofocas do Electron (progresso do download)
   onUpdateMessage: (callback) => ipcRenderer.on('update-message', (_event, value) => callback(value)),
-  mudarTemaElectron: (tema) => ipcRenderer.send('mudar-tema', tema)
+  // Muda o tema da barra (se houver)
+  mudarTemaElectron: (tema) => ipcRenderer.send('mudar-tema', tema),
+
+  // 🟢 AS 3 NOVAS FUNÇÕES DOS BOTÕES DE JANELA
+  fecharJanela: () => ipcRenderer.send('fechar-janela'),
+  minimizarJanela: () => ipcRenderer.send('minimizar-janela'),
+  maximizarJanela: () => ipcRenderer.send('maximizar-janela')
 });

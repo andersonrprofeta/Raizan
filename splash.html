@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: transparent; /* Deixe transparente se quiser borda arredondada */
+        }
+        .logo-container {
+            width: 250px;
+            height: 250px;
+            background-color: #09090b; /* Cor de fundo da sua marca */
+            border-radius: 30px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            flex-direction: column;
+        }
+        img {
+            width: 120px;
+            animation: pulsar 2s infinite;
+        }
+        p {
+            color: #fff;
+            font-family: sans-serif;
+            font-weight: bold;
+            margin-top: 20px;
+        }
+        @keyframes pulsar {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+    </style>
+</head>
+<body>
+    <div class="logo-container">
+        <!-- Coloque a sua logo em PNG na raiz do projeto -->
+        <img src="logo.png" alt="Carregando...">
+        <p>Carregando sistema...</p>
+    </div>
+</body>
+</html>

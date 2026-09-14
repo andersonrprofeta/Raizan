@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { AlertTriangle, Bell, ShoppingCart, Tag, ArrowRight, Zap, X, Plus, Minus, Package, FileText, Menu, Sun, Moon, Loader2, Grip } from "lucide-react";
+import { AlertTriangle, Bell, ShoppingCart, Tag, ArrowRight, Zap, X, Plus, Minus, Package, FileText, Menu, Sun, Moon, Loader2, Grip, Trash2, Maximize2 } from "lucide-react";
 import Link from "next/link";
 import { useTheme } from "next-themes";
 import { getApiUrl, getHeaders, getHubUrl } from "@/components/utils/api";
@@ -23,12 +23,23 @@ function ModalResumoCarrinho({ isOpen, onClose }) {
     }
   }, [isOpen]);
 
+  // 🟢 A MÁGICA DA LIXEIRA: Remove e avisa o sistema inteiro na mesma hora!
+  const removerItem = (sku) => {
+    const novoCarrinho = { ...carrinho };
+    delete novoCarrinho[sku];
+    setCarrinho(novoCarrinho);
+    localStorage.setItem("@raizan:carrinho", JSON.stringify(novoCarrinho));
+    // Esse evento faz o Checkout e o Catálogo se atualizarem sozinhos:
+    window.dispatchEvent(new Event('storage'));
+    toast.success("Item removido!");
+  };
+
   if (!isOpen) return null;
 
   const itens = Object.values(carrinho);
   
   const subtotal = itens.reduce((acc, item) => {
-    const precoOriginal = parseFloat(item.PDPRECO) || 0;
+    const precoOriginal = parseFloat(item.preco_venda) || 0;
     const atingiuMinimo = item.em_promocao && item.qtd >= (item.qtd_minima_promocao || 1);
     const precoFinal = atingiuMinimo ? parseFloat(item.preco_promocional) : precoOriginal;
     return acc + (precoFinal * item.qtd);
@@ -53,14 +64,14 @@ function ModalResumoCarrinho({ isOpen, onClose }) {
             </div>
           ) : (
             itens.map(item => {
-              const precoOriginal = parseFloat(item.PDPRECO) || 0;
+              const precoOriginal = parseFloat(item.preco_venda) || 0;
               const atingiuMinimo = item.em_promocao && item.qtd >= (item.qtd_minima_promocao || 1);
               const precoFinal = atingiuMinimo ? parseFloat(item.preco_promocional) : precoOriginal;
               
               return (
-                <div key={item.PDCODPRO} className="flex items-center justify-between gap-2 bg-white dark:bg-[#121214] p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800/80 min-w-0 shadow-sm dark:shadow-none">
+                <div key={item.sku} className="flex items-center justify-between gap-2 bg-white dark:bg-[#121214] p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800/80 min-w-0 shadow-sm dark:shadow-none group">
                   <div className="flex-1 pr-1 sm:pr-2 min-w-0">
-                    <p className="text-sm md:text-base font-bold text-zinc-800 dark:text-zinc-200 line-clamp-1">{item.PDNOME}</p>
+                    <p className="text-sm md:text-base font-bold text-zinc-800 dark:text-zinc-200 line-clamp-1">{item.nome}</p>
                     
                     <p className="text-xs text-zinc-500 mt-1 font-medium">
                       {item.qtd}x {formatarMoeda(precoFinal)} 
@@ -69,8 +80,18 @@ function ModalResumoCarrinho({ isOpen, onClose }) {
                     </p>
                   </div>
                   
-                  <div className="text-sm md:text-base font-black text-purple-600 dark:text-purple-400 pl-1 sm:pl-3 shrink-0">
-                    {formatarMoeda(precoFinal * item.qtd)}
+                  <div className="flex flex-col items-end gap-1 shrink-0">
+                    <div className="text-sm md:text-base font-black text-purple-600 dark:text-purple-400 pl-1 sm:pl-3">
+                      {formatarMoeda(precoFinal * item.qtd)}
+                    </div>
+                    {/* 🟢 O BOTÃO DA LIXEIRA */}
+                    <button 
+                      onClick={() => removerItem(item.sku)} 
+                      className="text-zinc-300 hover:text-rose-500 transition-colors p-1 rounded-md hover:bg-rose-50 dark:hover:bg-rose-500/10"
+                      title="Remover item"
+                    >
+                      <Trash2 size={16} />
+                    </button>
                   </div>
                 </div>
               );
@@ -104,6 +125,19 @@ function ModalResumoCarrinho({ isOpen, onClose }) {
 // ==========================================
 function ModalOfertasGlobal({ isOpen, onClose, ofertas, onComprar }) {
   const [quantidades, setQuantidades] = useState({});
+
+  // 🟢 DETECTOR DE SACOLEIRO DIRETO NAS OFERTAS GLOBAIS!
+  const percentualCpf = typeof window !== 'undefined' ? Number(localStorage.getItem("@raizan:acrescimo_cpf") || 0) : 0;
+  let fatorAcrescimo = 1;
+
+  if (typeof window !== 'undefined') {
+    const userSalvo = localStorage.getItem("raizan_user");
+    const userObj = userSalvo ? JSON.parse(userSalvo) : null;
+    const documentoOriginal = userObj?.cpf_cnpj || userObj?.cnpj || userObj?.cpf || "";
+    const docLimpo = String(documentoOriginal).replace(/\D/g, '');
+    const isCPF = docLimpo.length === 11;
+    fatorAcrescimo = (isCPF && percentualCpf > 0) ? (1 + (percentualCpf / 100)) : 1;
+  }
 
   if (!isOpen) return null;
 
@@ -139,12 +173,17 @@ function ModalOfertasGlobal({ isOpen, onClose, ofertas, onComprar }) {
               const minExigido = promo.qtd_minima || 1;
               const qtdAtual = quantidades[promo.sku] || minExigido;
 
+              // 🟢 APLICANDO A INFLAÇÃO NO PREÇO PROMOCIONAL ANTES DE EXIBIR!
+              const precoInflacionado = parseFloat(promo.preco_promocional || 0) * fatorAcrescimo;
+
               return (
                 <div key={promo.sku} className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white dark:bg-[#121214] p-5 rounded-2xl border border-zinc-200 dark:border-zinc-800 hover:border-rose-400 dark:hover:border-rose-500/50 transition-all group gap-4 min-w-0 shadow-sm dark:shadow-none">
                   <div className="flex-1 w-full min-w-0">
                     <span className="text-[10px] bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 px-2.5 py-1 rounded-md font-black uppercase tracking-widest border border-rose-100 dark:border-rose-500/20 inline-block mb-3">SKU {promo.sku}</span>
                     <p className="font-bold text-zinc-800 dark:text-zinc-200 leading-snug text-sm sm:text-base break-words">{promo.nome_produto}</p>
-                    <p className="text-xl sm:text-2xl font-black text-purple-600 dark:text-purple-400 mt-2 tracking-tight">{formatarMoeda(promo.preco_promocional)}</p>
+                    <p className="text-xl sm:text-2xl font-black text-purple-600 dark:text-purple-400 mt-2 tracking-tight">
+                      {formatarMoeda(precoInflacionado)}
+                    </p>
                   </div>
                   
                   <div className="flex flex-col items-stretch sm:items-end gap-3 w-full sm:w-auto">
@@ -156,12 +195,13 @@ function ModalOfertasGlobal({ isOpen, onClose, ofertas, onComprar }) {
 
                     <button 
                       onClick={() => {
+                        // 🟢 MANDANDO PRO CARRINHO JÁ INFLACIONADO! O carrinho não vai notar a diferença.
                         onComprar({
-                          PDCODPRO: promo.sku, 
-                          PDNOME: promo.nome_produto, 
-                          PDPRECO: promo.preco_promocional, 
+                          sku: promo.sku, 
+                          nome: promo.nome_produto, 
+                          preco_venda: precoInflacionado, 
                           em_promocao: true, 
-                          preco_promocional: promo.preco_promocional,
+                          preco_promocional: precoInflacionado,
                           qtd_minima_promocao: minExigido 
                         }, qtdAtual);
                         toast.success(`${qtdAtual}x adicionado ao carrinho!`);
@@ -371,7 +411,9 @@ export default function Header() {
             // 🟢 AVISO DO SELLER: Identifica a origem e toca a MÁQUINA DE DINHEIRO
             const isSeller = data.ultimoPedido.origem === 'raizan_seller' || data.ultimoPedido.origem === 'app';
             const nomeVendedor = data.ultimoPedido.vendedor_nome || data.ultimoPedido.vendedor || 'Vendedor';
-            const textoSeller = isSeller ? ` pelo Digital Seller (${nomeVendedor})` : '';
+            
+            // 🔥 NOME CORRETO DA NOSSA MÁQUINA DE VENDAS!
+            const textoSeller = isSeller ? ` pelo Raizan Seller (${nomeVendedor})` : '';
 
             try {
               if (isSeller) {
@@ -472,7 +514,8 @@ export default function Header() {
     let carrinhoAtual = {};
     if (carrinhoSalvo) try { carrinhoAtual = JSON.parse(carrinhoSalvo); } catch (e) {}
 
-    const id = produto.PDCODPRO;
+    // 🟢 Ajustado para a nova API: sku
+    const id = produto.sku;
     if (carrinhoAtual[id]) carrinhoAtual[id].qtd += qtd;
     else carrinhoAtual[id] = { ...produto, qtd };
 
@@ -639,13 +682,50 @@ export default function Header() {
                 <span className="text-sm font-bold text-zinc-900 dark:text-zinc-100 leading-none mb-1">{userRole === "lojista" ? "Meu Perfil" : "Operador"}</span>
                 <span className={`text-[10px] font-bold tracking-widest uppercase max-w-[150px] truncate ${userRole === "lojista" ? "text-purple-600 dark:text-purple-500" : "text-zinc-500 dark:text-zinc-400"}`}>{userRole === "lojista" ? `CNPJ: ${userEmail}` : userEmail}</span>
               </div>
-              
+                            
               <Link href={userRole === "lojista" ? "/b2b-perfil" : "/conta"}>
                 <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center shadow-md hover:shadow-xl hover:-translate-y-0.5 transition-all cursor-pointer font-black text-white text-sm ${userRole === "lojista" ? "bg-gradient-to-br from-purple-500 to-indigo-600 shadow-purple-500/20" : "bg-gradient-to-br from-indigo-500 to-blue-600 shadow-indigo-500/20"}`}>
                   {userInitial}
                 </div>
               </Link>
             </div>
+
+             {/* 🟢 AS BOLINHAS SÓ APARECEM SE ESTIVER RODANDO NO ELECTRON! */}
+            {typeof window !== 'undefined' && window.electronAPI && (
+              <div className="hidden md:flex items-center gap-2 pl-4 border-l border-zinc-200 dark:border-zinc-800 shrink-0" style={{ WebkitAppRegion: 'no-drag' }}>
+                <button 
+                  onClick={() => {
+                    if(window.electronAPI?.minimizarJanela) window.electronAPI.minimizarJanela();
+                    else console.log("Comando de minimizar não encontrado no preload!");
+                  }} 
+                  className="w-5 h-5 flex items-center justify-center rounded-full bg-amber-400 hover:bg-amber-500 text-amber-900 shadow-sm transition-colors border border-amber-500/20"
+                  title="Minimizar"
+                >
+                  <Minus size={12} strokeWidth={3} />
+                </button>
+                <button 
+                  onClick={() => {
+                    if(window.electronAPI?.maximizarJanela) window.electronAPI.maximizarJanela();
+                  }} 
+                  className="w-5 h-5 flex items-center justify-center rounded-full bg-emerald-500 hover:bg-emerald-600 text-emerald-950 shadow-sm transition-colors border border-emerald-600/20"
+                  title="Maximizar"
+                >
+                  <Maximize2 size={10} strokeWidth={3} />
+                </button>
+                <button 
+                  onClick={() => {
+                    if(window.electronAPI?.fecharJanela) window.electronAPI.fecharJanela();
+                  }} 
+                  className="w-5 h-5 flex items-center justify-center rounded-full bg-rose-500 hover:bg-rose-600 text-rose-950 shadow-sm transition-colors border border-rose-600/20"
+                  title="Fechar"
+                >
+                  <X size={12} strokeWidth={3} />
+                </button>
+              </div>
+            )}
+            {/* 🟢 FIM DAS BOLINHAS SÓ APARECEM SE ESTIVER RODANDO NO ELECTRON! */}
+
+
           </div>
         </header>
       </div>

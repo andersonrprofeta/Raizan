@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain } = require('electron'); // <-- Adicionei o ipcMain aqui
+const { app, BrowserWindow, ipcMain } = require('electron');
 const serve = require('electron-serve');
 const path = require('path');
 const { autoUpdater } = require('electron-updater');
@@ -9,114 +9,111 @@ const appServe = serveApp({ directory: path.join(__dirname, 'out') });
 let mainWindow;
 
 function createWindow() {
+  // 1. CRIANDO A TELA DE SPLASH (A tela de carregamento)
+  const splash = new BrowserWindow({
+    width: 400,
+    height: 400,
+    transparent: true,
+    frame: false,
+    alwaysOnTop: true,
+  });
+  
+  splash.loadFile('splash.html').catch(() => {});
+
+  // 2. CRIANDO A TELA PRINCIPAL (Invisível no início)
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
     minWidth: 1024,
     minHeight: 768,
     title: "Raizan Core",
-    autoHideMenuBar: true, 
+    show: false, // Nasce invisível
+    frame: false, // Arranca a moldura do Windows
     
-    titleBarStyle: 'hidden', 
-    titleBarOverlay: {
-      color: '#09090b',
-      symbolColor: '#e4e4e7',
-      height: 35
-
-      
-    },
-
     webPreferences: {
-      nodeIntegration: false, // O Next.js não precisa do Node direto, ele usa o tradutor
-      contextIsolation: true, // Liga a blindagem de segurança (Obrigatório pro Preload funcionar)
+      nodeIntegration: false,
+      contextIsolation: true, 
       preload: path.join(__dirname, 'preload.js'),
-      // 🟢 ADICIONE ESTA LINHA: Ela desativa a trava de segurança de áudio do navegador!
-    autoplayPolicy: 'no-user-gesture-required',
-    webviewTag: true // 🟢 A MÁGICA AQUI: Isso permite rodar o OMIE e o Webmail dentro do app!
+      autoplayPolicy: 'no-user-gesture-required',
+      webviewTag: true 
     },
   });
-
-  mainWindow.maximize(); 
 
   appServe(mainWindow).then(() => {
     mainWindow.loadURL('app://-/');
   });
 
-  mainWindow.on('closed', () => {
-    mainWindow = null;
+  // 4. QUANDO O NEXT.JS TERMINAR DE CARREGAR...
+  mainWindow.once('ready-to-show', () => {
+    // 🟢 MÁGICA: Força o Splash a ficar 3 segundos na tela para ficar elegante!
+    setTimeout(() => {
+      if (splash && !splash.isDestroyed()) {
+        splash.destroy(); // Destrói o splash
+      }
+      mainWindow.maximize(); // Maximiza
+      mainWindow.show(); // Aparece o sistema
+    }, 3000); 
   });
 }
 
 // ==========================================
-// LÓGICA DE ATUALIZAÇÃO AUTOMÁTICA (O MOTOR)
+// LÓGICA DOS BOTÕES ESTILO APPLE (FECHAR, MIN, MAX)
 // ==========================================
+ipcMain.on('fechar-janela', () => app.quit());
 
-// Desliga o download automático para o cliente poder ver o botão de atualizar
+ipcMain.on('minimizar-janela', () => {
+  if (mainWindow) mainWindow.minimize();
+});
+
+ipcMain.on('maximizar-janela', () => {
+  if (mainWindow) {
+    if (mainWindow.isMaximized()) mainWindow.unmaximize();
+    else mainWindow.maximize();
+  }
+});
+
+// Mantemos o evento mudar-tema VAZIO para não dar erro se o React tentar chamar!
+ipcMain.on('mudar-tema', (event, tema) => {
+  // Fazemos nada, pois não temos mais barra do Windows para pintar!
+});
+
+// ==========================================
+// LÓGICA DE ATUALIZAÇÃO AUTOMÁTICA
+// ==========================================
 autoUpdater.autoDownload = false; 
 
-// Função que envia as "fofocas" (textos e porcentagem) lá pro terminalzinho do React
 function sendStatusToWindow(text, progress = 0, status = 'info') {
   if (mainWindow) {
     mainWindow.webContents.send('update-message', { text, progress, status });
   }
 }
 
-// 1. Eventos do autoUpdater (Ouvindo o servidor do GitHub/Seu site)
 autoUpdater.on('checking-for-update', () => sendStatusToWindow('Procurando atualizações no servidor central...'));
-
 autoUpdater.on('update-available', (info) => {
   sendStatusToWindow(`Versão ${info.version} encontrada! Iniciando download...`, 0, 'downloading');
-  autoUpdater.downloadUpdate(); // Começa a baixar o .exe novo
+  autoUpdater.downloadUpdate();
 });
-
 autoUpdater.on('update-not-available', () => sendStatusToWindow('O sistema já está na versão mais recente.', 100, 'success'));
-
 autoUpdater.on('error', (err) => sendStatusToWindow(`Erro de conexão: ${err.message}`, 0, 'error'));
-
 autoUpdater.on('download-progress', (progressObj) => {
   let log_message = `Baixando pacote criptografado: ${Math.round(progressObj.percent)}%`;
   sendStatusToWindow(log_message, progressObj.percent, 'downloading');
 });
-
 autoUpdater.on('update-downloaded', () => {
   sendStatusToWindow('Download concluído! O sistema está pronto para reiniciar e instalar.', 100, 'ready');
 });
 
-
-// 2. Eventos do IPC Main (Ouvindo os botões que o cliente clica no React)
-ipcMain.on('buscar-atualizacao', () => {
-  autoUpdater.checkForUpdates();
-});
-
-ipcMain.on('instalar-atualizacao', () => {
-  autoUpdater.quitAndInstall(false, true); // Fecha o app, instala o novo .exe e reabre!
-});
-
-// 🟢 ADICIONE ISSO NO SEU MAIN.JS
-ipcMain.on('mudar-tema', (event, tema) => {
-  if (mainWindow) {
-    if (tema === 'dark') {
-      // Cores do Modo Escuro (Fundo preto, ícones brancos)
-      mainWindow.setTitleBarOverlay({ color: '#09090b', symbolColor: '#e4e4e7' });
-    } else {
-      // Cores do Modo Claro (Fundo clarinho, ícones pretos)
-      mainWindow.setTitleBarOverlay({ color: '#fafafa', symbolColor: '#18181b' });
-    }
-  }
-});
+ipcMain.on('buscar-atualizacao', () => autoUpdater.checkForUpdates());
+ipcMain.on('instalar-atualizacao', () => autoUpdater.quitAndInstall(false, true));
 
 // ==========================================
 // INICIALIZAÇÃO DO APP
 // ==========================================
 app.on('ready', () => {
   createWindow();
-  
-  // O PULO DO GATO: Assim que a tela abrir, ele já procura atualizações silenciosamente!
-  // Como colocamos autoUpdater.autoDownload = false lá em cima, ele não vai baixar sozinho,
-  // apenas vai acender o sininho de roxo se achar algo!
   setTimeout(() => {
     autoUpdater.checkForUpdates();
-  }, 3000); // Dá 3 segundos pra tela terminar de carregar antes de bater no GitHub
+  }, 3000);
 });
 
 app.on('window-all-closed', () => {

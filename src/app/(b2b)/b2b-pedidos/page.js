@@ -629,6 +629,20 @@ export default function CatalogoB2B() {
           console.log("🕵️‍♂️ CNPJ (Tenant) Enviado:", tenantId);
           console.log("📦 Produtos crus que chegaram:", dataProd.produtos);
 
+
+          // 🟢 DETECTOR DE SACOLEIRO E INFLAÇÃO DE PREÇO (BLINDADO)
+        const documentoOriginal = userObj?.cpf_cnpj || userObj?.cnpj || userObj?.cpf || "";
+        const docLimpo = String(documentoOriginal).replace(/\D/g, '');
+        const isCPF = docLimpo.length === 11;
+        const percentualCpf = Number(localStorage.getItem("@raizan:acrescimo_cpf") || 0);
+        const fatorAcrescimo = (isCPF && percentualCpf > 0) ? (1 + (percentualCpf / 100)) : 1;
+
+        // 🟢 O ESPIÃO: Aperte F12 e veja o que ele vai printar!
+        console.log("🕵️‍♂️ [SACOLEIRO] DOC Original:", documentoOriginal);
+        console.log("🕵️‍♂️ [SACOLEIRO] DOC Limpo:", docLimpo, "| Tamanho:", docLimpo.length);
+        console.log("🕵️‍♂️ [SACOLEIRO] É CPF?", isCPF, "| Percentual na Memória:", percentualCpf, "%");
+        console.log("🕵️‍♂️ [SACOLEIRO] Fator Multiplicador:", fatorAcrescimo);
+
           const mapped = dataProd.produtos.map(p => ({
             id: p.id,
             sku: p.sku || p.id,
@@ -636,13 +650,17 @@ export default function CatalogoB2B() {
             gtin: p.gtin,
             marca: p.marca,
             estoque_inicial: p.estoque_inicial,
-            preco_venda: p.preco_venda,
-            preco_promocional: p.preco_promocional,
+            
+            // 🔥 A MÁGICA ACONTECE AQUI: Multiplicando o preço base pelo fator (1.30)
+            preco_venda: parseFloat(p.preco_venda || 0) * fatorAcrescimo,
+            preco_promocional: parseFloat(p.preco_promocional) > 0 ? (parseFloat(p.preco_promocional) * fatorAcrescimo) : null,
+            
             qtd_minima_promocao: p.qtd_minima_promocao,
             imagens_anexos: p.imagens_anexos,
             status: p.status
-          })).filter(p => p.status !== 'inativo');
-          setProdutosDb(mapped); 
+        })).filter(p => p.status !== 'inativo');
+        
+        setProdutosDb(mapped); 
         }
 
         if (dataCli && dataCli.success && userEmail) {

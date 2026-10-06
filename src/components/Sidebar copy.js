@@ -13,9 +13,6 @@ import toast from 'react-hot-toast';
 export default function Sidebar() {
   const pathname = usePathname();
   
-  const [isClient, setIsClient] = useState(false);
-  const [logoEmpresa, setLogoEmpresa] = useState(null); 
-
   const [modulosLiberados, setModulosLiberados] = useState([]);
   const [licencaExpirada, setLicencaExpirada] = useState(false);
 
@@ -76,12 +73,6 @@ export default function Sidebar() {
     const b2bUser = localStorage.getItem("raizan_user");
     const adminLicenca = localStorage.getItem("@raizan:license");
 
-    if (!adminLicenca && !b2bUser) {
-      if (pathname && pathname.includes("b2b")) window.location.href = "/login-b2b";
-      else window.location.href = "/login";
-      return;
-    }
-
     if (b2bUser) {
       try {
         let userObj = JSON.parse(b2bUser);
@@ -89,7 +80,6 @@ export default function Sidebar() {
         const nomeOficial = userObj.nome || userObj.RAZAO || userObj.razao_social || "Lojista";
         setUserRole("lojista");
         setUserName(nomeOficial.trim().split(' ')[0]);
-        setIsClient(true);
         return; 
       } catch (e) {}
     }
@@ -97,6 +87,12 @@ export default function Sidebar() {
     setUserRole("admin");
     const nomeSalvo = localStorage.getItem("@raizan:nome");
     setUserName(nomeSalvo && nomeSalvo.trim() !== "" ? nomeSalvo.split(' ')[0] : "Admin");
+
+    if (!adminLicenca) {
+      if (pathname && pathname.includes("b2b")) window.location.href = "/login-b2b";
+      else window.location.href = "/login";
+      return;
+    }
 
     const modulos = localStorage.getItem("@raizan:modulos");
     const vencimento = localStorage.getItem("@raizan:expires_at");
@@ -117,11 +113,10 @@ export default function Sidebar() {
 
     setLicencaExpirada(isExpired);
     setModulosLiberados(isExpired ? [] : (modulos ? JSON.parse(modulos) : []));
-    setIsClient(true); 
   }, [pathname]);
 
   useEffect(() => {
-    const checarDadosLocais = () => {
+    const checarCarrinho = () => {
       const carrinhoSalvo = localStorage.getItem("@raizan:carrinho");
       if (carrinhoSalvo) {
         try {
@@ -129,40 +124,18 @@ export default function Sidebar() {
           if (Object.keys(parsed).length > 0) {
             setTextoPedido("Continuar Pedido");
             setTemPedidoAberto(true);
-          } else {
-            setTextoPedido("Novo Pedido");
-            setTemPedidoAberto(false);
+            return;
           }
         } catch (e) { }
-      } else {
-        setTextoPedido("Novo Pedido");
-        setTemPedidoAberto(false);
       }
-
-      // 🟢 O FAREJADOR DA LOGO: Tenta no cache principal...
-      let logoSalva = localStorage.getItem("@raizan:logo");
-      
-      // ... Se falhar, vasculha a mochila do Lojista B2B
-      if (!logoSalva || logoSalva === "null") {
-        const b2bData = localStorage.getItem("raizan_user");
-        if (b2bData) {
-          try {
-            let parsedB2B = JSON.parse(b2bData);
-            let u = parsedB2B.user ? parsedB2B.user : parsedB2B;
-            if (u.logo_url) logoSalva = u.logo_url;
-            else if (u.tenant_logo) logoSalva = u.tenant_logo;
-            else if (u.logo) logoSalva = u.logo;
-          } catch(e) {}
-        }
-      }
-
-      setLogoEmpresa(logoSalva && logoSalva !== "null" ? logoSalva : null);
+      setTextoPedido("Novo Pedido");
+      setTemPedidoAberto(false);
     };
 
-    checarDadosLocais();
-    window.addEventListener('storage', checarDadosLocais);
-    const intervalo = setInterval(checarDadosLocais, 1000);
-    return () => { window.removeEventListener('storage', checarDadosLocais); clearInterval(intervalo); };
+    checarCarrinho();
+    window.addEventListener('storage', checarCarrinho);
+    const intervalo = setInterval(checarCarrinho, 1000);
+    return () => { window.removeEventListener('storage', checarCarrinho); clearInterval(intervalo); };
   }, [pathname]);
 
   const handleSairDoApp = () => {
@@ -240,44 +213,31 @@ export default function Sidebar() {
     zinc: { open: "bg-zinc-100 dark:bg-zinc-800/80 text-zinc-900 dark:text-zinc-200 shadow-[0_0_12px_rgba(39,39,42,0.15)] border-zinc-200 dark:border-zinc-700", iconOpen: "text-zinc-700 dark:text-zinc-300" }
   };
 
-  if (!isClient || !userRole) {
-      return <aside className="hidden h-screen sticky top-0 w-[260px] max-w-full shrink-0 flex-col overflow-x-hidden border-r border-zinc-200 dark:border-zinc-800/80 bg-white dark:bg-[#0c0c0e] z-20 lg:flex transition-colors duration-300"></aside>;
-  }
+  if (!userRole) return <aside className="hidden h-screen sticky top-0 w-[260px] max-w-full shrink-0 flex-col overflow-x-hidden border-r border-zinc-200 dark:border-zinc-800/80 bg-white dark:bg-[#0c0c0e] z-20 lg:flex transition-colors duration-300"></aside>;
 
   return (
     <>
       {isMobileOpen && <div className="fixed inset-0 bg-zinc-900/40 dark:bg-black/60 backdrop-blur-sm z-40 lg:hidden animate-in fade-in" onClick={closeMobileSidebar} />}
 
+      {/* 🔥 A MÁGICA DA SIDEBAR FLUTUANTE (FLOATING LAYOUT) */}
       <aside className={`fixed top-0 z-50 flex h-screen lg:h-[calc(100vh-2rem)] w-[85vw] max-w-[260px] shrink-0 flex-col overflow-hidden bg-white dark:bg-[#121214] shadow-[4px_0_24px_rgba(0,0,0,0.04)] dark:shadow-[4px_0_24px_rgba(0,0,0,0.2)] transition-all duration-300 ease-in-out sm:w-[320px] lg:sticky lg:top-4 lg:ml-4 lg:w-[260px] lg:max-w-[260px] lg:rounded-3xl border border-zinc-200/80 dark:border-white/5 ${isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`} style={{ WebkitAppRegion: 'drag' }}>
         
-        {/* 🟢 CABEÇALHO DA LOGO (AGORA BEM MAIOR E IMPONENTE) */}
+        {/* LOGO */}
         <div className="flex h-20 shrink-0 items-center justify-between gap-2 border-b border-zinc-100 dark:border-white/5 px-4 sm:gap-3 sm:px-6 transition-colors duration-300" style={{ WebkitAppRegion: 'no-drag' }}>
-          
-          <div className="flex min-w-0 items-center gap-3 w-full">
-            {logoEmpresa ? (
-              <img 
-                src={logoEmpresa} 
-                alt="Logo do Cliente" 
-                className="max-h-12 sm:max-h-14 w-auto max-w-[200px] object-contain drop-shadow-sm p-1" 
-              />
-            ) : (
-              <>
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-purple-600 to-indigo-600 shadow-[0_4px_14px_rgba(124,58,237,0.3)]">
-                  <Database size={18} className="text-white" />
-                </div>
-                <h1 className="truncate text-[17px] font-black tracking-tight text-zinc-900 dark:text-white">
-                  Raizan Core
-                </h1>
-              </>
-            )}
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-purple-600 to-indigo-600 shadow-[0_4px_14px_rgba(124,58,237,0.3)]">
+              <Database size={18} className="text-white" />
+            </div>
+            <h1 className="truncate text-[17px] font-black tracking-tight text-zinc-900 dark:text-white">
+              Raizan Core
+            </h1>
           </div>
-
           <button onClick={closeMobileSidebar} className="rounded-lg bg-zinc-100 dark:bg-zinc-800/50 p-2 text-zinc-500 hover:text-zinc-900 dark:hover:text-white lg:hidden transition-colors border border-zinc-200 dark:border-zinc-700/50">
             <X size={18} />
           </button>
         </div>
 
-        {/* NAVEGAÇÃO E MOTOR DINÂMICO INTOCÁVEIS AQUI PRA BAIXO */}
+        {/* NAVEGAÇÃO ROLÁVEL */}
         <nav className="custom-scrollbar flex-1 space-y-2 overflow-x-hidden overflow-y-auto px-4 py-6" style={{ WebkitAppRegion: 'no-drag' }}>
           
           {licencaExpirada && userRole === "admin" && (
@@ -347,7 +307,7 @@ export default function Sidebar() {
           )}
         </nav>
 
-        {/* RODAPÉ DO MENU */}
+        {/* RODAPÉ DO MENU (LOGOUT E INFORMAÇÕES) */}
         <div className="shrink-0 border-t border-zinc-100 dark:border-white/5 bg-zinc-50/50 dark:bg-black/20 p-5 transition-colors duration-300" style={{ WebkitAppRegion: 'no-drag' }}>
           <div className="flex items-center justify-between bg-white dark:bg-[#0c0c0e] p-2.5 rounded-2xl border border-zinc-200/80 dark:border-white/5 shadow-sm">
             <div className="flex items-center gap-3 min-w-0">
@@ -366,7 +326,7 @@ export default function Sidebar() {
           
           {userRole === "admin" && (
             <div className="mt-4 flex items-center justify-center gap-2 text-[10px] text-zinc-400 dark:text-zinc-600 font-bold tracking-widest uppercase">
-              <span>Raizan Core</span>
+              <span>Raizan OS</span>
               <span className="h-1.5 w-1.5 rounded-full bg-zinc-300 dark:bg-zinc-700"></span>
               <span>v{packageJson.version}</span>
             </div>

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { X, User, MapPin, FileText, Package, Phone, Mail, Calendar, Edit, Loader2, Truck, CheckCircle2 } from "lucide-react"; 
+// 🟢 ADICIONEI O ÍCONE 'Scissors' AQUI
+import { X, User, MapPin, FileText, Package, Phone, Mail, Calendar, Edit, Loader2, Truck, CheckCircle2, Scissors } from "lucide-react"; 
 import Link from "next/link"; 
 import { getHubUrl, getHeaders } from "@/components/utils/api";
 import toast from 'react-hot-toast';
@@ -341,6 +342,19 @@ export default function ModalDetalhes({ pedido, onClose, activeTabObj, onUpdateS
             </div>
           </div>
 
+          {/* 🟢 BANNER DE ALERTA DE CORTE */}
+          {(pedido.teve_corte === 1 || pedido.teve_corte === true || (pedido.valor_faturado > 0 && pedido.valor_faturado < (pedido.total || pedido.valor_total))) && (
+            <div className="mt-6 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-xl p-4 flex items-center gap-3">
+              <div className="p-2 bg-red-100 dark:bg-red-500/20 rounded-full flex-shrink-0">
+                <Scissors className="text-red-600" size={20} />
+              </div>
+              <div>
+                <p className="font-bold text-red-800 dark:text-red-400">Atendimento Parcial (Corte de Estoque)</p>
+                <p className="text-sm text-red-700 dark:text-red-300">O ERP faturou uma quantidade menor do que a solicitada pelo vendedor. Os itens cortados estão destacados na tabela abaixo.</p>
+              </div>
+            </div>
+          )}
+
           <div className="mt-6 bg-zinc-50 dark:bg-zinc-900/30 border border-zinc-200 dark:border-zinc-800/50 rounded-xl p-5">
             <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2 mb-4 border-b border-zinc-200 dark:border-zinc-800 pb-2"><Package size={16} className="text-emerald-600" /> Itens do Pedido</h3>
             <div className="overflow-x-auto">
@@ -348,22 +362,82 @@ export default function ModalDetalhes({ pedido, onClose, activeTabObj, onUpdateS
                 <thead className="text-xs text-zinc-500 uppercase bg-zinc-100 dark:bg-zinc-900/50">
                   <tr><th className="px-4 py-3 rounded-l-lg">Produto</th><th className="px-4 py-3 text-center">Qtd</th><th className="px-4 py-3 text-right">Preço Un.</th><th className="px-4 py-3 text-right rounded-r-lg">Total</th></tr>
                 </thead>
+                {/* 🟢 A NOVA TABELA QUE RISCA OS ITENS CORTADOS */}
                 <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800/50">
-                  {itensPedido.map((item, idx) => (
-                    <tr key={idx} className="hover:bg-zinc-100 dark:hover:bg-zinc-800/20">
-                      <td className="px-4 py-3 font-medium">{item.name || item.nome_produto} <br/><span className="text-xs text-zinc-500 font-normal">SKU: {item.sku || 'N/A'}</span></td>
-                      <td className="px-4 py-3 text-center">{item.quantity || item.quantidade}</td>
-                      <td className="px-4 py-3 text-right">{formatarMoeda(item.price || item.preco_unitario)}</td>
-                      <td className="px-4 py-3 text-right text-emerald-600 font-medium">{formatarMoeda(item.total || item.preco_total)}</td>
-                    </tr>
-                  ))}
+                  {itensPedido.map((item, idx) => {
+                    // 🟢 A LÓGICA BLINDADA DO ITEM (Com deduções matemáticas!)
+                    const isPedidoCortado = pedido.teve_corte === 1 || pedido.teve_corte === true || (pedido.valor_faturado > 0 && pedido.valor_faturado < (pedido.total || pedido.valor_total));
+                    
+                    let qtdPedida = Number(item.quantity || item.quantidade || 0);
+                    let qtdFaturada = item.qtd_faturada !== undefined && item.qtd_faturada !== null ? Number(item.qtd_faturada) : qtdPedida;
+                    
+                    let totalPedido = Number(item.total || item.preco_total || 0);
+                    let totalFaturado = item.valor_faturado !== undefined && item.valor_faturado !== null ? Number(item.valor_faturado) : totalPedido;
+
+                    // 🟢 HACK DE MESTRE: Se o banco não achou o SKU exato para atualizar a linha, mas o pedido inteiro foi cortado e só tem 1 item na lista, o painel deduz sozinho!
+                    if (isPedidoCortado && qtdFaturada === qtdPedida && itensPedido.length === 1) {
+                        totalFaturado = Number(pedido.valor_faturado);
+                        const precoUn = Number(item.price || item.preco_unitario || 0);
+                        if (precoUn > 0) {
+                            qtdFaturada = Math.floor(totalFaturado / precoUn);
+                        }
+                    }
+
+                    const isItemCortado = qtdFaturada < qtdPedida;
+
+                    return (
+                      <tr key={idx} className={`transition-colors ${isItemCortado ? 'bg-red-50/50 dark:bg-red-900/20' : 'hover:bg-zinc-100 dark:hover:bg-zinc-800/20'}`}>
+                        <td className="px-4 py-3 font-medium">
+                          {item.name || item.nome_produto} <br/>
+                          <span className="text-xs text-zinc-500 font-normal">SKU: {item.sku || 'N/A'}</span>
+                          {isItemCortado && <span className="ml-2 text-[10px] font-bold text-red-600 uppercase tracking-wide">Faltou Estoque</span>}
+                        </td>
+                        
+                        <td className="px-4 py-3 text-center">
+                          {isItemCortado ? (
+                            <div className="flex flex-col items-center">
+                              <span className="line-through text-red-400 text-[11px]">{qtdPedida} un</span>
+                              <span className="font-bold text-red-600">{qtdFaturada} un</span>
+                            </div>
+                          ) : (
+                            qtdPedida
+                          )}
+                        </td>
+                        
+                        <td className="px-4 py-3 text-right">{formatarMoeda(item.price || item.preco_unitario)}</td>
+                        
+                        <td className="px-4 py-3 text-right font-medium">
+                          {isItemCortado ? (
+                            <div className="flex flex-col items-end">
+                              <span className="line-through text-red-400 text-[11px]">{formatarMoeda(totalPedido)}</span>
+                              <span className="font-bold text-red-600">{formatarMoeda(totalFaturado)}</span>
+                            </div>
+                          ) : (
+                            <span className="text-emerald-600">{formatarMoeda(totalPedido)}</span>
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
             <div className="mt-4 pt-4 border-t border-zinc-200 dark:border-zinc-800 flex flex-col items-end space-y-2 text-sm">
               <div className="flex justify-between w-56 text-zinc-500"><span>Subtotal:</span><span>{formatarMoeda((pedido.total || pedido.valor_total) - (pedido.shipping_total || pedido.valor_frete || 0))}</span></div>
               <div className="flex justify-between w-56 text-zinc-500"><span>Frete:</span><span>{formatarMoeda(pedido.shipping_total || pedido.valor_frete || 0)}</span></div>
-              <div className="flex justify-between w-56 text-lg font-bold mt-2 pt-2 border-t border-zinc-200 dark:border-zinc-800"><span>Total:</span><span className="text-emerald-600">{formatarMoeda(pedido.total || pedido.valor_total)}</span></div>
+              
+              {/* 🟢 TOTAL ATUALIZADO PARA EXIBIR RISCADO EM CASO DE CORTE */}
+              <div className="flex justify-between w-56 text-lg font-bold mt-2 pt-2 border-t border-zinc-200 dark:border-zinc-800">
+                <span>Total:</span>
+                {(pedido.teve_corte === 1 || pedido.teve_corte === true || (pedido.valor_faturado > 0 && pedido.valor_faturado < (pedido.total || pedido.valor_total))) ? (
+                  <div className="flex flex-col items-end">
+                    <span className="line-through text-red-400 text-xs font-medium">{formatarMoeda(pedido.total || pedido.valor_total)}</span>
+                    <span className="text-red-600">{formatarMoeda(pedido.valor_faturado)}</span>
+                  </div>
+                ) : (
+                  <span className="text-emerald-600">{formatarMoeda(pedido.total || pedido.valor_total)}</span>
+                )}
+              </div>
             </div>
           </div>
         </div>

@@ -146,13 +146,23 @@ export default function TabelaPedidos({ pedidos, loading, page, totalPages, tota
 
               const taEnviado = !!foiBaixado || !!codigoOmieReal || (isOmie && statusAtual !== 'pendente' && statusAtual !== 'cancelado');
 
+              // 🟢 A MÁGICA DO CORTE NA TABELA
+              const isCortado = pedido.teve_corte === 1 || pedido.teve_corte === true || (pedido.valor_faturado > 0 && pedido.valor_faturado < (pedido.total || pedido.valor_total));
+
               return (
-                <tr key={idReal} onClick={() => onRowClick(pedido)} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors cursor-pointer group">
+                <tr key={idReal} onClick={() => onRowClick(pedido)} className={`transition-colors cursor-pointer group ${isCortado ? 'bg-amber-50/50 dark:bg-amber-900/10 hover:bg-amber-100 dark:hover:bg-amber-900/20' : 'hover:bg-zinc-50 dark:hover:bg-zinc-800/30'}`}>
                   
-                  {/* 🟢 O NOVO LAYOUT PREMIUM DA COLUNA DE ID */}
                   <td className="px-5 py-4 font-medium">
                     <div className="flex flex-col items-start gap-1.5">
                       <span className="text-zinc-800 dark:text-zinc-200 font-mono font-bold text-sm">#{idReal}</span>
+                      
+                      {/* 🟢 ETIQUETA TESOURA! */}
+                      {isCortado && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-100 text-amber-700 text-[10px] font-black tracking-wider uppercase shadow-sm">
+                          ✂️ Parcial
+                        </span>
+                      )}
+
                       {taEnviado && codigoMostrar && !String(codigoMostrar).startsWith('APP') && (
                         <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-purple-50 dark:bg-purple-500/10 border border-purple-200 dark:border-purple-500/20 text-purple-600 dark:text-purple-400 text-[10px] font-black tracking-wider uppercase shadow-sm">
                           OMIE #{Number(codigoMostrar)}
@@ -171,7 +181,17 @@ export default function TabelaPedidos({ pedidos, loading, page, totalPages, tota
                     {endereco.city && <div className="text-xs text-zinc-500 font-normal mt-0.5">{endereco.city} - {endereco.state}</div>}
                   </td>
                   <td className="px-5 py-4 text-zinc-500 whitespace-nowrap">{dataFormatada}</td>
-                  <td className="px-5 py-4 text-zinc-900 dark:text-zinc-200 font-medium text-right whitespace-nowrap">{formatarMoeda(pedido.total || pedido.valor_total)}</td>
+                  <td className="px-5 py-4 text-zinc-900 dark:text-zinc-200 font-medium text-right whitespace-nowrap">
+                    {isCortado ? (
+                      <div className="flex flex-col items-end">
+                        <span className="line-through text-red-400 dark:text-red-500/70 text-[11px] font-normal">{formatarMoeda(pedido.total || pedido.valor_total)}</span>
+                        <span className="text-red-600 dark:text-red-400 font-bold">{formatarMoeda(pedido.valor_faturado)}</span>
+                      </div>
+                    ) : (
+                      formatarMoeda(pedido.total || pedido.valor_total)
+                    )}
+                  </td>
+                  
                   <td className="px-5 py-4 text-center">{renderStatus(pedido.status || pedido.status_pedido)}</td>
                   <td className="px-5 py-4">
                     <div className="flex items-center justify-center">

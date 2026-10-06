@@ -1,42 +1,45 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import { getApiUrl } from "@/components/utils/api";
 import { 
   ShieldCheck, Key, LogOut, CheckCircle2, Store, 
-  Eye, EyeOff, XOctagon, Lock, RefreshCw, AlertTriangle
+  Eye, EyeOff, XOctagon, Lock, RefreshCw, AlertTriangle,
+  ImagePlus, Loader2 
 } from "lucide-react";
 import toast from 'react-hot-toast';
 
 export default function MinhaConta() {
+  const [isClient, setIsClient] = useState(false); // 🟢 TRAVA CONTRA "PISCAR"
+
   const [dadosLicenca, setDadosLicenca] = useState({
     nome: "Carregando...",
     email: "",
     licenca: "",
     vencimento: "",
-    modulos: []
+    modulos: [],
+    logoUrl: null 
   });
   
   const [mostrarChave, setMostrarChave] = useState(false);
   const [diasRestantes, setDiasRestantes] = useState("...");
   const [sincronizando, setSincronizando] = useState(false);
+  const [fazendoUpload, setFazendoUpload] = useState(false); 
+  
+  const fileInputRef = useRef(null); 
 
-  // 🟢 NOVO: ESTADOS PARA MÓDULOS DINÂMICOS E MODAL
   const [modulosDoSistema, setModulosDoSistema] = useState([]);
   const [carregandoModulos, setCarregandoModulos] = useState(true);
   const [modalRevogar, setModalRevogar] = useState(false);
 
-  // 🟢 NOVO: BUSCA OS MÓDULOS DIRETO DO BANCO DE DADOS
   const carregarModulosDaAPI = async () => {
     try {
-      // Como essa rota é pública para leitura ou usa o token do admin, puxamos direto
       const res = await fetch("https://api.raizan.com.br/api/admin/modulos");
       const data = await res.json();
       
       if (data.success) {
-        // Remove a Dashboard da lista, pois ela é padrão e não deve ser bloqueada
         const modulosFiltrados = data.modulos.filter((m) => m.slug !== 'dashboard' && m.slug !== 'inicio');
         setModulosDoSistema(modulosFiltrados);
       }
@@ -48,45 +51,45 @@ export default function MinhaConta() {
   };
 
   const carregarDadosDaMemoria = () => {
+    // 🟢 SEGURANÇA MÁXIMA DA TELA: Se não tem licença, expulsa pro login imediatamente
+    const licenca = localStorage.getItem("@raizan:license");
+    if (!licenca) {
+        window.location.href = "/login";
+        return;
+    }
+
     const nomeLocal = localStorage.getItem("@raizan:nome") || "Cliente Raizan";
     const email = localStorage.getItem("@raizan:email") || "email@nao-encontrado.com";
-    const licenca = localStorage.getItem("@raizan:license") || "---";
     const vencimento = localStorage.getItem("@raizan:expires_at");
     const modulosRaw = localStorage.getItem("@raizan:modulos");
+    const logoUrl = localStorage.getItem("@raizan:logo"); 
     
     let modulos = [];
     try { modulos = modulosRaw ? JSON.parse(modulosRaw) : []; } catch(e) {}
 
-    setDadosLicenca({ nome: nomeLocal, email, licenca, vencimento, modulos });
+    setDadosLicenca({ 
+        nome: nomeLocal, 
+        email, 
+        licenca, 
+        vencimento, 
+        modulos, 
+        logoUrl: logoUrl !== "null" ? logoUrl : null 
+    });
 
-    // Lógica da data
     if (vencimento && vencimento !== "undefined" && vencimento !== "null" && vencimento.trim() !== "") {
       try {
         let ano, mes, dia;
         
         if (vencimento.includes('/')) {
           const p = vencimento.split('/');
-          dia = parseInt(p[0]); 
-          mes = parseInt(p[1]) - 1; 
-          ano = parseInt(p[2]);
-        } 
-        else if (vencimento.includes('-')) {
+          dia = parseInt(p[0]); mes = parseInt(p[1]) - 1; ano = parseInt(p[2]);
+        } else if (vencimento.includes('-')) {
           const p = vencimento.split('T')[0].split('-');
-          ano = parseInt(p[0]); 
-          mes = parseInt(p[1]) - 1; 
-          dia = parseInt(p[2]);
-        } 
-        else {
+          ano = parseInt(p[0]); mes = parseInt(p[1]) - 1; dia = parseInt(p[2]);
+        } else {
           const limpo = vencimento.replace(/\D/g, '');
-          ano = parseInt(limpo.substring(0, 4));
-          mes = parseInt(limpo.substring(4, 6)) - 1;
-          dia = parseInt(limpo.substring(6, 8));
-          
-          if (ano > 2100) {
-             ano = parseInt(limpo.substring(4, 8));
-             mes = parseInt(limpo.substring(2, 4)) - 1;
-             dia = parseInt(limpo.substring(0, 2));
-          }
+          ano = parseInt(limpo.substring(0, 4)); mes = parseInt(limpo.substring(4, 6)) - 1; dia = parseInt(limpo.substring(6, 8));
+          if (ano > 2100) { ano = parseInt(limpo.substring(4, 8)); mes = parseInt(limpo.substring(2, 4)) - 1; dia = parseInt(limpo.substring(0, 2)); }
         }
 
         const dataVenc = new Date(ano, mes, dia, 23, 59, 59);
@@ -95,9 +98,7 @@ export default function MinhaConta() {
         const dias = Math.ceil(diferencaTempo / (1000 * 60 * 60 * 24));
         
         setDiasRestantes(dias > 0 ? dias : "Expirada");
-      } catch (e) {
-        setDiasRestantes("Erro de Leitura");
-      }
+      } catch (e) { setDiasRestantes("Erro de Leitura"); }
     } else {
       setDiasRestantes("Vitalícia");
     }
@@ -105,7 +106,8 @@ export default function MinhaConta() {
 
   useEffect(() => {
     carregarDadosDaMemoria();
-    carregarModulosDaAPI(); // Chama os módulos ao abrir a tela
+    carregarModulosDaAPI(); 
+    setIsClient(true); // 🟢 Libera a renderização da tela após tudo ser lido do cache
   }, []);
 
   const handleSincronizar = async () => {
@@ -114,7 +116,6 @@ export default function MinhaConta() {
       const email = localStorage.getItem("@raizan:email");
       const license = localStorage.getItem("@raizan:license");
       
-      // 🟢 CORREÇÃO AQUI: Atirando na API Central, não na local do Hub!
       const res = await fetch(`https://api.raizan.com.br/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -126,6 +127,8 @@ export default function MinhaConta() {
       if (json.sucesso || json.success) {
         localStorage.setItem("@raizan:expires_at", json.expires_at || "");
         localStorage.setItem("@raizan:modulos", JSON.stringify(json.modulos || []));
+        if (json.logo_url) localStorage.setItem("@raizan:logo", json.logo_url); 
+        
         carregarDadosDaMemoria();
         toast.success("Licença sincronizada com sucesso!");
       } else {
@@ -138,7 +141,48 @@ export default function MinhaConta() {
     }
   };
 
-  // 🟢 NOVO: AÇÃO DO MODAL DE REVOGAR
+  const handleUploadLogo = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+        toast.error("Por favor, selecione uma imagem válida (PNG, JPG, WEBP).");
+        return;
+    }
+
+    setFazendoUpload(true);
+    
+    try {
+      const tenantId = localStorage.getItem("@raizan:tenant") || process.env.NEXT_PUBLIC_TENANT_ID;
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch("https://api.raizan.com.br/api/hub/upload/logo", {
+        method: "POST",
+        headers: { "x-tenant-id": tenantId },
+        body: formData
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        localStorage.setItem("@raizan:logo", data.url);
+        setDadosLicenca(prev => ({ ...prev, logoUrl: data.url }));
+        toast.success("Logo atualizada com sucesso!");
+        
+        window.dispatchEvent(new Event('storage')); 
+      } else {
+        toast.error(data.message || "Falha ao enviar a imagem.");
+      }
+    } catch (error) {
+      console.error("Erro no upload:", error);
+      toast.error("Erro de conexão ao enviar a imagem.");
+    } finally {
+      setFazendoUpload(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
   const confirmarRevogarLicenca = () => {
     setModalRevogar(false);
     toast.loading("Limpando dados do terminal...");
@@ -155,6 +199,11 @@ export default function MinhaConta() {
     const arrayModulos = dadosLicenca.modulos || [];
     return arrayModulos.includes(slug);
   };
+
+  if (!isClient) {
+    // 🟢 Evita que a tela pisque enquanto lê as informações do Cache
+    return <div className="h-screen bg-zinc-50 dark:bg-[#09090b]"></div>;
+  }
 
   return (
     <div className="flex h-screen bg-zinc-50 dark:bg-[#09090b] text-zinc-900 dark:text-zinc-100 overflow-hidden transition-colors duration-300">
@@ -175,11 +224,46 @@ export default function MinhaConta() {
               
               <div className="md:col-span-1 space-y-6">
                 
-                {/* CARD PERFIL */}
+                {/* 🟢 CARD PERFIL - COMPORTAMENTO DINÂMICO DA LOGO */}
                 <div className="bg-white dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-800/60 rounded-3xl p-6 flex flex-col items-center text-center shadow-sm dark:shadow-none transition-colors">
-                  <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-purple-600 to-indigo-600 flex items-center justify-center shadow-xl shadow-purple-500/30 dark:shadow-purple-900/20 mb-4 ring-4 ring-white dark:ring-zinc-950 transition-all">
-                    <Store size={40} className="text-white" />
+                  
+                  {/* Container Dinâmico */}
+                  <div 
+                    onClick={() => fileInputRef.current?.click()}
+                    className={`relative flex items-center justify-center mb-6 transition-all cursor-pointer group overflow-hidden ${
+                      dadosLicenca.logoUrl 
+                      ? "h-24 w-full max-w-[200px] rounded-xl bg-transparent" 
+                      : "w-24 h-24 rounded-2xl bg-gradient-to-br from-purple-600 to-indigo-600 shadow-xl shadow-purple-500/30 dark:shadow-purple-900/20 ring-4 ring-white dark:ring-zinc-950"
+                    }`}
+                  >
+                    {/* Imagem (object-contain evita o corte lateral) ou Ícone da Lojinha */}
+                    {dadosLicenca.logoUrl ? (
+                        <img src={dadosLicenca.logoUrl} alt="Logo" className="max-h-full max-w-full object-contain drop-shadow-sm p-1" />
+                    ) : (
+                        <Store size={40} className="text-white" />
+                    )}
+
+                    {/* Fundo escuro ao passar o mouse */}
+                    <div className={`absolute inset-0 bg-black/60 flex flex-col items-center justify-center rounded-xl transition-opacity duration-300 ${fazendoUpload ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+                        {fazendoUpload ? (
+                            <Loader2 size={24} className="text-white animate-spin" />
+                        ) : (
+                            <>
+                                <ImagePlus size={24} className="text-white mb-1" />
+                                <span className="text-[9px] font-black uppercase text-white tracking-widest">Alterar Logo</span>
+                            </>
+                        )}
+                    </div>
                   </div>
+                  
+                  <input 
+                    type="file" 
+                    accept="image/png, image/jpeg, image/webp" 
+                    className="hidden" 
+                    ref={fileInputRef} 
+                    onChange={handleUploadLogo} 
+                  />
+
                   <h2 className="text-lg font-black text-zinc-900 dark:text-zinc-100 transition-colors">{dadosLicenca.nome}</h2>
                   <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-4 transition-colors">{dadosLicenca.email}</p>
                   
@@ -197,7 +281,6 @@ export default function MinhaConta() {
                   </button>
                 </div>
 
-                {/* CARD ZONA DE PERIGO */}
                 <div className="bg-rose-50 dark:bg-red-500/5 border border-rose-200 dark:border-red-500/20 rounded-3xl p-6 shadow-sm dark:shadow-none transition-colors">
                   <h3 className="text-rose-700 dark:text-red-400 font-black flex items-center gap-2 mb-2 transition-colors">
                     <XOctagon size={18} /> Zona de Perigo
@@ -206,7 +289,7 @@ export default function MinhaConta() {
                     Ao revogar a licença, este terminal perderá imediatamente o acesso.
                   </p>
                   <button 
-                    onClick={() => setModalRevogar(true)} // 🟢 ABRE O MODAL NOVO!
+                    onClick={() => setModalRevogar(true)}
                     className="w-full py-2.5 bg-white dark:bg-red-500/10 hover:bg-rose-100 dark:hover:bg-red-500/20 text-rose-700 dark:text-red-400 border border-rose-200 dark:border-red-500/30 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 shadow-sm dark:shadow-none active:scale-95"
                   >
                     <LogOut size={16} /> Revogar Acesso
@@ -216,7 +299,6 @@ export default function MinhaConta() {
 
               <div className="md:col-span-2 space-y-6">
                 
-                {/* CARD CHAVE DE LICENÇA */}
                 <div className="bg-white dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-800/60 rounded-3xl p-6 sm:p-8 shadow-sm dark:shadow-none transition-colors">
                   <h2 className="text-lg font-black text-zinc-900 dark:text-zinc-100 mb-6 flex items-center gap-2 transition-colors">
                     <Key size={20} className="text-purple-600 dark:text-purple-400 transition-colors" /> Chave de Licença
@@ -257,7 +339,6 @@ export default function MinhaConta() {
                   </div>
                 </div>
 
-                {/* CARD ECOSSISTEMA DINÂMICO */}
                 <div className="bg-white dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-800/60 rounded-3xl p-6 sm:p-8 shadow-sm dark:shadow-none transition-colors">
                   <div className="flex items-center justify-between mb-6">
                     <h2 className="text-lg font-black text-zinc-900 dark:text-zinc-100 flex items-center gap-2 transition-colors">
@@ -310,7 +391,6 @@ export default function MinhaConta() {
               </div>
             </div>
 
-            {/* 🟢 MODAL DE REVOGAR LICENÇA FEITO DO ZERO */}
             {modalRevogar && (
               <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
                 <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-3xl w-full max-w-md shadow-2xl p-8 text-center flex flex-col items-center relative overflow-hidden animate-in zoom-in-95 duration-200">

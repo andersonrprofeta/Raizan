@@ -12,7 +12,7 @@ export default function LoginB2B() {
   const [senha, setSenha] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
-  
+
   const [configuracaoPronta, setConfiguracaoPronta] = useState(false);
   const [isConfiguring, setIsConfiguring] = useState(true);
 
@@ -23,20 +23,20 @@ export default function LoginB2B() {
     const identificarPortal = async () => {
       try {
         const host = window.location.hostname; 
-        
+
         const res = await fetch(`${getHubUrl()}/api/hub/integracoes/b2b/identificar`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ url_acesso: host })
         });
-        
+
         if (!res.ok) throw new Error(`Erro no servidor: ${res.status}`);
 
         const data = await res.json();
-        
+
         if (data.success) {
           localStorage.setItem("@raizan:b2b_tenant_id", data.tenant_id);
-          
+
           // 🟢 1ª LINHA NOVA: Salva o acréscimo que vem do banco de dados na nuvem!
           localStorage.setItem("@raizan:acrescimo_cpf", data.acrescimo_cpf || 0);
 
@@ -48,10 +48,10 @@ export default function LoginB2B() {
           if (host === 'localhost' || host === '127.0.0.1') {
             localStorage.setItem("@raizan:b2b_tenant_id", process.env.NEXT_PUBLIC_TENANT_ID || "28389424000109");
             localStorage.setItem("@raizan:b2b_api_url", process.env.NEXT_PUBLIC_HUB_URL || "https://api.raizan.com.br");
-            
+
             // 🟢 2ª LINHA NOVA: Força os 30% no seu computador para testar!
             localStorage.setItem("@raizan:acrescimo_cpf", 30); 
-            
+
             setConfiguracaoPronta(true);
           } else {
             setErrorMsg("Portal não registrado. Verifique a URL no painel administrativo.");
@@ -62,10 +62,10 @@ export default function LoginB2B() {
         if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
           localStorage.setItem("@raizan:b2b_tenant_id", process.env.NEXT_PUBLIC_TENANT_ID || "28389424000109");
           localStorage.setItem("@raizan:b2b_api_url", process.env.NEXT_PUBLIC_HUB_URL || "https://api.raizan.com.br");
-          
+
           // 🟢 3ª LINHA NOVA: Força os 30% no seu computador se der erro de conexão!
           localStorage.setItem("@raizan:acrescimo_cpf", 30);
-          
+
           setConfiguracaoPronta(true);
         } else {
           setErrorMsg("Servidor Central indisponível. Verifique as rotas da Hostinger.");
@@ -106,8 +106,17 @@ export default function LoginB2B() {
       }
 
       localStorage.setItem("raizan_user", JSON.stringify(data.user));
+
+      // 🟢 O PULO DO GATO: Pesca a logo do backend e já joga no cache principal do Sidebar
+      const logoB2B = data.user.logo_url || data.tenant_logo || data.logo_url || null;
+      if (logoB2B) {
+        localStorage.setItem("@raizan:logo", logoB2B);
+      } else {
+        localStorage.removeItem("@raizan:logo"); // Limpa resquícios antigos se não houver logo
+      }
+
       toast.success(`Bem-vindo, ${data.user.nome}!`);
-      
+
       setTimeout(() => {
         window.location.href = "/b2b-inicio"; 
       }, 1000);
@@ -120,18 +129,18 @@ export default function LoginB2B() {
 
   return (
     <div className="min-h-screen bg-zinc-100 dark:bg-[#09090b] flex items-center justify-center p-4 sm:p-6 lg:p-8 relative overflow-hidden transition-colors duration-500">
-      
+
       <div className="w-full max-w-5xl flex flex-col md:flex-row bg-white dark:bg-[#121214] rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.3)] overflow-hidden z-10 animate-in fade-in zoom-in-95 duration-500">
-        
+
         {/* LADO ESQUERDO - BRANDING (AGORA ROXO/INDIGO) */}
         <div className="w-full md:w-5/12 bg-[#0c0c0e] p-8 md:p-12 flex flex-col justify-between relative overflow-hidden shrink-0 border-r border-zinc-800/50">
           <div className="absolute -top-32 -left-32 w-80 h-80 bg-purple-600/30 rounded-full blur-[100px] pointer-events-none" />
           <div className="absolute -bottom-32 -right-32 w-80 h-80 bg-indigo-600/20 rounded-full blur-[100px] pointer-events-none" />
-          
+
           <div className="relative z-10 mb-10 md:mb-0">
             <Image src="/logo.png" alt="Logo da Distribuidora" width={180} height={70} priority className="object-contain drop-shadow-2xl" />
           </div>
-          
+
           <div className="relative z-10 my-auto">
             <h1 className="text-3xl md:text-4xl lg:text-5xl font-extrabold text-white tracking-tight mb-4 leading-tight">
               Seu estoque atualizado.
@@ -140,7 +149,7 @@ export default function LoginB2B() {
               Reposição de estoque, acompanhamento de pedidos e gestão inteligente em um só lugar.
             </p>
           </div>
-          
+
           <div className="relative z-10 mt-10 md:mt-0">
             <div className="inline-flex items-center gap-2 text-[10px] md:text-xs font-bold text-purple-400 bg-purple-500/10 border border-purple-500/20 px-3 py-1.5 rounded-full uppercase tracking-wider">
               <ShieldCheck size={16} /> Ambiente Seguro e Monitorado
@@ -151,7 +160,7 @@ export default function LoginB2B() {
         {/* LADO DIREITO - FORMULÁRIO */}
         <div className="w-full md:w-7/12 bg-white dark:bg-[#121214] p-8 md:p-12 lg:p-16 flex flex-col justify-center relative transition-colors duration-500">
           <div className="max-w-md w-full mx-auto">
-            
+
             <div className="mb-10">
               <h2 className="text-3xl font-black text-zinc-900 dark:text-zinc-100 mb-2">Bem-vindo(a)</h2>
               <p className="text-zinc-500 dark:text-zinc-400 text-sm">Identifique-se para acessar o portal de compras.</p>
@@ -165,7 +174,7 @@ export default function LoginB2B() {
             )}
 
             <form onSubmit={handleLogin} className="flex flex-col gap-5">
-              
+
               <div className="flex flex-col gap-2">
                 <label className="text-[11px] font-bold text-zinc-700 dark:text-zinc-400 uppercase tracking-wider">E-mail Corporativo / Pessoal</label>
                 <div className="relative">

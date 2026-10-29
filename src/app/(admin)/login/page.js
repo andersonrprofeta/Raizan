@@ -52,6 +52,13 @@ export default function Login() {
                           
       localStorage.setItem("@raizan:nome", nomeOficial);
 
+      // 🟢 SALVANDO A LOGO NA MEMÓRIA DO NAVEGADOR
+      if (data.logo_url) {
+        localStorage.setItem("@raizan:logo", data.logo_url);
+      } else {
+        localStorage.removeItem("@raizan:logo");
+      }
+
       // 🟢 MUDANÇA 3: A MÁGICA DO TENANT!
       // Cria o "crachá" completo que as outras telas (Configurações, Clientes) vão usar.
       const dadosDoUsuario = {

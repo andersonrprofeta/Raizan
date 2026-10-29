@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
-// 🟢 ADICIONEI O ÍCONE 'Scissors' AQUI
-import { X, User, MapPin, FileText, Package, Phone, Mail, Calendar, Edit, Loader2, Truck, CheckCircle2, Scissors } from "lucide-react"; 
+import { X, User, MapPin, FileText, Package, Phone, Mail, Calendar, Edit, Loader2, Truck, CheckCircle2, Scissors, Briefcase, CreditCard, AlertTriangle } from "lucide-react"; 
 import Link from "next/link"; 
 import { getHubUrl, getHeaders } from "@/components/utils/api";
 import toast from 'react-hot-toast';
@@ -77,14 +76,37 @@ const obterTenantSeguro = () => {
   return localStorage.getItem("@raizan:tenant") || process.env.NEXT_PUBLIC_TENANT_ID || null;
 };
 
+// 🟢 TRADUTOR LOCAL (COM REFORÇO DA LISTA OFICIAL)
+const formatarPrazo = (valorRaw, dicionarioCondicoes) => {
+  if (!valorRaw) return "A Combinar";
+  let valor = String(valorRaw).trim();
+  
+  if (valor.toUpperCase().startsWith('CÓD:')) {
+      valor = valor.replace(/CÓD:\s*/i, '').trim();
+  }
+
+  if (dicionarioCondicoes && dicionarioCondicoes.length > 0) {
+      const prazoEncontrado = dicionarioCondicoes.find(c => String(c.codigo) === valor || String(c.cCodigo) === valor);
+      if (prazoEncontrado) return prazoEncontrado.descricao || prazoEncontrado.cDescricao;
+  }
+
+  if (isNaN(Number(valor)) && valor.length > 3 && !valor.startsWith('CÓD')) return valor;
+
+  const mapaCodigos = {
+    "000": "À Vista",
+    "999": "A Combinar / Faturado",
+    "0": "À Vista"
+  };
+  
+  return mapaCodigos[valor] || `CÓD: ${valor}`;
+};
+
 export default function ModalDetalhes({ pedido, onClose, activeTabObj, onUpdateStatus }) {
   const [dadosRecuperados, setDadosRecuperados] = useState(null);
   const [recuperando, setRecuperando] = useState(false);
   const [loadingRastreio, setLoadingRastreio] = useState(false);
   const [timelineRastreio, setTimelineRastreio] = useState(null);
-
-  // 🟢 IDENTIFICADOR BLINDADO
-  const isOmie = String(activeTabObj?.plataforma || activeTabObj?.tipo || '').toLowerCase().includes('omie');
+  const [condicoesOmie, setCondicoesOmie] = useState([]);
 
   useEffect(() => {
     if (!pedido) {
@@ -96,8 +118,19 @@ export default function ModalDetalhes({ pedido, onClose, activeTabObj, onUpdateS
     setDadosRecuperados(null);
     setTimelineRastreio(null);
 
-    // 🟢 AGORA O AUTO-RECUPERADOR FUNCIONA PRO B2B E PRO APP/OMIE!
-    if (activeTabObj?.tipo !== 'b2b' && !isOmie) return; 
+    const fetchPrazos = async () => {
+        try {
+            const tenantId = obterTenantSeguro();
+            const res = await fetch(`https://api.raizan.com.br/api/hub/integracoes/omie/condicoes-pagamento`, {
+                headers: { "x-tenant-id": tenantId }
+            });
+            const data = await res.json();
+            if (data.success && data.condicoes) {
+                setCondicoesOmie(data.condicoes);
+            }
+        } catch(e) { }
+    };
+    fetchPrazos();
 
     const endParcial = parseEndereco(pedido);
     const emailBase = endParcial.email;
@@ -129,7 +162,7 @@ export default function ModalDetalhes({ pedido, onClose, activeTabObj, onUpdateS
       };
       buscarNoCadastro();
     }
-  }, [pedido?.id, pedido?.pedido_id, activeTabObj, isOmie]);
+  }, [pedido?.id, pedido?.pedido_id, activeTabObj]);
 
   if (!pedido) return null;
 
@@ -148,7 +181,6 @@ export default function ModalDetalhes({ pedido, onClose, activeTabObj, onUpdateS
   let telefone = endereco.phone || "Não informado";
   if (!telefone || telefone.trim() === '') telefone = 'Não informado';
 
-  // 🟢 APLICANDO OS DADOS RECUPERADOS DA NUVEM (INCLUINDO A INSCRIÇÃO ESTADUAL)
   if (dadosRecuperados && dadosRecuperados.pedidoId === pedidoIdAtual) {
     if (dadosRecuperados.cpf_cnpj) cpfCnpj = dadosRecuperados.cpf_cnpj;
     if (dadosRecuperados.ie) ie = dadosRecuperados.ie;
@@ -191,9 +223,68 @@ export default function ModalDetalhes({ pedido, onClose, activeTabObj, onUpdateS
     : [{ value: 'pending', label: 'Pagamento Pendente' }, { value: 'processing', label: 'Processando / Pago' }, { value: 'on-hold', label: 'Aguardando' }, { value: 'completed', label: 'Concluído / Entregue' }, { value: 'cancelled', label: 'Cancelado' }, { value: 'pendente', label: 'Pendente' }, { value: 'sincronizado', label: 'Sincronizado ERP' }];
 
   const clienteNome = endereco.first_name ? `${endereco.first_name || ''} ${endereco.last_name || ''}` : `Cliente #${pedido.cliente_id || 'Varejo'}`;
-  const itensPedido = pedido.line_items || pedido.itens || [];
-
   const isEntregue = ['completed', 'entregue'].includes(statusAtual);
+  const vendedor = pedido.vendedor_nome || "Loja Online"; 
+  const prazo = formatarPrazo(pedido.payment_method_title || pedido.metodo_pagamento, condicoesOmie);
+
+  // ============================================================================
+  // 🧠 CÉREBRO MATEMÁTICO: PROCESSA TODOS OS ITENS E CORTES
+  // ============================================================================
+  const valorOriginalPedido = Number(pedido.total || pedido.valor_total || 0);
+  const valorFaturadoERP = pedido.valor_faturado !== undefined && pedido.valor_faturado !== null && Number(pedido.valor_faturado) > 0 
+    ? Number(pedido.valor_faturado) 
+    : valorOriginalPedido;
+
+  const houveReducaoValor = valorFaturadoERP < (valorOriginalPedido - 0.05);
+  const isPedidoAlteradoERP = houveReducaoValor || (pedido.teve_corte === 1 || pedido.teve_corte === true);
+  const itensPedidoBase = pedido.line_items || pedido.itens || [];
+
+  const itensProcessados = itensPedidoBase.map(item => {
+      let qtdPedida = Number(item.quantity || item.quantidade || 0);
+      let qtdFaturada = item.qtd_faturada !== undefined && item.qtd_faturada !== null ? Number(item.qtd_faturada) : qtdPedida;
+      
+      let precoUnOriginal = Number(item.price || item.preco_unitario || 0);
+      let totalOriginal = Number(item.total || item.preco_total || 0);
+      if (totalOriginal === 0) totalOriginal = qtdPedida * precoUnOriginal;
+
+      let totalFaturado = item.valor_faturado !== undefined && item.valor_faturado !== null 
+        ? Number(item.valor_faturado) 
+        : (qtdFaturada * precoUnOriginal);
+
+      // 🚑 SALVA-VIDAS GLOBAL (Se só tem 1 item e o backend não carimbou a linha)
+      if (isPedidoAlteradoERP && qtdFaturada === qtdPedida && itensPedidoBase.length === 1) {
+          totalFaturado = valorFaturadoERP;
+          if (precoUnOriginal > 0 && totalFaturado < totalOriginal) {
+              qtdFaturada = Math.floor((totalFaturado + 0.01) / precoUnOriginal);
+          }
+      }
+
+      // 🟢 Se qtdFaturada for MAIOR que qtdPedida (cliente pediu mais), cortado é 0 (não destaca corte)!
+      const cortado = qtdPedida > qtdFaturada ? (qtdPedida - qtdFaturada) : 0;
+      let precoUnFaturado = qtdFaturada > 0 ? (totalFaturado / qtdFaturada) : precoUnOriginal;
+
+      return {
+          nome: item.name || item.nome_produto,
+          sku: item.sku || 'N/A',
+          qtdPedida,
+          qtdFaturada,
+          cortado,
+          precoUnOriginal,
+          precoUnFaturado,
+          totalOriginal,
+          totalFaturado
+      };
+  });
+
+  // 🟢 Na tabela principal só aparecem os produtos que tiveram pelo menos 1 unidade faturada!
+  const itensAtendidos = itensProcessados.filter(i => i.qtdFaturada > 0);
+  // 🟢 No card de cortes entram tanto os cortados parcialmente quanto os excluídos (qtdFaturada === 0)!
+  const itensComCorte = itensProcessados.filter(i => i.cortado > 0);
+  const teveAlgumCorte = itensComCorte.length > 0;
+
+  const valorTotalReal = valorFaturadoERP;
+  const freteReal = Number(pedido.shipping_total || pedido.valor_frete || 0);
+  const subtotalReal = valorTotalReal - freteReal;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-900/40 dark:bg-black/60 backdrop-blur-sm transition-all" onClick={onClose}>
@@ -209,7 +300,6 @@ export default function ModalDetalhes({ pedido, onClose, activeTabObj, onUpdateS
                 {statusOpcoes.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
               </select>
               
-              {/* 🟢 O BOTÃO EDITAR VOLTOU PRO JOGO! */}
               {['aguardando-pagamento', 'pending', 'processing', 'on-hold', 'pago', 'pendente'].includes(statusAtual) && (
                 <Link href={`/editar-pedido?id=${pedido.id || pedido.pedido_id}`}>
                   <button className="bg-amber-100 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 px-3 py-1.5 rounded-md text-xs font-bold flex items-center gap-1.5 ml-2 shadow-sm"><Edit size={14} /> Editar</button>
@@ -228,11 +318,27 @@ export default function ModalDetalhes({ pedido, onClose, activeTabObj, onUpdateS
             <div className="space-y-6">
               <div className="bg-zinc-50 dark:bg-zinc-900/30 border border-zinc-200 dark:border-zinc-800/50 rounded-xl p-5 relative">
                 {recuperando && <div className="absolute top-4 right-4"><Loader2 size={16} className="text-emerald-500 animate-spin" /></div>}
-                <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2 mb-4 border-b border-zinc-200 dark:border-zinc-800 pb-2"><User size={16} className="text-purple-600" /> Informações do Cliente</h3>
+                
+                <div className="flex items-center justify-between mb-4 border-b border-zinc-200 dark:border-zinc-800 pb-2">
+                  <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2"><User size={16} className="text-purple-600" /> Informações do Cliente</h3>
+                  <div className="flex items-center gap-1 bg-purple-100 dark:bg-purple-500/10 px-2 py-1 rounded-md">
+                    <Briefcase size={12} className="text-purple-600 dark:text-purple-400" />
+                    <span className="text-[10px] font-bold text-purple-700 dark:text-purple-400 uppercase">{vendedor}</span>
+                  </div>
+                </div>
+
                 <div className="space-y-3 text-sm">
                   <p><span className="text-zinc-500">Razão/Nome:</span> <span className="font-medium text-zinc-900 dark:text-zinc-100">{clienteNome}</span></p>
                   <p className="flex items-center gap-2"><span className="text-zinc-500">CPF/CNPJ:</span> {recuperando ? <span className="w-32 h-4 bg-zinc-200 dark:bg-zinc-700 animate-pulse rounded" /> : <span className={cpfCnpj !== 'Não informado' ? "text-emerald-600 font-bold" : "text-zinc-900 dark:text-zinc-100"}>{cpfCnpj}</span>}</p>
                   <p className="flex items-center gap-2"><span className="text-zinc-500">Inscrição Est.:</span> {recuperando ? <span className="w-24 h-4 bg-zinc-200 dark:bg-zinc-700 animate-pulse rounded" /> : <span className="text-zinc-900 dark:text-zinc-100">{ie}</span>}</p>
+                  
+                  <div className="flex items-center gap-2 mt-1 mb-2 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20 p-2 rounded-lg w-max">
+                    <CreditCard size={14} className="text-emerald-600" />
+                    <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400">
+                       Condição: {condicoesOmie.length === 0 ? "Buscando..." : prazo.toUpperCase()}
+                    </span>
+                  </div>
+
                   <p className="flex items-center gap-2 mt-2"><Mail size={14} className="text-zinc-500" /> <span className="truncate text-zinc-900 dark:text-zinc-100">{endereco.email || "Sem e-mail"}</span></p>
                   <p className="flex items-center gap-2"><Phone size={14} className="text-zinc-500" /> {recuperando ? <span className="w-24 h-4 bg-zinc-200 dark:bg-zinc-700 animate-pulse rounded" /> : <span className={telefone !== 'Não informado' ? "text-emerald-600 font-bold" : "text-zinc-900 dark:text-zinc-100"}>{telefone}</span>}</p>
                 </div>
@@ -306,27 +412,20 @@ export default function ModalDetalhes({ pedido, onClose, activeTabObj, onUpdateS
                           <span className={`absolute top-8 text-[11px] ${isEntregue ? 'font-bold text-emerald-600' : 'font-medium text-zinc-400'}`}>Entregue</span>
                         </div>
                       </div>
-
+                      
                       <div className="mt-8 space-y-2 border-t border-zinc-100 dark:border-zinc-800/50 pt-4">
                         <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Últimas Atualizações</p>
-                        {timelineRastreio.map((evento, index) => {
-                          let textoStatus = evento.status;
-                          if (isEntregue && index === 0 && evento.data === "Atualização Automática") {
-                            textoStatus = "Objeto Entregue ao Destinatário";
-                          }
-
-                          return (
-                            <div key={index} className="flex justify-between items-center text-xs">
-                              <div className="flex items-center gap-2">
-                                <div className={`w-1.5 h-1.5 rounded-full ${index === 0 ? (isEntregue ? 'bg-emerald-500' : 'bg-blue-600') : 'bg-zinc-300 dark:bg-zinc-700'}`}></div>
-                                <span className={index === 0 ? (isEntregue ? 'text-emerald-600 font-bold' : 'text-zinc-900 dark:text-zinc-100 font-bold') : 'text-zinc-500'}>{textoStatus}</span>
-                              </div>
-                              <div className="text-right">
-                                <span className="block text-zinc-400 text-[10px]">{evento.local}</span>
-                              </div>
-                            </div>
-                          );
-                        })}
+                        {timelineRastreio.map((evento, index) => (
+                           <div key={index} className="flex justify-between items-center text-xs">
+                             <div className="flex items-center gap-2">
+                               <div className={`w-1.5 h-1.5 rounded-full ${index === 0 ? (isEntregue ? 'bg-emerald-500' : 'bg-blue-600') : 'bg-zinc-300 dark:bg-zinc-700'}`}></div>
+                               <span className={index === 0 ? (isEntregue ? 'text-emerald-600 font-bold' : 'text-zinc-900 dark:text-zinc-100 font-bold') : 'text-zinc-500'}>{evento.status}</span>
+                             </div>
+                             <div className="text-right">
+                               <span className="block text-zinc-400 text-[10px]">{evento.local}</span>
+                             </div>
+                           </div>
+                        ))}
                       </div>
                     </div>
                   )}
@@ -342,19 +441,9 @@ export default function ModalDetalhes({ pedido, onClose, activeTabObj, onUpdateS
             </div>
           </div>
 
-          {/* 🟢 BANNER DE ALERTA DE CORTE */}
-          {(pedido.teve_corte === 1 || pedido.teve_corte === true || (pedido.valor_faturado > 0 && pedido.valor_faturado < (pedido.total || pedido.valor_total))) && (
-            <div className="mt-6 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-xl p-4 flex items-center gap-3">
-              <div className="p-2 bg-red-100 dark:bg-red-500/20 rounded-full flex-shrink-0">
-                <Scissors className="text-red-600" size={20} />
-              </div>
-              <div>
-                <p className="font-bold text-red-800 dark:text-red-400">Atendimento Parcial (Corte de Estoque)</p>
-                <p className="text-sm text-red-700 dark:text-red-300">O ERP faturou uma quantidade menor do que a solicitada pelo vendedor. Os itens cortados estão destacados na tabela abaixo.</p>
-              </div>
-            </div>
-          )}
-
+          {/* ========================================================= */}
+          {/* TABELA PRINCIPAL LIMPA (O QUE REALMENTE FOI FATURADO) */}
+          {/* ========================================================= */}
           <div className="mt-6 bg-zinc-50 dark:bg-zinc-900/30 border border-zinc-200 dark:border-zinc-800/50 rounded-xl p-5">
             <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2 mb-4 border-b border-zinc-200 dark:border-zinc-800 pb-2"><Package size={16} className="text-emerald-600" /> Itens do Pedido</h3>
             <div className="overflow-x-auto">
@@ -362,84 +451,118 @@ export default function ModalDetalhes({ pedido, onClose, activeTabObj, onUpdateS
                 <thead className="text-xs text-zinc-500 uppercase bg-zinc-100 dark:bg-zinc-900/50">
                   <tr><th className="px-4 py-3 rounded-l-lg">Produto</th><th className="px-4 py-3 text-center">Qtd</th><th className="px-4 py-3 text-right">Preço Un.</th><th className="px-4 py-3 text-right rounded-r-lg">Total</th></tr>
                 </thead>
-                {/* 🟢 A NOVA TABELA QUE RISCA OS ITENS CORTADOS */}
                 <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800/50">
-                  {itensPedido.map((item, idx) => {
-                    // 🟢 A LÓGICA BLINDADA DO ITEM (Com deduções matemáticas!)
-                    const isPedidoCortado = pedido.teve_corte === 1 || pedido.teve_corte === true || (pedido.valor_faturado > 0 && pedido.valor_faturado < (pedido.total || pedido.valor_total));
-                    
-                    let qtdPedida = Number(item.quantity || item.quantidade || 0);
-                    let qtdFaturada = item.qtd_faturada !== undefined && item.qtd_faturada !== null ? Number(item.qtd_faturada) : qtdPedida;
-                    
-                    let totalPedido = Number(item.total || item.preco_total || 0);
-                    let totalFaturado = item.valor_faturado !== undefined && item.valor_faturado !== null ? Number(item.valor_faturado) : totalPedido;
-
-                    // 🟢 HACK DE MESTRE: Se o banco não achou o SKU exato para atualizar a linha, mas o pedido inteiro foi cortado e só tem 1 item na lista, o painel deduz sozinho!
-                    if (isPedidoCortado && qtdFaturada === qtdPedida && itensPedido.length === 1) {
-                        totalFaturado = Number(pedido.valor_faturado);
-                        const precoUn = Number(item.price || item.preco_unitario || 0);
-                        if (precoUn > 0) {
-                            qtdFaturada = Math.floor(totalFaturado / precoUn);
-                        }
-                    }
-
-                    const isItemCortado = qtdFaturada < qtdPedida;
-
-                    return (
-                      <tr key={idx} className={`transition-colors ${isItemCortado ? 'bg-red-50/50 dark:bg-red-900/20' : 'hover:bg-zinc-100 dark:hover:bg-zinc-800/20'}`}>
+                  {itensAtendidos.map((item, idx) => (
+                      <tr key={idx} className="hover:bg-zinc-100 dark:hover:bg-zinc-800/20 transition-colors">
                         <td className="px-4 py-3 font-medium">
-                          {item.name || item.nome_produto} <br/>
-                          <span className="text-xs text-zinc-500 font-normal">SKU: {item.sku || 'N/A'}</span>
-                          {isItemCortado && <span className="ml-2 text-[10px] font-bold text-red-600 uppercase tracking-wide">Faltou Estoque</span>}
+                          {item.nome} <br/>
+                          <span className="text-xs text-zinc-500 font-normal">SKU: {item.sku}</span>
                         </td>
-                        
-                        <td className="px-4 py-3 text-center">
-                          {isItemCortado ? (
-                            <div className="flex flex-col items-center">
-                              <span className="line-through text-red-400 text-[11px]">{qtdPedida} un</span>
-                              <span className="font-bold text-red-600">{qtdFaturada} un</span>
-                            </div>
-                          ) : (
-                            qtdPedida
-                          )}
-                        </td>
-                        
-                        <td className="px-4 py-3 text-right">{formatarMoeda(item.price || item.preco_unitario)}</td>
-                        
-                        <td className="px-4 py-3 text-right font-medium">
-                          {isItemCortado ? (
-                            <div className="flex flex-col items-end">
-                              <span className="line-through text-red-400 text-[11px]">{formatarMoeda(totalPedido)}</span>
-                              <span className="font-bold text-red-600">{formatarMoeda(totalFaturado)}</span>
-                            </div>
-                          ) : (
-                            <span className="text-emerald-600">{formatarMoeda(totalPedido)}</span>
-                          )}
-                        </td>
+                        <td className="px-4 py-3 text-center font-medium">{item.qtdFaturada}</td>
+                        <td className="px-4 py-3 text-right">{formatarMoeda(item.precoUnFaturado)}</td>
+                        <td className="px-4 py-3 text-right font-medium text-emerald-600">{formatarMoeda(item.totalFaturado)}</td>
                       </tr>
-                    )
-                  })}
+                  ))}
                 </tbody>
               </table>
             </div>
+            
             <div className="mt-4 pt-4 border-t border-zinc-200 dark:border-zinc-800 flex flex-col items-end space-y-2 text-sm">
-              <div className="flex justify-between w-56 text-zinc-500"><span>Subtotal:</span><span>{formatarMoeda((pedido.total || pedido.valor_total) - (pedido.shipping_total || pedido.valor_frete || 0))}</span></div>
-              <div className="flex justify-between w-56 text-zinc-500"><span>Frete:</span><span>{formatarMoeda(pedido.shipping_total || pedido.valor_frete || 0)}</span></div>
+              {houveReducaoValor && (
+                <div className="flex justify-between w-64 text-zinc-400 text-xs">
+                  <span>Valor Original Solicitado:</span>
+                  <span className="line-through">{formatarMoeda(valorOriginalPedido)}</span>
+                </div>
+              )}
+              <div className="flex justify-between w-64 text-zinc-500">
+                <span>Subtotal Faturado:</span>
+                <span>{formatarMoeda(subtotalReal)}</span>
+              </div>
+              <div className="flex justify-between w-64 text-zinc-500">
+                <span>Frete:</span>
+                <span>{formatarMoeda(freteReal)}</span>
+              </div>
               
-              {/* 🟢 TOTAL ATUALIZADO PARA EXIBIR RISCADO EM CASO DE CORTE */}
-              <div className="flex justify-between w-56 text-lg font-bold mt-2 pt-2 border-t border-zinc-200 dark:border-zinc-800">
-                <span>Total:</span>
-                {(pedido.teve_corte === 1 || pedido.teve_corte === true || (pedido.valor_faturado > 0 && pedido.valor_faturado < (pedido.total || pedido.valor_total))) ? (
-                  <div className="flex flex-col items-end">
-                    <span className="line-through text-red-400 text-xs font-medium">{formatarMoeda(pedido.total || pedido.valor_total)}</span>
-                    <span className="text-red-600">{formatarMoeda(pedido.valor_faturado)}</span>
-                  </div>
-                ) : (
-                  <span className="text-emerald-600">{formatarMoeda(pedido.total || pedido.valor_total)}</span>
-                )}
+              <div className="flex justify-between items-center w-64 text-lg font-bold mt-2 pt-2 border-t border-zinc-200 dark:border-zinc-800">
+                <span>Total Final:</span>
+                <div className="flex flex-col items-end">
+                  {houveReducaoValor && (
+                    <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-rose-100 dark:bg-rose-500/20 text-rose-600 dark:text-rose-400 mb-0.5">
+                      Reduzido (-{formatarMoeda(valorOriginalPedido - valorTotalReal)})
+                    </span>
+                  )}
+                  <span className="text-emerald-600">{formatarMoeda(valorTotalReal)}</span>
+                </div>
               </div>
             </div>
           </div>
+
+          {/* ========================================================= */}
+          {/* 🍎 ZONA DE AUDITORIA DE CORTES (DESIGN APPLE / PONTILHADO) */}
+          {/* ========================================================= */}
+          {teveAlgumCorte && (
+            <div className="mt-6 rounded-2xl border-2 border-dashed border-rose-300 dark:border-rose-500/30 bg-rose-50/40 dark:bg-rose-950/10 p-5 transition-all animate-in fade-in slide-in-from-bottom-2 duration-300">
+              <div className="flex items-center justify-between mb-4 pb-3 border-b border-dashed border-rose-200 dark:border-rose-800/40">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-rose-100 dark:bg-rose-500/20 border border-rose-200/60 dark:border-rose-500/30 flex items-center justify-center text-rose-600 dark:text-rose-400 shadow-sm">
+                    <Scissors size={18} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">
+                      Cortes no Pedido
+                    </h3>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                      Itens removidos ou reduzidos no faturamento do ERP
+                    </p>
+                  </div>
+                </div>
+                <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-rose-100 dark:bg-rose-500/20 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-500/30">
+                  {itensComCorte.length} {itensComCorte.length === 1 ? 'item cortado' : 'itens cortados'}
+                </span>
+              </div>
+
+              <div className="space-y-2.5">
+                {itensComCorte.map((ic, idx) => (
+                  <div 
+                    key={idx} 
+                    className="group flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white/90 dark:bg-zinc-900/70 backdrop-blur-md p-3.5 px-4 rounded-xl border border-zinc-200/80 dark:border-zinc-800/80 hover:border-rose-300 dark:hover:border-rose-500/40 transition-all shadow-sm"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 truncate">
+                        {ic.nome}
+                      </p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-[11px] font-mono text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded">
+                          SKU: {ic.sku}
+                        </span>
+                        <span className="text-[11px] text-rose-600 dark:text-rose-400 font-medium">
+                          • Impacto: -{formatarMoeda(ic.cortado * ic.precoUnOriginal)}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 sm:gap-3 self-end sm:self-center">
+                      <div className="px-3 py-1.5 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200/60 dark:border-zinc-700/50 text-center min-w-[68px]">
+                        <p className="text-[9px] text-zinc-400 dark:text-zinc-500 uppercase font-bold tracking-wider">Pedido</p>
+                        <p className="text-xs font-bold text-zinc-600 dark:text-zinc-300 mt-0.5">{ic.qtdPedida} un</p>
+                      </div>
+
+                      <div className="px-3 py-1.5 rounded-lg bg-emerald-50/60 dark:bg-emerald-500/10 border border-emerald-200/60 dark:border-emerald-500/20 text-center min-w-[68px]">
+                        <p className="text-[9px] text-emerald-600 dark:text-emerald-400 uppercase font-bold tracking-wider">Faturado</p>
+                        <p className="text-xs font-bold text-emerald-700 dark:text-emerald-300 mt-0.5">{ic.qtdFaturada} un</p>
+                      </div>
+
+                      <div className="px-3.5 py-1.5 rounded-lg bg-rose-500 text-white shadow-sm shadow-rose-500/20 text-center min-w-[72px]">
+                        <p className="text-[9px] text-rose-100 uppercase font-black tracking-wider">Cortado</p>
+                        <p className="text-xs font-black mt-0.5">-{ic.cortado} un</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
         </div>
       </div>
     </div>

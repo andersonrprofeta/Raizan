@@ -5,10 +5,13 @@ import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import toast from 'react-hot-toast';
 import { getHubUrl, getHeaders } from "@/components/utils/api";
-import { ShoppingBag, Store, LayoutTemplate, Box, Layers, Search } from "lucide-react";
+import { ShoppingBag, Store, LayoutTemplate, Box, Layers, Search, Printer } from "lucide-react";
 
 import TabelaPedidos from "@/components/pedidos/TabelaPedidos";
 import ModalDetalhes from "@/components/pedidos/ModalDetalhes";
+
+import ListaSeparacao from "@/components/checkout/ListaSeparacao"; 
+import EtiquetaVolume from "@/components/checkout/etiqueta";
 
 const obterTenantSeguro = () => {
   if (typeof window === 'undefined') return null;
@@ -23,6 +26,92 @@ const obterTenantSeguro = () => {
   return localStorage.getItem("@raizan:tenant") || process.env.NEXT_PUBLIC_TENANT_ID || null;
 };
 
+const prepararDadosEtiqueta = (pedidoCru, dadosOmie) => {
+  if (!pedidoCru) return null;
+
+  let rawEnd = {};
+  const tryParse = (val) => {
+    if (!val) return null;
+    if (typeof val === 'object') return val;
+    try { return JSON.parse(val); } catch(e) { return null; }
+  };
+  
+  if (pedidoCru.billing && Object.keys(pedidoCru.billing).length > 0) rawEnd = pedidoCru.billing;
+  else if (pedidoCru.cliente && (pedidoCru.cliente.endereco || pedidoCru.cliente.endereco_json)) {
+    rawEnd = tryParse(pedidoCru.cliente.endereco_json) || tryParse(pedidoCru.cliente.endereco) || {};
+  } else if (pedidoCru.endereco || pedidoCru.endereco_json || pedidoCru.endereco_entrega) {
+    rawEnd = tryParse(pedidoCru.endereco_json) || tryParse(pedidoCru.endereco) || tryParse(pedidoCru.endereco_entrega) || {};
+  }
+
+  const getMeta = (keys) => {
+    if (!pedidoCru.meta_data || !Array.isArray(pedidoCru.meta_data)) return null;
+    const m = pedidoCru.meta_data.find(x => keys.includes(x.key));
+    return m ? m.value : null;
+  };
+
+  let idReal = pedidoCru.id || pedidoCru.pedido_id || "000000";
+  const nomeLocal = rawEnd.first_name || pedidoCru.cliente?.nome || rawEnd.nome || rawEnd.fantasia || '';
+  
+  let doc = pedidoCru.cnpj_cpf || pedidoCru.cliente?.cnpj || pedidoCru.cliente?.cpf_cnpj || rawEnd.cnpj_cpf || rawEnd.cpf_cnpj || getMeta(['_billing_cpf', '_billing_cnpj', 'billing_cpf', 'billing_cnpj']) || 'Não informado';
+  let cep = rawEnd.postcode || rawEnd.cep || pedidoCru.cep || pedidoCru.cliente?.cep || getMeta(['_billing_postcode', 'billing_postcode']) || '00000-000';
+  let transportadora = pedidoCru.transportadora || pedidoCru.nome_transportadora || pedidoCru.frete?.nome_transportadora || getMeta(['transportadora', 'shipping_method']) || "LOGÍSTICA PADRÃO";
+  let peso = pedidoCru.peso_total || "1.0 kg";
+  let nfeNum = pedidoCru.numero_nfe || pedidoCru.codigo_externo || "000.000";
+  let nfeSer = "1";
+  let nfeChave = "00000000000000000000000000000000000000000000";
+  let volumeTotal = 1; 
+  
+  if (dadosOmie) {
+    if (dadosOmie.pedido && dadosOmie.pedido.numero) {
+        idReal = dadosOmie.pedido.numero; 
+    }
+    if (dadosOmie.transporte) { 
+        if (dadosOmie.transporte.peso) peso = dadosOmie.transporte.peso; 
+        if (dadosOmie.transporte.volumes) volumeTotal = dadosOmie.transporte.volumes; 
+        if (dadosOmie.transporte.nome) transportadora = dadosOmie.transporte.nome;
+    }
+    if (dadosOmie.nfe && dadosOmie.nfe.chave && dadosOmie.nfe.chave.length === 44) {
+      nfeNum = dadosOmie.nfe.numero; nfeSer = dadosOmie.nfe.serie; nfeChave = dadosOmie.nfe.chave;
+    }
+    if (dadosOmie.cliente) {
+      if (dadosOmie.cliente.cep && dadosOmie.cliente.cep !== '00000-000') cep = dadosOmie.cliente.cep;
+      if (dadosOmie.cliente.documento && dadosOmie.cliente.documento !== 'Não informado') doc = dadosOmie.cliente.documento;
+      if (dadosOmie.cliente.logradouro) rawEnd.address_1 = dadosOmie.cliente.logradouro;
+      if (dadosOmie.cliente.numero) rawEnd.number = dadosOmie.cliente.numero;
+      if (dadosOmie.cliente.bairro) rawEnd.neighborhood = dadosOmie.cliente.bairro;
+      if (dadosOmie.cliente.cidade) rawEnd.city = dadosOmie.cliente.cidade;
+      if (dadosOmie.cliente.estado) rawEnd.state = dadosOmie.cliente.estado;
+    }
+  }
+
+  return {
+    empresa: { 
+      nome: typeof window !== 'undefined' ? localStorage.getItem("@raizan:nome") || 'DISTRIBUIDORA' : 'DISTRIBUIDORA', 
+      cnpj: obterTenantSeguro() || 'CNPJ NÃO INFORMADO' 
+    },
+    cliente: {
+      nome: dadosOmie?.cliente?.nome || `${nomeLocal} ${rawEnd.last_name || ''}`.trim() || 'Cliente Varejo',
+      documento: doc,
+      endereco: {
+        logradouro: rawEnd.address_1 || rawEnd.endereco || rawEnd.logradouro || 'Endereço não informado',
+        numero: rawEnd.number || rawEnd.numero || 'S/N',
+        complemento: dadosOmie?.cliente?.complemento || rawEnd.address_2 || rawEnd.complemento || '',
+        bairro: rawEnd.neighborhood || rawEnd.bairro || 'Bairro',
+        cidade: rawEnd.city || rawEnd.cidade || 'Cidade',
+        uf: rawEnd.state || rawEnd.estado || rawEnd.uf || 'UF',
+        cep: cep
+      }
+    },
+    pedido: { 
+      numero: idReal, 
+      data: new Date(pedidoCru.date_created || pedidoCru.data_criacao || pedidoCru.criado_em || new Date()).toLocaleDateString('pt-BR') 
+    },
+    transporte: { nome: transportadora, peso: peso },
+    nfe: { numero: nfeNum, serie: nfeSer, chave: nfeChave },
+    volume: { atual: 1, total: volumeTotal } 
+  };
+};
+
 export default function Pedidos() {
   const [integracoesInstaladas, setIntegracoesInstaladas] = useState([]); 
   const [activeTabObj, setActiveTabObj] = useState(null); 
@@ -32,10 +121,19 @@ export default function Pedidos() {
   const [baixados, setBaixados] = useState({});
   const [pedidoSelecionado, setPedidoSelecionado] = useState(null);
 
+  const [documentoImpressao, setDocumentoImpressao] = useState({ tipo: null, pedido: null, dadosOmie: null });
+
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
+
+  // ESTADOS DE BUSCA E FILTROS
+  const [buscaQuery, setBuscaQuery] = useState("");
+  const [filtroStatus, setFiltroStatus] = useState("");
+
+  // ESTADO DO SWITCH (MODO DIGITAL SISTEMAS)
+  const [modoDigital, setModoDigital] = useState(false);
 
   useEffect(() => {
     const fetchIntegracoes = async () => {
@@ -49,34 +147,20 @@ export default function Pedidos() {
         const data = await res.json();
         
         if (data.success && data.ativas.length > 0) {
-          
-          // ✝️💦 O EXORCISMO DEFINITIVO (Agora permite várias lojas iguais!)
           const canaisLimpados = data.ativas.filter(int => {
-            // 1. Se não tem ID (null ou undefined), é o fantasma do Backend. VAZA!
             if (int.id === null || int.id === undefined) return false;
-            
-            // 2. Integrações do banco têm ID numérico (ex: 39, 46). Se tiver letras no ID, VAZA!
             if (isNaN(Number(int.id))) return false;
-            
-            // 3. Se por acaso a plataforma se chamar Oracle ou Motor Local, VAZA TAMBÉM!
             const plat = String(int.plataforma || int.tipo || '').toLowerCase();
             if (plat.includes('oracle') || plat.includes('motor')) return false;
-
-            return true; // Só passa quem é real e tá salvo bonitinho no MySQL!
+            return true; 
           });
 
-          // 🧹 FILTRO ANTI-DUPLICATAS CORRIGIDO (Filtra pelo ID real do banco!)
           const integracoesUnicas = canaisLimpados.filter((integracao, index, self) =>
-            index === self.findIndex((t) => (
-              t.id === integracao.id // 🟢 AQUI A MÁGICA: Permite 10 WooCommerce, desde que cada um tenha seu próprio ID!
-            ))
+            index === self.findIndex((t) => (t.id === integracao.id))
           );
 
           setIntegracoesInstaladas(integracoesUnicas);
-          
-          if (integracoesUnicas.length > 0) {
-            setActiveTabObj(integracoesUnicas[0]); 
-          }
+          if (integracoesUnicas.length > 0) setActiveTabObj(integracoesUnicas[0]); 
         }
       } catch (e) {}
     };
@@ -84,7 +168,17 @@ export default function Pedidos() {
 
     const salvos = localStorage.getItem("raizan_pedidos_baixados");
     if (salvos) setBaixados(JSON.parse(salvos));
+    
+    // Recuperar estado do switch no primeiro load
+    const modoSalvo = localStorage.getItem("@raizan:modo_digital");
+    if (modoSalvo === "true") setModoDigital(true);
   }, []);
+
+  const toggleModoDigital = () => {
+    const novoModo = !modoDigital;
+    setModoDigital(novoModo);
+    localStorage.setItem("@raizan:modo_digital", novoModo);
+  };
 
   const carregarPedidos = async () => {
     if (!activeTabObj) return;
@@ -93,7 +187,6 @@ export default function Pedidos() {
       const tenantId = obterTenantSeguro();
       const plataformaReal = (activeTabObj.plataforma || activeTabObj.tipo || "").toLowerCase();
       
-      // 🟢 ROTEAMENTO LIMPO E BLINDADO
       let endpoint = `${getHubUrl()}/api/hub/pedidos/woo`; 
       if (plataformaReal.includes("b2b") || plataformaReal.includes("portal")) {
         endpoint = `${getHubUrl()}/api/hub/pedidos/b2b`;
@@ -105,19 +198,19 @@ export default function Pedidos() {
         method: "POST", 
         headers: { ...getHeaders(), "x-tenant-id": tenantId },
         body: JSON.stringify({ 
-          page, 
-          limit: Number(limit), 
-          plataforma: plataformaReal,
-          integracao_id: activeTabObj.id 
+            page, 
+            limit: Number(limit), 
+            plataforma: plataformaReal, 
+            integracao_id: activeTabObj.id,
+            busca: buscaQuery,
+            status: filtroStatus
         }) 
       });
       
       const data = await res.json();
       
       if (data.success && data.pedidos) {
-        setPedidos(data.pedidos);
-        setTotalPages(data.totalPages || 1);
-        setTotalItems(data.totalItems || 0);
+        setPedidos(data.pedidos); setTotalPages(data.totalPages || 1); setTotalItems(data.totalItems || 0);
       } else { 
         setPedidos([]); setTotalPages(1); setTotalItems(0);
       }
@@ -127,9 +220,7 @@ export default function Pedidos() {
     setLoading(false);
   };
 
-  useEffect(() => {
-    carregarPedidos();
-  }, [activeTabObj, page, limit]);
+  useEffect(() => { carregarPedidos(); }, [activeTabObj, page, limit]);
 
   const atualizarStatus = async (pedidoId, novoStatus) => {
     const loadingToast = toast.loading("Atualizando status...");
@@ -145,7 +236,6 @@ export default function Pedidos() {
         method: 'POST', headers: { ...getHeaders(), "x-tenant-id": tenantId },
         body: JSON.stringify({ pedidoId, novoStatus, integracao_id: activeTabObj.id, plataforma: plataformaReal })
       });
-      
       const data = await res.json();
       
       if(data.success) {
@@ -154,134 +244,240 @@ export default function Pedidos() {
         if((pedidoSelecionado?.id || pedidoSelecionado?.pedido_id) === pedidoId) {
           setPedidoSelecionado({ ...pedidoSelecionado, status: novoStatus, status_pedido: novoStatus });
         }
-      } else {
-        toast.error(data.message || "Erro ao atualizar", { id: loadingToast });
-      }
-    } catch(error) {
-      toast.error("Erro de conexão com o servidor", { id: loadingToast });
-    }
+      } else { toast.error(data.message || "Erro ao atualizar", { id: loadingToast }); }
+    } catch(error) { toast.error("Erro de conexão com o servidor", { id: loadingToast }); }
   };
 
   const handleSincronizarOmie = async (pedido) => {
     const idReal = pedido.id || pedido.pedido_id;
     const loadingToast = toast.loading("Enviando pedido para o Omie...");
-    
     try {
       const tenantId = obterTenantSeguro();
       const res = await fetch(`${getHubUrl()}/api/hub/pedidos/enviar-omie`, {
-        method: 'POST',
-        headers: { ...getHeaders(), "x-tenant-id": tenantId },
+        method: 'POST', headers: { ...getHeaders(), "x-tenant-id": tenantId },
         body: JSON.stringify({ pedido_id: idReal, integracao_id: activeTabObj.id })
       });
       const data = await res.json();
-
       if (data.success) {
-        toast.success(`Sucesso! Pedido Omie: ${data.numero_omie}`, { id: loadingToast });
-        carregarPedidos(); 
-      } else {
-        toast.error(data.message || "Falha ao enviar.", { id: loadingToast });
+        toast.success(`Sucesso! Pedido Omie: ${data.numero_omie}`, { id: loadingToast }); carregarPedidos(); 
+      } else { toast.error(data.message || "Falha ao enviar.", { id: loadingToast }); }
+    } catch (error) { toast.error("Erro de comunicação.", { id: loadingToast }); }
+  };
+
+  // 🟢 CSV REESTRUTURADO (Formato Digital Sistemas com Inteligência de SKU/EAN)
+  const handleBaixarCSV = async (pedido) => {
+    try {
+      let csvContent = 'SKU;Quantidade;"Preco Unitario"\n';
+      const itensExportar = pedido.line_items || pedido.itens || [];
+      
+      if (itensExportar.length === 0) {
+          toast.error("O pedido não possui itens para exportar!");
+          return;
       }
-    } catch (error) {
-      toast.error("Erro de comunicação.", { id: loadingToast });
+
+      itensExportar.forEach(item => {
+        // 🟢 A MÁGICA SALVADORA: LÓGICA DE CASCATA DE CÓDIGO
+        let codigoFinal = "";
+        const eanValido = item.ean && String(item.ean).trim() !== "" && String(item.ean) !== "null";
+        
+        if (eanValido) {
+            // 1ª Opção: Se tem código de barras, usa ele!
+            codigoFinal = String(item.ean).trim(); 
+        } else {
+            // 2ª Opção: Pega o SKU do Omie e remove todas as letras
+            const skuOriginal = String(item.sku || item.codigo || "");
+            const skuSoNumeros = skuOriginal.replace(/\D/g, ''); 
+            
+            codigoFinal = skuSoNumeros !== "" ? skuSoNumeros : "SEM_COD";
+        }
+
+        const qtd = Number(item.quantity || item.quantidade || 1);
+        
+        // Blindagem Matemática de Preço
+        let precoRaw = item.price || item.preco_unitario || 0;
+        if (typeof precoRaw === 'string') precoRaw = precoRaw.replace(',', '.');
+        const precoFloat = parseFloat(precoRaw) || 0;
+        const preco = precoFloat.toFixed(2).replace('.', ',');
+        
+        // 🟢 BLINDAGEM MESTRA DO ZERO: Sinal de igual + aspas = "Fórmula de Texto"
+        // É impossível qualquer ERP ou Excel do planeta cortar o zero agora!
+        csvContent += `="${codigoFinal}";${qtd};"${preco}"\n`;
+      });
+
+      const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      const idReal = pedido.id || pedido.pedido_id || "000";
+      
+      link.setAttribute("href", url);
+      link.setAttribute("download", `pedido-digital-${idReal}.csv`);
+      link.style.visibility = 'hidden'; 
+      document.body.appendChild(link); link.click(); document.body.removeChild(link);
+      
+      const novosBaixados = { ...baixados, [`${activeTabObj.id}_${idReal}`]: true };
+      setBaixados(novosBaixados); 
+      localStorage.setItem("raizan_pedidos_baixados", JSON.stringify(novosBaixados));
+      
+      const isOmie = String(activeTabObj?.plataforma || activeTabObj?.tipo || '').toLowerCase().includes('omie');
+      if (isOmie) {
+        const tenantId = obterTenantSeguro();
+        await fetch(`${getHubUrl()}/api/hub/pedidos/marcar-baixado`, {
+          method: 'POST', headers: { ...getHeaders(), "x-tenant-id": tenantId },
+          body: JSON.stringify({ pedido_id: idReal })
+        });
+        carregarPedidos(); 
+      }
+
+      toast.success("Arquivo CSV baixado com sucesso!");
+    } catch (err) {
+      toast.error("Erro interno ao gerar a planilha.");
     }
   };
 
-  const handleBaixarCSV = (pedido) => {
-    let csvContent = 'SKU;Quantidade;"Preço Unitário"\n';
-    const itensExportar = pedido.line_items || pedido.itens || [];
+  const handleGerarEtiquetaInteligente = async (pedido) => {
+    const isOmie = String(activeTabObj?.plataforma || activeTabObj?.tipo || '').toLowerCase().includes('omie');
     
-    itensExportar.forEach(item => {
-      const sku = item.sku || "SEM_SKU";
-      const precoRaw = item.price || item.preco_unitario || 0;
-      const preco = parseFloat(precoRaw).toFixed(2).replace('.', ',');
-      const qtd = item.quantity || item.quantidade || 1;
-      csvContent += `${sku};${qtd};${preco}\n`;
-    });
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    const idReal = pedido.id || pedido.pedido_id;
-    link.setAttribute("href", url);
-    link.setAttribute("download", `pedido-${activeTabObj.id}-${idReal}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
-    const novosBaixados = { ...baixados, [`${activeTabObj.id}_${idReal}`]: true };
-    setBaixados(novosBaixados);
-    localStorage.setItem("raizan_pedidos_baixados", JSON.stringify(novosBaixados));
-    toast.success("Arquivo CSV exportado!");
+    if (isOmie) {
+      const loadingToast = toast.loading("Buscando Dados no Omie...");
+      try {
+        const tenantId = obterTenantSeguro();
+        const res = await fetch(`${getHubUrl()}/api/hub/pedidos/etiqueta-omie`, {
+          method: 'POST', headers: { ...getHeaders(), "x-tenant-id": tenantId },
+          body: JSON.stringify({ pedido_id: pedido.id || pedido.pedido_id, integracao_id: activeTabObj.id })
+        });
+        const data = await res.json();
+        
+        if (data.success && data.dadosOmie) {
+          toast.dismiss(loadingToast); 
+          setDocumentoImpressao({ tipo: 'etiqueta', pedido: pedido, dadosOmie: data.dadosOmie });
+        } else {
+          toast.dismiss(loadingToast);
+          toast.error("NFe não encontrada. Usando dados locais.");
+          setDocumentoImpressao({ tipo: 'etiqueta', pedido: pedido, dadosOmie: null });
+        }
+      } catch (err) {
+        toast.dismiss(loadingToast);
+        toast.error("Falha ao comunicar com Omie.");
+        setDocumentoImpressao({ tipo: 'etiqueta', pedido: pedido, dadosOmie: null });
+      }
+    } else {
+      setDocumentoImpressao({ tipo: 'etiqueta', pedido: pedido, dadosOmie: null });
+    }
   };
 
   const handleAcaoPrimaria = (pedido) => {
     const textoChave = String(activeTabObj?.plataforma || activeTabObj?.tipo || '').toLowerCase();
-    if (textoChave.includes('omie')) {
-      handleSincronizarOmie(pedido);
-    } else {
-      handleBaixarCSV(pedido);
-    }
+    if (textoChave.includes('omie')) handleSincronizarOmie(pedido);
+    else handleBaixarCSV(pedido);
   };
 
-  // 🍎 Ícone dinâmico elegante para as abas
   const renderIconTab = (plataforma) => {
     const plat = String(plataforma).toLowerCase();
     if (plat.includes('woo')) return <Store size={14} />;
-    if (plat.includes('b2b') || plat.includes('portal')) return <LayoutTemplate size={14} />;
+    if (plat.includes('b2b')) return <LayoutTemplate size={14} />;
     if (plat.includes('omie')) return <Box size={14} />;
     return <ShoppingBag size={14} />;
   };
 
-  // 🍎 MAPEADOR INTELIGENTE DE NOMES
   const obterNomeAba = (tab) => {
-    // 1. Prioriza o nome cadastrado no painel ou o label enviado pelo backend!
     const nomeSalvo = tab.nome_integracao || tab.label || "";
-    if (nomeSalvo.trim() !== "" && nomeSalvo !== "Integração") {
-      return nomeSalvo;
-    }
-    
-    // 2. Fallback de segurança se o backend e o banco mandarem vazio
+    if (nomeSalvo.trim() !== "" && nomeSalvo !== "Integração") return nomeSalvo;
     const p = String(tab.plataforma || tab.tipo || '').toLowerCase();
     if (p.includes('woo')) return 'WooCommerce';
     if (p.includes('omie')) return 'Omie ERP';
-    if (p.includes('b2b') || p.includes('portal')) return 'Portal B2B';
-    if (p.includes('oracle') || p.includes('motor')) return 'Oracle';
-    if (p.includes('tiny')) return 'Tiny ERP';
-    if (p.includes('olist')) return 'Olist';
-    if (p.includes('shopee')) return 'Shopee';
-    if (p.includes('mercado') || p.includes('meli')) return 'Mercado Livre';
-    
+    if (p.includes('b2b')) return 'Portal B2B';
     return "Loja";
   };
 
   return (
-    <div className="flex min-h-screen bg-[#f5f5f7] dark:bg-[#000000] text-zinc-900 dark:text-zinc-100 font-sans transition-colors duration-300">
-      <Sidebar />
-      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
+    <div className="flex min-h-screen bg-[#f5f5f7] dark:bg-[#000000] text-zinc-900 dark:text-zinc-100 font-sans transition-colors duration-300 print:block print:bg-white">
+      
+      <div className="print:hidden">
+        <Sidebar />
+      </div>
+
+      {documentoImpressao.tipo === 'separacao' && (
+        <ListaSeparacao 
+          pedido={documentoImpressao.pedido} 
+          onFechar={() => setDocumentoImpressao({ tipo: null, pedido: null, dadosOmie: null })} 
+        />
+      )}
+
+      {documentoImpressao.tipo === 'etiqueta' && documentoImpressao.pedido && (
+        (() => {
+          const dadosEtiqueta = prepararDadosEtiqueta(documentoImpressao.pedido, documentoImpressao.dadosOmie);
+          
+          return (
+            <div className="fixed inset-0 z-[9999] bg-zinc-900/80 backdrop-blur-md overflow-y-auto print:static print:inset-auto print:w-full print:h-auto print:overflow-visible print:bg-white print:backdrop-blur-none font-sans flex flex-col print:block items-center py-10 print:py-0 print:m-0">
+              
+              <div className="print:hidden sticky top-0 bg-zinc-950 border border-zinc-800 text-white p-4 w-full max-w-md flex justify-between items-center shadow-2xl z-50 mb-8 rounded-2xl">
+                <button 
+                  onClick={() => setDocumentoImpressao({ tipo: null, pedido: null, dadosOmie: null })} 
+                  className="flex items-center gap-2 text-zinc-400 hover:text-white bg-zinc-900 hover:bg-zinc-800 px-4 py-2 rounded-xl font-bold transition-all"
+                >
+                  Voltar
+                </button>
+                <button 
+                  onClick={() => window.print()} 
+                  className="flex items-center gap-2 bg-purple-600 hover:bg-purple-500 text-white px-6 py-2.5 rounded-xl font-bold shadow-lg shadow-purple-500/20 transition-all active:scale-95"
+                >
+                  <Printer size={18} /> Imprimir Etiqueta
+                </button>
+              </div>
+
+              <EtiquetaVolume 
+                config={{ largura: 100, altura: 150 }} 
+                logoUrl={typeof window !== 'undefined' ? localStorage.getItem('@raizan:logo') : ''}
+                empresa={dadosEtiqueta.empresa}
+                cliente={dadosEtiqueta.cliente}
+                pedido={dadosEtiqueta.pedido}
+                transporte={dadosEtiqueta.transporte}
+                nfe={dadosEtiqueta.nfe}
+                volume={dadosEtiqueta.volume}
+                autoPrint={true} 
+              />
+            </div>
+          );
+        })()
+      )}
+
+      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden print:hidden">
         <Header />
         
         <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto custom-scrollbar">
           <div className="max-w-7xl mx-auto space-y-6">
             
-            {/* 🍎 HEADER APPLE STYLE */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
               <div>
                 <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">Pedidos</h1>
                 <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1 font-medium">Gestão unificada de vendas e sincronização.</p>
               </div>
               
-              <div className="flex items-center gap-3 bg-white dark:bg-zinc-900/50 p-1.5 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                <span className="text-xs font-bold text-zinc-400 px-2 uppercase tracking-wider hidden sm:block">Exibir</span>
-                <select value={limit} onChange={(e) => { setLimit(e.target.value); setPage(1); }} className="bg-transparent text-zinc-700 dark:text-zinc-300 px-2 py-1 rounded-xl text-sm font-bold outline-none cursor-pointer">
-                  <option value="10">10 itens</option>
-                  <option value="20">20 itens</option>
-                  <option value="50">50 itens</option>
-                </select>
+              <div className="flex items-center gap-3">
+                {/* 🟢 O SWITCH DE MODO DIGITAL SISTEMAS */}
+                {String(activeTabObj?.plataforma || activeTabObj?.tipo || '').toLowerCase().includes('omie') && (
+                  <div className="flex items-center gap-2 bg-purple-50 dark:bg-purple-500/10 p-1.5 px-3 rounded-2xl border border-purple-200 dark:border-purple-500/20 shadow-sm mr-1">
+                    <span className="text-[10px] font-bold text-purple-700 dark:text-purple-400 uppercase tracking-wider hidden sm:block">Modo Csv (Digital Sistemas)</span>
+                    <button 
+                      onClick={toggleModoDigital} 
+                      className={`w-9 h-5 rounded-full relative transition-colors duration-300 ${modoDigital ? 'bg-purple-600' : 'bg-zinc-300 dark:bg-zinc-700'}`}
+                    >
+                      <div className={`w-3.5 h-3.5 bg-white rounded-full absolute top-[3px] transition-all duration-300 ${modoDigital ? 'left-[19px]' : 'left-1'}`}></div>
+                    </button>
+                  </div>
+                )}
+
+                <div className="flex items-center gap-3 bg-white dark:bg-zinc-900/50 p-1.5 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                  <span className="text-xs font-bold text-zinc-400 px-2 uppercase tracking-wider hidden sm:block">Exibir</span>
+                  <select value={limit} onChange={(e) => { setLimit(e.target.value); setPage(1); }} className="bg-transparent text-zinc-700 dark:text-zinc-300 px-2 py-1 rounded-xl text-sm font-bold outline-none cursor-pointer">
+                    <option value="10">10 itens</option>
+                    <option value="20">20 itens</option>
+                    <option value="50">50 itens</option>
+                  </select>
+                </div>
               </div>
             </div>
 
-            {/* 🍎 ABAS ESTILO iOS */}
             {integracoesInstaladas.length > 0 ? (
               <div className="relative w-full">
                 <div className="flex items-center gap-2 p-1.5 bg-zinc-200/50 dark:bg-zinc-900/80 rounded-2xl overflow-x-auto no-scrollbar w-max max-w-full shadow-inner border border-zinc-200/50 dark:border-white/5">
@@ -300,7 +496,6 @@ export default function Pedidos() {
                         <span className={isActive ? 'text-purple-600 dark:text-purple-400' : 'opacity-70'}>
                           {renderIconTab(tab.plataforma || tab.tipo)}
                         </span>
-                        {/* 🟢 O NOME REAL DOS WOOCOMMERCES AQUI! */}
                         {obterNomeAba(tab)}
                       </button>
                     )
@@ -319,8 +514,44 @@ export default function Pedidos() {
               </div>
             )}
 
-            {/* 🍎 CONTAINER DA TABELA */}
-            <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800/80 rounded-[2rem] shadow-sm overflow-hidden transition-colors duration-300">
+            {integracoesInstaladas.length > 0 && (
+              <div className="flex flex-col sm:flex-row items-center gap-3 bg-white dark:bg-zinc-900/40 p-3 rounded-2xl border border-zinc-200 dark:border-zinc-800/80 shadow-sm">
+                <div className="flex-1 relative w-full">
+                  <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
+                  <input
+                    type="text"
+                    placeholder="Buscar por ID, Cliente, CNPJ..."
+                    value={buscaQuery}
+                    onChange={(e) => setBuscaQuery(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && carregarPedidos()}
+                    className="w-full bg-zinc-50 dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 pl-10 pr-4 py-2 rounded-xl text-sm outline-none focus:border-purple-500 transition-colors"
+                  />
+                </div>
+                <div className="w-full sm:w-auto">
+                  <select
+                    value={filtroStatus}
+                    onChange={(e) => { setFiltroStatus(e.target.value); }}
+                    className="w-full sm:w-48 bg-zinc-50 dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 px-3 py-2 rounded-xl text-sm outline-none focus:border-purple-500 transition-colors"
+                  >
+                    <option value="">Todos os Status</option>
+                    <option value="pendente">Pendente / Aguardando</option>
+                    <option value="processando">Em Separação</option>
+                    <option value="faturar">A Faturar / Faturar</option>
+                    <option value="faturado">Faturado / NFe Emitida</option>
+                    <option value="completed">Concluído / Entregue</option>
+                    <option value="cancelado">Cancelado</option>
+                  </select>
+                </div>
+                <button
+                  onClick={() => { setPage(1); carregarPedidos(); }}
+                  className="w-full sm:w-auto bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-200 text-white dark:text-zinc-900 px-6 py-2 rounded-xl text-sm font-bold transition-all"
+                >
+                  Filtrar
+                </button>
+              </div>
+            )}
+
+            <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800/80 rounded-[2rem] shadow-sm overflow-visible transition-colors duration-300">
               <TabelaPedidos 
                 pedidos={pedidos} 
                 loading={loading} 
@@ -331,8 +562,12 @@ export default function Pedidos() {
                 onRowClick={setPedidoSelecionado} 
                 baixados={baixados} 
                 onDownload={handleAcaoPrimaria} 
+                onBaixarCSV={handleBaixarCSV}
                 activeTab={activeTabObj?.id} 
                 plataformaAtiva={activeTabObj?.tipo || activeTabObj?.iconType} 
+                modoDigital={modoDigital} // 🟢 Passando o Switch para a Tabela!
+                onPrintSeparacao={(ped) => setDocumentoImpressao({ tipo: 'separacao', pedido: ped, dadosOmie: null })}
+                onPrintEtiqueta={handleGerarEtiquetaInteligente}
               />
             </div>
 
@@ -340,12 +575,14 @@ export default function Pedidos() {
         </main>
       </div>
 
-      <ModalDetalhes 
-        pedido={pedidoSelecionado} 
-        activeTabObj={activeTabObj} 
-        onUpdateStatus={atualizarStatus} 
-        onClose={() => setPedidoSelecionado(null)} 
-      />
+      <div className="print:hidden">
+        <ModalDetalhes 
+          pedido={pedidoSelecionado} 
+          activeTabObj={activeTabObj} 
+          onUpdateStatus={atualizarStatus} 
+          onClose={() => setPedidoSelecionado(null)} 
+        />
+      </div>
     </div>
   );
 }

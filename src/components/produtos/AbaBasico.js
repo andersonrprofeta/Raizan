@@ -117,7 +117,7 @@ export default function AbaBasico({ produto, atualizarCampo }) {
             />
           </div>
 
-          {/* 🟢 BLOCO DE PREÇOS REFORMULADO (4 COLUNAS IGUAIS) */}
+          {/* BLOCO DE PREÇOS */}
           <div className="space-y-2 md:col-span-3 relative group">
             <label className="text-sm font-black text-purple-700 dark:text-purple-400 transition-colors">Preço normal (R$)</label>
             <input 
@@ -266,7 +266,7 @@ export default function AbaBasico({ produto, atualizarCampo }) {
         </div>
       </section>
 
-      {/* SESSÃO 3: ESTOQUE */}
+      {/* SESSÃO 3: ESTOQUE (🟢 ATUALIZADA E INTELIGENTE) */}
       <section className="space-y-5 mt-10">
         <h2 className="text-lg font-black text-zinc-900 dark:text-zinc-100 flex items-center gap-2 border-b border-zinc-200 dark:border-zinc-800 pb-3 transition-colors">
           <Archive className="text-purple-600 dark:text-purple-500 transition-colors" size={20} /> Estoque
@@ -274,12 +274,13 @@ export default function AbaBasico({ produto, atualizarCampo }) {
         
         <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
             
+            {/* LINHA 1: CONTROLE E VISÃO GERAL */}
             <div className="space-y-2">
               <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300 transition-colors">Controlar estoque</label>
               <select 
                 value={produto.estoque.controlar}
                 onChange={(e) => atualizarCampo('estoque', 'controlar', e.target.value)}
-                className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3.5 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all cursor-pointer shadow-sm dark:shadow-none"
+                className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3.5 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all cursor-pointer shadow-sm dark:shadow-none h-[50px]"
               >
                 <option value="sim">Sim</option>
                 <option value="nao">Não</option>
@@ -288,18 +289,39 @@ export default function AbaBasico({ produto, atualizarCampo }) {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300 transition-colors">Estoque inicial</label>
+              <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300 transition-colors">Estoque Físico (Total)</label>
               <div className="relative">
                 <input 
                   type="number" placeholder="0"
                   value={produto.estoque.inicial}
                   onChange={(e) => atualizarCampo('estoque', 'inicial', e.target.value)}
-                  className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3.5 pr-12 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600 shadow-sm dark:shadow-none font-bold"
+                  className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3.5 pr-12 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600 shadow-sm dark:shadow-none font-bold h-[50px]"
                 />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-black text-zinc-600 dark:text-zinc-400 bg-zinc-200 dark:bg-zinc-900 px-2 py-1 rounded transition-colors">un</span>
               </div>
+              <p className="text-[11px] font-medium text-zinc-500 dark:text-zinc-500 transition-colors">Sincronizado do ERP</p>
             </div>
 
+            {/* 🟢 NOVAS CAIXAS (SOMENTE LEITURA PARA DAR TRANSPARÊNCIA) */}
+            <div className="space-y-2">
+              <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300 transition-colors">Estoque Reservado</label>
+              <div className="w-full bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 rounded-xl px-4 text-sm text-rose-700 dark:text-rose-400 font-bold flex justify-between items-center h-[50px] shadow-sm select-none">
+                <span className="font-semibold text-rose-600/80 dark:text-rose-400/80 text-xs uppercase tracking-wider">Retido</span>
+                <span className="text-base">{produto.estoque.reservado || 0} <span className="text-xs opacity-70">un</span></span>
+              </div>
+              <p className="text-[11px] font-medium text-rose-500 dark:text-rose-500 transition-colors">Pedidos não faturados</p>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300 transition-colors">Estoque Disponível</label>
+              <div className="w-full bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 rounded-xl px-4 text-sm text-emerald-700 dark:text-emerald-400 font-bold flex justify-between items-center h-[50px] shadow-sm select-none">
+                <span className="font-semibold text-emerald-600/80 dark:text-emerald-400/80 text-xs uppercase tracking-wider">App / Site</span>
+                <span className="text-base">{produto.estoque.disponivel !== undefined ? produto.estoque.disponivel : produto.estoque.inicial} <span className="text-xs opacity-70">un</span></span>
+              </div>
+              <p className="text-[11px] font-medium text-emerald-500 dark:text-emerald-500 transition-colors">Livre para venda</p>
+            </div>
+
+            {/* LINHA 2: MÍNIMOS, MÁXIMOS E LOCALIZAÇÃO */}
             <div className="space-y-2">
               <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300 transition-colors">Estoque mínimo</label>
               <div className="relative">
@@ -334,9 +356,10 @@ export default function AbaBasico({ produto, atualizarCampo }) {
                 onChange={(e) => atualizarCampo('estoque', 'localizacao', e.target.value)}
                 className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3.5 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600 shadow-sm dark:shadow-none"
               />
-              <p className="text-[11px] font-medium text-zinc-500 dark:text-zinc-500 transition-colors">Localização física no estoque</p>
+              <p className="text-[11px] font-medium text-zinc-500 dark:text-zinc-500 transition-colors">Localização física no armazém</p>
             </div>
 
+            {/* LINHA 3 */}
             <div className="space-y-2 md:col-span-2">
               <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300 transition-colors">Dias para preparação</label>
               <input 
@@ -345,7 +368,7 @@ export default function AbaBasico({ produto, atualizarCampo }) {
                 onChange={(e) => atualizarCampo('estoque', 'dias_preparacao', e.target.value)}
                 className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3.5 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600 shadow-sm dark:shadow-none"
               />
-              <p className="text-[11px] font-medium text-zinc-500 dark:text-zinc-500 transition-colors">Tempo adicional somado ao frete</p>
+              <p className="text-[11px] font-medium text-zinc-500 dark:text-zinc-500 transition-colors">Tempo adicional somado ao prazo de frete</p>
             </div>
 
         </div>

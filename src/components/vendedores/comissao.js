@@ -54,13 +54,12 @@ export default function TabComissoes({ vendedor, listaVendedores = [] }) {
       const tenant_id = JSON.parse(localStorage.getItem("@raizan:user"))?.tenant_id;
       if (!tenant_id || !vendedor?.id) return;
       
-      // 1. Busca Marcas
-      const resMarcas = await fetch(`${getHubUrl()}/api/hub/marcas?tenant_id=${tenant_id}`, { headers: getHeaders() });
-      const dataMarcas = await resMarcas.json();
-      
-      // 2. Busca Regras do Vendedor
-      const resRegras = await fetch(`${getHubUrl()}/api/hub/comissoes/regras?tenant_id=${tenant_id}&vendedor_id=${vendedor.id}`, { headers: getHeaders() });
-      const dataRegras = await resRegras.json();
+      // Marcas, regras do vendedor e equipe (para o modal de copiar) ao mesmo tempo
+      const [dataMarcas, dataRegras, dataVend] = await Promise.all([
+        fetch(`${getHubUrl()}/api/hub/marcas?tenant_id=${tenant_id}`, { headers: getHeaders() }).then(r => r.json()),
+        fetch(`${getHubUrl()}/api/hub/comissoes/regras?tenant_id=${tenant_id}&vendedor_id=${vendedor.id}`, { headers: getHeaders() }).then(r => r.json()),
+        fetch(`${getHubUrl()}/api/hub/vendedores?tenant_id=${tenant_id}`, { headers: getHeaders() }).then(r => r.json())
+      ]);
 
       let regrasAtuais = {};
       if (dataRegras.success) {
@@ -79,9 +78,6 @@ export default function TabComissoes({ vendedor, listaVendedores = [] }) {
         setRegrasMarcas(regrasForm);
       }
 
-      // 3. Busca Vendedores para o Modal
-      const resVend = await fetch(`${getHubUrl()}/api/hub/vendedores?tenant_id=${tenant_id}`, { headers: getHeaders() });
-      const dataVend = await resVend.json();
       if (dataVend.success) setVendedoresReais(dataVend.vendedores || []);
 
     } catch (error) {

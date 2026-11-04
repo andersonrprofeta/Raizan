@@ -94,12 +94,11 @@ export default function TabMetasCampanhas({ vendedor }) {
       const tenant_id = JSON.parse(localStorage.getItem("@raizan:user"))?.tenant_id;
       if (!tenant_id) return;
       
-      const resMarcas = await fetch(`${getHubUrl()}/api/hub/marcas?tenant_id=${tenant_id}`, { headers: getHeaders() });
-      const dataMarcas = await resMarcas.json();
+      const [dataMarcas, dataCamp] = await Promise.all([
+        fetch(`${getHubUrl()}/api/hub/marcas?tenant_id=${tenant_id}`, { headers: getHeaders() }).then(r => r.json()),
+        fetch(`${getHubUrl()}/api/hub/metas/campanhas?tenant_id=${tenant_id}`, { headers: getHeaders() }).then(r => r.json())
+      ]);
       if (dataMarcas.success) setMarcasOmie(dataMarcas.marcas || []);
-
-      const resCamp = await fetch(`${getHubUrl()}/api/hub/metas/campanhas?tenant_id=${tenant_id}`, { headers: getHeaders() });
-      const dataCamp = await resCamp.json();
       if (dataCamp.success) setCampanhas(dataCamp.campanhas || []);
 
     } catch (error) {

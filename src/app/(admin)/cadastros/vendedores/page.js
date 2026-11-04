@@ -39,6 +39,7 @@ export default function VendedoresPage() {
   const [painelAberto, setPainelAberto] = useState(false);
   const [vendedorDetalhe, setVendedorDetalhe] = useState(null);
   const [abaAtiva, setAbaAtiva] = useState('resumo');
+  const [abasAbertas, setAbasAbertas] = useState(['resumo']);
 
   const carregarVendedores = async () => {
     setLoading(true);
@@ -140,7 +141,14 @@ export default function VendedoresPage() {
   const abrirDetalhes = (vendedor) => {
     setVendedorDetalhe(vendedor);
     setAbaAtiva('resumo'); // Sempre abre na aba de resumo
+    setAbasAbertas(['resumo']);
     setPainelAberto(true);
+  };
+
+  // Aba já aberta só fica escondida: voltar a ela não busca tudo de novo
+  const trocarAba = (aba) => {
+    setAbaAtiva(aba);
+    setAbasAbertas((abertas) => (abertas.includes(aba) ? abertas : [...abertas, aba]));
   };
 
   const confirmarBloqueio = async () => {
@@ -420,16 +428,16 @@ export default function VendedoresPage() {
 
                 {/* Navegação de Abas (Tabs) */}
                 <div className="flex px-6 pt-4 border-b border-zinc-200 dark:border-zinc-800 overflow-x-auto custom-scrollbar bg-white dark:bg-[#0c0c0e]">
-                  <TabButton id="resumo" icon={TrendingUp} label="Visão Geral" active={abaAtiva} onClick={setAbaAtiva} />
-                  <TabButton id="metas" icon={Target} label="Metas & Campanhas" active={abaAtiva} onClick={setAbaAtiva} />
-                  <TabButton id="comissoes" icon={DollarSign} label="Comissões" active={abaAtiva} onClick={setAbaAtiva} />
+                  <TabButton id="resumo" icon={TrendingUp} label="Visão Geral" active={abaAtiva} onClick={trocarAba} />
+                  <TabButton id="metas" icon={Target} label="Metas & Campanhas" active={abaAtiva} onClick={trocarAba} />
+                  <TabButton id="comissoes" icon={DollarSign} label="Comissões" active={abaAtiva} onClick={trocarAba} />
                 </div>
 
                 {/* Área de Conteúdo Scrollável */}
                 <div className="flex-1 overflow-y-auto p-6 bg-zinc-50/30 dark:bg-[#09090b]/50">
-                  {abaAtiva === 'resumo' && <TabVisaoGeral vendedor={vendedorDetalhe} />}
-                  {abaAtiva === 'metas' && <TabMetasCampanhas vendedor={vendedorDetalhe} />}
-                  {abaAtiva === 'comissoes' && <TabComissoes vendedor={vendedorDetalhe} />}
+                  {abasAbertas.includes('resumo') && <div hidden={abaAtiva !== 'resumo'}><TabVisaoGeral vendedor={vendedorDetalhe} /></div>}
+                  {abasAbertas.includes('metas') && <div hidden={abaAtiva !== 'metas'}><TabMetasCampanhas vendedor={vendedorDetalhe} /></div>}
+                  {abasAbertas.includes('comissoes') && <div hidden={abaAtiva !== 'comissoes'}><TabComissoes vendedor={vendedorDetalhe} /></div>}
                 </div>
 
               </motion.div>

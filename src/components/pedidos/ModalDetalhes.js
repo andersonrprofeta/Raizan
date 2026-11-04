@@ -275,8 +275,12 @@ export default function ModalDetalhes({ pedido, onClose, activeTabObj, onUpdateS
     : valorOriginalPedido;
 
   const houveReducaoValor = valorFaturadoERP < (valorOriginalPedido - 0.05);
-  const isPedidoAlteradoERP = houveReducaoValor || (pedido.teve_corte === 1 || pedido.teve_corte === true);
+  const isPedidoAlteradoERP = pedido.teve_corte === 1 || pedido.teve_corte === true;
   const itensPedidoBase = pedido.line_items || pedido.itens || [];
+
+  // Desconto geral do app enquanto ele ainda não foi distribuído nos itens pelo Omie
+  const descontoGeral = Number(pedido.desconto || 0);
+  const percentualGeral = descontoGeral > 0 && Number(pedido.subtotal) > 0 ? (descontoGeral / Number(pedido.subtotal)) * 100 : 0;
 
   const itensProcessados = itensPedidoBase.map(item => {
       let qtdPedida = Number(item.quantity || item.quantidade || 0);
@@ -302,6 +306,17 @@ export default function ModalDetalhes({ pedido, onClose, activeTabObj, onUpdateS
       const cortado = qtdPedida > qtdFaturada ? (qtdPedida - qtdFaturada) : 0;
       let precoUnFaturado = qtdFaturada > 0 ? (totalFaturado / qtdFaturada) : precoUnOriginal;
 
+      // A linha mostra só o desconto do próprio item. Com desconto geral, o que o Omie
+      // grava no item é a parte do geral, que aparece apenas na totalização.
+      const precoTabela = Number(item.preco_tabela || 0);
+      const descontoDoItem = precoTabela > precoUnOriginal
+        ? (precoTabela - precoUnOriginal) * qtdFaturada
+        : (descontoGeral > 0 ? 0 : Number(item.desconto_valor || 0));
+      const precoCheio = precoTabela > precoUnOriginal
+        ? precoTabela
+        : (qtdFaturada > 0 ? (totalFaturado + descontoDoItem) / qtdFaturada : precoUnOriginal);
+      const percentualDoItem = precoCheio > 0 && qtdFaturada > 0 ? (descontoDoItem / (precoCheio * qtdFaturada)) * 100 : 0;
+
       return {
           nome: item.name || item.nome_produto,
           sku: item.sku || 'N/A',
@@ -311,7 +326,10 @@ export default function ModalDetalhes({ pedido, onClose, activeTabObj, onUpdateS
           precoUnOriginal,
           precoUnFaturado,
           totalOriginal,
-          totalFaturado
+          totalFaturado,
+          descontoDoItem,
+          percentualDoItem,
+          precoCheio
       };
   });
 
@@ -321,9 +339,22 @@ export default function ModalDetalhes({ pedido, onClose, activeTabObj, onUpdateS
   const itensComCorte = itensProcessados.filter(i => i.cortado > 0);
   const teveAlgumCorte = itensComCorte.length > 0;
 
-  const valorTotalReal = valorFaturadoERP;
+  const totalDosItens = itensAtendidos.reduce((acc, i) => acc + i.totalFaturado, 0);
+
+  // Quando o Omie distribui o desconto geral, o item fica menor que quantidade x preço
+  const descontoJaNosItens = itensAtendidos.some(i => i.totalFaturado < (i.qtdFaturada * i.precoUnOriginal) - 0.05);
+  const mostrarDescontoGeral = descontoGeral > 0 && !descontoJaNosItens;
+
+  // Calculado sobre o que foi atendido: item cortado leva junto a parte dele no desconto
+  const brutoDosItens = itensAtendidos.reduce((acc, i) => acc + (i.qtdFaturada * i.precoUnOriginal), 0);
+  const descontoEmAberto = mostrarDescontoGeral ? (totalDosItens * percentualGeral) / 100 : 0;
+  const descontoGeralAplicado = descontoGeral > 0 ? (mostrarDescontoGeral ? descontoEmAberto : brutoDosItens - totalDosItens) : 0;
+
+  // Sem o desconto no Omie, o valor dele ainda é o bruto. Pedido do app ainda não enviado já vem líquido.
+  const totalSemDesconto = valorFaturadoERP >= totalDosItens - 0.05;
+  const valorTotalReal = totalSemDesconto ? valorFaturadoERP - descontoEmAberto : valorFaturadoERP;
   const freteReal = Number(pedido.shipping_total || pedido.valor_frete || 0);
-  const subtotalReal = valorTotalReal - freteReal;
+  const subtotalReal = descontoGeralAplicado > 0 ? (mostrarDescontoGeral ? totalDosItens : brutoDosItens) : valorTotalReal - freteReal;
 
   return (
     // z-[100]: fica acima do Header (z-40) e da Sidebar (z-50)
@@ -519,7 +550,15 @@ export default function ModalDetalhes({ pedido, onClose, activeTabObj, onUpdateS
                           <span className="text-xs text-zinc-500 font-normal">SKU: {item.sku}</span>
                         </td>
                         <td className="px-4 py-3 text-center font-semibold tabular-nums">{item.qtdFaturada}</td>
-                        <td className="px-4 py-3 text-right tabular-nums">{formatarMoeda(item.precoUnFaturado)}</td>
+                        <td className="px-4 py-3 text-right tabular-nums">
+                          {item.descontoDoItem > 0 && <span className="block text-[11px] text-zinc-400 line-through">{formatarMoeda(item.precoCheio)}</span>}
+                          {formatarMoeda(item.precoUnFaturado)}
+                          {item.descontoDoItem > 0 && (
+                            <span className="block text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                              -{item.percentualDoItem.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}% ({formatarMoeda(item.descontoDoItem)})
+                            </span>
+                          )}
+                        </td>
                         <td className="px-4 py-3 text-right font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">{formatarMoeda(item.totalFaturado)}</td>
                       </tr>
                   ))}
@@ -535,9 +574,15 @@ export default function ModalDetalhes({ pedido, onClose, activeTabObj, onUpdateS
                 </div>
               )}
               <div className="flex justify-between w-72 text-zinc-500">
-                <span>Subtotal Faturado:</span>
+                <span>{descontoGeralAplicado > 0 ? 'Total de Mercadorias:' : 'Subtotal Faturado:'}</span>
                 <span className="tabular-nums">{formatarMoeda(subtotalReal)}</span>
               </div>
+              {descontoGeralAplicado > 0 && (
+                <div className="flex justify-between w-72 text-emerald-600 dark:text-emerald-400">
+                  <span>Desconto geral ({percentualGeral.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}%):</span>
+                  <span className="tabular-nums">-{formatarMoeda(descontoGeralAplicado)}</span>
+                </div>
+              )}
               <div className="flex justify-between w-72 text-zinc-500">
                 <span>Frete:</span>
                 <span className="tabular-nums">{formatarMoeda(freteReal)}</span>

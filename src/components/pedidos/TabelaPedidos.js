@@ -160,7 +160,7 @@ export default function TabelaPedidos({
               const codigoMostrar = typeof foiBaixado === 'string' ? foiBaixado : codigoOmieReal;
 
               const taEnviado = !!foiBaixado || !!codigoOmieReal || (isOmie && statusAtual !== 'pendente' && statusAtual !== 'cancelado');
-              const isCortado = pedido.teve_corte === 1 || pedido.teve_corte === true || (pedido.valor_faturado > 0 && pedido.valor_faturado < (pedido.total || pedido.valor_total));
+              const isCortado = pedido.teve_corte === 1 || pedido.teve_corte === true;
 
               const isEmSeparacao = ['20', 'processando', 'separacao', 'separar estoque'].includes(statusAtual);
               const isNfeEmitida = ['60', 'faturado', 'nfe_emitida'].includes(statusAtual);

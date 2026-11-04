@@ -87,12 +87,12 @@ function ModalCheckout({ isOpen, onClose, carrinho, onFinalizarPedido, onRemover
 
         const buscarRota = async () => {
           try {
-            const resCli = await fetch(`${getHubUrl()}/api/hub/clientes`, { headers: { "x-tenant-id": userObj.tenant_id } });
+            const resCli = await fetch(`${getHubUrl()}/api/hub/clientes`, { headers: getHeaders() });
             const dataCli = await resCli.json();
             if (dataCli.success) {
               const meuCadastro = dataCli.clientes.find(c => c.email === userObj.email);
               if (meuCadastro && meuCadastro.id_rota_frete) {
-                const resRotas = await fetch(`${getHubUrl()}/api/hub/rotas-frete`, { headers: { "x-tenant-id": userObj.tenant_id } });
+                const resRotas = await fetch(`${getHubUrl()}/api/hub/rotas-frete`, { headers: getHeaders() });
                 const dataRotas = await resRotas.json();
                 if (dataRotas.success) {
                   const minhaRota = dataRotas.rotas.find(r => String(r.id) === String(meuCadastro.id_rota_frete));
@@ -229,10 +229,10 @@ function ModalCheckout({ isOpen, onClose, carrinho, onFinalizarPedido, onRemover
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 bg-zinc-900/40 dark:bg-black/80 backdrop-blur-sm transition-all" onClick={step === 'resumo' ? onClose : null}>
-      <div className="bg-white dark:bg-[#0c0c0e] border border-zinc-200/50 dark:border-zinc-800/80 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.1)] w-full max-w-5xl max-h-[95vh] sm:max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-white dark:bg-[#0c0c0e] border border-zinc-200/50 dark:border-zinc-800/80 rounded-[28px] shadow-[0_20px_50px_rgba(0,0,0,0.1)] w-full max-w-5xl max-h-[95vh] sm:max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
         
-        <div className="flex items-center justify-between gap-3 px-6 py-4 border-b border-zinc-200 dark:border-zinc-800/80 bg-zinc-50/50 dark:bg-[#121214]">
-          <h2 className="text-lg font-black text-zinc-900 dark:text-zinc-100 flex items-center gap-2 tracking-tight">
+        <div className="flex items-center justify-between gap-3 px-6 py-4 border-b border-black/[0.06] dark:border-white/[0.07]/80 bg-zinc-50/50 dark:bg-[#121214]">
+          <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2 tracking-tight">
             {step === 'resumo' && <><ShoppingCart className="text-purple-600 dark:text-purple-400" size={20} /> Finalizar Pedido</>}
             {step === 'sucesso_pix' && <><Clock className="text-indigo-500 dark:text-indigo-400" size={20} /> Aguardando Pagamento</>}
             {step === 'concluido' && <><CheckCircle2 className="text-emerald-500 dark:text-emerald-400" size={20} /> Pedido Concluído</>}
@@ -247,7 +247,7 @@ function ModalCheckout({ isOpen, onClose, carrinho, onFinalizarPedido, onRemover
             <div className="w-20 h-20 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 rounded-full flex items-center justify-center mb-6 shadow-sm border border-emerald-100 dark:border-emerald-500/20">
               <CheckCircle2 size={40} className="animate-bounce" />
             </div>
-            <h2 className="text-2xl font-black text-zinc-900 dark:text-zinc-100 mb-2 tracking-tight">Pedido Realizado!</h2>
+            <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-2 tracking-tight">Pedido Realizado!</h2>
             <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-8 max-w-sm leading-relaxed">
               {metodoPagamento === 'pix' && `Recebemos o seu pagamento via PIX. Seu pedido #${pedidoFinalizadoId} já foi faturado e enviado para a nossa equipe logística.`}
               {metodoPagamento === 'cartao' && `Recebemos o seu pagamento via Cartão de Crédito. Seu pedido #${pedidoFinalizadoId} foi aprovado e enviado para a separação.`}
@@ -269,18 +269,18 @@ function ModalCheckout({ isOpen, onClose, carrinho, onFinalizarPedido, onRemover
             <div className="w-16 h-16 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-500 dark:text-indigo-400 rounded-full flex items-center justify-center mb-4 border border-indigo-100 dark:border-indigo-500/20 shadow-sm">
               <QrCode size={32} />
             </div>
-            <h2 className="text-xl font-black text-zinc-900 dark:text-zinc-100 mb-2">Pague via PIX</h2>
+            <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 mb-2">Pague via PIX</h2>
             <p className="text-zinc-500 dark:text-zinc-400 text-sm mb-6 max-w-xs">Abra o aplicativo do seu banco e escaneie o código abaixo.</p>
             
-            <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl px-5 py-3 mb-6 flex items-center justify-center gap-3 shadow-sm">
+            <div className="bg-white dark:bg-zinc-900 border border-black/[0.06] dark:border-white/[0.07] rounded-2xl px-5 py-3 mb-6 flex items-center justify-center gap-3 shadow-sm">
               <Clock size={18} className="text-indigo-500" />
               <span className="text-sm font-medium text-zinc-500">Expira em:</span>
-              <span className={`text-xl font-mono font-black ${tempoExpiracao < 300 ? 'text-rose-500 animate-pulse' : 'text-indigo-600 dark:text-indigo-400'}`}>
+              <span className={`text-xl font-mono font-bold ${tempoExpiracao < 300 ? 'text-rose-500 animate-pulse' : 'text-indigo-600 dark:text-indigo-400'}`}>
                 {formatarTempo(tempoExpiracao)}
               </span>
             </div>
             
-           <div className="w-full max-w-[240px] bg-white p-3 rounded-3xl mb-6 shadow-sm border border-zinc-200 dark:border-zinc-800 relative overflow-hidden flex items-center justify-center min-h-[220px]">
+           <div className="w-full max-w-[240px] bg-white p-3 rounded-[28px] mb-6 shadow-sm border border-black/[0.06] dark:border-white/[0.07] relative overflow-hidden flex items-center justify-center min-h-[220px]">
               {dadosPix.qr_code_base64 && dadosPix.qr_code_base64.length > 50 ? (
                 <img src={`data:image/png;base64,${dadosPix.qr_code_base64}`} alt="QR Code PIX" className="w-48 h-48 relative z-10 object-contain" />
               ) : (
@@ -289,9 +289,9 @@ function ModalCheckout({ isOpen, onClose, carrinho, onFinalizarPedido, onRemover
             </div>
 
             <div className="w-full max-w-sm space-y-2 mb-6">
-              <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider text-left block ml-1">Pix Copia e Cola</label>
+              <label className="text-[11px] font-bold text-zinc-400 text-left block ml-1">Pix Copia e Cola</label>
               <div className="flex flex-col sm:flex-row items-stretch gap-2">
-                <input type="text" readOnly value={dadosPix.qr_code} className="w-full sm:flex-1 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 px-4 py-3 rounded-xl text-xs outline-none font-mono truncate shadow-inner" />
+                <input type="text" readOnly value={dadosPix.qr_code} className="w-full sm:flex-1 bg-zinc-50 dark:bg-zinc-900 border border-black/[0.06] dark:border-white/[0.07] text-zinc-600 dark:text-zinc-400 px-4 py-3 rounded-xl text-xs outline-none font-mono truncate shadow-inner" />
                 <button onClick={copiarPix} className={`px-6 py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 ${copiado ? 'bg-indigo-50 text-indigo-600 border border-indigo-200' : 'bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900'}`}>
                   {copiado ? <CheckCircle2 size={16} /> : 'Copiar'}
                 </button>
@@ -309,24 +309,24 @@ function ModalCheckout({ isOpen, onClose, carrinho, onFinalizarPedido, onRemover
           <div className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6 animate-in slide-in-from-left-8">
             <div className="space-y-6">
               
-              <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-3xl p-5 sm:p-6 shadow-sm">
+              <div className="bg-white dark:bg-[#121214] border border-black/[0.06] dark:border-white/[0.07] rounded-[28px] p-5 sm:p-6 shadow-sm">
                 <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 border-b border-zinc-100 dark:border-zinc-800/60 pb-3 mb-4 flex items-center gap-2">
                   <CreditCard size={16} className="text-purple-500" /> Forma de Pagamento
                 </h3>
                 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <button onClick={() => setMetodoPagamento('faturado')} className={`flex flex-col items-center justify-center p-3 rounded-2xl border transition-all ${metodoPagamento === 'faturado' ? 'bg-purple-50 dark:bg-purple-500/10 border-purple-500 text-purple-700 dark:text-purple-400' : 'bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-700'}`}>
+                  <button onClick={() => setMetodoPagamento('faturado')} className={`flex flex-col items-center justify-center p-3 rounded-2xl border transition-all ${metodoPagamento === 'faturado' ? 'bg-purple-50 dark:bg-purple-500/10 border-purple-500 text-purple-700 dark:text-purple-400' : 'bg-white dark:bg-zinc-950 border-black/[0.06] dark:border-white/[0.07] text-zinc-500 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-700'}`}>
                     <FileText size={20} className="mb-1.5" />
                     <span className="text-xs font-bold">Boleto ERP</span>
                   </button>
 
                   {metodosAtivos.mercadopago && (
                     <>
-                      <button onClick={() => setMetodoPagamento('pix')} className={`flex flex-col items-center justify-center p-3 rounded-2xl border transition-all ${metodoPagamento === 'pix' ? 'bg-indigo-50 dark:bg-indigo-500/10 border-indigo-500 text-indigo-700 dark:text-indigo-400' : 'bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-700'}`}>
+                      <button onClick={() => setMetodoPagamento('pix')} className={`flex flex-col items-center justify-center p-3 rounded-2xl border transition-all ${metodoPagamento === 'pix' ? 'bg-indigo-50 dark:bg-indigo-500/10 border-indigo-500 text-indigo-700 dark:text-indigo-400' : 'bg-white dark:bg-zinc-950 border-black/[0.06] dark:border-white/[0.07] text-zinc-500 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-700'}`}>
                         <QrCode size={20} className="mb-1.5" />
                         <span className="text-xs font-bold">PIX (MP)</span>
                       </button>
-                      <button onClick={() => setMetodoPagamento('cartao')} className={`flex flex-col items-center justify-center p-3 rounded-2xl border transition-all ${metodoPagamento === 'cartao' ? 'bg-blue-50 dark:bg-blue-500/10 border-blue-500 text-blue-700 dark:text-blue-400' : 'bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-700'}`}>
+                      <button onClick={() => setMetodoPagamento('cartao')} className={`flex flex-col items-center justify-center p-3 rounded-2xl border transition-all ${metodoPagamento === 'cartao' ? 'bg-blue-50 dark:bg-blue-500/10 border-blue-500 text-blue-700 dark:text-blue-400' : 'bg-white dark:bg-zinc-950 border-black/[0.06] dark:border-white/[0.07] text-zinc-500 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-700'}`}>
                         <CreditCard size={20} className="mb-1.5" />
                         <span className="text-xs font-bold">Cartão</span>
                       </button>
@@ -336,7 +336,7 @@ function ModalCheckout({ isOpen, onClose, carrinho, onFinalizarPedido, onRemover
 
                 <div className="pt-2">
                   {metodoPagamento === 'faturado' && (
-                    <div className="animate-in fade-in slide-in-from-top-2 mt-4 space-y-3 bg-zinc-50 dark:bg-zinc-900/50 p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800/80">
+                    <div className="animate-in fade-in slide-in-from-top-2 mt-4 space-y-3 bg-zinc-50 dark:bg-zinc-900/50 p-4 rounded-2xl border border-black/[0.06] dark:border-white/[0.07]/80">
                       <p className="text-xs font-bold text-zinc-700 dark:text-zinc-300 mb-2 flex items-center gap-2">
                         <CalendarDays size={14} className="text-purple-500" />
                         Prazos liberados para o seu CNPJ:
@@ -348,7 +348,7 @@ function ModalCheckout({ isOpen, onClose, carrinho, onFinalizarPedido, onRemover
                             <button
                               key={opcao.codigo}
                               onClick={() => setPrazoBoleto(opcao.codigo)}
-                              className={`p-2.5 rounded-xl border text-left transition-all ${prazoBoleto === opcao.codigo ? 'border-purple-500 bg-white dark:bg-[#121214] shadow-sm' : 'border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 hover:border-zinc-300 dark:hover:border-zinc-700'}`}
+                              className={`p-2.5 rounded-xl border text-left transition-all ${prazoBoleto === opcao.codigo ? 'border-purple-500 bg-white dark:bg-[#121214] shadow-sm' : 'border-black/[0.06] dark:border-white/[0.07] bg-white dark:bg-zinc-900/50 hover:border-zinc-300 dark:hover:border-zinc-700'}`}
                             >
                               <div className="flex items-center gap-2.5">
                                 <div className={`w-8 h-8 flex items-center justify-center rounded-lg shrink-0 ${prazoBoleto === opcao.codigo ? 'bg-purple-100 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400' : 'bg-zinc-200 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400'}`}>
@@ -363,7 +363,7 @@ function ModalCheckout({ isOpen, onClose, carrinho, onFinalizarPedido, onRemover
                             </button>
                           ))
                         ) : (
-                          <div className="col-span-3 p-4 text-center border border-dashed border-zinc-200 dark:border-zinc-800 rounded-xl bg-white dark:bg-zinc-900/30">
+                          <div className="col-span-3 p-4 text-center border border-dashed border-black/[0.06] dark:border-white/[0.07] rounded-xl bg-white dark:bg-zinc-900/30">
                             <p className="text-zinc-500 text-xs font-medium">Nenhum prazo de faturamento especial localizado no seu cadastro.</p>
                           </div>
                         )}
@@ -381,7 +381,7 @@ function ModalCheckout({ isOpen, onClose, carrinho, onFinalizarPedido, onRemover
                   {metodoPagamento === 'cartao' && (
                     <div className="animate-in fade-in slide-in-from-top-2 mt-4 pt-4 border-t border-zinc-100 dark:border-zinc-800">
                       {mpKeyMissing ? (
-                        <div className="flex flex-col items-center justify-center p-6 text-center bg-zinc-50 dark:bg-zinc-900/50 rounded-2xl border border-zinc-200 dark:border-zinc-800">
+                        <div className="flex flex-col items-center justify-center p-6 text-center bg-zinc-50 dark:bg-zinc-900/50 rounded-2xl border border-black/[0.06] dark:border-white/[0.07]">
                           <AlertCircle size={24} className="text-rose-500 mb-2" />
                           <p className="text-zinc-900 dark:text-zinc-100 font-bold text-sm">Indisponível no Momento</p>
                           <p className="text-zinc-500 dark:text-zinc-400 text-xs mt-1">O gateway de pagamento não foi ativado.</p>
@@ -395,13 +395,13 @@ function ModalCheckout({ isOpen, onClose, carrinho, onFinalizarPedido, onRemover
                       ) : !isMpReady ? (
                         <div className="flex flex-col items-center justify-center p-6 text-zinc-500">
                           <Loader2 size={24} className="animate-spin mb-2 text-purple-500" />
-                          <p className="font-bold text-xs uppercase tracking-wider">Conectando...</p>
+                          <p className="font-bold text-xs">Conectando...</p>
                         </div>
                       ) : (
-                        <div className="bg-white dark:bg-[#121214] p-3 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                        <div className="bg-white dark:bg-[#121214] p-3 rounded-2xl border border-black/[0.06] dark:border-white/[0.07] shadow-sm">
                           <Payment
                             initialization={{ amount: subtotal }}
-                            customization={{ visual: { style: { theme: 'default' } }, paymentMethods: { creditCard: 'all', debitCard: 'all' } }}
+                            customization={{ visual: { style: { theme: document.documentElement.classList.contains('dark') ? 'dark' : 'default', customVariables: { baseColor: '#9333ea', borderRadiusMedium: '14px' } } }, paymentMethods: { creditCard: 'all', debitCard: 'all' } }}
                             onSubmit={async (param) => {
                               setIsProcessando(true);
                               const resultado = await onFinalizarPedido({ itens: itensComprados, subtotal, metodoPagamento: 'cartao', prazoBoleto: null, metodoEnvio, dadosCartaoMp: param.formData });
@@ -416,13 +416,13 @@ function ModalCheckout({ isOpen, onClose, carrinho, onFinalizarPedido, onRemover
                 </div>
               </div>
 
-              <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-3xl p-5 sm:p-6 shadow-sm">
+              <div className="bg-white dark:bg-[#121214] border border-black/[0.06] dark:border-white/[0.07] rounded-[28px] p-5 sm:p-6 shadow-sm">
                 <div className="flex items-center justify-between mb-4 border-b border-zinc-100 dark:border-zinc-800/60 pb-3">
                   <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
                     <MapIcon size={16} className="text-purple-500" /> Logística e Frete
                   </h3>
                   {rotaCliente && (
-                    <span className="text-[9px] font-black uppercase tracking-wider text-purple-600 bg-purple-50 dark:bg-purple-500/10 dark:text-purple-400 px-2 py-1 rounded">
+                    <span className="text-[11px] font-bold text-purple-600 bg-purple-50 dark:bg-purple-500/10 dark:text-purple-400 px-2 py-1 rounded">
                       Região: {rotaCliente.nome}
                     </span>
                   )}
@@ -468,11 +468,11 @@ function ModalCheckout({ isOpen, onClose, carrinho, onFinalizarPedido, onRemover
               </div>
             </div>
 
-            <div className="flex flex-col bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-3xl overflow-hidden shadow-sm h-max lg:sticky lg:top-6">
+            <div className="flex flex-col bg-white dark:bg-[#121214] border border-black/[0.06] dark:border-white/[0.07] rounded-[28px] overflow-hidden shadow-sm h-max lg:sticky lg:top-6">
               <div className="p-5 border-b border-zinc-100 dark:border-zinc-800/80 bg-zinc-50/50 dark:bg-[#121214]">
                 <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 flex items-center justify-between">
                   Resumo do Carrinho
-                  <span className="bg-purple-50 text-purple-600 dark:bg-purple-500/10 dark:text-purple-400 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">{itensComprados.length} Itens</span>
+                  <span className="bg-purple-50 text-purple-600 dark:bg-purple-500/10 dark:text-purple-400 text-[11px] font-bold px-2 py-0.5 rounded-full">{itensComprados.length} Itens</span>
                 </h3>
               </div>
               
@@ -482,13 +482,13 @@ function ModalCheckout({ isOpen, onClose, carrinho, onFinalizarPedido, onRemover
                     <li key={item.sku} className="py-3 flex items-center justify-between gap-3 group">
                       <div className="flex-1">
                         <p className="text-xs font-bold text-zinc-800 dark:text-zinc-200 line-clamp-1">{item.nome}</p>
-                        <p className="text-[10px] text-zinc-500 mt-0.5 font-medium">
+                        <p className="text-[11px] text-zinc-500 mt-0.5 font-medium">
                           {item.qtd}x {formatarMoeda(item.precoUsado)} 
                           {item.atingiuMinimo && <span className="text-emerald-500 font-bold ml-1 inline-flex items-center gap-0.5"><Zap size={8}/> Promo</span>}
                         </p>
                       </div>
                       <div className="flex flex-col items-end gap-1 shrink-0">
-                        <div className="text-sm font-black text-zinc-900 dark:text-zinc-100">{formatarMoeda(item.totalItem)}</div>
+                        <div className="text-sm font-bold text-zinc-900 dark:text-zinc-100">{formatarMoeda(item.totalItem)}</div>
                         <button onClick={() => onRemoverItem(item.sku)} className="text-zinc-300 hover:text-rose-500 transition-colors"><Trash2 size={12} /></button>
                       </div>
                     </li>
@@ -500,7 +500,7 @@ function ModalCheckout({ isOpen, onClose, carrinho, onFinalizarPedido, onRemover
                 <div className="flex justify-between items-center text-zinc-500 text-xs">
                   <span>Subtotal Produtos</span><span className="font-medium">{formatarMoeda(subtotal)}</span>
                 </div>
-                <div className="flex justify-between items-center text-zinc-500 text-xs pb-3 border-b border-zinc-200 dark:border-zinc-800/60">
+                <div className="flex justify-between items-center text-zinc-500 text-xs pb-3 border-b border-black/[0.06] dark:border-white/[0.07]">
                   <span>Frete Estimado</span>
                   <span className={`font-medium ${isCif && metodoEnvio === 'transportadora' ? 'text-emerald-500' : 'italic'}`}>
                     {metodoEnvio === 'retirada' ? "Grátis (Retirada)" : (isCif ? "Grátis (CIF)" : "A calcular (FOB)")}
@@ -508,8 +508,8 @@ function ModalCheckout({ isOpen, onClose, carrinho, onFinalizarPedido, onRemover
                 </div>
 
                 <div className="flex justify-between items-end pt-1 mb-4">
-                  <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-widest">Total a Pagar</span>
-                  <span className="text-2xl font-black text-purple-600 dark:text-purple-400 leading-none">{formatarMoeda(subtotal)}</span>
+                  <span className="text-[11px] font-bold text-zinc-400">Total a Pagar</span>
+                  <span className="text-2xl font-bold text-purple-600 dark:text-purple-400 leading-none">{formatarMoeda(subtotal)}</span>
                 </div>
                 
                 {metodoPagamento !== 'cartao' && (
@@ -532,7 +532,7 @@ function ModalCheckout({ isOpen, onClose, carrinho, onFinalizarPedido, onRemover
 function SeletorQuantidade({ id, qtd, onQtdChange }) {
   if (qtd > 0) {
     return (
-      <div className="flex items-center justify-between bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg overflow-hidden h-8 w-24">
+      <div className="flex items-center justify-between bg-zinc-50 dark:bg-zinc-900 border border-black/[0.06] dark:border-white/[0.07] rounded-lg overflow-hidden h-8 w-24">
         <button onClick={() => onQtdChange(id, Math.max(0, qtd - 1))} className="w-8 h-full flex items-center justify-center text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors">-</button>
         <span className="font-bold text-zinc-900 dark:text-zinc-100 text-xs">{qtd}</span>
         <button onClick={() => onQtdChange(id, qtd + 1)} className="w-8 h-full flex items-center justify-center text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors">+</button>
@@ -540,7 +540,7 @@ function SeletorQuantidade({ id, qtd, onQtdChange }) {
     );
   }
   return (
-    <button onClick={() => onQtdChange(id, 1)} className="w-24 h-8 flex items-center justify-center bg-zinc-100 hover:bg-purple-50 text-zinc-600 hover:text-purple-600 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-purple-500/20 dark:hover:text-purple-400 rounded-lg font-bold transition-all text-[11px] uppercase tracking-wider">
+    <button onClick={() => onQtdChange(id, 1)} className="w-24 h-8 flex items-center justify-center bg-zinc-100 hover:bg-purple-50 text-zinc-600 hover:text-purple-600 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-purple-500/20 dark:hover:text-purple-400 rounded-lg font-bold transition-all text-[11px]">
       Adicionar
     </button>
   );
@@ -603,7 +603,7 @@ export default function CatalogoB2B() {
         }
 
         const userEmail = userObj?.email || null;
-        const headers = { "x-tenant-id": tenantId };
+        const headers = { ...getHeaders(), "x-tenant-id": tenantId };
 
         const safeFetch = async (url) => {
           try {
@@ -811,7 +811,7 @@ export default function CatalogoB2B() {
   };
 
   return (
-    <div className="flex h-screen bg-zinc-50 dark:bg-[#09090b] text-zinc-900 dark:text-zinc-100 overflow-hidden transition-colors duration-300">
+    <div className="flex h-screen bg-[#f5f5f7] dark:bg-black text-zinc-900 dark:text-zinc-100 overflow-hidden transition-colors duration-300">
       <Sidebar />
 
       <div className="flex-1 flex flex-col h-screen relative min-w-0">
@@ -821,24 +821,24 @@ export default function CatalogoB2B() {
           <div className="max-w-7xl mx-auto space-y-6">
             
             {/* CABEÇALHO B2B COM FILTRO DE MARCAS */}
-            <div className="bg-white/70 dark:bg-[#121214]/70 backdrop-blur-xl p-5 sm:p-6 rounded-[2rem] border border-zinc-200 dark:border-zinc-800/80 shadow-sm transition-colors duration-300 flex flex-col">
+            <div className="bg-white/70 dark:bg-[#121214]/70 backdrop-blur-xl p-5 sm:p-6 rounded-[28px] border border-black/[0.06] dark:border-white/[0.07]/80 shadow-sm transition-colors duration-300 flex flex-col">
               
               <div className="flex flex-col xl:flex-row gap-4 items-start xl:items-center justify-between w-full">
                 <div className="w-full xl:w-auto shrink-0">
-                  <h1 className="text-xl sm:text-2xl font-black text-zinc-900 dark:text-zinc-100 flex items-center gap-3 tracking-tight">
+                  <h1 className="text-xl sm:text-2xl font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-3 tracking-tight">
                     <Package className="text-purple-600 dark:text-purple-400" size={24} /> Catálogo de produtos
                   </h1>
                   <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">Faça a reposição do seu estoque com facilidade.</p>
                 </div>
 
                 <div className="flex w-full xl:w-auto items-stretch sm:items-center gap-3 flex-col sm:flex-row sm:flex-wrap xl:justify-end">
-                  <label className="w-full sm:w-auto flex items-center gap-2 cursor-pointer bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 px-4 py-2.5 rounded-xl transition-all shadow-sm hover:border-purple-300 dark:hover:border-purple-700">
+                  <label className="w-full sm:w-auto flex items-center gap-2 cursor-pointer bg-white dark:bg-zinc-900 border border-black/[0.06] dark:border-white/[0.07] px-4 py-2.5 rounded-xl transition-all shadow-sm hover:border-purple-300 dark:hover:border-purple-700">
                     <input type="checkbox" checked={somenteOfertas} onChange={(e) => { setSomenteOfertas(e.target.checked); setPage(1); }} className="w-4 h-4 rounded border-zinc-300 text-purple-600 focus:ring-purple-600 cursor-pointer"/>
                     <Zap size={14} className={somenteOfertas ? "text-amber-500 fill-amber-500" : "text-zinc-400"} />
-                    <span className={`text-xs font-bold uppercase tracking-wider ${somenteOfertas ? "text-zinc-900 dark:text-zinc-100" : "text-zinc-500 dark:text-zinc-400"}`}>Ofertas</span>
+                    <span className={`text-xs font-bold ${somenteOfertas ? "text-zinc-900 dark:text-zinc-100" : "text-zinc-500 dark:text-zinc-400"}`}>Ofertas</span>
                   </label>
 
-                  <select value={limit} onChange={(e) => { setLimit(e.target.value); setPage(1); }} className="w-full sm:w-auto bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider outline-none focus:border-purple-500 cursor-pointer shadow-sm">
+                  <select value={limit} onChange={(e) => { setLimit(e.target.value); setPage(1); }} className="w-full sm:w-auto bg-white dark:bg-zinc-900 border border-black/[0.06] dark:border-white/[0.07] text-zinc-700 dark:text-zinc-300 px-4 py-2.5 rounded-xl text-xs font-bold outline-none focus:border-purple-500 cursor-pointer shadow-sm">
                     <option value="20">20 itens</option>
                     <option value="50">50 itens</option>
                     <option value="100">100 itens</option>
@@ -846,7 +846,7 @@ export default function CatalogoB2B() {
 
                   <form onSubmit={handleSearch} className="relative w-full sm:w-72 lg:w-80 shadow-sm">
                     <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
-                    <input type="text" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder="Buscar por produto, SKU ou EAN..." className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 pl-9 pr-4 py-2.5 rounded-xl text-sm outline-none focus:border-purple-500 transition-all placeholder:text-zinc-400" />
+                    <input type="text" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder="Buscar por produto, SKU ou EAN..." className="w-full bg-white dark:bg-zinc-900 border border-black/[0.06] dark:border-white/[0.07] text-zinc-900 dark:text-zinc-100 pl-9 pr-4 py-2.5 rounded-xl text-sm outline-none focus:border-purple-500 transition-all placeholder:text-zinc-400" />
                   </form>
                 </div>
               </div>
@@ -854,11 +854,11 @@ export default function CatalogoB2B() {
               {/* 🟢 BARRA DE MARCAS (SCROLL HORIZONTAL) */}
               {marcasUnicas.length > 0 && (
                 <div className="flex items-center gap-2 mt-5 pt-4 border-t border-zinc-100 dark:border-zinc-800/60 overflow-x-auto custom-scrollbar pb-1 w-full">
-                  <span className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-widest shrink-0 mr-2">Filtro Rápido:</span>
+                  <span className="text-[11px] font-bold text-zinc-400 dark:text-zinc-500 shrink-0 mr-2">Filtro Rápido:</span>
                   
                   <button 
                     onClick={() => { setMarcaSelecionada(""); setPage(1); }} 
-                    className={`shrink-0 px-4 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wider transition-all border ${marcaSelecionada === "" ? "bg-purple-600 text-white border-purple-600 shadow-md shadow-purple-500/20" : "bg-zinc-50 dark:bg-zinc-900 text-zinc-500 dark:text-zinc-400 border-zinc-200 dark:border-zinc-800 hover:border-purple-300 dark:hover:border-purple-700 hover:text-purple-600 dark:hover:text-purple-400"}`}
+                    className={`shrink-0 px-4 py-1.5 rounded-full text-[11px] font-bold transition-all border ${marcaSelecionada === "" ? "bg-purple-600 text-white border-purple-600 shadow-md shadow-purple-500/20" : "bg-zinc-50 dark:bg-zinc-900 text-zinc-500 dark:text-zinc-400 border-black/[0.06] dark:border-white/[0.07] hover:border-purple-300 dark:hover:border-purple-700 hover:text-purple-600 dark:hover:text-purple-400"}`}
                   >
                     Todas
                   </button>
@@ -867,7 +867,7 @@ export default function CatalogoB2B() {
                     <button 
                       key={marca}
                       onClick={() => { setMarcaSelecionada(marca); setPage(1); }} 
-                      className={`shrink-0 px-4 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wider transition-all border ${marcaSelecionada === marca ? "bg-purple-600 text-white border-purple-600 shadow-md shadow-purple-500/20" : "bg-zinc-50 dark:bg-zinc-900 text-zinc-500 dark:text-zinc-400 border-zinc-200 dark:border-zinc-800 hover:border-purple-300 dark:hover:border-purple-700 hover:text-purple-600 dark:hover:text-purple-400"}`}
+                      className={`shrink-0 px-4 py-1.5 rounded-full text-[11px] font-bold transition-all border ${marcaSelecionada === marca ? "bg-purple-600 text-white border-purple-600 shadow-md shadow-purple-500/20" : "bg-zinc-50 dark:bg-zinc-900 text-zinc-500 dark:text-zinc-400 border-black/[0.06] dark:border-white/[0.07] hover:border-purple-300 dark:hover:border-purple-700 hover:text-purple-600 dark:hover:text-purple-400"}`}
                     >
                       {marca}
                     </button>
@@ -877,7 +877,7 @@ export default function CatalogoB2B() {
 
             </div>
 
-            <div className="border border-zinc-200 dark:border-zinc-800/80 bg-white dark:bg-[#121214] rounded-[2rem] overflow-hidden relative min-h-[400px] flex flex-col shadow-sm transition-colors duration-300">
+            <div className="border border-black/[0.06] dark:border-white/[0.07]/80 bg-white dark:bg-[#121214] rounded-[28px] overflow-hidden relative min-h-[400px] flex flex-col shadow-sm transition-colors duration-300">
               {loading && <div className="absolute inset-0 z-10 bg-white/50 dark:bg-[#121214]/50 backdrop-blur-sm flex items-center justify-center"><Loader2 size={32} className="text-purple-600 animate-spin" /></div>}
 
               <div className="overflow-x-auto flex-1 p-1 sm:p-2">
@@ -901,10 +901,10 @@ export default function CatalogoB2B() {
                       return (
                         <tr key={produto.sku} className={`transition-colors group ${!temEstoque ? 'opacity-50 grayscale bg-zinc-50 dark:bg-zinc-900/10' : 'hover:bg-zinc-50/50 dark:hover:bg-zinc-800/30'}`}>
                           <td className="px-4 py-4 w-20">
-                            <div className="relative w-14 h-14 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl flex items-center justify-center overflow-hidden shrink-0 mx-auto">
+                            <div className="relative w-14 h-14 bg-white dark:bg-zinc-900 border border-black/[0.06] dark:border-white/[0.07] rounded-xl flex items-center justify-center overflow-hidden shrink-0 mx-auto">
                               
                               {emPromocao && desconto > 0 && (
-                                <div className="absolute top-0 right-0 bg-rose-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-bl-lg shadow-sm z-10 flex items-center gap-0.5 animate-pulse">
+                                <div className="absolute top-0 right-0 bg-purple-600 text-white text-[10px] font-semibold px-1.5 py-0.5 rounded-bl-lg z-10 flex items-center gap-0.5">
                                   <Zap size={8} fill="currentColor" />-{desconto}%
                                 </div>
                               )}
@@ -914,7 +914,7 @@ export default function CatalogoB2B() {
                           </td>
                           <td className="px-4 py-4">
                             <h3 className="font-bold text-zinc-800 dark:text-zinc-200 text-sm leading-snug line-clamp-2">{produto.nome}</h3>
-                            <div className="flex items-center gap-3 mt-1 text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">
+                            <div className="flex items-center gap-3 mt-1 text-[11px] font-bold text-zinc-400 dark:text-zinc-500">
                               <span>{produto.marca || "SEM MARCA"}</span>
                               <span className="w-1 h-1 rounded-full bg-zinc-300 dark:bg-zinc-700"></span>
                               <span>SKU: {produto.sku}</span>
@@ -933,32 +933,36 @@ export default function CatalogoB2B() {
                                 {produto.estoque_inicial} UN
                               </div>
                             ) : (
-                              <div className="inline-flex items-center justify-center bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 text-[10px] font-bold px-2.5 py-1 rounded-lg uppercase tracking-wider">
+                              <div className="inline-flex items-center justify-center bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 text-[11px] font-bold px-2.5 py-1 rounded-lg">
                                 Sem Estoque
                               </div>
                             )}
                           </td>
 
-                          <td className="px-4 py-4 text-right w-32">
+                          <td className="px-4 py-4 text-right w-44">
                             {emPromocao ? (
                               <div className="flex flex-col items-end">
-                                {atingiuMinimo && <span className="text-zinc-400 line-through text-[10px] font-medium leading-none mb-0.5">{formatarMoeda(precoOriginal)}</span>}
-                                <span className={`font-black tracking-tight ${atingiuMinimo ? 'text-purple-600 dark:text-purple-400 text-base' : 'text-zinc-900 dark:text-zinc-100 text-sm'}`}>{formatarMoeda(precoExibicao)}</span>
+                                {atingiuMinimo && <span className="text-zinc-400 line-through text-[11px] font-medium leading-none mb-0.5">{formatarMoeda(precoOriginal)}</span>}
+                                <span className={`font-bold tracking-tight ${atingiuMinimo ? 'text-purple-600 dark:text-purple-400 text-base' : 'text-zinc-900 dark:text-zinc-100 text-sm'}`}>{formatarMoeda(precoExibicao)}</span>
                                 {!atingiuMinimo ? (
-                                   <span className="text-[9px] bg-zinc-100 dark:bg-zinc-800 text-zinc-500 px-1.5 py-0.5 rounded font-bold mt-1 flex items-center gap-1 w-fit uppercase tracking-wider"><Tag size={10} /> OFF Acima de {minExigido} un.</span>
+                                   <span className="mt-1.5 inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-purple-500/10 px-2 py-0.5 text-[11px] font-semibold text-purple-700 dark:text-purple-300">
+                                     <Tag size={11} /> {formatarMoeda(parseFloat(produto.preco_promocional))} a partir de {minExigido} un
+                                   </span>
                                 ) : (
-                                   <span className="text-[9px] bg-rose-100 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 px-1.5 py-0.5 rounded font-bold mt-1 flex items-center gap-1 w-fit uppercase tracking-wider border border-rose-200 dark:border-rose-500/20"><Zap size={10} fill="currentColor" /> APLICADA</span>
+                                   <span className="mt-1.5 inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
+                                     <Zap size={11} fill="currentColor" /> Promoção aplicada
+                                   </span>
                                 )}
                               </div>
                             ) : (
-                              <span className="font-black text-zinc-900 dark:text-zinc-100 text-sm">{formatarMoeda(precoOriginal)}</span>
+                              <span className="font-bold text-zinc-900 dark:text-zinc-100 text-sm">{formatarMoeda(precoOriginal)}</span>
                             )}
                           </td>
                           <td className="px-4 py-4 w-32">
                             {temEstoque ? (
                               <SeletorQuantidade id={produto.sku} qtd={qtdNoCarrinho} onQtdChange={(id, qtd) => handleQuantidade(produto, qtd)} />
                             ) : (
-                              <div className="w-24 h-8 flex items-center justify-center bg-zinc-100 dark:bg-zinc-900 text-zinc-400 rounded-lg text-[10px] font-bold uppercase tracking-wider">Esgotado</div>
+                              <div className="w-24 h-8 flex items-center justify-center bg-zinc-100 dark:bg-zinc-900 text-zinc-400 rounded-lg text-[11px] font-bold">Esgotado</div>
                             )}
                           </td>
                         </tr>
@@ -969,12 +973,12 @@ export default function CatalogoB2B() {
               </div>
 
               <div className="p-4 border-t border-zinc-100 dark:border-zinc-800/60 flex items-center justify-between text-sm">
-                <span className="text-zinc-400 text-[11px] font-bold uppercase tracking-wider">
+                <span className="text-zinc-400 text-[11px] font-bold">
                   Pág. <span className="text-zinc-900 dark:text-zinc-100">{page}</span> / {totalPages || 1}
                 </span>
                 <div className="flex items-center gap-2">
-                  <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 w-8 h-8 rounded-lg flex items-center justify-center text-zinc-500 transition-colors disabled:opacity-50"><ChevronLeft size={16} /></button>
-                  <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages || totalPages === 0} className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 w-8 h-8 rounded-lg flex items-center justify-center text-zinc-500 transition-colors disabled:opacity-50"><ChevronRight size={16} /></button>
+                  <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="bg-zinc-50 dark:bg-zinc-900 border border-black/[0.06] dark:border-white/[0.07] hover:bg-zinc-100 w-8 h-8 rounded-lg flex items-center justify-center text-zinc-500 transition-colors disabled:opacity-50"><ChevronLeft size={16} /></button>
+                  <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages || totalPages === 0} className="bg-zinc-50 dark:bg-zinc-900 border border-black/[0.06] dark:border-white/[0.07] hover:bg-zinc-100 w-8 h-8 rounded-lg flex items-center justify-center text-zinc-500 transition-colors disabled:opacity-50"><ChevronRight size={16} /></button>
                 </div>
               </div>
             </div>
@@ -992,16 +996,16 @@ export default function CatalogoB2B() {
                 <ShoppingCart size={16} className="sm:w-[18px] sm:h-[18px]" />
               </div>
               <div className="flex flex-col">
-                <span className="text-white font-black text-xs sm:text-sm leading-tight">
+                <span className="text-white font-bold text-xs sm:text-sm leading-tight">
                   {Object.values(carrinho).reduce((a, b) => a + b.qtd, 0)} Itens
                 </span>
-                <span className="text-purple-300/70 text-[9px] sm:text-[10px] font-bold uppercase tracking-widest leading-tight">
+                <span className="text-purple-300/70 text-[11px] sm:text-[11px] font-bold leading-tight">
                   Pronto p/ envio
                 </span>
               </div>
             </div>
             
-            <button onClick={() => setIsCheckoutOpen(true)} className="bg-white text-[#0d0514] px-4 sm:px-6 h-9 sm:h-10 rounded-full font-black transition-all flex items-center justify-center gap-1.5 sm:gap-2 active:scale-95 text-[10px] sm:text-xs uppercase tracking-wider hover:bg-zinc-200">
+            <button onClick={() => setIsCheckoutOpen(true)} className="bg-white text-[#0d0514] px-4 sm:px-6 h-9 sm:h-10 rounded-full font-bold transition-all flex items-center justify-center gap-1.5 sm:gap-2 active:scale-95 text-[11px] sm:text-xs hover:bg-zinc-200">
               Avançar <ArrowRight size={14} className="hidden sm:block" />
             </button>
 

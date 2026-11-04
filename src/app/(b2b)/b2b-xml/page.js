@@ -77,10 +77,10 @@ export default function CofreXMLB2B() {
 
   const formatarMoeda = (valor) => Number(valor).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-  if (!user) return <div className="h-screen bg-zinc-50 dark:bg-[#09090b] transition-colors duration-300"></div>;
+  if (!user) return <div className="h-screen bg-[#f5f5f7] dark:bg-black transition-colors duration-300"></div>;
 
   return (
-    <div className="flex h-screen bg-zinc-50 dark:bg-[#09090b] text-zinc-900 dark:text-zinc-100 overflow-hidden overflow-x-hidden transition-colors duration-300">
+    <div className="flex h-screen bg-[#f5f5f7] dark:bg-black text-zinc-900 dark:text-zinc-100 overflow-hidden overflow-x-hidden transition-colors duration-300">
       <Sidebar />
       <div className="flex-1 flex flex-col h-screen relative min-w-0">
         <Header />
@@ -88,7 +88,7 @@ export default function CofreXMLB2B() {
         <main className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar p-4 sm:p-6 lg:p-8">
           <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6">
             
-            <div className="bg-white dark:bg-[#0c0c0e] p-4 sm:p-6 lg:p-8 rounded-2xl border border-zinc-200 dark:border-zinc-800/60 shadow-sm dark:shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6 relative overflow-hidden transition-colors duration-300">
+            <div className="bg-white dark:bg-[#0c0c0e] p-4 sm:p-6 lg:p-8 rounded-2xl border border-black/[0.06] dark:border-white/[0.07] shadow-sm dark:shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6 relative overflow-hidden transition-colors duration-300">
               <div className="absolute right-0 top-0 w-44 h-44 sm:w-64 sm:h-64 bg-blue-600/5 dark:bg-blue-600/10 rounded-full blur-[80px] pointer-events-none" />
               <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between w-full gap-4">
                 <div className="flex items-start sm:items-center gap-3 sm:gap-4 min-w-0">
@@ -106,7 +106,7 @@ export default function CofreXMLB2B() {
               </div>
             </div>
 
-            <div className="border border-zinc-200 dark:border-zinc-800/60 bg-white dark:bg-[#0c0c0e] rounded-2xl overflow-hidden relative shadow-md dark:shadow-xl min-h-[320px] sm:min-h-[400px] transition-colors duration-300">
+            <div className="border border-black/[0.06] dark:border-white/[0.07] bg-white dark:bg-[#0c0c0e] rounded-2xl overflow-hidden relative shadow-md dark:shadow-xl min-h-[320px] sm:min-h-[400px] transition-colors duration-300">
               {loading && (
                 <div className="absolute inset-0 z-10 bg-white/60 dark:bg-[#0c0c0e]/60 backdrop-blur-sm flex items-center justify-center">
                   <Loader2 size={32} className="text-blue-500 animate-spin" />
@@ -115,7 +115,7 @@ export default function CofreXMLB2B() {
 
               <div className="w-full overflow-x-auto">
                 <table className="w-full min-w-[760px] text-xs sm:text-sm md:text-base text-left">
-                  <thead className="bg-zinc-50 dark:bg-zinc-900/80 text-zinc-500 dark:text-zinc-400 font-medium border-b border-zinc-200 dark:border-zinc-800/60 whitespace-nowrap">
+                  <thead className="bg-zinc-50 dark:bg-zinc-900/80 text-zinc-500 dark:text-zinc-400 font-medium border-b border-black/[0.06] dark:border-white/[0.07] whitespace-nowrap">
                     <tr>
                       <th className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4">Fatura / Pedido</th>
                       <th className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4">Data</th>

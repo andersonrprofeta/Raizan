@@ -6,6 +6,42 @@ import toast from 'react-hot-toast';
 
 const formatarMoeda = (valor) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor || 0);
 
+// ==========================================
+// 🎨 TOKENS (estilo Apple: vidro, hairlines, ícones em "tiles")
+// ==========================================
+
+const PAINEL =
+  "bg-white/90 dark:bg-[#121214]/90 backdrop-blur-2xl border border-black/[0.06] dark:border-white/[0.08] " +
+  "shadow-[0_30px_80px_-20px_rgba(0,0,0,0.35)] " +
+  "dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_40px_90px_-20px_rgba(0,0,0,0.9)]";
+
+// Cartão de seção dentro do modal
+const SECAO = "rounded-[22px] bg-black/[0.03] dark:bg-white/[0.04] border border-black/[0.05] dark:border-white/[0.06] p-5";
+const SECAO_TITULO = "flex items-center gap-2.5 text-sm font-semibold tracking-tight text-zinc-900 dark:text-zinc-100 mb-4 pb-3 border-b border-black/[0.06] dark:border-white/[0.07]";
+
+// Select em pílula (fundo sólido no escuro para a lista nativa ficar legível)
+const SELECT_PILULA =
+  "h-9 px-3.5 rounded-full bg-white dark:bg-[#1a1a1d] border border-black/[0.08] dark:border-white/[0.1] " +
+  "text-zinc-900 dark:text-zinc-100 text-xs font-semibold outline-none cursor-pointer " +
+  "focus:border-purple-500/50 focus:ring-4 focus:ring-purple-500/15 transition-all dark:[color-scheme:dark]";
+
+const TILE_CORES = {
+  emerald: "from-emerald-400 to-emerald-600",
+  purple: "from-violet-400 to-purple-600",
+  blue: "from-sky-400 to-blue-600",
+  rose: "from-rose-400 to-rose-600",
+  orange: "from-orange-400 to-orange-500",
+};
+
+const Tile = ({ cor = "purple", size = 28, children }) => (
+  <div
+    className={`shrink-0 flex items-center justify-center bg-gradient-to-br ${TILE_CORES[cor]} text-white ring-1 ring-black/5 dark:ring-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.4),0_6px_14px_-6px_rgba(0,0,0,0.35)]`}
+    style={{ width: size, height: size, borderRadius: size * 0.3 }}
+  >
+    {children}
+  </div>
+);
+
 const getMetaValue = (metaData, keys) => {
   if (!metaData || !Array.isArray(metaData)) return "Não informado";
   const meta = metaData.find(m => keys.includes(m.key));
@@ -166,19 +202,22 @@ export default function ModalDetalhes({ pedido, onClose, activeTabObj, onUpdateS
 
   if (!pedido) return null;
 
-  const dataPedido = new Date(pedido.date_created || pedido.data_criacao || pedido.criado_em).toLocaleString('pt-BR');
+  // 🆕 Se a data vier vazia/inválida mostra "—" em vez de "Invalid Date"
+  const dataObj = new Date(pedido.date_created || pedido.data_criacao || pedido.criado_em);
+  const dataPedido = isNaN(dataObj.getTime()) ? '—' : dataObj.toLocaleString('pt-BR');
   const pedidoIdAtual = pedido.id || pedido.pedido_id;
   const statusAtual = pedido.status || pedido.status_pedido || 'pendente';
   
   let endereco = parseEndereco(pedido);
   
-  let cpfCnpj = endereco.cpf_cnpj || getMetaValue(pedido.meta_data, ['_billing_cpf', '_billing_cnpj', 'billing_cpf', 'billing_cnpj']);
+  // 🆕 String(...) evita erro "trim is not a function" quando a API manda CPF/telefone como número
+  let cpfCnpj = String(endereco.cpf_cnpj || getMetaValue(pedido.meta_data, ['_billing_cpf', '_billing_cnpj', 'billing_cpf', 'billing_cnpj']) || '');
   if (!cpfCnpj || cpfCnpj === "Não informado" || cpfCnpj.trim() === '') cpfCnpj = 'Não informado';
 
-  let ie = endereco.ie || getMetaValue(pedido.meta_data, ['_billing_ie', 'billing_ie']);
+  let ie = String(endereco.ie || getMetaValue(pedido.meta_data, ['_billing_ie', 'billing_ie']) || '');
   if (!ie || ie === "Não informado" || ie.trim() === '') ie = 'Não informado';
 
-  let telefone = endereco.phone || "Não informado";
+  let telefone = String(endereco.phone || "Não informado");
   if (!telefone || telefone.trim() === '') telefone = 'Não informado';
 
   if (dadosRecuperados && dadosRecuperados.pedidoId === pedidoIdAtual) {
@@ -287,70 +326,89 @@ export default function ModalDetalhes({ pedido, onClose, activeTabObj, onUpdateS
   const subtotalReal = valorTotalReal - freteReal;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-900/40 dark:bg-black/60 backdrop-blur-sm transition-all" onClick={onClose}>
-      <div className="bg-white dark:bg-[#0c0c0e] border border-zinc-200 dark:border-zinc-800/80 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+    // z-[100]: fica acima do Header (z-40) e da Sidebar (z-50)
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-md transition-all animate-in fade-in duration-200" onClick={onClose}>
+      <div className={`${PAINEL} rounded-[32px] w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200`} onClick={(e) => e.stopPropagation()}>
         
-        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 dark:border-zinc-800/80 bg-zinc-50 dark:bg-zinc-900/40">
-          <div>
-            <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">Pedido #{pedido.id || pedido.pedido_id}</h2>
-            <div className="flex items-center gap-2 mt-2">
-              <span className="text-xs text-zinc-500 uppercase tracking-wider font-bold">Status:</span>
-              <select value={statusAtual} onChange={(e) => onUpdateStatus(pedido.id || pedido.pedido_id, e.target.value)} className="bg-white dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-200 text-xs px-2 py-1 rounded-md outline-none focus:border-purple-500 font-medium">
+        {/* Cabeçalho */}
+        <div className="flex items-start justify-between gap-4 px-6 py-5 border-b border-black/[0.06] dark:border-white/[0.07]">
+          <div className="min-w-0">
+            <h2 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">Pedido #{pedido.id || pedido.pedido_id}</h2>
+            <div className="flex flex-wrap items-center gap-2 mt-3">
+              <span className="text-xs font-semibold text-zinc-500">Status:</span>
+              <select value={statusAtual} onChange={(e) => onUpdateStatus(pedido.id || pedido.pedido_id, e.target.value)} className={SELECT_PILULA}>
                 {!statusOpcoes.find(o => o.value === statusAtual) && <option value={statusAtual}>{statusAtual}</option>}
                 {statusOpcoes.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
               </select>
               
               {['aguardando-pagamento', 'pending', 'processing', 'on-hold', 'pago', 'pendente'].includes(statusAtual) && (
                 <Link href={`/editar-pedido?id=${pedido.id || pedido.pedido_id}`}>
-                  <button className="bg-amber-100 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 px-3 py-1.5 rounded-md text-xs font-bold flex items-center gap-1.5 ml-2 shadow-sm"><Edit size={14} /> Editar</button>
+                  <button className="h-9 bg-amber-400/20 text-amber-700 dark:text-amber-300 border border-amber-500/20 hover:bg-amber-400/30 px-4 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all active:scale-95"><Edit size={14} /> Editar</button>
                 </Link>
               )}
             </div>
           </div>
-          <div className="flex flex-col items-end">
-            <button onClick={onClose} className="p-2 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl mb-1"><X size={20} /></button>
-            <p className="text-xs text-zinc-500 flex items-center gap-1"><Calendar size={12} /> {dataPedido}</p>
+          <div className="flex flex-col items-end gap-2 shrink-0">
+            <button onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-full bg-black/[0.05] dark:bg-white/[0.08] text-zinc-500 hover:text-zinc-900 dark:hover:text-white hover:bg-black/[0.09] dark:hover:bg-white/[0.14] transition-all active:scale-90" aria-label="Fechar"><X size={18} /></button>
+            <p className="text-xs text-zinc-500 flex items-center gap-1 tabular-nums"><Calendar size={12} /> {dataPedido}</p>
           </div>
         </div>
 
         <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-6">
-              <div className="bg-zinc-50 dark:bg-zinc-900/30 border border-zinc-200 dark:border-zinc-800/50 rounded-xl p-5 relative">
+              {/* Cliente */}
+              <div className={`${SECAO} relative`}>
                 {recuperando && <div className="absolute top-4 right-4"><Loader2 size={16} className="text-emerald-500 animate-spin" /></div>}
                 
-                <div className="flex items-center justify-between mb-4 border-b border-zinc-200 dark:border-zinc-800 pb-2">
-                  <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2"><User size={16} className="text-purple-600" /> Informações do Cliente</h3>
-                  <div className="flex items-center gap-1 bg-purple-100 dark:bg-purple-500/10 px-2 py-1 rounded-md">
-                    <Briefcase size={12} className="text-purple-600 dark:text-purple-400" />
-                    <span className="text-[10px] font-bold text-purple-700 dark:text-purple-400 uppercase">{vendedor}</span>
-                  </div>
+                <div className={`${SECAO_TITULO} justify-between`}>
+                  <span className="flex items-center gap-2.5"><Tile cor="purple"><User size={14} /></Tile> Informações do Cliente</span>
+                  <span className="flex items-center gap-1 bg-purple-500/10 border border-purple-500/20 px-2.5 py-1 rounded-full max-w-[45%]">
+                    <Briefcase size={12} className="text-purple-600 dark:text-purple-400 shrink-0" />
+                    <span className="text-[11px] font-semibold text-purple-700 dark:text-purple-300 truncate">{vendedor}</span>
+                  </span>
                 </div>
 
                 <div className="space-y-3 text-sm">
-                  <p><span className="text-zinc-500">Razão/Nome:</span> <span className="font-medium text-zinc-900 dark:text-zinc-100">{clienteNome}</span></p>
-                  <p className="flex items-center gap-2"><span className="text-zinc-500">CPF/CNPJ:</span> {recuperando ? <span className="w-32 h-4 bg-zinc-200 dark:bg-zinc-700 animate-pulse rounded" /> : <span className={cpfCnpj !== 'Não informado' ? "text-emerald-600 font-bold" : "text-zinc-900 dark:text-zinc-100"}>{cpfCnpj}</span>}</p>
-                  <p className="flex items-center gap-2"><span className="text-zinc-500">Inscrição Est.:</span> {recuperando ? <span className="w-24 h-4 bg-zinc-200 dark:bg-zinc-700 animate-pulse rounded" /> : <span className="text-zinc-900 dark:text-zinc-100">{ie}</span>}</p>
+                  <div className="flex items-start justify-between gap-4">
+                    <span className="text-zinc-500 shrink-0">Razão/Nome</span>
+                    <span className="font-semibold text-right text-zinc-900 dark:text-zinc-100 break-words">{clienteNome}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-zinc-500 shrink-0">CPF/CNPJ</span>
+                    {recuperando ? <span className="w-32 h-4 bg-zinc-200 dark:bg-zinc-700 animate-pulse rounded-full" /> : <span className={`tabular-nums ${cpfCnpj !== 'Não informado' ? "text-emerald-600 dark:text-emerald-400 font-bold" : "text-zinc-900 dark:text-zinc-100"}`}>{cpfCnpj}</span>}
+                  </div>
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-zinc-500 shrink-0">Inscrição Est.</span>
+                    {recuperando ? <span className="w-24 h-4 bg-zinc-200 dark:bg-zinc-700 animate-pulse rounded-full" /> : <span className="text-zinc-900 dark:text-zinc-100 tabular-nums">{ie}</span>}
+                  </div>
                   
-                  <div className="flex items-center gap-2 mt-1 mb-2 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20 p-2 rounded-lg w-max">
-                    <CreditCard size={14} className="text-emerald-600" />
-                    <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400">
+                  <div className="flex items-center gap-2 pt-1 bg-emerald-500/10 border border-emerald-500/20 px-3 py-2 rounded-full w-max max-w-full">
+                    <CreditCard size={14} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 truncate">
                        Condição: {condicoesOmie.length === 0 ? "Buscando..." : prazo.toUpperCase()}
                     </span>
                   </div>
 
-                  <p className="flex items-center gap-2 mt-2"><Mail size={14} className="text-zinc-500" /> <span className="truncate text-zinc-900 dark:text-zinc-100">{endereco.email || "Sem e-mail"}</span></p>
-                  <p className="flex items-center gap-2"><Phone size={14} className="text-zinc-500" /> {recuperando ? <span className="w-24 h-4 bg-zinc-200 dark:bg-zinc-700 animate-pulse rounded" /> : <span className={telefone !== 'Não informado' ? "text-emerald-600 font-bold" : "text-zinc-900 dark:text-zinc-100"}>{telefone}</span>}</p>
+                  <div className="flex items-center justify-between gap-4 pt-1">
+                    <span className="text-zinc-500 flex items-center gap-2 shrink-0"><Mail size={14} /> E-mail</span>
+                    <span className="truncate text-zinc-900 dark:text-zinc-100">{endereco.email || "Sem e-mail"}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-zinc-500 flex items-center gap-2 shrink-0"><Phone size={14} /> Telefone</span>
+                    {recuperando ? <span className="w-24 h-4 bg-zinc-200 dark:bg-zinc-700 animate-pulse rounded-full" /> : <span className={`tabular-nums ${telefone !== 'Não informado' ? "text-emerald-600 dark:text-emerald-400 font-bold" : "text-zinc-900 dark:text-zinc-100"}`}>{telefone}</span>}
+                  </div>
                 </div>
               </div>
             </div>
 
             <div className="space-y-6">
-              <div className="bg-zinc-50 dark:bg-zinc-900/30 border border-zinc-200 dark:border-zinc-800/50 rounded-xl p-5">
-                <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2 mb-4 border-b border-zinc-200 dark:border-zinc-800 pb-2"><MapPin size={16} className="text-blue-600" /> Cobrança / Entrega</h3>
-                <div className={`space-y-1 text-sm ${endereco.address_1 ? "text-emerald-600 font-bold" : "text-zinc-700 dark:text-zinc-300"}`}>
+              {/* Endereço */}
+              <div className={SECAO}>
+                <h3 className={SECAO_TITULO}><Tile cor="blue"><MapPin size={14} /></Tile> Cobrança / Entrega</h3>
+                <div className={`space-y-1 text-sm ${endereco.address_1 ? "text-emerald-600 dark:text-emerald-400 font-bold" : "text-zinc-700 dark:text-zinc-300"}`}>
                   {recuperando ? (
-                    <div className="space-y-2 pt-1"><div className="h-3.5 bg-zinc-200 dark:bg-zinc-700 rounded w-full animate-pulse" /><div className="h-3.5 bg-zinc-200 dark:bg-zinc-700 rounded w-2/3 animate-pulse" /></div>
+                    <div className="space-y-2 pt-1"><div className="h-3.5 bg-zinc-200 dark:bg-zinc-700 rounded-full w-full animate-pulse" /><div className="h-3.5 bg-zinc-200 dark:bg-zinc-700 rounded-full w-2/3 animate-pulse" /></div>
                   ) : endereco.address_1 ? (
                     <>
                       <p>{endereco.address_1}{endereco.address_2 ? `, ${endereco.address_2}` : ''}</p>
@@ -358,18 +416,19 @@ export default function ModalDetalhes({ pedido, onClose, activeTabObj, onUpdateS
                       {endereco.postcode && <p>CEP: {endereco.postcode}</p>}
                     </>
                   ) : (
-                    <p className="text-zinc-500">Endereço não cadastrado neste pedido.</p>
+                    <p className="text-zinc-500 font-normal">Endereço não cadastrado neste pedido.</p>
                   )}
                 </div>
               </div>
 
+              {/* Rastreio */}
               {codigoRastreio && (
-                <div className="bg-white dark:bg-[#0c0c0e] border border-blue-200 dark:border-blue-500/20 rounded-xl p-5 animate-in fade-in slide-in-from-top-2">
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-sm font-semibold text-blue-700 dark:text-blue-400 flex items-center gap-2">
-                      <Truck size={16} /> Logística e Rastreio
+                <div className="bg-white dark:bg-[#17171a] border border-blue-500/25 rounded-[22px] p-5 animate-in fade-in slide-in-from-top-2">
+                  <div className="flex items-center justify-between gap-3 mb-2">
+                    <h3 className="text-sm font-semibold tracking-tight text-blue-700 dark:text-blue-400 flex items-center gap-2.5">
+                      <Tile cor="blue"><Truck size={14} /></Tile> Logística e Rastreio
                     </h3>
-                    <span className="text-xs font-mono font-bold text-blue-600 bg-blue-100 dark:bg-blue-500/20 px-2 py-1 rounded">
+                    <span className="text-xs font-mono font-bold text-blue-600 dark:text-blue-300 bg-blue-500/10 border border-blue-500/20 px-2.5 py-1 rounded-full">
                       {codigoRastreio}
                     </span>
                   </div>
@@ -379,7 +438,7 @@ export default function ModalDetalhes({ pedido, onClose, activeTabObj, onUpdateS
                       <button 
                         onClick={handleRastrear}
                         disabled={loadingRastreio}
-                        className="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2.5 rounded-lg transition-all flex items-center justify-center gap-2"
+                        className="w-full h-11 bg-gradient-to-b from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-600 text-white text-sm font-semibold rounded-full transition-all flex items-center justify-center gap-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_10px_24px_-8px_rgba(37,99,235,0.6)] disabled:opacity-70 active:scale-[0.98]"
                       >
                         {loadingRastreio ? <Loader2 size={16} className="animate-spin" /> : <MapPin size={16} />}
                         {loadingRastreio ? "Buscando dados..." : "Acompanhar Encomenda"}
@@ -392,29 +451,29 @@ export default function ModalDetalhes({ pedido, onClose, activeTabObj, onUpdateS
                         <div className={`absolute left-0 top-1/2 -translate-y-1/2 h-1.5 rounded-full transition-all duration-1000 ${isEntregue ? 'w-full bg-emerald-500' : 'w-1/2 bg-blue-600'}`} />
 
                         <div className="relative flex flex-col items-center z-10 group">
-                          <div className={`w-7 h-7 rounded-full border-4 border-white dark:border-[#0c0c0e] flex items-center justify-center text-white shadow-sm transition-transform group-hover:scale-110 ${isEntregue ? 'bg-emerald-500' : 'bg-blue-600'}`}>
+                          <div className={`w-7 h-7 rounded-full border-4 border-white dark:border-[#17171a] flex items-center justify-center text-white shadow-sm transition-transform group-hover:scale-110 ${isEntregue ? 'bg-emerald-500' : 'bg-blue-600'}`}>
                             <CheckCircle2 size={12} />
                           </div>
                           <span className="absolute top-8 text-[11px] font-bold text-zinc-900 dark:text-zinc-100">Aprovado</span>
                         </div>
 
                         <div className="relative flex flex-col items-center z-10 group">
-                          <div className={`w-7 h-7 rounded-full border-4 border-white dark:border-[#0c0c0e] flex items-center justify-center text-white shadow-sm transition-transform group-hover:scale-110 ${isEntregue ? 'bg-emerald-500' : 'bg-blue-600'}`}>
+                          <div className={`w-7 h-7 rounded-full border-4 border-white dark:border-[#17171a] flex items-center justify-center text-white shadow-sm transition-transform group-hover:scale-110 ${isEntregue ? 'bg-emerald-500' : 'bg-blue-600'}`}>
                             <Truck size={12} />
                           </div>
                           <span className={`absolute top-8 text-[11px] font-bold ${isEntregue ? 'text-emerald-600' : 'text-blue-600'}`}>Enviado</span>
                         </div>
 
                         <div className="relative flex flex-col items-center z-10 group">
-                          <div className={`w-7 h-7 rounded-full border-4 border-white dark:border-[#0c0c0e] flex items-center justify-center shadow-sm transition-transform group-hover:scale-110 ${isEntregue ? 'bg-emerald-500 text-white' : 'bg-zinc-200 dark:bg-zinc-800'}`}>
+                          <div className={`w-7 h-7 rounded-full border-4 border-white dark:border-[#17171a] flex items-center justify-center shadow-sm transition-transform group-hover:scale-110 ${isEntregue ? 'bg-emerald-500 text-white' : 'bg-zinc-200 dark:bg-zinc-800'}`}>
                             {isEntregue ? <CheckCircle2 size={12} /> : <div className="w-2 h-2 rounded-full bg-zinc-300 dark:bg-zinc-600"></div>}
                           </div>
                           <span className={`absolute top-8 text-[11px] ${isEntregue ? 'font-bold text-emerald-600' : 'font-medium text-zinc-400'}`}>Entregue</span>
                         </div>
                       </div>
                       
-                      <div className="mt-8 space-y-2 border-t border-zinc-100 dark:border-zinc-800/50 pt-4">
-                        <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Últimas Atualizações</p>
+                      <div className="mt-8 space-y-2 border-t border-black/[0.06] dark:border-white/[0.07] pt-4">
+                        <p className="text-xs font-semibold text-zinc-400 mb-2">Últimas Atualizações</p>
                         {timelineRastreio.map((evento, index) => (
                            <div key={index} className="flex justify-between items-center text-xs">
                              <div className="flex items-center gap-2">
@@ -432,10 +491,11 @@ export default function ModalDetalhes({ pedido, onClose, activeTabObj, onUpdateS
                 </div>
               )}
 
+              {/* Observação do cliente */}
               {pedido.customer_note && (
-                <div className="bg-orange-50 dark:bg-orange-500/5 border border-orange-200 dark:border-orange-500/20 rounded-xl p-5">
-                  <h3 className="text-sm font-semibold text-orange-600 flex items-center gap-2 mb-2"><FileText size={16} /> Observação do Cliente</h3>
-                  <p className="text-sm italic">{pedido.customer_note}</p>
+                <div className="bg-orange-500/[0.07] border border-orange-500/20 rounded-[22px] p-5">
+                  <h3 className="text-sm font-semibold tracking-tight text-orange-600 dark:text-orange-400 flex items-center gap-2.5 mb-2"><Tile cor="orange"><FileText size={14} /></Tile> Observação do Cliente</h3>
+                  <p className="text-sm italic text-zinc-700 dark:text-zinc-300">{pedido.customer_note}</p>
                 </div>
               )}
             </div>
@@ -444,69 +504,67 @@ export default function ModalDetalhes({ pedido, onClose, activeTabObj, onUpdateS
           {/* ========================================================= */}
           {/* TABELA PRINCIPAL LIMPA (O QUE REALMENTE FOI FATURADO) */}
           {/* ========================================================= */}
-          <div className="mt-6 bg-zinc-50 dark:bg-zinc-900/30 border border-zinc-200 dark:border-zinc-800/50 rounded-xl p-5">
-            <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2 mb-4 border-b border-zinc-200 dark:border-zinc-800 pb-2"><Package size={16} className="text-emerald-600" /> Itens do Pedido</h3>
-            <div className="overflow-x-auto">
+          <div className={`mt-6 ${SECAO}`}>
+            <h3 className={SECAO_TITULO}><Tile cor="emerald"><Package size={14} /></Tile> Itens do Pedido</h3>
+            <div className="overflow-x-auto custom-scrollbar">
               <table className="w-full text-sm text-left">
-                <thead className="text-xs text-zinc-500 uppercase bg-zinc-100 dark:bg-zinc-900/50">
-                  <tr><th className="px-4 py-3 rounded-l-lg">Produto</th><th className="px-4 py-3 text-center">Qtd</th><th className="px-4 py-3 text-right">Preço Un.</th><th className="px-4 py-3 text-right rounded-r-lg">Total</th></tr>
+                <thead className="text-xs font-semibold text-zinc-500 border-b border-black/[0.06] dark:border-white/[0.07]">
+                  <tr><th className="px-4 py-3">Produto</th><th className="px-4 py-3 text-center">Qtd</th><th className="px-4 py-3 text-right">Preço Un.</th><th className="px-4 py-3 text-right">Total</th></tr>
                 </thead>
-                <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800/50">
+                <tbody className="divide-y divide-black/[0.05] dark:divide-white/[0.05]">
                   {itensAtendidos.map((item, idx) => (
-                      <tr key={idx} className="hover:bg-zinc-100 dark:hover:bg-zinc-800/20 transition-colors">
-                        <td className="px-4 py-3 font-medium">
+                      <tr key={idx} className="hover:bg-black/[0.03] dark:hover:bg-white/[0.03] transition-colors">
+                        <td className="px-4 py-3 font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
                           {item.nome} <br/>
                           <span className="text-xs text-zinc-500 font-normal">SKU: {item.sku}</span>
                         </td>
-                        <td className="px-4 py-3 text-center font-medium">{item.qtdFaturada}</td>
-                        <td className="px-4 py-3 text-right">{formatarMoeda(item.precoUnFaturado)}</td>
-                        <td className="px-4 py-3 text-right font-medium text-emerald-600">{formatarMoeda(item.totalFaturado)}</td>
+                        <td className="px-4 py-3 text-center font-semibold tabular-nums">{item.qtdFaturada}</td>
+                        <td className="px-4 py-3 text-right tabular-nums">{formatarMoeda(item.precoUnFaturado)}</td>
+                        <td className="px-4 py-3 text-right font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">{formatarMoeda(item.totalFaturado)}</td>
                       </tr>
                   ))}
                 </tbody>
               </table>
             </div>
             
-            <div className="mt-4 pt-4 border-t border-zinc-200 dark:border-zinc-800 flex flex-col items-end space-y-2 text-sm">
+            <div className="mt-4 pt-4 border-t border-black/[0.06] dark:border-white/[0.07] flex flex-col items-end space-y-2 text-sm">
               {houveReducaoValor && (
-                <div className="flex justify-between w-64 text-zinc-400 text-xs">
+                <div className="flex justify-between w-72 text-zinc-400 text-xs">
                   <span>Valor Original Solicitado:</span>
-                  <span className="line-through">{formatarMoeda(valorOriginalPedido)}</span>
+                  <span className="line-through tabular-nums">{formatarMoeda(valorOriginalPedido)}</span>
                 </div>
               )}
-              <div className="flex justify-between w-64 text-zinc-500">
+              <div className="flex justify-between w-72 text-zinc-500">
                 <span>Subtotal Faturado:</span>
-                <span>{formatarMoeda(subtotalReal)}</span>
+                <span className="tabular-nums">{formatarMoeda(subtotalReal)}</span>
               </div>
-              <div className="flex justify-between w-64 text-zinc-500">
+              <div className="flex justify-between w-72 text-zinc-500">
                 <span>Frete:</span>
-                <span>{formatarMoeda(freteReal)}</span>
+                <span className="tabular-nums">{formatarMoeda(freteReal)}</span>
               </div>
               
-              <div className="flex justify-between items-center w-64 text-lg font-bold mt-2 pt-2 border-t border-zinc-200 dark:border-zinc-800">
-                <span>Total Final:</span>
+              <div className="flex justify-between items-center w-72 text-lg font-bold mt-2 pt-3 border-t border-black/[0.06] dark:border-white/[0.07]">
+                <span className="tracking-tight">Total Final:</span>
                 <div className="flex flex-col items-end">
                   {houveReducaoValor && (
-                    <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-rose-100 dark:bg-rose-500/20 text-rose-600 dark:text-rose-400 mb-0.5">
+                    <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 mb-1 tabular-nums">
                       Reduzido (-{formatarMoeda(valorOriginalPedido - valorTotalReal)})
                     </span>
                   )}
-                  <span className="text-emerald-600">{formatarMoeda(valorTotalReal)}</span>
+                  <span className="text-emerald-600 dark:text-emerald-400 tabular-nums">{formatarMoeda(valorTotalReal)}</span>
                 </div>
               </div>
             </div>
           </div>
 
           {/* ========================================================= */}
-          {/* 🍎 ZONA DE AUDITORIA DE CORTES (DESIGN APPLE / PONTILHADO) */}
+          {/* ✂️ ZONA DE AUDITORIA DE CORTES (PONTILHADO) */}
           {/* ========================================================= */}
           {teveAlgumCorte && (
-            <div className="mt-6 rounded-2xl border-2 border-dashed border-rose-300 dark:border-rose-500/30 bg-rose-50/40 dark:bg-rose-950/10 p-5 transition-all animate-in fade-in slide-in-from-bottom-2 duration-300">
-              <div className="flex items-center justify-between mb-4 pb-3 border-b border-dashed border-rose-200 dark:border-rose-800/40">
+            <div className="mt-6 rounded-[22px] border-2 border-dashed border-rose-300 dark:border-rose-500/30 bg-rose-500/[0.04] p-5 transition-all animate-in fade-in slide-in-from-bottom-2 duration-300">
+              <div className="flex items-center justify-between gap-3 mb-4 pb-3 border-b border-dashed border-rose-200 dark:border-rose-800/40">
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-rose-100 dark:bg-rose-500/20 border border-rose-200/60 dark:border-rose-500/30 flex items-center justify-center text-rose-600 dark:text-rose-400 shadow-sm">
-                    <Scissors size={18} />
-                  </div>
+                  <Tile cor="rose" size={36}><Scissors size={18} /></Tile>
                   <div>
                     <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">
                       Cortes no Pedido
@@ -516,7 +574,7 @@ export default function ModalDetalhes({ pedido, onClose, activeTabObj, onUpdateS
                     </p>
                   </div>
                 </div>
-                <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-rose-100 dark:bg-rose-500/20 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-500/30">
+                <span className="shrink-0 px-3 py-1 rounded-full text-xs font-semibold bg-rose-500/10 text-rose-700 dark:text-rose-300 border border-rose-500/20">
                   {itensComCorte.length} {itensComCorte.length === 1 ? 'item cortado' : 'itens cortados'}
                 </span>
               </div>
@@ -525,36 +583,36 @@ export default function ModalDetalhes({ pedido, onClose, activeTabObj, onUpdateS
                 {itensComCorte.map((ic, idx) => (
                   <div 
                     key={idx} 
-                    className="group flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white/90 dark:bg-zinc-900/70 backdrop-blur-md p-3.5 px-4 rounded-xl border border-zinc-200/80 dark:border-zinc-800/80 hover:border-rose-300 dark:hover:border-rose-500/40 transition-all shadow-sm"
+                    className="group flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white/90 dark:bg-white/[0.04] p-3.5 px-4 rounded-2xl border border-black/[0.06] dark:border-white/[0.07] hover:border-rose-300 dark:hover:border-rose-500/40 transition-all shadow-sm"
                   >
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 truncate">
+                      <p className="text-sm font-semibold tracking-tight text-zinc-900 dark:text-zinc-100 truncate">
                         {ic.nome}
                       </p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-[11px] font-mono text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded">
+                      <div className="flex items-center flex-wrap gap-2 mt-1">
+                        <span className="text-[11px] font-mono text-zinc-500 dark:text-zinc-400 bg-black/[0.04] dark:bg-white/[0.06] px-2 py-0.5 rounded-full">
                           SKU: {ic.sku}
                         </span>
-                        <span className="text-[11px] text-rose-600 dark:text-rose-400 font-medium">
+                        <span className="text-[11px] text-rose-600 dark:text-rose-400 font-medium tabular-nums">
                           • Impacto: -{formatarMoeda(ic.cortado * ic.precoUnOriginal)}
                         </span>
                       </div>
                     </div>
 
                     <div className="flex items-center gap-2 sm:gap-3 self-end sm:self-center">
-                      <div className="px-3 py-1.5 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200/60 dark:border-zinc-700/50 text-center min-w-[68px]">
-                        <p className="text-[9px] text-zinc-400 dark:text-zinc-500 uppercase font-bold tracking-wider">Pedido</p>
-                        <p className="text-xs font-bold text-zinc-600 dark:text-zinc-300 mt-0.5">{ic.qtdPedida} un</p>
+                      <div className="px-3 py-1.5 rounded-2xl bg-black/[0.03] dark:bg-white/[0.05] border border-black/[0.06] dark:border-white/[0.07] text-center min-w-[68px]">
+                        <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-semibold">Pedido</p>
+                        <p className="text-xs font-bold text-zinc-600 dark:text-zinc-300 mt-0.5 tabular-nums">{ic.qtdPedida} un</p>
                       </div>
 
-                      <div className="px-3 py-1.5 rounded-lg bg-emerald-50/60 dark:bg-emerald-500/10 border border-emerald-200/60 dark:border-emerald-500/20 text-center min-w-[68px]">
-                        <p className="text-[9px] text-emerald-600 dark:text-emerald-400 uppercase font-bold tracking-wider">Faturado</p>
-                        <p className="text-xs font-bold text-emerald-700 dark:text-emerald-300 mt-0.5">{ic.qtdFaturada} un</p>
+                      <div className="px-3 py-1.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-center min-w-[68px]">
+                        <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">Faturado</p>
+                        <p className="text-xs font-bold text-emerald-700 dark:text-emerald-300 mt-0.5 tabular-nums">{ic.qtdFaturada} un</p>
                       </div>
 
-                      <div className="px-3.5 py-1.5 rounded-lg bg-rose-500 text-white shadow-sm shadow-rose-500/20 text-center min-w-[72px]">
-                        <p className="text-[9px] text-rose-100 uppercase font-black tracking-wider">Cortado</p>
-                        <p className="text-xs font-black mt-0.5">-{ic.cortado} un</p>
+                      <div className="px-3.5 py-1.5 rounded-2xl bg-gradient-to-b from-rose-500 to-rose-600 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_8px_18px_-8px_rgba(244,63,94,0.7)] text-center min-w-[72px]">
+                        <p className="text-[10px] text-rose-100 font-semibold">Cortado</p>
+                        <p className="text-xs font-bold mt-0.5 tabular-nums">-{ic.cortado} un</p>
                       </div>
                     </div>
                   </div>

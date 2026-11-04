@@ -2,11 +2,62 @@
 
 import { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { ScanBarcode, PackageCheck, ArrowLeft, Loader2, CheckCircle2, Package, Search, AlertCircle, ClipboardList, X } from 'lucide-react';
+import { ScanBarcode, PackageCheck, ArrowLeft, Loader2, CheckCircle2, Package, Search, ClipboardList, OctagonAlert, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { getHubUrl, getHeaders } from "@/components/utils/api";
 import ModalConfirmacaoSair from "@/components/checkout/ModalConfirmacaoSair";
 import ManipulaDados from "@/components/checkout/ManipulaDados";
+import { montarSeparacao } from "@/components/checkout/ListaSeparacao";
+import { VIDRO, BOTAO_ROXO, BOTAO_VERDE, BOTAO_VIDRO, LuzesDeFundo } from "@/components/checkout/estilos";
+
+const codigosDoItem = (item) => [
+  item.sku, item.ean, item.gtin, item.codigo_barras, item.barcode, item.product_id, item.codigo
+].filter(val => val !== null && val !== undefined && String(val).trim() !== '')
+ .map(val => String(val).trim().toLowerCase());
+
+// A conferência usa a mesma conta da lista de separação: só entra o que foi atendido
+const montarConferencia = (ped) => {
+  const conferencia = {};
+  montarSeparacao(ped).itensParaSeparar.forEach((item, index) => {
+    const chave = String(item.id || item.product_id || item.sku || `item_${index}`);
+    conferencia[chave] = {
+      chave: chave,
+      nome: item.name,
+      qtdPedida: item.qtdSeparar,
+      qtdBipada: 0,
+      imagem: item.image_url || item.imagem_url || item.foto_url || item.produto_imagem || item.imagem || null,
+      codigosValidos: codigosDoItem(item)
+    };
+  });
+  return conferencia;
+};
+
+// O leitor manda Enter no fim de cada bipe: com foco no botão, o próximo bipe confirmaria o aviso sozinho.
+// Por isso o botão não recebe foco e ignora o teclado, só libera com o clique de quem leu.
+function AvisoBloqueio({ aviso, onConfirmar }) {
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-zinc-900/60 dark:bg-black/80 backdrop-blur-md">
+      <div role="alertdialog" aria-modal="true" className={`${VIDRO} !bg-white/95 dark:!bg-[#121214]/95 w-full max-w-md p-7 text-center ring-2 ring-rose-500/50`}>
+        <div className="w-16 h-16 mx-auto rounded-full bg-rose-500/10 flex items-center justify-center mb-5">
+          <OctagonAlert size={32} className="text-rose-600 dark:text-rose-400" />
+        </div>
+        <h2 className="text-[22px] leading-tight font-bold tracking-tight">{aviso.titulo}</h2>
+        {aviso.produto && <p className="mt-3 text-lg font-semibold text-rose-600 dark:text-rose-400">{aviso.produto}</p>}
+        {aviso.codigo && <p className="mt-1 text-xs font-mono uppercase text-zinc-500 dark:text-zinc-400">Código: {aviso.codigo}</p>}
+        <p className="mt-3 text-[15px] text-zinc-600 dark:text-zinc-300">{aviso.mensagem}</p>
+        <button
+          type="button"
+          tabIndex={-1}
+          onKeyDown={(e) => e.preventDefault()}
+          onClick={onConfirmar}
+          className={`${BOTAO_ROXO} w-full h-12 mt-6 text-[15px]`}
+        >
+          Entendi, continuar contagem
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function ScannerMesa() {
   const searchParams = useSearchParams();
@@ -27,68 +78,95 @@ function ScannerMesa() {
   
   const [modalSairAberto, setModalSairAberto] = useState(false);
   const [modalDadosAberto, setModalDadosAberto] = useState(false);
+  const [conferindoPedido, setConferindoPedido] = useState(false);
+  const [aviso, setAviso] = useState(null);
+  const [ordemBipagem, setOrdemBipagem] = useState([]);
+  const [ultimoBipe, setUltimoBipe] = useState(null);
+  const catalogoRef = useRef(null);
 
   const tocarSucesso = () => new Audio('/sucesso.mp3').play().catch(()=>{});
   const tocarErro = () => new Audio('/erro.mp3').play().catch(()=>{});
+
+  // Trava a contagem até alguém confirmar
+  const bloquearContagem = (dados) => {
+    tocarErro();
+    setCodigoBipado('');
+    setQuantidadeManual(1);
+    setAviso(dados);
+  };
+
+  const liberarContagem = () => {
+    setAviso(null);
+    setTimeout(() => inputRef.current?.focus(), 100);
+  };
+
+  const buscarNomeDoProduto = async (codigo) => {
+    const noPedido = pedido.line_items.find(item => codigosDoItem(item).includes(codigo));
+    if (noPedido) return noPedido.name;
+
+    if (!catalogoRef.current) {
+      const tenantId = localStorage.getItem("@raizan:tenant") || process.env.NEXT_PUBLIC_TENANT_ID;
+      const res = await fetch(`${getHubUrl()}/api/hub/produtos/app`, { headers: { ...getHeaders(), 'x-tenant-id': tenantId } });
+      const data = await res.json();
+      if (data.success) catalogoRef.current = data.produtos;
+    }
+    return catalogoRef.current?.find(p => codigosDoItem(p).includes(codigo))?.nome || null;
+  };
+
+  const avisarProdutoForaDoPedido = (codigo) => {
+    bloquearContagem({
+      titulo: 'Produto não consta no pedido',
+      codigo,
+      mensagem: 'Retire este produto da caixa antes de continuar.'
+    });
+    buscarNomeDoProduto(codigo)
+      .then(nome => { if (nome) setAviso(atual => atual?.codigo === codigo ? { ...atual, produto: nome } : atual); })
+      .catch(() => {});
+  };
+
+  const buscarPedido = async () => {
+    const tenantId = localStorage.getItem("@raizan:tenant") || process.env.NEXT_PUBLIC_TENANT_ID;
+
+    const res = await fetch(`${getHubUrl()}/api/hub/pedidos/omie`, {
+      method: 'POST',
+      headers: { ...getHeaders(), 'x-tenant-id': tenantId },
+      body: JSON.stringify({ page: 1, limit: 100 })
+    });
+    const data = await res.json();
+
+    if (!data.success || !data.pedidos) return null;
+    return data.pedidos.find(p => String(p.pedido_id) === String(pedidoId) || String(p.id) === String(pedidoId)) || null;
+  };
 
   const carregarPedido = async () => {
     if (!pedidoId) return;
     setLoading(true);
     try {
-      const tenantId = localStorage.getItem("@raizan:tenant") || process.env.NEXT_PUBLIC_TENANT_ID;
-      
-      const res = await fetch(`${getHubUrl()}/api/hub/pedidos/omie`, {
-        method: 'POST',
-        headers: { ...getHeaders(), 'x-tenant-id': tenantId },
-        body: JSON.stringify({ page: 1, limit: 100 }) 
-      });
-      const data = await res.json();
-      
-      if (data.success && data.pedidos) {
-        const ped = data.pedidos.find(p => String(p.pedido_id) === String(pedidoId) || String(p.id) === String(pedidoId));
-        
-        if (ped) {
-          setPedido(ped);
-          
-          const confInicial = {};
-          ped.line_items.forEach((item, index) => {
-            const chave = String(item.id || item.product_id || item.sku || `item_${index}`); 
-            
-            const codigosPermitidos = [
-              item.sku, item.ean, item.gtin, item.codigo_barras, item.barcode, item.product_id, item.codigo
-            ].filter(val => val !== null && val !== undefined && String(val).trim() !== '')
-             .map(val => String(val).trim().toLowerCase()); 
+      const ped = await buscarPedido();
 
-            confInicial[chave] = {
-              chave: chave,
-              nome: item.name,
-              qtdPedida: item.quantity,
-              qtdBipada: 0,
-              imagem: item.image_url || item.imagem_url || item.foto_url || item.produto_imagem || item.imagem || null,
-              codigosValidos: codigosPermitidos 
-            };
-          });
+      if (ped) {
+        setPedido(ped);
+        const confInicial = montarConferencia(ped);
 
-          const cacheKey = `@raizan:conferencia_${pedidoId}`;
-          const savedProgress = localStorage.getItem(cacheKey);
-          
-          if (savedProgress) {
-            try {
-              const parsed = JSON.parse(savedProgress);
-              Object.keys(parsed).forEach(ch => {
-                if (confInicial[ch]) confInicial[ch].qtdBipada = parsed[ch].qtdBipada;
-              });
-              setProgressoRecuperado(true);
-              toast.success("Progresso recuperado.", { icon: '💾', style: { borderRadius: '12px', fontSize: '14px' } });
-            } catch(e) {
-              localStorage.removeItem(cacheKey);
-            }
+        const cacheKey = `@raizan:conferencia_${pedidoId}`;
+        const savedProgress = localStorage.getItem(cacheKey);
+
+        if (savedProgress) {
+          try {
+            const parsed = JSON.parse(savedProgress);
+            Object.keys(parsed).forEach(ch => {
+              if (confInicial[ch]) confInicial[ch].qtdBipada = Math.min(parsed[ch].qtdBipada, confInicial[ch].qtdPedida);
+            });
+            setProgressoRecuperado(true);
+            toast.success("Progresso recuperado.", { icon: '💾', style: { borderRadius: '12px', fontSize: '14px' } });
+          } catch(e) {
+            localStorage.removeItem(cacheKey);
           }
-
-          setConferencia(confInicial);
-        } else {
-          toast.error(`Pedido #${pedidoId} não encontrado.`);
         }
+
+        setConferencia(confInicial);
+      } else {
+        toast.error(`Pedido #${pedidoId} não encontrado.`);
       }
     } catch (error) {
       toast.error("Erro ao carregar o pedido.");
@@ -99,10 +177,10 @@ function ScannerMesa() {
   useEffect(() => { carregarPedido(); }, [pedidoId]);
 
   useEffect(() => {
-    if (!loading && inputRef.current && !modalSairAberto && !modalDadosAberto && !modalAuditoriaAberto) {
+    if (!loading && inputRef.current && !modalSairAberto && !modalDadosAberto && !modalAuditoriaAberto && !aviso) {
       inputRef.current.focus();
     }
-  }, [loading, modalSairAberto, modalDadosAberto, modalAuditoriaAberto]);
+  }, [loading, modalSairAberto, modalDadosAberto, modalAuditoriaAberto, aviso]);
 
   useEffect(() => {
     if (Object.keys(conferencia).length > 0) {
@@ -113,11 +191,12 @@ function ScannerMesa() {
     }
   }, [conferencia, pedidoId]);
 
+  // Leva a tela até o produto bipado, esteja ele onde estiver na lista
   useEffect(() => {
-    if (listaRef.current && !modalAuditoriaAberto) {
-      listaRef.current.scrollTo({ top: listaRef.current.scrollHeight, behavior: 'smooth' });
-    }
-  }, [conferencia, modalAuditoriaAberto]);
+    if (!ultimoBipe || !listaRef.current) return;
+    const linha = listaRef.current.querySelector(`[data-chave="${CSS.escape(ultimoBipe.chave)}"]`);
+    linha?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [ultimoBipe]);
 
   useEffect(() => {
     const handleBeforeUnload = (e) => {
@@ -130,35 +209,60 @@ function ScannerMesa() {
   }, [conferencia]);
 
   const processarBipagem = (e) => {
-    if (e) e.preventDefault(); 
-    if (!codigoBipado.trim() || modalAuditoriaAberto) return;
+    if (e) e.preventDefault();
+    if (!codigoBipado.trim() || modalAuditoriaAberto || aviso) return;
 
-    const codigoLimpo = codigoBipado.trim().toLowerCase();
-    const chaveEncontrada = Object.keys(conferencia).find(chave => 
-      conferencia[chave]?.codigosValidos?.includes(codigoLimpo)
-    );
-    
-    if (chaveEncontrada) {
-      const item = conferencia[chaveEncontrada];
-      const qtdAdicionar = Number(quantidadeManual) || 1;
-      const novaQuantidade = item.qtdBipada + qtdAdicionar;
+    const itens = Object.values(conferencia);
+    const contagemConcluida = itens.length > 0 && itens.every(item => item.qtdBipada === item.qtdPedida);
 
-      if (novaQuantidade <= item.qtdPedida) {
-        setConferencia(prev => ({
-          ...prev,
-          [chaveEncontrada]: { ...item, qtdBipada: novaQuantidade }
-        }));
-        tocarSucesso();
-        setQuantidadeManual(1); 
-      } else {
-        tocarErro();
-        toast.error(`Quantidade excedida! Faltam apenas ${item.qtdPedida - item.qtdBipada}.`, { style: { background: '#EF4444', color: '#fff', borderRadius: '10px' }});
-      }
-    } else {
-      tocarErro();
-      toast.error("CÓDIGO INVÁLIDO OU NÃO PERTENCE AO PEDIDO!", { style: { background: '#EF4444', color: '#fff', padding: '12px', fontWeight: 'bold', borderRadius: '10px' }});
+    if (contagemConcluida) {
+      bloquearContagem({
+        titulo: 'Contagem concluída',
+        mensagem: 'Todos os produtos já foram conferidos. Finalize a embalagem, sem colocar mais nada na caixa.'
+      });
+      return;
     }
 
+    const codigoLimpo = codigoBipado.trim().toLowerCase();
+    const chaveEncontrada = Object.keys(conferencia).find(chave =>
+      conferencia[chave]?.codigosValidos?.includes(codigoLimpo)
+    );
+
+    if (!chaveEncontrada) {
+      avisarProdutoForaDoPedido(codigoLimpo);
+      return;
+    }
+
+    const item = conferencia[chaveEncontrada];
+    const faltam = item.qtdPedida - item.qtdBipada;
+    const qtdAdicionar = Math.max(1, Math.floor(Number(quantidadeManual)) || 1);
+
+    if (faltam === 0) {
+      bloquearContagem({
+        titulo: 'Produto já concluído',
+        produto: item.nome,
+        mensagem: `Este produto já tem ${item.qtdPedida} de ${item.qtdPedida} unidades bipadas. Retire a unidade extra da caixa.`
+      });
+      return;
+    }
+
+    if (qtdAdicionar > faltam) {
+      bloquearContagem({
+        titulo: 'Quantidade acima do pedido',
+        produto: item.nome,
+        mensagem: `Você tentou bipar ${qtdAdicionar}, mas faltam apenas ${faltam}. Confira as unidades e bipe novamente.`
+      });
+      return;
+    }
+
+    setConferencia(prev => ({
+      ...prev,
+      [chaveEncontrada]: { ...item, qtdBipada: item.qtdBipada + qtdAdicionar }
+    }));
+    setOrdemBipagem(prev => prev.includes(chaveEncontrada) ? prev : [...prev, chaveEncontrada]);
+    setUltimoBipe({ chave: chaveEncontrada, quando: Date.now() });
+    tocarSucesso();
+    setQuantidadeManual(1);
     setCodigoBipado('');
     inputRef.current.focus();
   };
@@ -171,6 +275,41 @@ function ScannerMesa() {
       setModalSairAberto(true);
     } else {
       window.close(); 
+    }
+  };
+
+  // O corte pode chegar pelo webhook com a caixa já pronta: confere de novo antes de fechar
+  const abrirFinalizacao = async () => {
+    setConferindoPedido(true);
+    try {
+      const atual = await buscarPedido();
+      if (!atual) {
+        toast.error("Não foi possível confirmar o pedido. Tente novamente.");
+        return;
+      }
+
+      const atualizada = montarConferencia(atual);
+      const chaves = new Set([...Object.keys(atualizada), ...Object.keys(conferencia)]);
+      const mudou = [...chaves].some(ch => atualizada[ch]?.qtdPedida !== conferencia[ch]?.qtdPedida);
+
+      setPedido(atual);
+      if (!mudou) {
+        setModalDadosAberto(true);
+        return;
+      }
+
+      Object.keys(atualizada).forEach(ch => {
+        if (conferencia[ch]) atualizada[ch].qtdBipada = Math.min(conferencia[ch].qtdBipada, atualizada[ch].qtdPedida);
+      });
+      setConferencia(atualizada);
+      bloquearContagem({
+        titulo: 'Pedido alterado no ERP',
+        mensagem: 'As quantidades deste pedido mudaram. Confira a caixa novamente antes de finalizar.'
+      });
+    } catch (error) {
+      toast.error("Erro de conexão com o servidor.");
+    } finally {
+      setConferindoPedido(false);
     }
   };
 
@@ -200,221 +339,213 @@ function ScannerMesa() {
   };
 
   const handleFundoClick = (e) => {
-    if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'BUTTON' && !modalSairAberto && !modalDadosAberto && !modalAuditoriaAberto) {
+    if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'BUTTON' && !modalSairAberto && !modalDadosAberto && !modalAuditoriaAberto && !aviso) {
       inputRef.current?.focus();
     }
   };
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center h-screen bg-[#F9F9FB] dark:bg-zinc-950">
-        <Loader2 className="animate-spin text-zinc-400 mb-3" size={32} />
-        <p className="text-zinc-400 font-medium text-sm">Carregando Itens...</p>
+      <div className="flex flex-col items-center justify-center h-screen bg-[#f5f5f7] dark:bg-[#000000]">
+        <Loader2 className="animate-spin text-purple-600 mb-3" size={32} />
+        <p className="text-zinc-500 font-medium text-sm">Carregando itens...</p>
       </div>
     );
   }
 
-  if (!pedido) return <div className="p-10 text-zinc-500 dark:text-zinc-400">Erro ao carregar a mesa.</div>;
+  if (!pedido) return <div className="flex items-center justify-center h-screen bg-[#f5f5f7] dark:bg-[#000000] text-zinc-500 dark:text-zinc-400">Erro ao carregar a mesa.</div>;
 
   const itensArray = Object.values(conferencia);
   const totalItens = itensArray.reduce((acc, item) => acc + item.qtdPedida, 0);
   const totalBipados = itensArray.reduce((acc, item) => acc + item.qtdBipada, 0);
-  const progressoPercent = (totalBipados / totalItens) * 100;
+  const progressoPercent = totalItens > 0 ? (totalBipados / totalItens) * 100 : 0;
 
-  const todosBipados = totalBipados === totalItens;
+  const pedidoSemItens = totalItens === 0;
+  const todosBipados = !pedidoSemItens && totalBipados === totalItens;
   const nenhumBipado = totalBipados === 0;
 
   // A lista principal SEMPRE esconde itens zerados para manter a contagem cega blindada
-  const itensVisiveis = itensArray.filter(item => item.qtdBipada > 0);
+  // Cada produto entra no fim da lista na ordem em que foi bipado pela primeira vez
+  const itensVisiveis = itensArray
+    .filter(item => item.qtdBipada > 0)
+    .sort((a, b) => ordemBipagem.indexOf(a.chave) - ordemBipagem.indexOf(b.chave));
   const itensFaltantes = itensArray.filter(item => item.qtdBipada < item.qtdPedida);
 
   return (
-    <div className="h-screen bg-[#F9F9FB] dark:bg-zinc-950 flex flex-col font-sans overflow-hidden" onClick={handleFundoClick}>
-      
+    <div className="relative h-screen bg-[#f5f5f7] dark:bg-[#000000] text-zinc-900 dark:text-zinc-100 flex flex-col font-sans antialiased overflow-hidden" onClick={handleFundoClick}>
+      <LuzesDeFundo />
+
+      {aviso && <AvisoBloqueio aviso={aviso} onConfirmar={liberarContagem} />}
+
       <ModalConfirmacaoSair isOpen={modalSairAberto} onConfirm={() => window.close()} onCancel={() => { setModalSairAberto(false); setTimeout(() => inputRef.current?.focus(), 100); }} />
       <ManipulaDados isOpen={modalDadosAberto} onClose={() => { setModalDadosAberto(false); setTimeout(() => inputRef.current?.focus(), 100); }} onConfirm={finalizarExpedicao} pedido={pedido} />
 
-      {/* 🟢 MODAL DE AUDITORIA GLASSMORPHISM */}
+      {/* 🟢 MODAL DE AUDITORIA */}
       {modalAuditoriaAberto && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-zinc-900/60 dark:bg-black/80 backdrop-blur-md transition-all">
-          <div className="bg-white/90 dark:bg-zinc-900/90 backdrop-blur-2xl w-full max-w-3xl max-h-[85vh] rounded-[2rem] shadow-2xl border border-white/40 dark:border-zinc-700/50 flex flex-col overflow-hidden ring-1 ring-black/5">
-            
-            <div className="p-6 border-b border-zinc-200/50 dark:border-zinc-800/50 flex justify-between items-center bg-zinc-50/50 dark:bg-zinc-800/30">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-zinc-900/50 dark:bg-black/70 backdrop-blur-md">
+          <div className={`${VIDRO} !bg-white/95 dark:!bg-[#121214]/95 w-full max-w-3xl max-h-[85vh] flex flex-col overflow-hidden`}>
+
+            <div className="p-6 border-b border-black/[0.06] dark:border-white/[0.07] flex justify-between items-center">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-amber-100 dark:bg-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400 shadow-inner">
-                  <ClipboardList size={24} />
+                <div className="w-12 h-12 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-600 dark:text-amber-400">
+                  <ClipboardList size={22} />
                 </div>
                 <div>
-                  <h2 className="text-xl font-black text-zinc-800 dark:text-white tracking-tight">Auditoria de Faltantes</h2>
-                  <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Existem {itensFaltantes.length} tipos de itens pendentes nesta caixa</p>
+                  <h2 className="text-xl font-bold tracking-tight">Auditoria de faltantes</h2>
+                  <p className="text-sm text-zinc-500 dark:text-zinc-400">{itensFaltantes.length} {itensFaltantes.length === 1 ? 'produto pendente' : 'produtos pendentes'} nesta caixa</p>
                 </div>
               </div>
-              <button onClick={() => { setModalAuditoriaAberto(false); setTimeout(() => inputRef.current?.focus(), 100); }} className="w-10 h-10 rounded-full bg-zinc-200/50 dark:bg-zinc-800/50 hover:bg-zinc-200 dark:hover:bg-zinc-700 flex items-center justify-center text-zinc-500 transition-colors">
+              <button onClick={() => { setModalAuditoriaAberto(false); setTimeout(() => inputRef.current?.focus(), 100); }} className="w-10 h-10 rounded-full bg-black/[0.05] dark:bg-white/[0.08] hover:bg-black/[0.09] dark:hover:bg-white/[0.13] flex items-center justify-center text-zinc-500 transition-all duration-300 active:scale-90">
                 <X size={20} />
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6 space-y-3 custom-scrollbar bg-white/30 dark:bg-black/20">
+            <div className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
               {itensFaltantes.map((item) => (
-                <div key={item.chave} className="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 shadow-sm flex items-center gap-4">
-                  <div className="w-14 h-14 rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center overflow-hidden shrink-0">
+                <div key={item.chave} className="p-3 rounded-2xl bg-black/[0.03] dark:bg-white/[0.04] flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-xl bg-white dark:bg-white/[0.06] flex items-center justify-center overflow-hidden shrink-0">
                     {item.imagem ? <img src={item.imagem} alt={item.nome} className="w-full h-full object-cover" /> : <Package size={20} className="text-zinc-400" />}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-bold text-sm text-zinc-800 dark:text-white truncate">{item.nome}</p>
-                    <span className="inline-block mt-1 text-[11px] font-bold text-zinc-500 uppercase tracking-wider bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded-md">
-                      Cod: {item.codigosValidos[0] || 'N/I'}
-                    </span>
+                    <p className="font-semibold text-sm truncate">{item.nome}</p>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5 font-mono uppercase">{item.codigosValidos[0] || 'Sem código'}</p>
                   </div>
-                  <div className="text-right">
-                    <p className="text-xs font-bold text-amber-600 dark:text-amber-500 uppercase mb-0.5">Falta bipar</p>
-                    <p className="text-2xl font-black text-zinc-800 dark:text-white">{item.qtdPedida - item.qtdBipada}</p>
+                  <div className="text-right pr-1">
+                    <p className="text-[11px] font-semibold text-amber-600 dark:text-amber-400">Falta bipar</p>
+                    <p className="text-2xl font-bold tabular-nums">{item.qtdPedida - item.qtdBipada}</p>
                   </div>
                 </div>
               ))}
             </div>
 
-            <div className="p-6 bg-zinc-50/80 dark:bg-zinc-900/80 border-t border-zinc-200/50 dark:border-zinc-800/50 flex justify-end backdrop-blur-md">
-              <button 
+            <div className="p-4 border-t border-black/[0.06] dark:border-white/[0.07] flex justify-end">
+              <button
                 onClick={() => { setModalAuditoriaAberto(false); setTimeout(() => inputRef.current?.focus(), 100); }}
-                className="bg-zinc-800 hover:bg-zinc-700 dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-900 px-8 py-3.5 rounded-xl font-bold text-sm transition-all active:scale-95 shadow-md flex items-center gap-2"
+                className={`${BOTAO_ROXO} h-11 px-6 text-sm`}
               >
-                <ScanBarcode size={18} /> Voltar para a Contagem
+                <ScanBarcode size={18} /> Voltar para a contagem
               </button>
             </div>
-            
+
           </div>
         </div>
       )}
 
       {/* CABEÇALHO FIXO NATIVO */}
-      <div className="bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border-b border-zinc-200/60 dark:border-zinc-800/60 px-6 py-4 flex flex-col gap-5 shrink-0 z-30 shadow-sm">
-        
-        {progressoRecuperado && (
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 bg-blue-500 text-white text-[9px] font-bold tracking-widest uppercase px-3 py-0.5 rounded-b-md shadow-sm">Recuperado</div>
-        )}
-
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div>
-            <h1 className="text-2xl font-black text-zinc-800 dark:text-white tracking-tight flex items-center gap-2">
-              Pedido #{pedido.pedido_id}
-            </h1>
-            <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5 font-medium">
-              Cliente: <span className="text-zinc-800 dark:text-zinc-200">{pedido.billing?.first_name}</span>
-            </p>
-          </div>
-
-          <form onSubmit={processarBipagem} onClick={(e) => e.stopPropagation()} className="flex w-full md:w-auto gap-2">
-            <div className="w-20 relative group">
-              <span className="absolute -top-2 left-2 bg-white dark:bg-zinc-900 text-[9px] font-bold px-1 text-zinc-500 group-focus-within:text-blue-500 transition-colors">QTD</span>
-              <input
-                type="number"
-                min="1"
-                value={quantidadeManual}
-                onChange={(e) => setQuantidadeManual(e.target.value)}
-                disabled={modalAuditoriaAberto}
-                className="w-full bg-zinc-50 dark:bg-zinc-800/80 border-2 border-zinc-200 dark:border-zinc-700 text-zinc-800 dark:text-white text-lg rounded-xl px-2 py-2.5 focus:outline-none focus:border-blue-500 transition-all font-bold text-center disabled:opacity-50"
-              />
+      <div className="relative shrink-0 z-30 px-4 sm:px-6 pt-4 sm:pt-5">
+        <div className="max-w-4xl mx-auto w-full">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
+            <div className="min-w-0">
+              <h1 className="text-2xl sm:text-[28px] leading-tight font-bold tracking-tight tabular-nums flex items-center gap-2.5">
+                Pedido #{pedido.pedido_id}
+                {progressoRecuperado && (
+                  <span className="h-6 px-2.5 rounded-full bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/20 text-[11px] font-semibold inline-flex items-center">Recuperado</span>
+                )}
+              </h1>
+              <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5 truncate">{pedido.billing?.first_name}</p>
             </div>
-            
-            <div className="relative flex-1 md:w-80">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <ScanBarcode size={20} className={nenhumBipado && !modalAuditoriaAberto ? "text-blue-500 animate-pulse" : "text-zinc-400"} />
+
+            <form onSubmit={processarBipagem} onClick={(e) => e.stopPropagation()} className="flex w-full md:w-auto gap-2">
+              <div className={`${VIDRO} !rounded-full h-12 w-[92px] flex items-center pl-4 pr-2 gap-1 focus-within:ring-2 focus-within:ring-purple-500/40 transition-shadow duration-300`}>
+                <span className="text-[11px] font-semibold text-zinc-400">Qtd</span>
+                <input
+                  type="number"
+                  min="1"
+                  aria-label="Quantidade"
+                  value={quantidadeManual}
+                  onChange={(e) => setQuantidadeManual(e.target.value)}
+                  disabled={modalAuditoriaAberto || !!aviso || todosBipados}
+                  className="w-full min-w-0 bg-transparent text-base font-bold text-center tabular-nums outline-none disabled:opacity-50"
+                />
               </div>
-              <input
-                ref={inputRef}
-                type="text"
-                value={codigoBipado}
-                onChange={(e) => setCodigoBipado(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') processarBipagem(e); }}
-                disabled={modalAuditoriaAberto}
-                placeholder={modalAuditoriaAberto ? "Auditoria em andamento..." : "Aguardando leitor..."}
-                className="w-full bg-zinc-50 dark:bg-zinc-800/80 border-2 border-zinc-200 dark:border-zinc-700 text-zinc-800 dark:text-white text-base rounded-xl pl-10 pr-3 py-2.5 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-mono font-bold uppercase tracking-wider shadow-inner disabled:opacity-50"
-                autoFocus
-                autoComplete="off"
-                onBlur={() => { if (!modalSairAberto && !modalDadosAberto && !modalAuditoriaAberto) setTimeout(() => inputRef.current?.focus(), 100); }}
+
+              <div className={`${VIDRO} !rounded-full h-12 flex-1 md:w-80 flex items-center px-4 gap-2.5 focus-within:ring-2 focus-within:ring-purple-500/40 transition-shadow duration-300`}>
+                <ScanBarcode size={20} className={`shrink-0 ${nenhumBipado && !modalAuditoriaAberto ? 'text-purple-500 animate-pulse' : 'text-zinc-400'}`} />
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={codigoBipado}
+                  onChange={(e) => setCodigoBipado(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') processarBipagem(e); }}
+                  disabled={modalAuditoriaAberto || !!aviso}
+                  placeholder={modalAuditoriaAberto ? "Auditoria em andamento..." : todosBipados ? "Contagem concluída" : "Aguardando leitor..."}
+                  className="w-full min-w-0 bg-transparent text-base font-mono font-semibold uppercase tracking-wider outline-none placeholder:normal-case placeholder:tracking-normal placeholder:font-sans placeholder:font-medium placeholder:text-zinc-400 disabled:opacity-50"
+                  autoFocus
+                  autoComplete="off"
+                  onBlur={() => { if (!modalSairAberto && !modalDadosAberto && !modalAuditoriaAberto && !aviso) setTimeout(() => inputRef.current?.focus(), 100); }}
+                />
+              </div>
+              <button type="submit" className="hidden">Bipar</button>
+            </form>
+          </div>
+
+          <div className={`${VIDRO} !rounded-3xl px-5 py-4`}>
+            <div className="flex justify-between items-baseline mb-2.5">
+              <span className="text-sm font-semibold">Progresso da caixa</span>
+              <span className={`text-sm font-bold tabular-nums ${todosBipados ? 'text-emerald-600 dark:text-emerald-400' : 'text-purple-600 dark:text-purple-400'}`}>{totalBipados} de {totalItens} un</span>
+            </div>
+            <div className="bg-black/[0.06] dark:bg-white/[0.08] rounded-full h-2 w-full overflow-hidden">
+              <div
+                className={`h-full transition-all duration-700 ease-out rounded-full ${todosBipados ? 'bg-emerald-500' : 'bg-gradient-to-r from-purple-500 to-indigo-500'}`}
+                style={{ width: `${progressoPercent}%` }}
               />
             </div>
-            <button type="submit" className="hidden">Bipar</button>
-          </form>
-        </div>
+          </div>
 
-        <div className="w-full bg-zinc-50 dark:bg-zinc-800/50 p-3 rounded-xl border border-zinc-100 dark:border-zinc-800">
-          <div className="flex justify-between items-center text-xs font-bold text-zinc-500 dark:text-zinc-400 mb-2 uppercase tracking-wider">
-            <span>Progresso da Caixa</span>
-            <span className={todosBipados ? 'text-emerald-600' : 'text-blue-600'}>{totalBipados} / {totalItens} volumes</span>
-          </div>
-          <div className="bg-zinc-200 dark:bg-zinc-700 rounded-full h-2.5 w-full overflow-hidden shadow-inner">
-            <div 
-              className={`h-full transition-all duration-700 ease-out rounded-full ${todosBipados ? 'bg-emerald-500' : 'bg-gradient-to-r from-blue-500 to-indigo-500'}`} 
-              style={{ width: `${progressoPercent}%` }} 
-            />
-          </div>
         </div>
       </div>
 
       {/* MIOLO ROLÁVEL NATIVO */}
-      <div ref={listaRef} className="flex-1 overflow-y-auto p-4 sm:p-6 custom-scrollbar pb-8">
+      <div ref={listaRef} className="relative flex-1 overflow-y-auto px-4 sm:px-6 py-4 custom-scrollbar">
         <div className="max-w-4xl mx-auto w-full">
-          {nenhumBipado ? (
-            <div className="flex flex-col items-center justify-center py-24 opacity-80">
-              <div className="w-24 h-24 bg-blue-50 dark:bg-blue-500/10 rounded-full flex items-center justify-center mb-6 shadow-inner border border-blue-100 dark:border-blue-500/20">
-                <ScanBarcode size={40} className="text-blue-500 dark:text-blue-400" strokeWidth={1.5} />
+          {pedidoSemItens ? (
+            <div className="flex flex-col items-center justify-center py-20 text-center">
+              <div className="w-24 h-24 rounded-full bg-black/[0.05] dark:bg-white/[0.08] flex items-center justify-center mb-6">
+                <Package size={38} className="text-zinc-400" strokeWidth={1.6} />
               </div>
-              <h2 className="text-xl font-bold text-zinc-800 dark:text-white mb-2">Contagem Cega Ativada</h2>
-              <p className="text-zinc-500 dark:text-zinc-400 font-medium text-center max-w-sm">
+              <h2 className="text-xl font-bold tracking-tight mb-1.5">Nada para separar</h2>
+              <p className="text-zinc-500 dark:text-zinc-400 max-w-sm">Este pedido não tem itens para conferir.</p>
+            </div>
+          ) : nenhumBipado ? (
+            <div className="flex flex-col items-center justify-center py-20 text-center">
+              <div className="w-24 h-24 rounded-full bg-purple-500/10 flex items-center justify-center mb-6">
+                <ScanBarcode size={38} className="text-purple-600 dark:text-purple-400" strokeWidth={1.6} />
+              </div>
+              <h2 className="text-xl font-bold tracking-tight mb-1.5">Contagem cega ativada</h2>
+              <p className="text-zinc-500 dark:text-zinc-400 max-w-sm">
                 Inicie a bipagem ou altere a quantidade manual acima. A lista será revelada gradualmente.
               </p>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-3">
               {itensVisiveis.map((item) => {
                 const finalizado = item.qtdBipada === item.qtdPedida;
                 const perctItem = (item.qtdBipada / item.qtdPedida) * 100;
 
                 return (
-                  <div 
-                    key={item.chave} 
-                    className={`p-4 rounded-2xl border-2 flex items-center gap-5 transition-all duration-300 relative overflow-hidden ${
-                      finalizado 
-                        ? 'bg-emerald-50/40 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-800/40' 
-                        : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700 shadow-md hover:border-blue-300'
-                    }`}
-                  >
-                    {!finalizado && (
-                       <div className="absolute top-0 left-0 h-full bg-blue-50 dark:bg-blue-900/10 transition-all duration-500 -z-0" style={{ width: `${perctItem}%` }} />
-                    )}
-
-                    <div className="relative z-10 w-16 h-16 rounded-xl bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center overflow-hidden shrink-0 shadow-sm">
+                  <div key={item.chave} data-chave={item.chave} className={`${VIDRO} !rounded-3xl p-3.5 flex items-center gap-4 overflow-hidden scroll-my-4 transition-shadow duration-300 ${ultimoBipe?.chave === item.chave ? 'ring-2 ring-purple-500/60' : finalizado ? 'ring-1 ring-emerald-500/30' : ''}`}>
+                    <div className="w-14 h-14 rounded-2xl bg-black/[0.04] dark:bg-white/[0.06] flex items-center justify-center overflow-hidden shrink-0">
                       {item.imagem ? (
                         <img src={item.imagem} alt={item.nome} className="w-full h-full object-cover" />
                       ) : (
-                        <Package size={24} className="text-zinc-300 dark:text-zinc-600" />
+                        <Package size={22} className="text-zinc-400" />
                       )}
                     </div>
 
-                    <div className="relative z-10 flex-1 min-w-0 py-1">
-                      <p className={`font-bold text-base truncate ${finalizado ? 'text-emerald-800 dark:text-emerald-400' : 'text-zinc-900 dark:text-white'}`}>
-                        {item.nome}
-                      </p>
-                      <div className="flex items-center gap-3 mt-1.5">
-                        <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded-md">
-                          Cod: {item.codigosValidos[0] || 'N/I'}
-                        </span>
-                      </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-[15px] truncate">{item.nome}</p>
+                      <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5 font-mono uppercase">{item.codigosValidos[0] || 'Sem código'}</p>
                     </div>
 
-                    <div className="relative z-10 text-right flex items-center gap-5 pl-4 border-l border-zinc-200 dark:border-zinc-700">
-                      <div className="flex items-baseline gap-1 w-16 justify-end">
-                        <span className={`text-3xl font-black ${finalizado ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-800 dark:text-white'}`}>
-                          {item.qtdBipada}
-                        </span>
-                        <span className="text-sm font-bold text-zinc-400 dark:text-zinc-500">/{item.qtdPedida}</span>
-                      </div>
+                    <div className="flex items-baseline gap-0.5 tabular-nums">
+                      <span className={`text-[28px] font-bold tracking-tight ${finalizado ? 'text-emerald-600 dark:text-emerald-400' : ''}`}>{item.qtdBipada}</span>
+                      <span className="text-sm font-semibold text-zinc-400">/{item.qtdPedida}</span>
+                    </div>
 
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 shadow-sm transition-all duration-300 ${finalizado ? 'bg-emerald-500 text-white shadow-emerald-500/30 scale-110' : 'bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-300 dark:text-zinc-600 scale-95'}`}>
-                        <CheckCircle2 size={22} strokeWidth={finalizado ? 3 : 2} />
-                      </div>
+                    <CheckCircle2 size={26} strokeWidth={2} className={`shrink-0 transition-all duration-300 ${finalizado ? 'text-emerald-500 scale-110' : 'text-zinc-300 dark:text-zinc-700'}`} />
+
+                    <div className="absolute inset-x-0 bottom-0 h-1 bg-black/[0.06] dark:bg-white/[0.08]">
+                      <div className={`h-full transition-all duration-500 ${finalizado ? 'bg-emerald-500' : 'bg-purple-500'}`} style={{ width: `${perctItem}%` }} />
                     </div>
                   </div>
                 );
@@ -425,28 +556,20 @@ function ScannerMesa() {
       </div>
 
       {/* RODAPÉ FIXO NATIVO */}
-      <div className="bg-white/90 dark:bg-zinc-900/90 backdrop-blur-xl border-t border-zinc-200/60 dark:border-zinc-800/60 p-4 sm:px-6 flex justify-between items-center shrink-0 z-40 shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
-        <button 
-          onClick={handleSair} 
-          className="px-5 py-3 font-bold text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl transition-colors flex items-center gap-2 active:scale-95"
-        >
-          <ArrowLeft size={18} /> Sair
-        </button>
+      <div className="relative shrink-0 z-40 px-4 sm:px-6 pb-4 sm:pb-5 pt-1">
+        <div className={`${VIDRO} !rounded-full max-w-4xl mx-auto w-full p-2 flex justify-between items-center`}>
+          <button onClick={handleSair} className={`${BOTAO_VIDRO} h-11 px-5 text-sm`}>
+            <ArrowLeft size={18} /> Sair
+          </button>
 
-        <div>
           {todosBipados ? (
-            <button 
-              onClick={() => setModalDadosAberto(true)} 
-              className="bg-emerald-500 hover:bg-emerald-400 text-white px-8 py-3 rounded-xl font-black text-sm shadow-lg shadow-emerald-500/30 flex items-center gap-2 transition-all active:scale-95 hover:-translate-y-0.5"
-            >
-              <PackageCheck size={20} /> FINALIZAR EMBALAGEM
+            <button onClick={abrirFinalizacao} disabled={conferindoPedido} className={`${BOTAO_VERDE} h-11 px-6 text-sm disabled:opacity-70`}>
+              {conferindoPedido ? <Loader2 size={18} className="animate-spin" /> : <PackageCheck size={18} />}
+              {conferindoPedido ? 'Conferindo pedido...' : 'Finalizar embalagem'}
             </button>
-          ) : (
-            <button 
-              onClick={() => { setModalAuditoriaAberto(true); inputRef.current?.blur(); }}
-              className="bg-zinc-100 hover:bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 px-6 py-3 rounded-xl font-bold text-sm flex items-center gap-2 transition-all active:scale-95 shadow-sm"
-            >
-              <Search size={18} /> Auditar Faltantes
+          ) : !pedidoSemItens && (
+            <button onClick={() => { setModalAuditoriaAberto(true); inputRef.current?.blur(); }} className={`${BOTAO_VIDRO} h-11 px-5 text-sm`}>
+              <Search size={18} /> Auditar faltantes
             </button>
           )}
         </div>
@@ -457,7 +580,7 @@ function ScannerMesa() {
 
 export default function CheckoutScanner() {
   return (
-    <Suspense fallback={<div className="flex flex-col items-center justify-center min-h-screen bg-[#F9F9FB] dark:bg-zinc-950"><Loader2 className="animate-spin text-zinc-400 mb-3" size={32} /></div>}>
+    <Suspense fallback={<div className="flex flex-col items-center justify-center min-h-screen bg-[#f5f5f7] dark:bg-[#000000]"><Loader2 className="animate-spin text-purple-600" size={32} /></div>}>
       <ScannerMesa />
     </Suspense>
   );

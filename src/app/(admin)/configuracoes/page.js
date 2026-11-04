@@ -6,9 +6,69 @@ import Header from "@/components/Header";
 import { 
   Database, ShoppingCart, CheckCircle2, Loader2, Timer, 
   Server, CreditCard, Lock, ChevronRight, ChevronLeft, 
-  TableProperties, Columns3, Globe, Laptop, Users, Store, Box, Settings
+  TableProperties, Columns3, Globe, Laptop, Users, Store, Box, Settings,
+  Minus, Plus
 } from "lucide-react";
 import toast from 'react-hot-toast'; 
+
+// ==========================================
+// 🎨 DESIGN TOKENS (estilo Apple: vidro, hairlines, ícones em "tiles")
+// ==========================================
+
+const CARD =
+  "relative overflow-hidden rounded-[28px] border border-black/[0.06] dark:border-white/[0.07] " +
+  "bg-white/80 dark:bg-[#121214]/80 backdrop-blur-xl " +
+  "shadow-[0_1px_2px_rgba(0,0,0,0.04),0_14px_34px_-18px_rgba(0,0,0,0.14)] " +
+  "dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_24px_50px_-26px_rgba(0,0,0,0.9)] " +
+  "transition-colors duration-300";
+
+// Caixa interna dentro de um card (agrupa campos relacionados)
+const CAIXA = "rounded-[22px] bg-black/[0.03] dark:bg-white/[0.04] border border-black/[0.05] dark:border-white/[0.06]";
+
+// Campos (fundo sólido no escuro para a lista do <select> ficar legível)
+const CAMPO =
+  "w-full h-12 px-4 bg-zinc-100 dark:bg-[#1a1a1d] border border-black/[0.06] dark:border-white/[0.08] rounded-2xl outline-none " +
+  "text-sm font-medium text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 transition-all dark:[color-scheme:dark] " +
+  "focus:border-purple-500/50 focus:ring-4 focus:ring-purple-500/15";
+
+// Campo menor (mapeamento de colunas)
+const CAMPO_PEQUENO =
+  "w-full h-10 px-3 bg-white dark:bg-[#1a1a1d] border border-black/[0.06] dark:border-white/[0.08] rounded-xl outline-none " +
+  "text-xs font-medium text-zinc-900 dark:text-zinc-100 transition-all dark:[color-scheme:dark] cursor-pointer " +
+  "focus:border-purple-500/50 focus:ring-4 focus:ring-purple-500/15";
+
+const ROTULO = "block text-xs font-semibold text-zinc-500 dark:text-zinc-400";
+
+// Classes completas (o Tailwind precisa enxergá-las inteiras no código)
+const TILE_CORES = {
+  purple: "from-violet-400 to-purple-600",
+  blue: "from-sky-400 to-blue-600",
+  sky: "from-cyan-400 to-sky-600",
+  emerald: "from-emerald-400 to-emerald-600",
+};
+
+const Tile = ({ cor = "purple", size = 40, children }) => (
+  <div
+    className={`shrink-0 flex items-center justify-center bg-gradient-to-br ${TILE_CORES[cor]} text-white ring-1 ring-black/5 dark:ring-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.4),0_6px_14px_-6px_rgba(0,0,0,0.35)]`}
+    style={{ width: size, height: size, borderRadius: size * 0.3 }}
+  >
+    {children}
+  </div>
+);
+
+// Ícone em tile branco (para a logo da Oracle aparecer bem)
+const TileLogoOracle = ({ size = 40, iconSize = 20 }) => (
+  <div
+    className="shrink-0 flex items-center justify-center bg-white dark:bg-white/[0.08] ring-1 ring-black/5 dark:ring-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.6),0_6px_14px_-6px_rgba(0,0,0,0.3)]"
+    style={{ width: size, height: size, borderRadius: size * 0.3 }}
+  >
+    <img src="/oracle.svg" alt="Oracle" style={{ width: iconSize, height: iconSize }} className="object-contain" />
+  </div>
+);
+
+const BTN_VOLTAR =
+  "h-11 px-5 rounded-full text-sm font-semibold text-zinc-600 dark:text-zinc-300 bg-black/[0.04] dark:bg-white/[0.06] " +
+  "hover:bg-black/[0.08] dark:hover:bg-white/[0.1] transition-all flex items-center gap-2 disabled:opacity-30 active:scale-95";
 
 export default function ConfiguracoesWizard() {
   const [step, setStep] = useState(1);
@@ -218,60 +278,117 @@ export default function ConfiguracoesWizard() {
   const lojas = integracoesDisponiveis.filter(i => i.plataforma === 'woocommerce' || i.plataforma === 'raizan_commerce');
   const pagamentos = integracoesDisponiveis.filter(i => i.plataforma === 'mercadopago' || i.plataforma === 'mercado_pago' || i.plataforma === 'pagseguro' || i.plataforma === 'frenet');
 
+  const passos = [
+    { num: 1, label: "Banco ERP", icon: Database },
+    { num: 2, label: "Tabelas", icon: TableProperties },
+    { num: 3, label: "Lojas", icon: ShoppingCart },
+    { num: 4, label: "Módulos", icon: CreditCard },
+    { num: 5, label: "Automação", icon: Timer }
+  ];
+
+  // Cartão selecionável (usado nas lojas e nos módulos de pagamento/frete)
+  const renderCartaoSelecionavel = (item, lista, setLista, cor) => {
+    const marcado = lista.includes(item.id);
+    const estilos = {
+      blue: { on: "border-blue-500/50 bg-blue-500/10 ring-4 ring-blue-500/10", box: "bg-blue-500 border-blue-500", hover: "hover:border-blue-400/50" },
+      sky: { on: "border-sky-500/50 bg-sky-500/10 ring-4 ring-sky-500/10", box: "bg-sky-500 border-sky-500", hover: "hover:border-sky-400/50" },
+    }[cor];
+
+    return (
+      <div 
+        key={item.id} 
+        role="checkbox"
+        aria-checked={marcado}
+        tabIndex={0}
+        onClick={() => toggleSelecao(item.id, lista, setLista)}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleSelecao(item.id, lista, setLista); } }}
+        className={`p-4 border rounded-[20px] cursor-pointer transition-all duration-300 flex items-center gap-4 outline-none active:scale-[0.99] ${marcado ? estilos.on : `border-black/[0.06] dark:border-white/[0.08] bg-white/60 dark:bg-white/[0.03] ${estilos.hover}`}`}
+      >
+        <div className={`w-6 h-6 rounded-full border flex items-center justify-center shrink-0 transition-all ${marcado ? `${estilos.box} text-white` : 'border-zinc-300 dark:border-zinc-600'}`}>
+          {marcado && <CheckCircle2 size={14}/>}
+        </div>
+        <div className="min-w-0">
+          <p className="font-semibold tracking-tight text-sm text-zinc-900 dark:text-zinc-100 truncate">{item.nome_integracao}</p>
+          <p className="text-xs text-zinc-500 capitalize">{item.plataforma.replace('_', ' ')}</p>
+        </div>
+      </div>
+    );
+  };
+
+  // Cabeçalho de cada passo (ícone em tile + título + legenda)
+  const CabecalhoPasso = ({ tile, titulo, legenda }) => (
+    <div className="flex items-center gap-3.5 border-b border-black/[0.06] dark:border-white/[0.07] pb-5">
+      {tile}
+      <div>
+        <h2 className="text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-50">{titulo}</h2>
+        {legenda && <p className="text-xs font-medium text-zinc-500 mt-0.5">{legenda}</p>}
+      </div>
+    </div>
+  );
+
   return (
-    <div className="flex h-screen bg-zinc-50 dark:bg-[#09090b] text-zinc-900 dark:text-zinc-100 overflow-hidden">
+    <div className="flex h-screen bg-[#f5f5f7] dark:bg-[#09090b] text-zinc-900 dark:text-zinc-100 overflow-hidden transition-colors duration-300 antialiased">
       <Sidebar />
       <div className="flex-1 flex flex-col h-screen relative min-w-0">
+
+        {/* Luzes suaves atrás do vidro */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
+          <div className="absolute -top-40 left-1/4 w-[560px] h-[560px] rounded-full bg-purple-400/20 dark:bg-purple-600/10 blur-[120px]" />
+          <div className="absolute top-1/3 -right-32 w-[480px] h-[480px] rounded-full bg-indigo-400/20 dark:bg-indigo-600/10 blur-[120px]" />
+        </div>
+
         <Header />
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 custom-scrollbar">
+
+        {/* ⚠️ Sem z-index no <main>: senão os modais (fixed) ficam presos atrás do Header e da Sidebar */}
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 custom-scrollbar relative">
           <div className="max-w-3xl mx-auto space-y-8 pb-20">
             
             {/* TÍTULO */}
             <div>
-              <h1 className="text-2xl font-black text-zinc-900 dark:text-zinc-100 flex items-center gap-3">
+              <h1 className="text-2xl sm:text-[32px] leading-tight font-bold tracking-tight text-zinc-900 dark:text-zinc-50 flex flex-wrap items-center gap-x-3 gap-y-2">
                 Setup de Integração Oracle
-                <span className="bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20 text-xs px-2.5 py-1 rounded-md font-bold flex items-center gap-1 uppercase tracking-wider">
+                <span className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 text-xs px-3 py-1 rounded-full font-semibold flex items-center gap-1.5 tabular-nums">
                   <Lock size={12}/> {cnpjRender ? cnpjRender : "Carregando..."}
                 </span>
               </h1>
-              <p className="text-sm text-zinc-500 mt-1">Conecte o ERP aos seus canais de venda e módulos.</p>
+              <p className="text-sm sm:text-[15px] text-zinc-500 dark:text-zinc-400 mt-1.5">Conecte o ERP aos seus canais de venda e módulos.</p>
             </div>
 
             {/* 🟢 TELA DE CARREGAMENTO (IMPEDE O PISCAR DO FORMULÁRIO) */}
             {isFetchingInit ? (
-              <div className="flex flex-col items-center justify-center py-20 animate-in fade-in">
-                <Loader2 size={48} className="text-purple-600 animate-spin mb-4" />
-                <p className="text-zinc-500 font-bold tracking-widest text-sm uppercase">Verificando status do ERP...</p>
+              <div className={`${CARD} flex flex-col items-center justify-center py-20 animate-in fade-in`}>
+                <Loader2 size={44} className="text-purple-600 dark:text-purple-500 animate-spin mb-4" />
+                <p className="text-zinc-500 font-medium text-sm">Verificando status do ERP...</p>
               </div>
             ) : (
               <>
                 {/* 🟢 TELA DE SUCESSO / LACRE VISUAL PREMIUM DA ORACLE */}
                 {isConfigured && !isEditing ? (
-                  <div className="bg-white dark:bg-[#0c0c0e] border border-emerald-200 dark:border-emerald-500/20 rounded-3xl p-10 flex flex-col items-center justify-center text-center animate-in zoom-in-95 duration-300 shadow-xl shadow-emerald-500/5 relative overflow-hidden">
+                  <div className={`${CARD} p-10 flex flex-col items-center justify-center text-center animate-in zoom-in-95 duration-300`}>
                     
                     {/* Fundo decorativo */}
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 dark:bg-emerald-500/10 rounded-full blur-3xl transform translate-x-1/2 -translate-y-1/2 pointer-events-none"></div>
-                    <div className="absolute bottom-0 left-0 w-64 h-64 bg-red-500/5 dark:bg-red-500/10 rounded-full blur-3xl transform -translate-x-1/2 translate-y-1/2 pointer-events-none"></div>
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl transform translate-x-1/2 -translate-y-1/2 pointer-events-none"></div>
+                    <div className="absolute bottom-0 left-0 w-64 h-64 bg-red-500/10 rounded-full blur-3xl transform -translate-x-1/2 translate-y-1/2 pointer-events-none"></div>
 
-                    {/* Logo Oracle Animada */}
+                    {/* Logo Oracle com selo de OK */}
                     <div className="relative w-28 h-28 flex items-center justify-center mb-8">
-                       <div className="absolute inset-0 bg-emerald-100 dark:bg-emerald-500/20 rounded-full animate-pulse border border-emerald-200 dark:border-emerald-500/30"></div>
-                       <div className="relative z-10 w-20 h-20 bg-white dark:bg-zinc-900 rounded-2xl flex items-center justify-center border border-red-100 dark:border-red-500/30 shadow-md">
-                         <img src="/oracle.svg" alt="Oracle" className="w-12 h-12 object-contain" />
+                       <div className="absolute inset-0 bg-emerald-500/15 rounded-full animate-pulse border border-emerald-500/25"></div>
+                       <div className="relative z-10">
+                         <TileLogoOracle size={80} iconSize={46} />
                        </div>
-                       <div className="absolute -bottom-1 -right-1 w-8 h-8 bg-emerald-500 rounded-full flex items-center justify-center border-4 border-white dark:border-[#0c0c0e] z-20 shadow-sm">
+                       <div className="absolute -bottom-1 -right-1 w-9 h-9 bg-gradient-to-b from-emerald-400 to-emerald-600 rounded-full flex items-center justify-center border-4 border-white dark:border-[#121214] z-20 shadow-[0_6px_16px_-4px_rgba(16,185,129,0.7)]">
                          <CheckCircle2 size={16} className="text-white" />
                        </div>
                     </div>
 
-                    <h2 className="text-2xl font-black text-zinc-900 dark:text-zinc-100 mb-3 tracking-tight relative z-10">Conexão Oracle Operante</h2>
+                    <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50 mb-3 tracking-tight relative z-10">Conexão Oracle Operante</h2>
                     <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400 max-w-md mx-auto mb-10 leading-relaxed relative z-10">
                       Sua máquina está vinculada com sucesso ao banco de dados Oracle. O Motor Local já tem todas as credenciais ativas para sincronizar com o Hub Raizan e canais de venda.
                     </p>
                     
                     <button 
                       onClick={() => setIsEditing(true)} 
-                      className="relative z-10 bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-800 px-6 py-3 rounded-xl font-bold transition-all flex items-center gap-2 shadow-sm active:scale-95"
+                      className="relative z-10 h-12 px-7 bg-black/[0.05] dark:bg-white/[0.07] border border-black/[0.06] dark:border-white/[0.08] text-zinc-700 dark:text-zinc-200 hover:bg-black/[0.08] dark:hover:bg-white/[0.12] rounded-full font-semibold transition-all flex items-center gap-2 active:scale-95"
                     >
                       <Settings size={18} /> Editar Configurações
                     </button>
@@ -279,53 +396,52 @@ export default function ConfiguracoesWizard() {
                 ) : (
                   <>
                     {/* STEPPER VISUAL (5 PASSOS) */}
-                    <div className="flex items-center justify-between relative before:absolute before:inset-0 before:top-1/2 before:-translate-y-1/2 before:h-0.5 before:bg-zinc-200 dark:before:bg-zinc-800 before:z-0">
-                      {[
-                        { num: 1, label: "Banco ERP", icon: Database },
-                        { num: 2, label: "Tabelas", icon: TableProperties },
-                        { num: 3, label: "Lojas", icon: ShoppingCart },
-                        { num: 4, label: "Módulos", icon: CreditCard },
-                        { num: 5, label: "Automação", icon: Timer }
-                      ].map((s) => (
-                        <div key={s.num} className="relative z-10 flex flex-col items-center gap-2 bg-zinc-50 dark:bg-[#09090b] px-2">
-                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm transition-all border ${step >= s.num ? 'bg-purple-600 text-white border-purple-500 shadow-lg shadow-purple-500/30' : 'bg-white dark:bg-zinc-900 text-zinc-400 border-zinc-200 dark:border-zinc-800'}`}>
-                            {step > s.num ? <CheckCircle2 size={18} /> : s.num}
-                          </div>
-                          <span className={`text-[10px] font-bold uppercase tracking-wider ${step >= s.num ? 'text-purple-600 dark:text-purple-400' : 'text-zinc-400'}`}>{s.label}</span>
-                        </div>
-                      ))}
+                    <div className="relative">
+                      {/* trilho + parte já concluída */}
+                      <div className="absolute top-5 left-10 right-10 h-[3px] rounded-full bg-black/[0.08] dark:bg-white/[0.1]" aria-hidden="true">
+                        <div className="h-full rounded-full bg-gradient-to-r from-purple-500 to-indigo-500 transition-all duration-500" style={{ width: `${((step - 1) / (passos.length - 1)) * 100}%` }} />
+                      </div>
+                      <div className="relative flex items-start justify-between">
+                        {passos.map((s) => {
+                          const atingido = step >= s.num;
+                          const Icone = s.icon;
+                          return (
+                            <div key={s.num} className="flex flex-col items-center gap-2 w-20">
+                              <div className={`w-10 h-10 rounded-[14px] flex items-center justify-center transition-all duration-300 ${atingido ? 'bg-gradient-to-br from-violet-400 to-purple-600 text-white ring-1 ring-black/5 dark:ring-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.4),0_8px_20px_-6px_rgba(124,58,237,0.6)]' : 'bg-white dark:bg-[#1a1a1d] text-zinc-400 border border-black/[0.08] dark:border-white/[0.1]'}`}>
+                                {step > s.num ? <CheckCircle2 size={18} /> : <Icone size={18} />}
+                              </div>
+                              <span className={`text-xs font-semibold text-center ${atingido ? 'text-purple-700 dark:text-purple-300' : 'text-zinc-400'}`}>{s.label}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
 
                     {/* CONTEÚDO DO WIZARD */}
-                    <div className="bg-white dark:bg-[#0c0c0e] border border-zinc-200 dark:border-zinc-800/60 rounded-3xl p-6 sm:p-8 shadow-sm transition-all duration-300">
+                    <div className={`${CARD} p-6 sm:p-8 transition-all duration-300`}>
                       
                       {/* PASSO 1: CONEXÃO */}
                       {step === 1 && (
                         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-                          <div className="flex items-center gap-3 border-b border-zinc-100 dark:border-zinc-800/60 pb-4">
-                            <div className="w-10 h-10 rounded-xl bg-red-50 dark:bg-red-500/10 flex items-center justify-center border border-red-100 dark:border-red-500/20">
-                              <img src="/oracle.svg" className="w-5 h-5 object-contain" alt="Oracle" />
-                            </div>
-                            <div><h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">Conexão com o Oracle (ERP)</h2></div>
-                          </div>
+                          <CabecalhoPasso tile={<TileLogoOracle size={44} iconSize={22} />} titulo="Conexão com o Oracle (ERP)" />
 
-                          <div className="space-y-3 p-5 bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800 rounded-2xl">
-                            <label className="text-xs font-bold text-zinc-500 uppercase flex items-center gap-2"><Server size={14}/> Comunicação com o Motor Local</label>
-                            <div className="flex gap-3">
-                              <button onClick={() => setCoreUrl("http://localhost:3001")} className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold border transition-all ${coreUrl.includes("localhost") ? "bg-blue-600 text-white border-blue-500" : "bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 text-zinc-500"}`}><Laptop size={16} /> Servidor Local</button>
-                              <button onClick={() => setCoreUrl("https://api.rafany.com.br")} className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold border transition-all ${!coreUrl.includes("localhost") ? "bg-blue-600 text-white border-blue-500" : "bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 text-zinc-500"}`}><Globe size={16} /> Acesso Remoto</button>
+                          <div className={`space-y-3 p-5 ${CAIXA}`}>
+                            <label className={`${ROTULO} flex items-center gap-2`}><Server size={14}/> Comunicação com o Motor Local</label>
+                            <div className="flex gap-1 p-1 bg-black/[0.05] dark:bg-white/[0.06] rounded-full">
+                              <button onClick={() => setCoreUrl("http://localhost:3001")} className={`flex-1 flex items-center justify-center gap-2 h-10 rounded-full text-sm font-semibold transition-all active:scale-95 ${coreUrl.includes("localhost") ? "bg-white dark:bg-white/[0.14] text-blue-600 dark:text-blue-300 shadow-[0_1px_3px_rgba(0,0,0,0.15)]" : "text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"}`}><Laptop size={16} /> Servidor Local</button>
+                              <button onClick={() => setCoreUrl("https://api.rafany.com.br")} className={`flex-1 flex items-center justify-center gap-2 h-10 rounded-full text-sm font-semibold transition-all active:scale-95 ${!coreUrl.includes("localhost") ? "bg-white dark:bg-white/[0.14] text-blue-600 dark:text-blue-300 shadow-[0_1px_3px_rgba(0,0,0,0.15)]" : "text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"}`}><Globe size={16} /> Acesso Remoto</button>
                             </div>
-                            <input type="text" value={coreUrl} onChange={(e) => setCoreUrl(e.target.value)} className="w-full bg-white dark:bg-[#0c0c0e] border border-zinc-200 dark:border-zinc-700 p-3 rounded-xl text-sm outline-none font-mono mt-1" />
+                            <input type="text" value={coreUrl} onChange={(e) => setCoreUrl(e.target.value)} className={`${CAMPO} font-mono mt-1`} />
                           </div>
 
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                            <div className="md:col-span-2 space-y-1.5"><label className="text-xs font-bold text-zinc-500 uppercase">Host / IP</label><input type="text" value={formData.oracle_host} onChange={(e) => setFormData({...formData, oracle_host: e.target.value})} className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 p-3 rounded-lg text-sm outline-none focus:border-purple-500" /></div>
-                            <div className="space-y-1.5"><label className="text-xs font-bold text-zinc-500 uppercase">Porta</label><input type="text" value={formData.oracle_port} onChange={(e) => setFormData({...formData, oracle_port: e.target.value})} className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 p-3 rounded-lg text-sm outline-none focus:border-purple-500" /></div>
+                            <div className="md:col-span-2 space-y-2"><label className={ROTULO}>Host / IP</label><input type="text" placeholder="Ex: 192.168.0.10" value={formData.oracle_host} onChange={(e) => setFormData({...formData, oracle_host: e.target.value})} className={CAMPO} /></div>
+                            <div className="space-y-2"><label className={ROTULO}>Porta</label><input type="text" value={formData.oracle_port} onChange={(e) => setFormData({...formData, oracle_port: e.target.value})} className={CAMPO} /></div>
                           </div>
-                          <div className="space-y-1.5"><label className="text-xs font-bold text-zinc-500 uppercase">Service Name / SID</label><input type="text" value={formData.oracle_service} onChange={(e) => setFormData({...formData, oracle_service: e.target.value})} className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 p-3 rounded-lg text-sm outline-none focus:border-purple-500" /></div>
+                          <div className="space-y-2"><label className={ROTULO}>Service Name / SID</label><input type="text" placeholder="Ex: ORCL" value={formData.oracle_service} onChange={(e) => setFormData({...formData, oracle_service: e.target.value})} className={CAMPO} /></div>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                            <div className="space-y-1.5"><label className="text-xs font-bold text-zinc-500 uppercase">Usuário</label><input type="text" value={formData.oracle_user} onChange={(e) => setFormData({...formData, oracle_user: e.target.value})} className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 p-3 rounded-lg text-sm outline-none focus:border-purple-500" /></div>
-                            <div className="space-y-1.5"><label className="text-xs font-bold text-zinc-500 uppercase">Senha</label><input type="password" value={formData.oracle_password} onChange={(e) => setFormData({...formData, oracle_password: e.target.value})} className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 p-3 rounded-lg text-sm outline-none focus:border-purple-500" /></div>
+                            <div className="space-y-2"><label className={ROTULO}>Usuário</label><input type="text" value={formData.oracle_user} onChange={(e) => setFormData({...formData, oracle_user: e.target.value})} className={CAMPO} /></div>
+                            <div className="space-y-2"><label className={ROTULO}>Senha</label><input type="password" value={formData.oracle_password} onChange={(e) => setFormData({...formData, oracle_password: e.target.value})} className={CAMPO} /></div>
                           </div>
                         </div>
                       )}
@@ -336,13 +452,13 @@ export default function ConfiguracoesWizard() {
                           
                           {/* Produtos */}
                           <div>
-                            <div className="flex items-center gap-3 border-b border-zinc-100 dark:border-zinc-800/60 pb-3 mb-4"><Box size={18} className="text-purple-500" /><h2 className="text-base font-bold text-zinc-900 dark:text-zinc-100">Base de Produtos</h2></div>
-                            <select value={mapeamento.tabela_produtos} onChange={(e) => handleSelecionarTabelaProdutos(e.target.value)} className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 p-3 rounded-lg text-sm outline-none focus:border-purple-500 cursor-pointer">
+                            <div className="flex items-center gap-3 border-b border-black/[0.06] dark:border-white/[0.07] pb-3 mb-4"><Tile cor="purple" size={32}><Box size={16} /></Tile><h2 className="text-base font-bold tracking-tight text-zinc-900 dark:text-zinc-50">Base de Produtos</h2></div>
+                            <select value={mapeamento.tabela_produtos} onChange={(e) => handleSelecionarTabelaProdutos(e.target.value)} className={`${CAMPO} cursor-pointer`}>
                               <option value="">Selecione a tabela de Produtos...</option>
                               {tabelasOracle.map((tb, idx) => <option key={idx} value={tb.NOME}>{tb.NOME} ({tb.TIPO})</option>)}
                             </select>
                             {colunasProdutos.length > 0 && (
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 p-4 border border-zinc-200 dark:border-zinc-800 rounded-xl bg-zinc-50/50 dark:bg-zinc-900/30">
+                              <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 p-4 ${CAIXA}`}>
                                 {[
                                   { label: "Código / SKU", key: "col_sku" }, 
                                   { label: "Cód. Barras (EAN)", key: "col_cod_barras" }, 
@@ -352,9 +468,9 @@ export default function ConfiguracoesWizard() {
                                   { label: "Status (Ativo/Inativo)", key: "col_status" },
                                   { label: "Marca", key: "col_marca" }
                                 ].map(campo => (
-                                  <div key={campo.key} className="space-y-1">
-                                    <label className="text-[10px] font-bold text-zinc-500 uppercase">{campo.label}</label>
-                                    <select value={mapeamento[campo.key]} onChange={(e) => setMapeamento({...mapeamento, [campo.key]: e.target.value})} className="w-full bg-white dark:bg-[#0c0c0e] border border-zinc-200 dark:border-zinc-700 p-2 rounded-md text-xs outline-none focus:border-purple-500">
+                                  <div key={campo.key} className="space-y-1.5">
+                                    <label className={ROTULO}>{campo.label}</label>
+                                    <select value={mapeamento[campo.key]} onChange={(e) => setMapeamento({...mapeamento, [campo.key]: e.target.value})} className={CAMPO_PEQUENO}>
                                       <option value="">Selecionar...</option>
                                       {colunasProdutos.map((col, idx) => <option key={idx} value={col.COLUNA}>{col.COLUNA}</option>)}
                                     </select>
@@ -366,13 +482,13 @@ export default function ConfiguracoesWizard() {
 
                           {/* Clientes */}
                           <div>
-                            <div className="flex items-center gap-3 border-b border-zinc-100 dark:border-zinc-800/60 pb-3 mb-4"><Users size={18} className="text-blue-500" /><h2 className="text-base font-bold text-zinc-900 dark:text-zinc-100">Base de Clientes</h2></div>
-                            <select value={mapeamento.tabela_clientes} onChange={(e) => handleSelecionarTabelaClientes(e.target.value)} className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 p-3 rounded-lg text-sm outline-none focus:border-blue-500 cursor-pointer">
+                            <div className="flex items-center gap-3 border-b border-black/[0.06] dark:border-white/[0.07] pb-3 mb-4"><Tile cor="blue" size={32}><Users size={16} /></Tile><h2 className="text-base font-bold tracking-tight text-zinc-900 dark:text-zinc-50">Base de Clientes</h2></div>
+                            <select value={mapeamento.tabela_clientes} onChange={(e) => handleSelecionarTabelaClientes(e.target.value)} className={`${CAMPO} cursor-pointer`}>
                               <option value="">Selecione a tabela de Clientes...</option>
                               {tabelasOracle.map((tb, idx) => <option key={idx} value={tb.NOME}>{tb.NOME} ({tb.TIPO})</option>)}
                             </select>
                             {colunasClientes.length > 0 && (
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 p-4 border border-zinc-200 dark:border-zinc-800 rounded-xl bg-zinc-50/50 dark:bg-zinc-900/30">
+                              <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 p-4 ${CAIXA}`}>
                                 {[
                                   { label: "Código Cliente", key: "col_cli_cod" }, 
                                   { label: "Razão Social / Nome", key: "col_cli_nome" },
@@ -380,9 +496,9 @@ export default function ConfiguracoesWizard() {
                                   { label: "CNPJ / CPF", key: "col_cli_doc" },
                                   { label: "Inscrição Estadual (IE)", key: "col_cli_ie" } // 🟢 NOVA COLUNA ADICIONADA AQUI
                                 ].map(campo => (
-                                  <div key={campo.key} className="space-y-1">
-                                    <label className="text-[10px] font-bold text-zinc-500 uppercase">{campo.label}</label>
-                                    <select value={mapeamento[campo.key]} onChange={(e) => setMapeamento({...mapeamento, [campo.key]: e.target.value})} className="w-full bg-white dark:bg-[#0c0c0e] border border-zinc-200 dark:border-zinc-700 p-2 rounded-md text-xs outline-none focus:border-blue-500">
+                                  <div key={campo.key} className="space-y-1.5">
+                                    <label className={ROTULO}>{campo.label}</label>
+                                    <select value={mapeamento[campo.key]} onChange={(e) => setMapeamento({...mapeamento, [campo.key]: e.target.value})} className={CAMPO_PEQUENO}>
                                       <option value="">Selecionar...</option>
                                       {colunasClientes.map((col, idx) => <option key={idx} value={col.COLUNA}>{col.COLUNA}</option>)}
                                     </select>
@@ -398,35 +514,15 @@ export default function ConfiguracoesWizard() {
                       {/* PASSO 3: CANAIS DE VENDA Puxados da Integração */}
                       {step === 3 && (
                         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-                          <div className="flex items-center gap-3 border-b border-zinc-100 dark:border-zinc-800/60 pb-4">
-                            <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center border border-blue-100 dark:border-blue-500/20"><Store size={20} className="text-blue-500" /></div>
-                            <div>
-                              <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">Canais de Venda</h2>
-                              <p className="text-xs font-medium text-zinc-500">Selecione para quais lojas o ERP vai enviar os dados.</p>
-                            </div>
-                          </div>
+                          <CabecalhoPasso tile={<Tile cor="blue" size={44}><Store size={20} /></Tile>} titulo="Canais de Venda" legenda="Selecione para quais lojas o ERP vai enviar os dados." />
 
                           {lojas.length === 0 ? (
-                            <div className="text-center p-8 border border-dashed border-zinc-300 dark:border-zinc-700 rounded-xl">
+                            <div className="text-center p-8 border-2 border-dashed border-black/[0.1] dark:border-white/[0.12] rounded-[22px]">
                               <p className="text-sm text-zinc-500">Nenhuma loja ativa encontrada no menu "Integrações".</p>
                             </div>
                           ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              {lojas.map(loja => (
-                                <div 
-                                  key={loja.id} 
-                                  onClick={() => toggleSelecao(loja.id, lojasSelecionadas, setLojasSelecionadas)}
-                                  className={`p-4 border rounded-xl cursor-pointer transition-all flex items-center gap-4 ${lojasSelecionadas.includes(loja.id) ? 'border-blue-500 bg-blue-50 dark:bg-blue-500/10' : 'border-zinc-200 dark:border-zinc-800 hover:border-blue-300'}`}
-                                >
-                                  <div className={`w-5 h-5 rounded-md border flex items-center justify-center ${lojasSelecionadas.includes(loja.id) ? 'bg-blue-500 border-blue-500 text-white' : 'border-zinc-300 dark:border-zinc-600'}`}>
-                                    {lojasSelecionadas.includes(loja.id) && <CheckCircle2 size={14}/>}
-                                  </div>
-                                  <div>
-                                    <p className="font-bold text-sm text-zinc-900 dark:text-zinc-100">{loja.nome_integracao}</p>
-                                    <p className="text-xs text-zinc-500 capitalize">{loja.plataforma.replace('_', ' ')}</p>
-                                  </div>
-                                </div>
-                              ))}
+                              {lojas.map(loja => renderCartaoSelecionavel(loja, lojasSelecionadas, setLojasSelecionadas, 'blue'))}
                             </div>
                           )}
                         </div>
@@ -435,35 +531,15 @@ export default function ConfiguracoesWizard() {
                       {/* PASSO 4: MÓDULOS DE PAGAMENTO / FRETE */}
                       {step === 4 && (
                         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-                          <div className="flex items-center gap-3 border-b border-zinc-100 dark:border-zinc-800/60 pb-4">
-                            <div className="w-10 h-10 rounded-xl bg-sky-50 dark:bg-sky-500/10 flex items-center justify-center border border-sky-100 dark:border-sky-500/20"><CreditCard size={20} className="text-sky-500" /></div>
-                            <div>
-                              <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">Módulos (Pagamento & Frete)</h2>
-                              <p className="text-xs font-medium text-zinc-500">Selecione os módulos ativos para uso no Portal B2B.</p>
-                            </div>
-                          </div>
+                          <CabecalhoPasso tile={<Tile cor="sky" size={44}><CreditCard size={20} /></Tile>} titulo="Módulos (Pagamento & Frete)" legenda="Selecione os módulos ativos para uso no Portal B2B." />
 
                           {pagamentos.length === 0 ? (
-                            <div className="text-center p-8 border border-dashed border-zinc-300 dark:border-zinc-700 rounded-xl">
+                            <div className="text-center p-8 border-2 border-dashed border-black/[0.1] dark:border-white/[0.12] rounded-[22px]">
                               <p className="text-sm text-zinc-500">Nenhum módulo ativo (Ex: Mercado Pago, Frenet). Instale no menu Integrações.</p>
                             </div>
                           ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              {pagamentos.map(mod => (
-                                <div 
-                                  key={mod.id} 
-                                  onClick={() => toggleSelecao(mod.id, pagamentosSelecionados, setPagamentosSelecionados)}
-                                  className={`p-4 border rounded-xl cursor-pointer transition-all flex items-center gap-4 ${pagamentosSelecionados.includes(mod.id) ? 'border-sky-500 bg-sky-50 dark:bg-sky-500/10' : 'border-zinc-200 dark:border-zinc-800 hover:border-sky-300'}`}
-                                >
-                                  <div className={`w-5 h-5 rounded-md border flex items-center justify-center ${pagamentosSelecionados.includes(mod.id) ? 'bg-sky-500 border-sky-500 text-white' : 'border-zinc-300 dark:border-zinc-600'}`}>
-                                    {pagamentosSelecionados.includes(mod.id) && <CheckCircle2 size={14}/>}
-                                  </div>
-                                  <div>
-                                    <p className="font-bold text-sm text-zinc-900 dark:text-zinc-100">{mod.nome_integracao}</p>
-                                    <p className="text-xs text-zinc-500 capitalize">{mod.plataforma.replace('_', ' ')}</p>
-                                  </div>
-                                </div>
-                              ))}
+                              {pagamentos.map(mod => renderCartaoSelecionavel(mod, pagamentosSelecionados, setPagamentosSelecionados, 'sky'))}
                             </div>
                           )}
                         </div>
@@ -472,48 +548,58 @@ export default function ConfiguracoesWizard() {
                       {/* PASSO 5: AUTOMAÇÃO */}
                       {step === 5 && (
                         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-                          <div className="flex items-center gap-3 border-b border-zinc-100 dark:border-zinc-800/60 pb-4">
-                            <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 flex items-center justify-center border border-emerald-100 dark:border-emerald-500/20"><Timer size={20} className="text-emerald-500" /></div>
-                            <div>
-                              <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">Automação (Fila Fantasma)</h2>
-                              <p className="text-xs font-medium text-zinc-500">A cada quantos minutos o motor deve atualizar estoques/pedidos?</p>
-                            </div>
-                          </div>
+                          <CabecalhoPasso tile={<Tile cor="emerald" size={44}><Timer size={20} /></Tile>} titulo="Automação (Fila Fantasma)" legenda="A cada quantos minutos o motor deve atualizar estoques/pedidos?" />
 
-                          <div className="space-y-1.5 flex flex-col items-center py-6">
-                            <input type="number" min="1" max="60" value={formData.sync_interval_min} onChange={(e) => setFormData({...formData, sync_interval_min: Number(e.target.value)})} className="w-32 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 p-4 rounded-2xl text-2xl outline-none focus:border-emerald-500 font-black text-center text-emerald-600 shadow-inner" />
-                            <label className="text-xs font-bold text-zinc-500 uppercase mt-3">Minutos</label>
+                          <div className="flex flex-col items-center py-6">
+                            <div className="flex items-center gap-4">
+                              <button
+                                type="button"
+                                aria-label="Diminuir 1 minuto"
+                                onClick={() => setFormData({...formData, sync_interval_min: Math.max(1, (Number(formData.sync_interval_min) || 1) - 1)})}
+                                className="w-12 h-12 flex items-center justify-center rounded-full bg-black/[0.05] dark:bg-white/[0.07] border border-black/[0.06] dark:border-white/[0.08] text-zinc-600 dark:text-zinc-300 hover:bg-black/[0.09] dark:hover:bg-white/[0.12] transition-all active:scale-90"
+                              ><Minus size={18} /></button>
+
+                              <input type="number" min="1" max="60" value={formData.sync_interval_min} onChange={(e) => setFormData({...formData, sync_interval_min: Number(e.target.value)})} className="w-32 h-20 bg-zinc-100 dark:bg-[#1a1a1d] border border-black/[0.06] dark:border-white/[0.08] rounded-[24px] text-4xl outline-none focus:border-emerald-500/50 focus:ring-4 focus:ring-emerald-500/15 font-bold tabular-nums text-center text-emerald-600 dark:text-emerald-400 transition-all" />
+
+                              <button
+                                type="button"
+                                aria-label="Aumentar 1 minuto"
+                                onClick={() => setFormData({...formData, sync_interval_min: Math.min(60, (Number(formData.sync_interval_min) || 0) + 1)})}
+                                className="w-12 h-12 flex items-center justify-center rounded-full bg-black/[0.05] dark:bg-white/[0.07] border border-black/[0.06] dark:border-white/[0.08] text-zinc-600 dark:text-zinc-300 hover:bg-black/[0.09] dark:hover:bg-white/[0.12] transition-all active:scale-90"
+                              ><Plus size={18} /></button>
+                            </div>
+                            <label className="text-sm font-medium text-zinc-500 mt-4">minutos</label>
                           </div>
                         </div>
                       )}
 
                       {/* BOTÕES DE NAVEGAÇÃO LIVRE */}
-                      <div className="mt-8 pt-6 border-t border-zinc-200 dark:border-zinc-800/60 flex items-center justify-between">
+                      <div className="mt-8 pt-6 border-t border-black/[0.06] dark:border-white/[0.07] flex items-center justify-between">
                         <button 
                           onClick={() => {
                             if (step === 1 && isConfigured) setIsEditing(false);
                             else setStep(step - 1);
                           }} 
                           disabled={step === 1 && !isConfigured || loading}
-                          className="px-5 py-2.5 rounded-xl text-sm font-bold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-center gap-2 disabled:opacity-30"
+                          className={BTN_VOLTAR}
                         >
                           <ChevronLeft size={16} /> {step === 1 && isConfigured ? "Cancelar" : "Voltar"}
                         </button>
 
                         {step === 1 && (
-                          <button onClick={handleTestarConexao} disabled={testingConnection} className="bg-purple-600 hover:bg-purple-500 text-white px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 active:scale-95 disabled:opacity-50">
+                          <button onClick={handleTestarConexao} disabled={testingConnection} className="h-11 bg-gradient-to-b from-purple-500 to-purple-600 hover:from-purple-400 hover:to-purple-600 text-white px-6 rounded-full text-sm font-semibold transition-all flex items-center gap-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_10px_24px_-8px_rgba(147,51,234,0.6)] active:scale-95 disabled:opacity-50">
                             {testingConnection ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />} Testar Conexão
                           </button>
                         )}
 
                         {step > 1 && step < 5 && (
-                          <button onClick={() => setStep(step + 1)} className="bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-200 px-6 py-2.5 rounded-xl text-sm font-bold transition-all shadow-md flex items-center gap-2 active:scale-95">
+                          <button onClick={() => setStep(step + 1)} className="h-11 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-200 px-6 rounded-full text-sm font-semibold transition-all shadow-sm flex items-center gap-2 active:scale-95">
                             Avançar <ChevronRight size={16} />
                           </button>
                         )}
 
                         {step === 5 && (
-                          <button onClick={handleSalvarTudo} disabled={loading} className="bg-emerald-600 hover:bg-emerald-500 text-white px-8 py-2.5 rounded-xl text-sm font-bold transition-all shadow-lg flex items-center gap-2 active:scale-95 disabled:opacity-50">
+                          <button onClick={handleSalvarTudo} disabled={loading} className="h-11 bg-gradient-to-b from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-600 text-white px-8 rounded-full text-sm font-semibold transition-all shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_10px_24px_-8px_rgba(16,185,129,0.6)] flex items-center gap-2 active:scale-95 disabled:opacity-50">
                             {loading ? <Loader2 size={16} className="animate-spin" /> : <Lock size={16} />} Concluir Setup
                           </button>
                         )}

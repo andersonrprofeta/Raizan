@@ -6,6 +6,7 @@ import { Mail, Lock, ArrowRight, AlertTriangle, ShieldCheck } from "lucide-react
 import toast from "react-hot-toast";
 import packageJson from "../../../../package.json";
 import { getHubUrl } from "@/components/utils/api";
+import EtapaAcesso from "@/components/b2b/EtapaAcesso";
 
 export default function LoginB2B() {
   const [email, setEmail] = useState("");
@@ -15,6 +16,10 @@ export default function LoginB2B() {
 
   const [configuracaoPronta, setConfiguracaoPronta] = useState(false);
   const [isConfiguring, setIsConfiguring] = useState(true);
+  const [logoEmpresa, setLogoEmpresa] = useState(null);
+  const [etapa, setEtapa] = useState("entrar");
+  const [loginPendente, setLoginPendente] = useState(null);
+  const [codigoRecuperacao, setCodigoRecuperacao] = useState(null);
 
   // ======================================================================
   // 🟢 A MÁGICA: DESCOBRINDO A IDENTIDADE (SEM FANTASMAS E COM SACOLEIRO)
@@ -36,6 +41,7 @@ export default function LoginB2B() {
 
         if (data.success) {
           localStorage.setItem("@raizan:b2b_tenant_id", data.tenant_id);
+          setLogoEmpresa(data.logo_url || null);
 
           // 🟢 1ª LINHA NOVA: Salva o acréscimo que vem do banco de dados na nuvem!
           localStorage.setItem("@raizan:acrescimo_cpf", data.acrescimo_cpf || 0);
@@ -76,7 +82,17 @@ export default function LoginB2B() {
     };
 
     identificarPortal();
+
+    const codigo = new URLSearchParams(window.location.search).get("redefinir");
+    if (codigo) {
+      setCodigoRecuperacao(codigo);
+      setEtapa("redefinir");
+    }
   }, []);
+
+  const irParaOPortal = () => {
+    window.location.href = "/b2b-inicio";
+  };
   // ======================================================================
 
   const handleLogin = async (e) => {
@@ -105,26 +121,34 @@ export default function LoginB2B() {
         return;
       }
 
-      localStorage.setItem("raizan_user", JSON.stringify(data.user));
-
-      // 🟢 O PULO DO GATO: Pesca a logo do backend e já joga no cache principal do Sidebar
-      const logoB2B = data.user.logo_url || data.tenant_logo || data.logo_url || null;
-      if (logoB2B) {
-        localStorage.setItem("@raizan:logo", logoB2B);
-      } else {
-        localStorage.removeItem("@raizan:logo"); // Limpa resquícios antigos se não houver logo
+      if (data.precisaCriarSenha) {
+        setLoginPendente(data);
+        setEtapa("criar");
+        setIsLoading(false);
+        return;
       }
 
+      salvarSessao(data);
       toast.success(`Bem-vindo, ${data.user.nome}!`);
-
-      setTimeout(() => {
-        window.location.href = "/b2b-inicio"; 
-      }, 1000);
+      setTimeout(irParaOPortal, 1000);
 
     } catch (err) {
       setErrorMsg("Erro de conexão com o servidor da distribuidora na Nuvem.");
       setIsLoading(false);
     }
+  };
+
+  const salvarSessao = (data) => {
+    localStorage.setItem("raizan_user", JSON.stringify(data.user));
+    localStorage.setItem("@raizan:token", data.token);
+
+      // 🟢 O PULO DO GATO: Pesca a logo do backend e já joga no cache principal do Sidebar
+      const logoB2B = data.user.logo_url || logoEmpresa;
+      if (logoB2B) {
+        localStorage.setItem("@raizan:logo", logoB2B);
+      } else {
+        localStorage.removeItem("@raizan:logo"); // Limpa resquícios antigos se não houver logo
+      }
   };
 
   return (
@@ -138,11 +162,15 @@ export default function LoginB2B() {
           <div className="absolute -bottom-32 -right-32 w-80 h-80 bg-indigo-600/20 rounded-full blur-[100px] pointer-events-none" />
 
           <div className="relative z-10 mb-10 md:mb-0">
-            <Image src="/logo.png" alt="Logo da Distribuidora" width={180} height={70} priority className="object-contain drop-shadow-2xl" />
+            {logoEmpresa ? (
+              <img src={logoEmpresa} alt="Logo da distribuidora" className="max-h-[70px] max-w-[180px] object-contain" />
+            ) : (
+              <Image src="/logo.png" alt="Logo da Distribuidora" width={180} height={70} priority className="object-contain drop-shadow-2xl" />
+            )}
           </div>
 
           <div className="relative z-10 my-auto">
-            <h1 className="text-3xl md:text-4xl lg:text-5xl font-extrabold text-white tracking-tight mb-4 leading-tight">
+            <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white tracking-tight mb-4 leading-tight">
               Seu estoque atualizado.
             </h1>
             <p className="text-zinc-400 text-sm md:text-base leading-relaxed max-w-sm">
@@ -151,8 +179,8 @@ export default function LoginB2B() {
           </div>
 
           <div className="relative z-10 mt-10 md:mt-0">
-            <div className="inline-flex items-center gap-2 text-[10px] md:text-xs font-bold text-purple-400 bg-purple-500/10 border border-purple-500/20 px-3 py-1.5 rounded-full uppercase tracking-wider">
-              <ShieldCheck size={16} /> Ambiente Seguro e Monitorado
+            <div className="inline-flex items-center gap-2 text-xs md:text-xs font-bold text-purple-400 bg-purple-500/10 border border-purple-500/20 px-3 py-1.5 rounded-full">
+              <ShieldCheck size={16} /> Ambiente seguro
             </div>
           </div>
         </div>
@@ -161,8 +189,32 @@ export default function LoginB2B() {
         <div className="w-full md:w-7/12 bg-white dark:bg-[#121214] p-8 md:p-12 lg:p-16 flex flex-col justify-center relative transition-colors duration-500">
           <div className="max-w-md w-full mx-auto">
 
+            {etapa !== "entrar" ? (
+              <EtapaAcesso
+                etapa={etapa}
+                token={loginPendente?.token}
+                codigo={codigoRecuperacao}
+                emailInicial={email}
+                onConcluir={(resposta) => {
+                  toast.success("Senha salva com sucesso!");
+                  if (etapa === "criar") {
+                    salvarSessao({ ...loginPendente, token: resposta.token });
+                    setTimeout(irParaOPortal, 800);
+                  } else {
+                    window.history.replaceState(null, "", "/login-b2b");
+                    setSenha("");
+                    setEtapa("entrar");
+                  }
+                }}
+                onVoltar={() => {
+                  window.history.replaceState(null, "", "/login-b2b");
+                  setEtapa("entrar");
+                }}
+              />
+            ) : (
+              <>
             <div className="mb-10">
-              <h2 className="text-3xl font-black text-zinc-900 dark:text-zinc-100 mb-2">Bem-vindo(a)</h2>
+              <h2 className="text-[28px] font-bold tracking-tight text-zinc-900 dark:text-zinc-100 mb-2">Bem-vindo(a)</h2>
               <p className="text-zinc-500 dark:text-zinc-400 text-sm">Identifique-se para acessar o portal de compras.</p>
             </div>
 
@@ -176,7 +228,7 @@ export default function LoginB2B() {
             <form onSubmit={handleLogin} className="flex flex-col gap-5">
 
               <div className="flex flex-col gap-2">
-                <label className="text-[11px] font-bold text-zinc-700 dark:text-zinc-400 uppercase tracking-wider">E-mail Corporativo / Pessoal</label>
+                <label className="text-[13px] font-medium text-zinc-700 dark:text-zinc-300">E-mail</label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                     <Mail size={18} className="text-zinc-400 dark:text-zinc-500" />
@@ -195,8 +247,8 @@ export default function LoginB2B() {
 
               <div className="flex flex-col gap-2">
                 <div className="flex justify-between items-end">
-                  <label className="text-[11px] font-bold text-zinc-700 dark:text-zinc-400 uppercase tracking-wider">Senha de Acesso</label>
-                  <button type="button" onClick={() => toast('A recuperação de senha estará disponível em breve.')} className="text-[10px] font-bold text-rose-500 hover:text-rose-600 dark:text-rose-400 dark:hover:text-rose-300 uppercase tracking-wider transition-colors">
+                  <label className="text-[13px] font-medium text-zinc-700 dark:text-zinc-300">Senha</label>
+                  <button type="button" onClick={() => setEtapa("esqueci")} className="text-xs font-medium text-purple-600 dark:text-purple-400 hover:text-purple-500 dark:text-rose-400 dark:hover:text-rose-300 transition-colors">
                     Esqueceu a senha?
                   </button>
                 </div>
@@ -207,9 +259,9 @@ export default function LoginB2B() {
                   <input
                     type="password"
                     value={senha}
-                    onChange={(e) => setSenha(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                    onChange={(e) => setSenha(e.target.value)}
                     placeholder="Digite sua senha"
-                    maxLength="6"
+                    autoComplete="current-password"
                     className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 rounded-xl py-3.5 pl-11 pr-4 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600 font-mono font-medium tracking-widest disabled:opacity-50"
                     required
                     disabled={isConfiguring || !configuracaoPronta}
@@ -220,7 +272,7 @@ export default function LoginB2B() {
               <button
                 type="submit"
                 disabled={isLoading || isConfiguring || !configuracaoPronta || !email || senha.length < 6}
-                className="mt-4 w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold py-4 px-4 rounded-xl transition-all flex items-center justify-center gap-2 shadow-[0_10px_20px_-10px_rgba(147,51,234,0.5)] hover:shadow-[0_10px_25px_-10px_rgba(147,51,234,0.7)] disabled:opacity-70 disabled:cursor-not-allowed uppercase tracking-wider text-sm"
+                className="mt-4 w-full bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-400 hover:to-purple-600 text-white font-semibold py-3.5 px-4 rounded-full transition-all flex items-center justify-center gap-2 shadow-[0_10px_20px_-10px_rgba(147,51,234,0.5)] hover:shadow-[0_10px_25px_-10px_rgba(147,51,234,0.7)] disabled:opacity-70 disabled:cursor-not-allowed text-sm"
               >
                 {isLoading || isConfiguring ? (
                   <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -231,8 +283,13 @@ export default function LoginB2B() {
                 )}
               </button>
             </form>
+                <p className="mt-5 text-xs text-zinc-500 dark:text-zinc-400 text-center">
+                  Primeiro acesso? Use os 6 primeiros dígitos do seu CNPJ ou CPF.
+                </p>
+              </>
+            )}
 
-            <div className="mt-12 pt-6 border-t border-zinc-100 dark:border-zinc-800/60 flex flex-col sm:flex-row items-center justify-between gap-4 text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
+            <div className="mt-12 pt-6 border-t border-zinc-100 dark:border-zinc-800/60 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-bold text-zinc-400">
               <span>Versão B2B • {packageJson.version}</span>
               <a href="/login" className="hover:text-purple-500 dark:hover:text-purple-400 transition-colors flex items-center gap-1">Acesso Matriz &rarr;</a>
             </div>

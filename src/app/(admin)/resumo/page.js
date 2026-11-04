@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import { getHubUrl, getApiUrl, getHeaders } from "@/components/utils/api";
 import {
   TrendingUp, ShoppingCart, DollarSign, Loader2,
-  Database, AlertTriangle, MapPin, PieChart as PieChartIcon, Trophy, Smartphone, Receipt, Briefcase
+  Ban, Database, MapPin, PieChart as PieChartIcon, Trophy, Smartphone, Receipt, Briefcase
 } from "lucide-react";
 import { AreaChart, Area, ResponsiveContainer, Tooltip as RechartsTooltip, XAxis, CartesianGrid, PieChart, Pie, Cell } from 'recharts';
 
@@ -94,13 +94,7 @@ const Kpi = ({ icone, cor, label, valor, badge, indice }) => (
 // ==========================================
 // 🧩 COMPONENTE 1: GRÁFICO DINÂMICO (COM FILTRO)
 // ==========================================
-const GraficoDinamico = ({ dadosGrafico, canais }) => {
-  const [canaisOcultos, setCanaisOcultos] = useState([]);
-
-  const toggleCanal = (canalId) => {
-    setCanaisOcultos(prev => prev.includes(canalId) ? prev.filter(c => c !== canalId) : [...prev, canalId]);
-  };
-
+const GraficoDinamico = ({ dadosGrafico, canais, canaisOcultos, onAlternarCanal }) => {
   if (!dadosGrafico || dadosGrafico.length === 0) {
     return (
       <div className={`${CARD} xl:col-span-2 p-6 w-full flex items-center justify-center min-h-[300px] text-sm text-zinc-400`}>
@@ -124,7 +118,7 @@ const GraficoDinamico = ({ dadosGrafico, canais }) => {
             return (
               <button
                 key={canal.id}
-                onClick={() => toggleCanal(canal.id)}
+                onClick={() => onAlternarCanal(canal.id)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 active:scale-95
                   ${oculto
                     ? 'opacity-45 grayscale'
@@ -344,7 +338,7 @@ const RankingEstados = ({ estados }) => {
 // ==========================================
 // 🧩 COMPONENTE 4: RANKING DE VENDEDORES (REAL)
 // ==========================================
-const RankingVendedores = ({ vendedores }) => {
+const RankingVendedores = ({ vendedores, filtrado }) => {
   const listaVendedores = vendedores && vendedores.length > 0 ? vendedores : [];
   const maxValor = listaVendedores.length > 0 ? Math.max(...listaVendedores.map(v => parseFloat(v.valor) || 0)) : 1;
 
@@ -359,7 +353,7 @@ const RankingVendedores = ({ vendedores }) => {
           Top 10 Vendedores
         </span>
         <span className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-300 bg-indigo-500/10 px-2.5 py-1 rounded-full border border-indigo-500/20">
-          Raizan Seller
+          {filtrado ? 'Canais filtrados' : 'Todos os canais'}
         </span>
       </h2>
 
@@ -417,19 +411,33 @@ const RankingVendedores = ({ vendedores }) => {
 };
 
 
+// Refaz estados e vendedores somando só os canais que estão visíveis
+const somarCanaisVisiveis = (lista, canaisVisiveis) => (lista || [])
+  .map(item => {
+    const canaisDoItem = canaisVisiveis.map(canal => item.porCanal?.[canal.id]).filter(Boolean);
+    return {
+      ...item,
+      valor: canaisDoItem.reduce((acc, c) => acc + c.valor, 0),
+      pedidos: canaisDoItem.reduce((acc, c) => acc + c.pedidos, 0)
+    };
+  })
+  .filter(item => item.pedidos > 0)
+  .sort((a, b) => b.valor - a.valor);
+
 // ==========================================
 // 🚀 TELA PRINCIPAL (DASHBOARD ANALÍTICO)
 // ==========================================
 export default function DashboardAnalitico() {
   const [dados, setDados] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [fila, setFila] = useState(0);
-
-  const [statusMotor, setStatusMotor] = useState("conectando");
+  // Motor do Hub desativado, ver os blocos "MOTOR DO HUB" abaixo
+  // const [fila, setFila] = useState(0);
+  // const [statusMotor, setStatusMotor] = useState("conectando");
   const [statusSeller, setStatusSeller] = useState("conectando");
   const [ultimaSyncSeller, setUltimaSyncSeller] = useState(null);
 
   const [meuTenant, setMeuTenant] = useState("");
+  const [canaisOcultos, setCanaisOcultos] = useState([]);
 
   const obterTenantSeguro = () => {
     if (typeof window === 'undefined') return "rafany";
@@ -476,6 +484,8 @@ export default function DashboardAnalitico() {
     carregarDados();
   }, []);
 
+  // MOTOR DO HUB (Oracle local): desativado por enquanto, guardado para um futuro retorno.
+  /*
   // 🟢 POLING 1: Fila do Oracle (Mantido Original)
   useEffect(() => {
     async function checarFila() {
@@ -495,6 +505,7 @@ export default function DashboardAnalitico() {
     const intervalo = setInterval(checarFila, 10000);
     return () => clearInterval(intervalo);
   }, []);
+  */
 
   // 🟢 POLING 2: Status do Omie/CronWorker (Independente)
   useEffect(() => {
@@ -534,9 +545,32 @@ export default function DashboardAnalitico() {
     return () => clearInterval(intervalo);
   }, []);
 
-  const totalPedidosGeral = dados?.canais?.reduce((acc, curr) => acc + curr.pedidos, 0) || 0;
-  const ticketMedio = totalPedidosGeral > 0 ? (dados?.receitaTotal || 0) / totalPedidosGeral : 0;
+  // O filtro de canais vale para a tela inteira. O último canal visível não pode ser desligado.
+  const canais = dados?.canais || [];
+  const alternarCanal = (canalId) => {
+    setCanaisOcultos(prev => {
+      if (prev.includes(canalId)) return prev.filter(c => c !== canalId);
+      return canais.length - prev.length > 1 ? [...prev, canalId] : prev;
+    });
+  };
 
+  const visao = useMemo(() => {
+    const canaisVisiveis = (dados?.canais || []).filter(canal => !canaisOcultos.includes(canal.id));
+    return {
+      canais: canaisVisiveis,
+      receita: canaisVisiveis.reduce((acc, curr) => acc + curr.valor, 0),
+      pedidos: canaisVisiveis.reduce((acc, curr) => acc + curr.pedidos, 0),
+      cancelados: Object.entries(dados?.canceladosPorCanal || {}).reduce((acc, [idCanal, qtd]) => (canaisOcultos.includes(idCanal) ? acc : acc + qtd), 0),
+      estados: somarCanaisVisiveis(dados?.rankingEstados, canaisVisiveis),
+      vendedores: somarCanaisVisiveis(dados?.todosVendedores, canaisVisiveis).slice(0, 10)
+    };
+  }, [dados, canaisOcultos]);
+
+  const filtrado = canaisOcultos.length > 0;
+  const totalPedidosGeral = visao.pedidos;
+  const ticketMedio = totalPedidosGeral > 0 ? visao.receita / totalPedidosGeral : 0;
+
+  /* MOTOR DO HUB (Oracle local): desativado
   // 🟢 ESTADOS VISUAIS DO MOTOR ORACLE
   let corMotor = "text-emerald-500 dark:text-emerald-400"; let bgMotor = "bg-emerald-100 dark:bg-emerald-500/10"; let ringStatic = "border-emerald-200 dark:border-emerald-500/20"; let ringSpin = "border-t-emerald-500 dark:border-t-emerald-400"; let animacao = "animate-[spin_4s_linear_infinite]";
   if (statusMotor === "sincronizando") {
@@ -544,6 +578,7 @@ export default function DashboardAnalitico() {
   } else if (statusMotor === "erro" || statusMotor === "conectando") {
     corMotor = "text-rose-500 dark:text-rose-400"; bgMotor = "bg-rose-100 dark:bg-rose-500/10"; ringStatic = "border-rose-200 dark:border-rose-500/20"; ringSpin = "border-t-rose-500 dark:border-t-rose-400"; animacao = "";
   }
+  */
 
   // 🟢 ESTADOS VISUAIS DO RAIZAN SELLER APP
   let corApp = "text-indigo-600 dark:text-indigo-400";
@@ -606,9 +641,9 @@ export default function DashboardAnalitico() {
                     indice={1}
                     cor="emerald"
                     icone={<DollarSign size={20} />}
-                    badge="Total Omnichannel"
+                    badge={filtrado ? "Canais filtrados" : "Total Omnichannel"}
                     label="Receita Bruta (Mês)"
-                    valor={formatarMoeda(dados?.receitaTotal)}
+                    valor={formatarMoeda(visao.receita)}
                   />
 
                   {/* CARD 2: Pedidos */}
@@ -629,7 +664,16 @@ export default function DashboardAnalitico() {
                     valor={formatarMoeda(ticketMedio)}
                   />
 
-                  {/* CARD 4: Motor de Sincronização (ORACLE) */}
+                  {/* CARD 4: Pedidos Cancelados */}
+                  <Kpi
+                    indice={4}
+                    cor="rose"
+                    icone={<Ban size={20} />}
+                    label="Pedidos Cancelados"
+                    valor={visao.cancelados}
+                  />
+
+                  {/* MOTOR DO HUB (Oracle local): desativado por enquanto, guardado para um futuro retorno.
                   <div style={atraso(4)} className={`${CARD} rz-rise group p-5 w-full flex flex-col justify-center hover:-translate-y-0.5`}>
                     <div className="absolute -bottom-4 -right-4 text-zinc-200/70 dark:text-white/[0.04] group-hover:text-zinc-300/70 dark:group-hover:text-white/[0.07] transition-colors">
                       <Database size={84} />
@@ -646,6 +690,7 @@ export default function DashboardAnalitico() {
                       </div>
                     </div>
                   </div>
+                  */}
 
                   {/* CARD 5: RAIZAN SELLER APP */}
                   <div style={atraso(5)} className={`${CARD} rz-rise group p-5 w-full flex flex-col justify-center hover:-translate-y-0.5 hover:bg-white dark:hover:bg-[#161619]`}>
@@ -678,13 +723,13 @@ export default function DashboardAnalitico() {
                 </div>
 
                 <div style={atraso(6)} className="rz-rise grid grid-cols-1 xl:grid-cols-3 gap-6 items-stretch">
-                  <GraficoDinamico dadosGrafico={dados?.graficoVendasDinamico || []} canais={dados?.canais || []} />
-                  <RankingEstados estados={dados?.rankingEstados || []} />
+                  <GraficoDinamico dadosGrafico={dados?.graficoVendasDinamico || []} canais={canais} canaisOcultos={canaisOcultos} onAlternarCanal={alternarCanal} />
+                  <RankingEstados estados={visao.estados} />
                 </div>
 
                 <div style={atraso(7)} className="rz-rise grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch mt-6">
-                  <VendasPorCanal canais={dados?.canais || []} />
-                  <RankingVendedores vendedores={dados?.rankingVendedores || []} />
+                  <VendasPorCanal canais={visao.canais} />
+                  <RankingVendedores vendedores={visao.vendedores} filtrado={filtrado} />
                 </div>
               </>
             )}

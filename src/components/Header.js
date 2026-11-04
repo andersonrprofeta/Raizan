@@ -1,14 +1,60 @@
 "use client";
 import { useEffect, useState } from "react";
-import { AlertTriangle, Bell, ShoppingCart, Tag, ArrowRight, Zap, X, Plus, Minus, Package, FileText, Menu, Sun, Moon, Loader2, Grip, Trash2, Maximize2 } from "lucide-react";
+import { AlertTriangle, ShoppingCart, Tag, ArrowRight, Zap, X, Plus, Minus, Package, Menu, Sun, Moon, Loader2, Grip, Trash2, Maximize2 } from "lucide-react";
 import Link from "next/link";
 import { useTheme } from "next-themes";
 import { getApiUrl, getHeaders, getHubUrl } from "@/components/utils/api";
 import toast from 'react-hot-toast';
+import SinoNotificacoes from "@/components/SinoNotificacoes";
 
 const formatarMoeda = (valor) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor || 0);
 };
+
+// ==========================================
+// 🎨 DESIGN TOKENS (estilo Apple: vidro, hairlines, ícones em "tiles")
+// ==========================================
+
+// Painel de vidro (header, dropdowns, modais)
+const PAINEL =
+  "bg-white/80 dark:bg-[#121214]/85 backdrop-blur-2xl border border-black/[0.06] dark:border-white/[0.08] " +
+  "shadow-[0_20px_60px_-20px_rgba(0,0,0,0.25)] " +
+  "dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_30px_70px_-20px_rgba(0,0,0,0.9)]";
+
+// Botão de ícone redondo
+const ICON_BTN =
+  "relative shrink-0 w-10 h-10 flex items-center justify-center rounded-full " +
+  "bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.04] dark:border-white/[0.06] " +
+  "text-zinc-600 dark:text-zinc-300 hover:bg-black/[0.07] dark:hover:bg-white/[0.10] " +
+  "transition-all duration-300 active:scale-95";
+
+// Contador flutuante (carrinho / notificações)
+const BADGE =
+  "absolute -top-1.5 -right-1.5 min-w-[20px] h-5 px-1 rounded-full text-[10px] font-bold text-white " +
+  "flex items-center justify-center border-2 border-white dark:border-[#121214] shadow-sm";
+
+// Rótulo pequeno de seção
+const ROTULO = "text-[11px] font-semibold text-zinc-400 dark:text-zinc-500 tracking-wide";
+
+// Classes completas (o Tailwind precisa enxergá-las inteiras no código)
+const TILE_CORES = {
+  emerald: "from-emerald-400 to-emerald-600",
+  purple: "from-violet-400 to-purple-600",
+  amber: "from-amber-300 to-amber-500",
+  blue: "from-sky-400 to-blue-600",
+  indigo: "from-indigo-400 to-indigo-600",
+  rose: "from-rose-400 to-rose-600",
+};
+
+// Ícone em "tile" arredondado, igual aos ícones de app da Apple
+const Tile = ({ cor = "purple", size = 40, children, className = "" }) => (
+  <div
+    className={`shrink-0 flex items-center justify-center bg-gradient-to-br ${TILE_CORES[cor]} text-white ring-1 ring-black/5 dark:ring-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.4),0_6px_14px_-6px_rgba(0,0,0,0.35)] ${className}`}
+    style={{ width: size, height: size, borderRadius: size * 0.3 }}
+  >
+    {children}
+  </div>
+);
 
 // ==========================================
 // MODAL: RESUMO DO CARRINHO (RESPONSIVO MODO GAVETA)
@@ -37,7 +83,7 @@ function ModalResumoCarrinho({ isOpen, onClose }) {
   if (!isOpen) return null;
 
   const itens = Object.values(carrinho);
-  
+
   const subtotal = itens.reduce((acc, item) => {
     const precoOriginal = parseFloat(item.preco_venda) || 0;
     const atingiuMinimo = item.em_promocao && item.qtd >= (item.qtd_minima_promocao || 1);
@@ -46,20 +92,26 @@ function ModalResumoCarrinho({ isOpen, onClose }) {
   }, 0);
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-end p-0 sm:p-6 bg-black/60 backdrop-blur-sm transition-all animate-in fade-in overflow-x-hidden" onClick={onClose}>
-      <div className="bg-zinc-50 dark:bg-[#0c0c0e] border-t sm:border border-zinc-200 dark:border-zinc-800/80 rounded-t-[2rem] sm:rounded-[2rem] shadow-2xl w-full sm:max-w-md h-[85vh] sm:h-full sm:max-h-[80vh] flex flex-col overflow-hidden animate-in slide-in-from-bottom-full sm:slide-in-from-right-8" onClick={e => e.stopPropagation()}>
-        
-        <div className="flex items-center justify-between p-5 border-b border-zinc-200 dark:border-zinc-800/80 bg-white/70 dark:bg-[#121214]/70 backdrop-blur-xl">
-          <h2 className="text-lg font-black text-zinc-900 dark:text-zinc-100 flex items-center gap-2 tracking-tight">
-            <ShoppingCart className="text-purple-600 dark:text-purple-400" size={20} /> Seu Pedido Atual
-          </h2>
-          <button onClick={onClose} className="text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white p-2 bg-zinc-100 dark:bg-zinc-800/80 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full transition-colors"><X size={16}/></button>
+    <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-end p-0 sm:p-6 bg-black/50 backdrop-blur-md transition-all animate-in fade-in overflow-x-hidden" onClick={onClose}>
+      <div className={`${PAINEL} bg-zinc-50/90 dark:bg-[#0c0c0e]/90 rounded-t-[32px] sm:rounded-[32px] w-full sm:max-w-md h-[85vh] sm:h-full sm:max-h-[80vh] flex flex-col overflow-hidden animate-in slide-in-from-bottom-full sm:slide-in-from-right-8`} onClick={e => e.stopPropagation()}>
+
+        {/* Alça de gaveta (só no celular) */}
+        <div className="sm:hidden pt-2.5 flex justify-center">
+          <span className="w-9 h-1 rounded-full bg-zinc-300 dark:bg-zinc-700" />
         </div>
 
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-5 space-y-3 bg-zinc-50/50 dark:bg-transparent">
+        <div className="flex items-center justify-between px-5 py-4 sm:py-5 border-b border-black/[0.06] dark:border-white/[0.07]">
+          <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-50 flex items-center gap-3 tracking-tight">
+            <Tile cor="purple" size={34}><ShoppingCart size={17} /></Tile>
+            Seu Pedido Atual
+          </h2>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white bg-black/[0.05] dark:bg-white/[0.08] hover:bg-black/[0.09] dark:hover:bg-white/[0.14] rounded-full transition-colors active:scale-95"><X size={15}/></button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-5 space-y-2.5">
           {itens.length === 0 ? (
             <div className="text-center py-12 flex flex-col items-center gap-3">
-              <Package size={48} className="text-zinc-300 dark:text-zinc-800" />
+              <Package size={48} className="text-zinc-300 dark:text-zinc-700" />
               <p className="text-zinc-500 text-sm font-medium">Seu carrinho está vazio.</p>
             </div>
           ) : (
@@ -67,27 +119,27 @@ function ModalResumoCarrinho({ isOpen, onClose }) {
               const precoOriginal = parseFloat(item.preco_venda) || 0;
               const atingiuMinimo = item.em_promocao && item.qtd >= (item.qtd_minima_promocao || 1);
               const precoFinal = atingiuMinimo ? parseFloat(item.preco_promocional) : precoOriginal;
-              
+
               return (
-                <div key={item.sku} className="flex items-center justify-between gap-2 bg-white dark:bg-[#121214] p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800/80 min-w-0 shadow-sm dark:shadow-none group">
+                <div key={item.sku} className="flex items-center justify-between gap-2 bg-white dark:bg-white/[0.04] p-4 rounded-[20px] border border-black/[0.05] dark:border-white/[0.06] min-w-0 shadow-sm dark:shadow-none group transition-colors">
                   <div className="flex-1 pr-1 sm:pr-2 min-w-0">
-                    <p className="text-sm md:text-base font-bold text-zinc-800 dark:text-zinc-200 line-clamp-1">{item.nome}</p>
-                    
+                    <p className="text-sm md:text-[15px] font-semibold tracking-tight text-zinc-800 dark:text-zinc-100 line-clamp-1">{item.nome}</p>
+
                     <p className="text-xs text-zinc-500 mt-1 font-medium">
-                      {item.qtd}x {formatarMoeda(precoFinal)} 
-                      {item.em_promocao && atingiuMinimo && <span className="text-purple-600 dark:text-purple-400 ml-1 font-bold inline-flex items-center gap-0.5"><Zap size={10}/> Oferta Aplicada</span>}
-                      {item.em_promocao && !atingiuMinimo && <span className="text-rose-500 dark:text-rose-400 ml-1 font-bold inline-flex items-center gap-0.5"><AlertTriangle size={10}/> Leve {item.qtd_minima_promocao} para Oferta</span>}
+                      {item.qtd}x {formatarMoeda(precoFinal)}
+                      {item.em_promocao && atingiuMinimo && <span className="text-purple-600 dark:text-purple-400 ml-1 font-semibold inline-flex items-center gap-0.5"><Zap size={10}/> Oferta Aplicada</span>}
+                      {item.em_promocao && !atingiuMinimo && <span className="text-rose-500 dark:text-rose-400 ml-1 font-semibold inline-flex items-center gap-0.5"><AlertTriangle size={10}/> Leve {item.qtd_minima_promocao} para Oferta</span>}
                     </p>
                   </div>
-                  
+
                   <div className="flex flex-col items-end gap-1 shrink-0">
-                    <div className="text-sm md:text-base font-black text-purple-600 dark:text-purple-400 pl-1 sm:pl-3">
+                    <div className="text-sm md:text-[15px] font-bold tracking-tight text-purple-600 dark:text-purple-400 pl-1 sm:pl-3">
                       {formatarMoeda(precoFinal * item.qtd)}
                     </div>
                     {/* 🟢 O BOTÃO DA LIXEIRA */}
-                    <button 
-                      onClick={() => removerItem(item.sku)} 
-                      className="text-zinc-300 hover:text-rose-500 transition-colors p-1 rounded-md hover:bg-rose-50 dark:hover:bg-rose-500/10"
+                    <button
+                      onClick={() => removerItem(item.sku)}
+                      className="text-zinc-300 dark:text-zinc-600 hover:text-rose-500 dark:hover:text-rose-400 transition-colors p-1.5 rounded-full hover:bg-rose-50 dark:hover:bg-rose-500/10 active:scale-90"
                       title="Remover item"
                     >
                       <Trash2 size={16} />
@@ -100,16 +152,16 @@ function ModalResumoCarrinho({ isOpen, onClose }) {
         </div>
 
         {itens.length > 0 && (
-          <div className="p-5 sm:p-6 border-t border-zinc-200 dark:border-zinc-800/80 bg-white/90 dark:bg-[#121214]/90 backdrop-blur-md space-y-4 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] dark:shadow-none">
+          <div className="p-5 sm:p-6 border-t border-black/[0.06] dark:border-white/[0.07] bg-white/70 dark:bg-white/[0.03] backdrop-blur-xl space-y-4">
             <div className="flex items-center justify-between gap-3">
-              <span className="text-zinc-500 dark:text-zinc-400 text-xs font-bold uppercase tracking-wider">Subtotal Estimado</span>
-              <span className="text-xl md:text-2xl font-black text-purple-600 dark:text-purple-400">{formatarMoeda(subtotal)}</span>
+              <span className="text-zinc-500 dark:text-zinc-400 text-sm font-medium">Subtotal Estimado</span>
+              <span className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">{formatarMoeda(subtotal)}</span>
             </div>
-            
-            <Link 
-              href="/b2b-pedidos" 
+
+            <Link
+              href="/b2b-pedidos"
               onClick={onClose}
-              className="w-full bg-purple-600 hover:bg-purple-500 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-[0_5px_20px_rgba(147,51,234,0.25)] hover:shadow-[0_5px_25px_rgba(147,51,234,0.4)] active:scale-95"
+              className="w-full bg-gradient-to-b from-purple-500 to-purple-600 hover:from-purple-400 hover:to-purple-600 text-white py-4 rounded-2xl font-semibold flex items-center justify-center gap-2 transition-all shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_10px_28px_-8px_rgba(147,51,234,0.6)] active:scale-[0.98]"
             >
               Ir para o Checkout <ArrowRight size={18} />
             </Link>
@@ -146,23 +198,24 @@ function ModalOfertasGlobal({ isOpen, onClose, ofertas, onComprar }) {
   };
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-sm transition-all animate-in fade-in overflow-x-hidden" onClick={onClose}>
-      <div className="bg-zinc-50 dark:bg-[#0c0c0e] border-t sm:border border-rose-200 dark:border-rose-500/30 rounded-t-3xl sm:rounded-[2rem] shadow-[0_0_50px_rgba(244,63,94,0.15)] w-full max-w-2xl h-[90vh] sm:h-auto sm:max-h-[85vh] flex flex-col overflow-hidden animate-in slide-in-from-bottom-full sm:zoom-in-95" onClick={e => e.stopPropagation()}>
-        
-        <div className="bg-gradient-to-r from-rose-600 to-pink-600 p-5 sm:p-8 relative overflow-hidden shrink-0">
+    <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-md transition-all animate-in fade-in overflow-x-hidden" onClick={onClose}>
+      <div className={`${PAINEL} bg-zinc-50/95 dark:bg-[#0c0c0e]/95 rounded-t-[32px] sm:rounded-[32px] w-full max-w-2xl h-[90vh] sm:h-auto sm:max-h-[85vh] flex flex-col overflow-hidden shadow-[0_0_70px_-10px_rgba(244,63,94,0.3)] animate-in slide-in-from-bottom-full sm:zoom-in-95`} onClick={e => e.stopPropagation()}>
+
+        <div className="bg-gradient-to-br from-rose-500 via-rose-600 to-pink-600 p-5 sm:p-8 relative overflow-hidden shrink-0">
           <div className="absolute -right-10 -top-10 opacity-20"><Tag size={140} /></div>
-          <div className="flex justify-between items-center relative z-10">
+          <div className="absolute inset-0 bg-[radial-gradient(120%_80%_at_20%_0%,rgba(255,255,255,0.22)_0%,transparent_60%)] pointer-events-none" />
+          <div className="flex justify-between items-center relative z-10 gap-3">
             <div>
-              <h2 className="text-xl sm:text-3xl font-black text-white flex items-center gap-2 tracking-tight">
+              <h2 className="text-xl sm:text-3xl font-extrabold text-white flex items-center gap-2.5 tracking-tight">
                 <Zap className="fill-white text-white" size={28} /> Ofertas Exclusivas
               </h2>
               <p className="text-rose-100 text-xs sm:text-sm mt-1.5 font-medium">Aproveite os descontos especiais para o seu cadastro hoje!</p>
             </div>
-            <button onClick={onClose} className="bg-white/20 hover:bg-white/30 backdrop-blur-md text-white p-2.5 rounded-full transition-colors"><X size={20}/></button>
+            <button onClick={onClose} className="shrink-0 bg-white/20 hover:bg-white/30 backdrop-blur-md text-white w-10 h-10 flex items-center justify-center rounded-full transition-all active:scale-95"><X size={18}/></button>
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-6 space-y-4 bg-zinc-50/50 dark:bg-transparent">
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-6 space-y-3">
           {ofertas.length === 0 ? (
             <div className="text-center py-16 flex flex-col items-center gap-3">
               <Loader2 className="animate-spin text-zinc-400" size={32} />
@@ -177,36 +230,36 @@ function ModalOfertasGlobal({ isOpen, onClose, ofertas, onComprar }) {
               const precoInflacionado = parseFloat(promo.preco_promocional || 0) * fatorAcrescimo;
 
               return (
-                <div key={promo.sku} className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white dark:bg-[#121214] p-5 rounded-2xl border border-zinc-200 dark:border-zinc-800 hover:border-rose-400 dark:hover:border-rose-500/50 transition-all group gap-4 min-w-0 shadow-sm dark:shadow-none">
+                <div key={promo.sku} className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white dark:bg-white/[0.04] p-5 rounded-[22px] border border-black/[0.05] dark:border-white/[0.06] hover:border-rose-300 dark:hover:border-rose-500/40 transition-all group gap-4 min-w-0 shadow-sm dark:shadow-none">
                   <div className="flex-1 w-full min-w-0">
-                    <span className="text-[10px] bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 px-2.5 py-1 rounded-md font-black uppercase tracking-widest border border-rose-100 dark:border-rose-500/20 inline-block mb-3">SKU {promo.sku}</span>
-                    <p className="font-bold text-zinc-800 dark:text-zinc-200 leading-snug text-sm sm:text-base break-words">{promo.nome_produto}</p>
-                    <p className="text-xl sm:text-2xl font-black text-purple-600 dark:text-purple-400 mt-2 tracking-tight">
+                    <span className="text-[11px] bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 px-2.5 py-1 rounded-full font-semibold border border-rose-100 dark:border-rose-500/20 inline-block mb-3">SKU {promo.sku}</span>
+                    <p className="font-semibold text-zinc-800 dark:text-zinc-100 leading-snug text-sm sm:text-base break-words tracking-tight">{promo.nome_produto}</p>
+                    <p className="text-xl sm:text-2xl font-bold text-purple-600 dark:text-purple-400 mt-2 tracking-tight">
                       {formatarMoeda(precoInflacionado)}
                     </p>
                   </div>
-                  
+
                   <div className="flex flex-col items-stretch sm:items-end gap-3 w-full sm:w-auto">
-                    <div className="flex items-center justify-between bg-zinc-50 dark:bg-zinc-900 border border-purple-500/30 rounded-xl overflow-hidden h-11 w-full sm:w-36 shadow-inner">
-                      <button onClick={() => handleQtdChange(promo.sku, qtdAtual - 1, minExigido)} className="w-12 h-full flex items-center justify-center text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white transition-colors"><Minus size={16}/></button>
-                      <span className="font-black text-purple-600 dark:text-purple-400 text-sm w-10 text-center">{qtdAtual}</span>
-                      <button onClick={() => handleQtdChange(promo.sku, qtdAtual + 1, minExigido)} className="w-12 h-full flex items-center justify-center text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white transition-colors"><Plus size={16}/></button>
+                    <div className="flex items-center justify-between bg-zinc-100 dark:bg-white/[0.06] border border-black/[0.04] dark:border-white/[0.06] rounded-full overflow-hidden h-11 w-full sm:w-36 p-1">
+                      <button onClick={() => handleQtdChange(promo.sku, qtdAtual - 1, minExigido)} className="w-9 h-9 rounded-full flex items-center justify-center text-zinc-500 hover:bg-white dark:hover:bg-white/10 hover:text-zinc-900 dark:hover:text-white transition-all active:scale-90"><Minus size={16}/></button>
+                      <span className="font-bold text-purple-600 dark:text-purple-400 text-sm w-10 text-center">{qtdAtual}</span>
+                      <button onClick={() => handleQtdChange(promo.sku, qtdAtual + 1, minExigido)} className="w-9 h-9 rounded-full flex items-center justify-center text-zinc-500 hover:bg-white dark:hover:bg-white/10 hover:text-zinc-900 dark:hover:text-white transition-all active:scale-90"><Plus size={16}/></button>
                     </div>
 
-                    <button 
+                    <button
                       onClick={() => {
                         // 🟢 MANDANDO PRO CARRINHO JÁ INFLACIONADO! O carrinho não vai notar a diferença.
                         onComprar({
-                          sku: promo.sku, 
-                          nome: promo.nome_produto, 
-                          preco_venda: precoInflacionado, 
-                          em_promocao: true, 
+                          sku: promo.sku,
+                          nome: promo.nome_produto,
+                          preco_venda: precoInflacionado,
+                          em_promocao: true,
                           preco_promocional: precoInflacionado,
-                          qtd_minima_promocao: minExigido 
+                          qtd_minima_promocao: minExigido
                         }, qtdAtual);
                         toast.success(`${qtdAtual}x adicionado ao carrinho!`);
-                      }} 
-                      className="w-full sm:w-36 bg-purple-600 hover:bg-purple-500 text-white h-11 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all shadow-[0_5px_15px_rgba(147,51,234,0.25)] active:scale-95"
+                      }}
+                      className="w-full sm:w-36 bg-gradient-to-b from-purple-500 to-purple-600 hover:from-purple-400 hover:to-purple-600 text-white h-11 rounded-full font-semibold text-sm flex items-center justify-center gap-2 transition-all shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_8px_20px_-8px_rgba(147,51,234,0.6)] active:scale-95"
                     >
                       <ShoppingCart size={16} /> Adicionar
                     </button>
@@ -222,14 +275,12 @@ function ModalOfertasGlobal({ isOpen, onClose, ofertas, onComprar }) {
 }
 
 // ==========================================
-// TELA PRINCIPAL: HEADER RESPONSIVO 
+// TELA PRINCIPAL: HEADER RESPONSIVO
 // ==========================================
 export default function Header() {
   const { theme, setTheme } = useTheme();
   const [montado, setMontado] = useState(false);
 
-  const [lastPedidoId, setLastPedidoId] = useState(null);
-  const [lastXmlId, setLastXmlId] = useState(null);
 
   const [userName, setUserName] = useState("Usuário");
   const [userRole, setUserRole] = useState(null);
@@ -238,14 +289,13 @@ export default function Header() {
   const [dataHora, setDataHora] = useState("");
   const [qtdCarrinho, setQtdCarrinho] = useState(0);
   const [diasRestantes, setDiasRestantes] = useState(null);
-  const [updateStatus, setUpdateStatus] = useState(null); 
   const [isOfertasModalOpen, setIsOfertasModalOpen] = useState(false);
   const [listaOfertas, setListaOfertas] = useState([]);
   const [isCarrinhoModalOpen, setIsCarrinhoModalOpen] = useState(false);
-  
+
   // 🟢 ESTADO DO MENU WAFFLE (GOOGLE)
   const [isWaffleOpen, setIsWaffleOpen] = useState(false);
-  
+
   const gerarIniciais = (nome) => {
     if (!nome) return "R";
     const partes = nome.trim().split(" ");
@@ -259,7 +309,7 @@ export default function Header() {
 
   useEffect(() => {
   if (typeof window !== 'undefined' && window.electronAPI && window.electronAPI.mudarTemaElectron) {
-    window.electronAPI.mudarTemaElectron(theme === 'system' ? 'dark' : theme); 
+    window.electronAPI.mudarTemaElectron(theme === 'system' ? 'dark' : theme);
   }
 }, [theme]);
 
@@ -295,26 +345,26 @@ export default function Header() {
 
         setUserRole(userObj.tipo || "admin");
         isLojista = userObj.tipo === "lojista";
-        
+
         if (isLojista) {
           let nomeOficial = userObj.nome || userObj.RAZAO || userObj.razao_social || "Cliente B2B";
-          
+
           // 🟢 LIMPEZA DO CNPJ
           nomeOficial = nomeOficial.replace(/^[\d\.\-\/\s]+/, '').trim();
-          
+
           // 🟢 FANTASIA MENOR
           const palavras = nomeOficial.split(' ').filter(p => p.length > 0);
           const nomeExibicao = palavras.length > 1 ? `${palavras[0]} ${palavras[1]}` : (palavras[0] || "Cliente");
 
           setUserName(nomeExibicao);
-          setUserEmail(userObj.cnpj || userObj.email || ""); 
+          setUserEmail(userObj.cnpj || userObj.email || "");
           setUserInitial(gerarIniciais(nomeExibicao));
         }
       } catch(e) {
         console.error("Erro ao ler Lojista:", e);
       }
     } else {
-      setUserRole("admin"); 
+      setUserRole("admin");
     }
 
     if (!isLojista) {
@@ -327,7 +377,7 @@ export default function Header() {
         setDiasRestantes(dias);
       }
       const emailStr = localStorage.getItem("@raizan:email");
-      const nomeAdmin = localStorage.getItem("@raizan:nome"); 
+      const nomeAdmin = localStorage.getItem("@raizan:nome");
 
       if (emailStr && !savedUser) {
         setUserEmail(emailStr);
@@ -360,128 +410,14 @@ export default function Header() {
       }
     };
     checarCarrinho();
-    
+
     window.addEventListener('storage', checarCarrinho);
     const timerCarrinho = setInterval(checarCarrinho, 1000);
-    
+
     return () => {
       window.removeEventListener('storage', checarCarrinho);
       clearInterval(timerCarrinho);
     };
-  }, [userRole]);
-
-  useEffect(() => {
-    if (userRole !== "admin") return;
-
-    if (typeof window !== "undefined" && "Notification" in window) {
-      if (Notification.permission !== "granted" && Notification.permission !== "denied") {
-        Notification.requestPermission();
-      }
-    }
-
-    let memoriaUltimoPedidoId = null; 
-    let memoriaUltimaSolicitacaoId = null;
-    let memoriaTotalSolicitacoes = 0;
-    let primeiraRodada = true; 
-
-    const checarRadar = async () => {
-      try {
-        const res = await fetch(`${getHubUrl()}/api/admin/notificacoes`, { headers: getHeaders() });
-        const data = await res.json();
-
-        if (data.success) {
-          setUpdateStatus(data.totalPendente > 0 ? "!" : null); 
-
-          if (primeiraRodada) {
-            if (data.ultimoPedido) {
-              memoriaUltimoPedidoId = data.ultimoPedido.id;
-              setLastPedidoId(data.ultimoPedido.id); 
-            }
-            if (data.ultimaSolicitacao) {
-              memoriaUltimaSolicitacaoId = data.ultimaSolicitacao.id;
-              setLastXmlId(data.ultimaSolicitacao.id); 
-            }
-            memoriaTotalSolicitacoes = data.totalSolicitacoes;
-            primeiraRodada = false;
-            return;
-          }
-
-          if (data.ultimoPedido && data.ultimoPedido.id !== memoriaUltimoPedidoId) {
-            
-            // 🟢 AVISO DO SELLER: Identifica a origem e toca a MÁQUINA DE DINHEIRO
-            const isSeller = data.ultimoPedido.origem === 'raizan_seller' || data.ultimoPedido.origem === 'app';
-            const nomeVendedor = data.ultimoPedido.vendedor_nome || data.ultimoPedido.vendedor || 'Vendedor';
-            
-            // 🔥 NOME CORRETO DA NOSSA MÁQUINA DE VENDAS!
-            const textoSeller = isSeller ? ` pelo Raizan Seller (${nomeVendedor})` : '';
-
-            try {
-              if (isSeller) {
-                new Audio('/plim.mp3').play().catch(()=>{}); // O Som da Felicidade! 💰
-              } else {
-                new Audio('/plim.mp3').play().catch(()=>{}); 
-              }
-            } catch (e) {}
-
-            try {
-              if (Notification.permission === "granted") {
-                new Notification(`🛒 Pedido: ${data.ultimoPedido.nome}`, {
-                  body: `Pedido #${data.ultimoPedido.id} recebido${textoSeller}!`,
-                  icon: "https://raizan.com.br/wp-content/uploads/2024/02/favicon.png",
-                  silent: true 
-                });
-              }
-            } catch (e) {}
-
-            toast.custom((t) => (
-              <div className={`${t.visible ? 'animate-enter' : 'animate-leave'} max-w-md w-full bg-white dark:bg-[#0c0c0e]/95 backdrop-blur-2xl shadow-[0_10px_40px_rgba(147,51,234,0.25)] rounded-2xl pointer-events-auto flex ring-1 ring-purple-500/30 p-4 border-l-4 border-purple-600`}>
-                <div className="flex-1">
-                  <p className="text-sm font-black text-zinc-900 dark:text-white flex items-center gap-2"><ShoppingCart size={16} className="text-purple-600 dark:text-purple-400"/> Novo Pedido Registrado!</p>
-                  <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300 font-medium">
-                    O cliente <span className="font-bold text-purple-600 dark:text-purple-400">{data.ultimoPedido.nome}</span> fez uma compra{textoSeller} (ID: {data.ultimoPedido.id}).
-                  </p>
-                </div>
-              </div>
-            ), { duration: 6000 });
-
-            memoriaUltimoPedidoId = data.ultimoPedido.id;
-            setLastPedidoId(data.ultimoPedido.id); 
-          }
-
-          if (data.ultimaSolicitacao && (data.ultimaSolicitacao.id !== memoriaUltimaSolicitacaoId || data.totalSolicitacoes > memoriaTotalSolicitacoes)) {
-            try { new Audio('/Newemail.mp3').play().catch(()=>{}); } catch (e) {}
-            try {
-              if (Notification.permission === "granted") {
-                new Notification(`📄 Solicitação de ${data.ultimaSolicitacao.nome}`, {
-                  body: `O cliente pediu o XML/Boleto do pedido #${data.ultimaSolicitacao.id}.`,
-                  icon: "https://raizan.com.br/wp-content/uploads/2024/02/favicon.png",
-                  silent: true 
-                });
-              }
-            } catch (e) {}
-
-            toast.custom((t) => (
-              <div className={`${t.visible ? 'animate-enter' : 'animate-leave'} max-w-md w-full bg-white dark:bg-[#0c0c0e]/95 backdrop-blur-2xl shadow-[0_10px_40px_rgba(244,63,94,0.25)] rounded-2xl pointer-events-auto flex ring-1 ring-rose-500/30 p-4 border-l-4 border-rose-500`}>
-                <div className="flex-1">
-                  <p className="text-sm font-black text-zinc-900 dark:text-white flex items-center gap-2"><FileText size={16} className="text-rose-500 dark:text-rose-400"/> Solicitação de Documento</p>
-                  <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300 font-medium"><span className="font-bold text-rose-500 dark:text-rose-400">{data.ultimaSolicitacao.nome}</span> aguarda o XML do pedido #${data.ultimaSolicitacao.id}.</p>
-                </div>
-              </div>
-            ), { duration: 8000 });
-
-            memoriaUltimaSolicitacaoId = data.ultimaSolicitacao.id;
-            setLastXmlId(data.ultimaSolicitacao.id); 
-            memoriaTotalSolicitacoes = data.totalSolicitacoes;
-          }
-
-        }
-      } catch (e) {}
-    };
-
-    checarRadar();
-    const timerRadar = setInterval(checarRadar, 15000);
-
-    return () => clearInterval(timerRadar);
   }, [userRole]);
 
   // 🟢 SISTEMA DE CACHE INTELIGENTE DAS OFERTAS
@@ -502,7 +438,7 @@ export default function Header() {
           fim.setHours(23, 59, 59);
           return promo.ativo && hoje >= inicio && hoje <= fim;
         });
-        
+
         sessionStorage.setItem("@raizan:cache_ofertas", JSON.stringify(ofertasAtivas));
         setListaOfertas(ofertasAtivas);
       }
@@ -520,7 +456,7 @@ export default function Header() {
     else carrinhoAtual[id] = { ...produto, qtd };
 
     localStorage.setItem("@raizan:carrinho", JSON.stringify(carrinhoAtual));
-    window.dispatchEvent(new Event('storage')); 
+    window.dispatchEvent(new Event('storage'));
   };
 
   if (!userRole) return <header className="sticky top-4 z-30 w-full md:w-[calc(100%-2rem)] mx-auto h-16 bg-transparent pointer-events-none"></header>;
@@ -529,37 +465,37 @@ export default function Header() {
     <>
       {/* 🔥 O SEGREDO DO GLASSMORPHISM: O WRAPPER FICA STICKY ZERO E O HEADER GANHA MARGENS */}
       <div className="sticky top-0 z-40 w-full px-2 sm:px-4 md:px-6 pt-2 sm:pt-4 md:pt-6 pb-2 pointer-events-none" style={{ WebkitAppRegion: 'drag' }}>
-        
+
         {/* LUZ DE FUNDO PARA REFRATAR O GLASSMORPHISM */}
         <div className="absolute top-1/2 left-1/4 w-64 h-32 bg-purple-600/20 blur-[60px] rounded-full pointer-events-none -translate-y-1/2 -z-10 hidden dark:block"></div>
         <div className="absolute top-1/2 right-1/4 w-64 h-32 bg-indigo-600/20 blur-[60px] rounded-full pointer-events-none -translate-y-1/2 -z-10 hidden dark:block"></div>
 
-        <header 
-          className="pointer-events-auto w-full min-h-16 md:h-[72px] bg-white/70 dark:bg-[#121214]/70 backdrop-blur-2xl border border-zinc-200/50 dark:border-white/5 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] flex items-center justify-between px-4 sm:px-6 py-2 md:py-0 transition-all duration-300" 
+        <header
+          className={`${PAINEL} pointer-events-auto w-full min-h-16 md:h-[72px] rounded-[28px] flex items-center justify-between px-3 sm:px-5 py-2 md:py-0 transition-all duration-300`}
           style={{ WebkitAppRegion: 'no-drag' }}
         >
-          
+
           <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
-            <button onClick={toggleMobileMenu} className="lg:hidden shrink-0 p-2 bg-zinc-100 dark:bg-zinc-800/50 rounded-xl text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors border border-zinc-200 dark:border-zinc-700">
-              <Menu size={20} />
+            <button onClick={toggleMobileMenu} className={`${ICON_BTN} lg:hidden`}>
+              <Menu size={19} />
             </button>
 
             <div className="flex flex-col justify-center min-w-0">
-              <h2 className="text-sm md:text-[17px] font-black text-zinc-900 dark:text-zinc-100 flex items-center gap-1 md:gap-2 truncate">
-                Olá, <span className="text-purple-600 dark:text-purple-400">
+              <h2 className="text-sm md:text-[17px] font-bold tracking-tight text-zinc-900 dark:text-zinc-50 flex items-center gap-1 md:gap-2 truncate">
+                Olá, <span className="bg-gradient-to-r from-purple-600 to-indigo-500 dark:from-purple-400 dark:to-indigo-300 bg-clip-text text-transparent">
                   {userName}
                 </span>! <span className="animate-wave origin-bottom-right inline-block">👋</span>
               </h2>
-              <span className="hidden sm:block text-[11px] md:text-xs text-zinc-500 dark:text-zinc-400 font-semibold truncate">{dataHora}</span>
+              <span className="hidden sm:block text-[11px] md:text-xs text-zinc-500 dark:text-zinc-400 font-medium truncate">{dataHora}</span>
             </div>
           </div>
 
-          <div className="flex items-center justify-end gap-2 sm:gap-3 md:gap-4 min-w-0 shrink-0">
-            
+          <div className="flex items-center justify-end gap-2 sm:gap-2.5 md:gap-3 min-w-0 shrink-0">
+
             {montado && (
-              <button 
+              <button
                 onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-                className="relative shrink-0 p-2.5 text-zinc-500 dark:text-zinc-400 hover:text-amber-500 dark:hover:text-amber-400 bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700/50 transition-all"
+                className={`${ICON_BTN} hover:text-amber-500 dark:hover:text-amber-400`}
                 title="Alternar Tema Claro/Escuro"
               >
                 {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
@@ -569,34 +505,34 @@ export default function Header() {
             {/* 🟢 WAFFLE MENU DO SUPER APP (Apenas para Admin) */}
             {userRole === "admin" && (
               <div className="relative group shrink-0">
-                <button 
+                <button
                   onClick={() => setIsWaffleOpen(!isWaffleOpen)}
-                  onBlur={() => setTimeout(() => setIsWaffleOpen(false), 200)} 
-                  className="relative p-2.5 text-zinc-500 dark:text-zinc-400 hover:text-purple-600 dark:hover:text-purple-400 bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700/50 transition-all"
+                  onBlur={() => setTimeout(() => setIsWaffleOpen(false), 200)}
+                  className={`${ICON_BTN} hover:text-purple-600 dark:hover:text-purple-400`}
                   title="Aplicativos Integrados"
                 >
                   <Grip size={18} />
                 </button>
 
                 {isWaffleOpen && (
-                  <div className="absolute right-0 top-full mt-4 w-72 bg-white/95 dark:bg-[#121214]/95 backdrop-blur-xl border border-zinc-200 dark:border-zinc-800 rounded-3xl p-5 shadow-2xl ring-1 ring-black/5 dark:ring-white/5 z-[100] animate-in slide-in-from-top-2">
-                    <h4 className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-widest mb-4 border-b border-zinc-100 dark:border-zinc-800/50 pb-2">Seus Favoritos</h4>
-                    
+                  <div className={`${PAINEL} absolute right-0 top-full mt-4 w-72 rounded-[28px] p-5 z-[100] animate-in slide-in-from-top-2`}>
+                    <h4 className={`${ROTULO} mb-4 pb-2 border-b border-black/[0.06] dark:border-white/[0.07]`}>Seus Favoritos</h4>
+
                     <div className="grid grid-cols-3 gap-2">
-                       <button 
-                          onMouseDown={() => window.dispatchEvent(new CustomEvent('abrirAppExterno', { detail: { nome: 'OMIE', url: 'https://app.omie.com.br/gestao/oliveira-hucf57e5/' }}))} 
-                          className="flex flex-col items-center justify-center p-3 rounded-2xl hover:bg-zinc-100 dark:hover:bg-zinc-800/80 transition-colors gap-2"
+                       <button
+                          onMouseDown={() => window.dispatchEvent(new CustomEvent('abrirAppExterno', { detail: { nome: 'OMIE', url: 'https://app.omie.com.br/gestao/oliveira-hucf57e5/' }}))}
+                          className="flex flex-col items-center justify-center p-3 rounded-2xl hover:bg-black/[0.05] dark:hover:bg-white/[0.07] transition-colors gap-2 active:scale-95"
                        >
-                          <div className="w-12 h-12 rounded-full bg-[#001D4A] flex items-center justify-center text-white font-black text-xs shadow-md">OM</div>
-                          <span className="text-[10px] font-bold text-zinc-700 dark:text-zinc-300">OMIE</span>
+                          <div className="w-12 h-12 rounded-[15px] bg-[#001D4A] flex items-center justify-center text-white font-extrabold text-xs ring-1 ring-black/5 dark:ring-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_8px_16px_-8px_rgba(0,29,74,0.8)]">OM</div>
+                          <span className="text-[11px] font-semibold text-zinc-700 dark:text-zinc-300">OMIE</span>
                        </button>
-                       
-                       <button 
-                          onMouseDown={() => window.dispatchEvent(new CustomEvent('abrirAppExterno', { detail: { nome: 'Hostinger', url: 'https://mail.hostinger.com/' }}))} 
-                          className="flex flex-col items-center justify-center p-3 rounded-2xl hover:bg-zinc-100 dark:hover:bg-zinc-800/80 transition-colors gap-2"
+
+                       <button
+                          onMouseDown={() => window.dispatchEvent(new CustomEvent('abrirAppExterno', { detail: { nome: 'Hostinger', url: 'https://mail.hostinger.com/' }}))}
+                          className="flex flex-col items-center justify-center p-3 rounded-2xl hover:bg-black/[0.05] dark:hover:bg-white/[0.07] transition-colors gap-2 active:scale-95"
                        >
-                          <div className="w-12 h-12 rounded-full bg-[#673DE6] flex items-center justify-center text-white font-black text-xs shadow-md">@</div>
-                          <span className="text-[10px] font-bold text-zinc-700 dark:text-zinc-300">Webmail</span>
+                          <div className="w-12 h-12 rounded-[15px] bg-[#673DE6] flex items-center justify-center text-white font-extrabold text-sm ring-1 ring-black/5 dark:ring-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_8px_16px_-8px_rgba(103,61,230,0.8)]">@</div>
+                          <span className="text-[11px] font-semibold text-zinc-700 dark:text-zinc-300">Webmail</span>
                        </button>
                     </div>
                   </div>
@@ -605,31 +541,31 @@ export default function Header() {
             )}
 
             {userRole === "admin" && diasRestantes !== null && diasRestantes <= 15 && diasRestantes > 0 && (
-              <div className="hidden md:flex items-center gap-2 bg-orange-50 dark:bg-orange-500/10 border border-orange-200 dark:border-orange-500/20 px-3 py-2 rounded-xl">
-                <AlertTriangle size={16} className="text-orange-500 dark:text-orange-400 animate-pulse" />
-                <span className="text-xs font-bold text-orange-600 dark:text-orange-400">Expira em {diasRestantes} dias</span>
+              <div className="hidden md:flex items-center gap-2 bg-orange-500/10 border border-orange-500/20 px-3.5 py-2 rounded-full">
+                <AlertTriangle size={15} className="text-orange-500 dark:text-orange-400 animate-pulse" />
+                <span className="text-xs font-semibold text-orange-600 dark:text-orange-400">Expira em {diasRestantes} dias</span>
               </div>
             )}
 
             {userRole === "lojista" && (
-              <div className="flex items-center gap-2 sm:gap-3">
-                <button 
+              <div className="flex items-center gap-2 sm:gap-2.5">
+                <button
                   onClick={() => { setIsOfertasModalOpen(true); carregarOfertasGlobais(); }}
-                  className="flex items-center gap-1.5 md:gap-2 bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-500 hover:to-pink-500 text-white px-4 py-2.5 rounded-xl text-xs font-bold shadow-lg shadow-rose-500/20 transition-all transform hover:-translate-y-0.5 border border-rose-400/50"
+                  className="flex items-center gap-1.5 md:gap-2 bg-gradient-to-b from-rose-500 to-pink-600 hover:from-rose-400 hover:to-pink-500 text-white px-4 h-10 rounded-full text-xs font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_10px_24px_-8px_rgba(244,63,94,0.6)] transition-all hover:-translate-y-0.5 active:scale-95"
                 >
-                  <Tag size={14} /> 
+                  <Tag size={14} />
                   <span className="hidden sm:inline">Ofertas do Dia</span>
                   <span className="sm:hidden">Ofertas</span>
                 </button>
 
-                <button 
-                  onClick={() => setIsCarrinhoModalOpen(true)} 
-                  className="relative shrink-0 p-2.5 text-zinc-500 dark:text-zinc-400 hover:text-purple-600 dark:hover:text-purple-400 bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700/50 transition-all" 
+                <button
+                  onClick={() => setIsCarrinhoModalOpen(true)}
+                  className={`${ICON_BTN} hover:text-purple-600 dark:hover:text-purple-400`}
                   title="Ver Resumo do Carrinho"
                 >
                   <ShoppingCart size={18} />
                   {qtdCarrinho > 0 && (
-                    <span className="absolute -top-2 -right-2 bg-purple-600 text-white text-[10px] font-black min-w-[20px] h-5 px-1 rounded-full flex items-center justify-center border-2 border-white dark:border-[#121214] shadow-sm">
+                    <span className={`${BADGE} bg-purple-600`}>
                       {qtdCarrinho}
                     </span>
                   )}
@@ -638,53 +574,17 @@ export default function Header() {
             )}
 
             {userRole === "admin" && (
-              <div className="relative group cursor-pointer shrink-0">
-                <Link href="/xml" className="transition-all relative block p-2.5 bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700/50" title="Ver Central de Documentos">
-                  <Bell size={18} className={updateStatus ? "text-rose-500 dark:text-rose-400 animate-pulse" : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"} />
-                  {updateStatus && (
-                    <span className="absolute -top-2 -right-2 bg-rose-500 text-white text-[10px] font-black min-w-[20px] h-5 px-1 rounded-full flex items-center justify-center border-2 border-white dark:border-[#121214] shadow-sm">
-                      {updateStatus === "!" ? "1" : updateStatus}
-                    </span>
-                  )}
-                </Link>
-
-                <div className="hidden lg:block absolute right-0 top-full mt-4 w-64 invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-2 group-hover:translate-y-0 z-[100]">
-                  <div className="bg-white/95 dark:bg-[#121214]/95 backdrop-blur-xl border border-zinc-200 dark:border-zinc-800 rounded-3xl p-5 shadow-2xl ring-1 ring-black/5 dark:ring-white/5">
-                    <h4 className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-widest mb-3 border-b border-zinc-100 dark:border-zinc-800/50 pb-2">Resumo Pendente</h4>
-                    <div className="space-y-4">
-                      {!updateStatus && <p className="text-xs text-zinc-400 dark:text-zinc-500 text-center py-2 font-medium">Nenhuma notificação nova.</p>}
-                      {lastPedidoId && (
-                        <div className="flex items-start gap-3">
-                          <div className="p-2 bg-purple-100 dark:bg-purple-500/10 rounded-lg"><ShoppingCart size={14} className="text-purple-600 dark:text-purple-400" /></div>
-                          <div className="overflow-hidden">
-                            <p className="text-[11px] font-bold text-zinc-800 dark:text-zinc-200 truncate">Último Pedido</p>
-                            <p className="text-[10px] text-zinc-500 dark:text-zinc-400 truncate font-mono mt-0.5">ID: {lastPedidoId}</p>
-                          </div>
-                        </div>
-                      )}
-                      {lastXmlId && (
-                        <div className="flex items-start gap-3 mt-3">
-                          <div className="p-2 bg-rose-100 dark:bg-rose-500/10 rounded-lg"><FileText size={14} className="text-rose-600 dark:text-rose-400" /></div>
-                          <div className="overflow-hidden">
-                            <p className="text-[11px] font-bold text-zinc-800 dark:text-zinc-200 truncate">Aguardando XML</p>
-                            <p className="text-[10px] text-rose-600 dark:text-rose-400 font-medium truncate mt-0.5 hover:underline">Pedido #{lastXmlId}</p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <SinoNotificacoes classeBotao={ICON_BTN} classeBadge={BADGE} classePainel={PAINEL} classeRotulo={ROTULO} Tile={Tile} />
             )}
 
-            <div className="flex items-center gap-3 pl-3 sm:pl-4 border-l border-zinc-200 dark:border-zinc-800 shrink-0 ml-1 sm:ml-2">
+            <div className="flex items-center gap-3 pl-3 sm:pl-4 border-l border-black/[0.08] dark:border-white/[0.08] shrink-0 ml-0.5 sm:ml-1.5">
               <div className="hidden sm:flex flex-col items-end">
-                <span className="text-sm font-bold text-zinc-900 dark:text-zinc-100 leading-none mb-1">{userRole === "lojista" ? "Meu Perfil" : "Operador"}</span>
-                <span className={`text-[10px] font-bold tracking-widest uppercase max-w-[150px] truncate ${userRole === "lojista" ? "text-purple-600 dark:text-purple-500" : "text-zinc-500 dark:text-zinc-400"}`}>{userRole === "lojista" ? `CNPJ: ${userEmail}` : userEmail}</span>
+                <span className="text-sm font-semibold tracking-tight text-zinc-900 dark:text-zinc-50 leading-none mb-1">{userRole === "lojista" ? "Meu Perfil" : "Operador"}</span>
+                <span className={`text-[11px] font-medium max-w-[150px] truncate ${userRole === "lojista" ? "text-purple-600 dark:text-purple-400" : "text-zinc-500 dark:text-zinc-400"}`}>{userRole === "lojista" ? `CNPJ: ${userEmail}` : userEmail}</span>
               </div>
-                            
+
               <Link href={userRole === "lojista" ? "/b2b-perfil" : "/conta"}>
-                <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center shadow-md hover:shadow-xl hover:-translate-y-0.5 transition-all cursor-pointer font-black text-white text-sm ${userRole === "lojista" ? "bg-gradient-to-br from-purple-500 to-indigo-600 shadow-purple-500/20" : "bg-gradient-to-br from-indigo-500 to-blue-600 shadow-indigo-500/20"}`}>
+                <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-[14px] flex items-center justify-center ring-1 ring-black/5 dark:ring-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.4),0_10px_20px_-8px_var(--sombra)] hover:-translate-y-0.5 active:scale-95 transition-all cursor-pointer font-bold text-white text-sm bg-gradient-to-br ${userRole === "lojista" ? "from-purple-400 to-indigo-600 [--sombra:rgba(124,58,237,0.7)]" : "from-indigo-400 to-blue-600 [--sombra:rgba(79,70,229,0.7)]"}`}>
                   {userInitial}
                 </div>
               </Link>
@@ -692,31 +592,31 @@ export default function Header() {
 
              {/* 🟢 AS BOLINHAS SÓ APARECEM SE ESTIVER RODANDO NO ELECTRON! */}
             {typeof window !== 'undefined' && window.electronAPI && (
-              <div className="hidden md:flex items-center gap-2 pl-4 border-l border-zinc-200 dark:border-zinc-800 shrink-0" style={{ WebkitAppRegion: 'no-drag' }}>
-                <button 
+              <div className="hidden md:flex items-center gap-2 pl-4 border-l border-black/[0.08] dark:border-white/[0.08] shrink-0" style={{ WebkitAppRegion: 'no-drag' }}>
+                <button
                   onClick={() => {
                     if(window.electronAPI?.minimizarJanela) window.electronAPI.minimizarJanela();
                     else console.log("Comando de minimizar não encontrado no preload!");
-                  }} 
-                  className="w-5 h-5 flex items-center justify-center rounded-full bg-amber-400 hover:bg-amber-500 text-amber-900 shadow-sm transition-colors border border-amber-500/20"
+                  }}
+                  className="w-5 h-5 flex items-center justify-center rounded-full bg-amber-400 hover:bg-amber-500 text-amber-900 shadow-sm transition-colors border border-amber-500/20 active:scale-90"
                   title="Minimizar"
                 >
                   <Minus size={12} strokeWidth={3} />
                 </button>
-                <button 
+                <button
                   onClick={() => {
                     if(window.electronAPI?.maximizarJanela) window.electronAPI.maximizarJanela();
-                  }} 
-                  className="w-5 h-5 flex items-center justify-center rounded-full bg-emerald-500 hover:bg-emerald-600 text-emerald-950 shadow-sm transition-colors border border-emerald-600/20"
+                  }}
+                  className="w-5 h-5 flex items-center justify-center rounded-full bg-emerald-500 hover:bg-emerald-600 text-emerald-950 shadow-sm transition-colors border border-emerald-600/20 active:scale-90"
                   title="Maximizar"
                 >
                   <Maximize2 size={10} strokeWidth={3} />
                 </button>
-                <button 
+                <button
                   onClick={() => {
                     if(window.electronAPI?.fecharJanela) window.electronAPI.fecharJanela();
-                  }} 
-                  className="w-5 h-5 flex items-center justify-center rounded-full bg-rose-500 hover:bg-rose-600 text-rose-950 shadow-sm transition-colors border border-rose-600/20"
+                  }}
+                  className="w-5 h-5 flex items-center justify-center rounded-full bg-rose-500 hover:bg-rose-600 text-rose-950 shadow-sm transition-colors border border-rose-600/20 active:scale-90"
                   title="Fechar"
                 >
                   <X size={12} strokeWidth={3} />

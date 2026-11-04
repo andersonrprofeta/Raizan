@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { getHubUrl } from "@/components/utils/api";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import * as LucideIcons from "lucide-react"; 
@@ -9,6 +10,32 @@ import {
 } from "lucide-react";
 import packageJson from "../../package.json";
 import toast from 'react-hot-toast';
+
+// ==========================================
+// 🎨 DESIGN TOKENS (estilo Apple: vidro, hairlines, ícones em "tiles")
+// ==========================================
+
+// Classes completas (o Tailwind precisa enxergá-las inteiras no código)
+const TILE_CORES = {
+  emerald: "from-emerald-400 to-emerald-600",
+  purple: "from-violet-400 to-purple-600",
+  orange: "from-orange-400 to-orange-600",
+  blue: "from-sky-400 to-blue-600",
+  zinc: "from-zinc-500 to-zinc-700",
+};
+
+// Ícone em "tile" arredondado, igual aos ícones de app da Apple
+const Tile = ({ cor = "purple", size = 40, children, className = "" }) => (
+  <div
+    className={`shrink-0 flex items-center justify-center bg-gradient-to-br ${TILE_CORES[cor] || TILE_CORES.zinc} text-white ring-1 ring-black/5 dark:ring-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.4),0_6px_14px_-6px_rgba(0,0,0,0.35)] ${className}`}
+    style={{ width: size, height: size, borderRadius: size * 0.3 }}
+  >
+    {children}
+  </div>
+);
+
+// Chave onde guardamos se o menu está recolhido (só ícones)
+const CHAVE_COLAPSO = "@raizan:sidebar_colapsada";
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -29,6 +56,26 @@ export default function Sidebar() {
 
   const [menuDinamico, setMenuDinamico] = useState({});
   const [carregandoMenu, setCarregandoMenu] = useState(true);
+
+  // 🆕 MODO RECOLHIDO (só no desktop; no celular a gaveta continua sempre completa)
+  const [colapsada, setColapsada] = useState(false);
+  const c = colapsada;
+
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(CHAVE_COLAPSO) === "1") setColapsada(true);
+    } catch (e) {}
+  }, []);
+
+  const salvarColapso = (valor) => {
+    try { localStorage.setItem(CHAVE_COLAPSO, valor ? "1" : "0"); } catch (e) {}
+  };
+
+  const alternarColapso = () => {
+    const novo = !colapsada;
+    setColapsada(novo);
+    salvarColapso(novo);
+  };
 
   useEffect(() => {
     const fetchMenu = async () => {
@@ -160,6 +207,24 @@ export default function Sidebar() {
     };
 
     checarDadosLocais();
+
+    // Lojista logado antes da correção não tem a logo no navegador, e ela pode mudar no Core
+    const atualizarLogoDoPortal = async () => {
+      if (!localStorage.getItem("raizan_user") || !localStorage.getItem("@raizan:b2b_tenant_id")) return;
+      try {
+        const res = await fetch(`${getHubUrl()}/api/hub/integracoes/b2b/identificar`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url_acesso: window.location.hostname })
+        });
+        const data = await res.json();
+        if (data.success && data.logo_url) {
+          localStorage.setItem("@raizan:logo", data.logo_url);
+          setLogoEmpresa(data.logo_url);
+        }
+      } catch (e) { }
+    };
+    atualizarLogoDoPortal();
     window.addEventListener('storage', checarDadosLocais);
     const intervalo = setInterval(checarDadosLocais, 1000);
     return () => { window.removeEventListener('storage', checarDadosLocais); clearInterval(intervalo); };
@@ -168,7 +233,7 @@ export default function Sidebar() {
   const handleSairDoApp = () => {
     if (userRole === "lojista") {
       toast.success("Saindo da conta...");
-      setTimeout(() => { localStorage.removeItem("raizan_user"); window.location.href = "/login-b2b"; }, 1000);
+      setTimeout(() => { localStorage.removeItem("raizan_user"); localStorage.removeItem("@raizan:token"); window.location.href = "/login-b2b"; }, 1000);
     } else {
       toast.success("Encerrando o sistema...");
       setTimeout(() => window.close(), 1000);
@@ -179,23 +244,39 @@ export default function Sidebar() {
   const isActive = (path) => pathname === path || pathname === `/${path}`;
   const hasAccess = (slug) => { if (!slug) return true; return modulosLiberados.includes(slug); };
 
+  // 🆕 Clique numa categoria: se o menu está recolhido (desktop), expande e já abre a categoria.
+  // Caso contrário, funciona exatamente como antes (toggleMenu).
+  const handleCategoriaClick = (categoriaNome) => {
+    const ehDesktop = typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches;
+    if (colapsada && ehDesktop) {
+      setColapsada(false);
+      salvarColapso(false);
+      setOpenMenus(prev => ({ ...prev, [categoriaNome]: true }));
+      return;
+    }
+    toggleMenu(categoriaNome);
+  };
+
+  // Base visual de todos os links (no modo recolhido o ícone fica centralizado)
+  const linkBase = `relative group flex w-full min-w-0 items-center gap-3 rounded-[14px] px-3 py-2.5 text-[13px] sm:text-sm font-medium transition-all duration-300 overflow-hidden ${c ? "lg:justify-center lg:gap-0 lg:px-0" : ""}`;
+  const esconderNoRecolhido = c ? "lg:hidden" : "";
+
   const DashboardNavLink = ({ href, icon: Icon, label }) => {
     const active = isActive(href);
     const isLojista = userRole === "lojista";
     
     const activeClass = isLojista 
-      ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/20 font-bold" 
-      : "bg-purple-600 text-white shadow-md shadow-purple-600/20 font-bold";
+      ? "bg-gradient-to-b from-emerald-500 to-emerald-600 text-white font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_8px_20px_-8px_rgba(16,185,129,0.6)]" 
+      : "bg-gradient-to-b from-purple-500 to-purple-600 text-white font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_8px_20px_-8px_rgba(147,51,234,0.6)]";
       
     const hoverClass = isLojista
-      ? "text-zinc-600 dark:text-zinc-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 hover:text-emerald-700 dark:hover:text-emerald-400"
-      : "text-zinc-600 dark:text-zinc-400 hover:bg-purple-50 dark:hover:bg-purple-500/10 hover:text-purple-700 dark:hover:text-purple-400";
+      ? "text-zinc-600 dark:text-zinc-400 hover:bg-emerald-500/10 hover:text-emerald-700 dark:hover:text-emerald-400"
+      : "text-zinc-600 dark:text-zinc-400 hover:bg-purple-500/10 hover:text-purple-700 dark:hover:text-purple-400";
 
     return (
-      <Link href={href} onClick={closeMobileSidebar} className={`flex w-full min-w-0 items-center gap-3 rounded-xl px-3 py-2.5 text-xs transition-all duration-300 sm:text-sm relative overflow-hidden group ${active ? activeClass : hoverClass}`}>
-        {active && <div className="absolute left-0 top-1/2 -translate-y-1/2 h-1/2 w-1 bg-white/40 rounded-r-full" />}
+      <Link href={href} onClick={closeMobileSidebar} title={c ? label : undefined} className={`${linkBase} ${active ? activeClass : hoverClass}`}>
         <Icon size={18} className={`shrink-0 transition-colors duration-300 ${active ? "text-white" : "text-zinc-400 dark:text-zinc-500 group-hover:text-inherit"}`} />
-        <span className="min-w-0 truncate">{label}</span>
+        <span className={`min-w-0 truncate ${esconderNoRecolhido}`}>{label}</span>
       </Link>
     );
   };
@@ -205,18 +286,18 @@ export default function Sidebar() {
     const IconComponent = LucideIcons[iconName] || LucideIcons.Box;
 
     const themes = {
-      emerald: { active: "bg-emerald-600 text-white shadow-md shadow-emerald-600/20 font-bold", hover: "text-zinc-600 dark:text-zinc-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 hover:text-emerald-700 dark:hover:text-emerald-400" },
-      purple: { active: "bg-purple-600 text-white shadow-md shadow-purple-600/20 font-bold", hover: "text-zinc-600 dark:text-zinc-400 hover:bg-purple-50 dark:hover:bg-purple-500/10 hover:text-purple-700 dark:hover:text-purple-400" },
-      orange: { active: "bg-orange-500 text-white shadow-md shadow-orange-500/20 font-bold", hover: "text-zinc-600 dark:text-zinc-400 hover:bg-orange-50 dark:hover:bg-orange-500/10 hover:text-orange-700 dark:hover:text-orange-400" },
-      blue: { active: "bg-blue-600 text-white shadow-md shadow-blue-600/20 font-bold", hover: "text-zinc-600 dark:text-zinc-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 hover:text-blue-700 dark:hover:text-blue-400" },
-      zinc: { active: "bg-zinc-800 dark:bg-zinc-200 text-white dark:text-zinc-900 shadow-md shadow-zinc-800/20 font-bold", hover: "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 hover:text-zinc-900 dark:hover:text-zinc-200" }
+      emerald: { active: "bg-gradient-to-b from-emerald-500 to-emerald-600 text-white font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_8px_20px_-8px_rgba(16,185,129,0.6)]", hover: "text-zinc-600 dark:text-zinc-400 hover:bg-emerald-500/10 hover:text-emerald-700 dark:hover:text-emerald-400", iconActive: "text-white" },
+      purple: { active: "bg-gradient-to-b from-purple-500 to-purple-600 text-white font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_8px_20px_-8px_rgba(147,51,234,0.6)]", hover: "text-zinc-600 dark:text-zinc-400 hover:bg-purple-500/10 hover:text-purple-700 dark:hover:text-purple-400", iconActive: "text-white" },
+      orange: { active: "bg-gradient-to-b from-orange-400 to-orange-500 text-white font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_8px_20px_-8px_rgba(249,115,22,0.6)]", hover: "text-zinc-600 dark:text-zinc-400 hover:bg-orange-500/10 hover:text-orange-700 dark:hover:text-orange-400", iconActive: "text-white" },
+      blue: { active: "bg-gradient-to-b from-blue-500 to-blue-600 text-white font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_8px_20px_-8px_rgba(59,130,246,0.6)]", hover: "text-zinc-600 dark:text-zinc-400 hover:bg-blue-500/10 hover:text-blue-700 dark:hover:text-blue-400", iconActive: "text-white" },
+      zinc: { active: "bg-zinc-800 dark:bg-zinc-100 text-white dark:text-zinc-900 font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_8px_20px_-8px_rgba(39,39,42,0.5)]", hover: "text-zinc-600 dark:text-zinc-400 hover:bg-black/[0.05] dark:hover:bg-white/[0.07] hover:text-zinc-900 dark:hover:text-zinc-200", iconActive: "text-white dark:text-zinc-900" }
     };
     const currentTheme = themes[colorTheme] || themes.purple;
     const safeHref = href.startsWith('/') ? href : `/${href}`;
 
     return (
-      <Link href={safeHref} onClick={closeMobileSidebar} className={`flex w-full min-w-0 items-center gap-3 rounded-xl px-3 py-2.5 text-xs transition-all duration-300 sm:text-sm relative overflow-hidden group ${active ? currentTheme.active : currentTheme.hover}`}>
-        <IconComponent size={18} className={`shrink-0 transition-colors duration-300 ${active ? "text-white dark:text-zinc-900" : "text-zinc-400 dark:text-zinc-500 group-hover:text-inherit"}`} />
+      <Link href={safeHref} onClick={closeMobileSidebar} className={`${linkBase} ${active ? currentTheme.active : currentTheme.hover}`}>
+        <IconComponent size={18} className={`shrink-0 transition-colors duration-300 ${active ? currentTheme.iconActive : "text-zinc-400 dark:text-zinc-500 group-hover:text-inherit"}`} />
         <span className="min-w-0 truncate">{label}</span>
       </Link>
     );
@@ -233,68 +314,105 @@ export default function Sidebar() {
   };
 
   const themeClassesMap = {
-    emerald: { open: "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.15)] border-emerald-200 dark:border-emerald-500/30", iconOpen: "text-emerald-600 dark:text-emerald-400" },
-    purple: { open: "bg-purple-50 dark:bg-purple-500/10 text-purple-700 dark:text-purple-400 shadow-[0_0_12px_rgba(147,51,234,0.15)] border-purple-200 dark:border-purple-500/30", iconOpen: "text-purple-600 dark:text-purple-400" },
-    orange: { open: "bg-orange-50 dark:bg-orange-500/10 text-orange-700 dark:text-orange-400 shadow-[0_0_12px_rgba(249,115,22,0.15)] border-orange-200 dark:border-orange-500/30", iconOpen: "text-orange-500 dark:text-orange-400" },
-    blue: { open: "bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 shadow-[0_0_12px_rgba(59,130,246,0.15)] border-blue-200 dark:border-blue-500/30", iconOpen: "text-blue-600 dark:text-blue-400" },
-    zinc: { open: "bg-zinc-100 dark:bg-zinc-800/80 text-zinc-900 dark:text-zinc-200 shadow-[0_0_12px_rgba(39,39,42,0.15)] border-zinc-200 dark:border-zinc-700", iconOpen: "text-zinc-700 dark:text-zinc-300" }
+    emerald: { open: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400", iconOpen: "text-emerald-600 dark:text-emerald-400" },
+    purple: { open: "bg-purple-500/10 text-purple-700 dark:text-purple-400", iconOpen: "text-purple-600 dark:text-purple-400" },
+    orange: { open: "bg-orange-500/10 text-orange-700 dark:text-orange-400", iconOpen: "text-orange-500 dark:text-orange-400" },
+    blue: { open: "bg-blue-500/10 text-blue-700 dark:text-blue-400", iconOpen: "text-blue-600 dark:text-blue-400" },
+    zinc: { open: "bg-black/[0.05] dark:bg-white/[0.07] text-zinc-900 dark:text-zinc-200", iconOpen: "text-zinc-700 dark:text-zinc-300" }
   };
 
   if (!isClient || !userRole) {
-      return <aside className="hidden h-screen sticky top-0 w-[260px] max-w-full shrink-0 flex-col overflow-x-hidden border-r border-zinc-200 dark:border-zinc-800/80 bg-white dark:bg-[#0c0c0e] z-20 lg:flex transition-colors duration-300"></aside>;
+      return <aside className="hidden h-screen sticky top-0 w-[260px] max-w-full shrink-0 flex-col overflow-x-hidden border-r border-black/[0.06] dark:border-white/[0.07] bg-white/80 dark:bg-[#0c0c0e] z-20 lg:flex transition-colors duration-300"></aside>;
   }
+
+  // Ícone do botão de recolher (com plano B caso a versão do lucide não tenha os painéis)
+  const IconeToggle = c
+    ? (LucideIcons.PanelLeftOpen || LucideIcons.ChevronsRight)
+    : (LucideIcons.PanelLeftClose || LucideIcons.ChevronsLeft);
 
   return (
     <>
-      {isMobileOpen && <div className="fixed inset-0 bg-zinc-900/40 dark:bg-black/60 backdrop-blur-sm z-40 lg:hidden animate-in fade-in" onClick={closeMobileSidebar} />}
+      {isMobileOpen && <div className="fixed inset-0 bg-zinc-900/40 dark:bg-black/60 backdrop-blur-md z-40 lg:hidden animate-in fade-in" onClick={closeMobileSidebar} />}
 
-      <aside className={`fixed top-0 z-50 flex h-screen lg:h-[calc(100vh-2rem)] w-[85vw] max-w-[260px] shrink-0 flex-col overflow-hidden bg-white dark:bg-[#121214] shadow-[4px_0_24px_rgba(0,0,0,0.04)] dark:shadow-[4px_0_24px_rgba(0,0,0,0.2)] transition-all duration-300 ease-in-out sm:w-[320px] lg:sticky lg:top-4 lg:ml-4 lg:w-[260px] lg:max-w-[260px] lg:rounded-3xl border border-zinc-200/80 dark:border-white/5 ${isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`} style={{ WebkitAppRegion: 'drag' }}>
+      <aside
+        className={`fixed top-0 z-50 flex h-screen lg:h-[calc(100vh-2rem)] w-[85vw] max-w-[260px] shrink-0 flex-col overflow-hidden
+          bg-white/85 dark:bg-[#121214]/85 backdrop-blur-2xl border border-black/[0.06] dark:border-white/[0.08]
+          shadow-[0_20px_60px_-20px_rgba(0,0,0,0.25)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_30px_70px_-20px_rgba(0,0,0,0.9)]
+          transition-all duration-300 ease-in-out sm:w-[320px] lg:sticky lg:top-4 lg:ml-4 lg:rounded-[28px]
+          ${c ? "lg:w-[84px] lg:max-w-[84px]" : "lg:w-[260px] lg:max-w-[260px]"}
+          ${isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}
+        style={{ WebkitAppRegion: 'drag' }}
+      >
         
-        {/* 🟢 CABEÇALHO DA LOGO (AGORA BEM MAIOR E IMPONENTE) */}
-        <div className="flex h-20 shrink-0 items-center justify-between gap-2 border-b border-zinc-100 dark:border-white/5 px-4 sm:gap-3 sm:px-6 transition-colors duration-300" style={{ WebkitAppRegion: 'no-drag' }}>
+        {/* 🟢 CABEÇALHO DA LOGO */}
+        <div
+          className={`flex shrink-0 items-center justify-between gap-2 border-b border-black/[0.06] dark:border-white/[0.07] px-4 sm:px-5 transition-all duration-300 ${c ? "h-20 lg:h-auto lg:flex-col lg:justify-center lg:gap-3 lg:px-2 lg:py-4" : "h-20"}`}
+          style={{ WebkitAppRegion: 'no-drag' }}
+        >
           
-          <div className="flex min-w-0 items-center gap-3 w-full">
+          <div className={`flex min-w-0 items-center gap-3 ${c ? "lg:flex-none lg:justify-center" : "flex-1"}`}>
             {logoEmpresa ? (
               <img 
                 src={logoEmpresa} 
                 alt="Logo do Cliente" 
-                className="max-h-12 sm:max-h-14 w-auto max-w-[200px] object-contain drop-shadow-sm p-1" 
+                className={`w-auto object-contain drop-shadow-sm p-1 ${c ? "max-h-12 sm:max-h-14 max-w-full lg:max-h-10 lg:max-w-[48px]" : "max-h-12 sm:max-h-14 max-w-full"}`} 
               />
             ) : (
               <>
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-purple-600 to-indigo-600 shadow-[0_4px_14px_rgba(124,58,237,0.3)]">
-                  <Database size={18} className="text-white" />
-                </div>
-                <h1 className="truncate text-[17px] font-black tracking-tight text-zinc-900 dark:text-white">
+                <Tile cor="purple" size={38}>
+                  <Database size={18} />
+                </Tile>
+                <h1 className={`truncate text-[17px] font-bold tracking-tight text-zinc-900 dark:text-white ${esconderNoRecolhido}`}>
                   Raizan Core
                 </h1>
               </>
             )}
           </div>
 
-          <button onClick={closeMobileSidebar} className="rounded-lg bg-zinc-100 dark:bg-zinc-800/50 p-2 text-zinc-500 hover:text-zinc-900 dark:hover:text-white lg:hidden transition-colors border border-zinc-200 dark:border-zinc-700/50">
-            <X size={18} />
-          </button>
+          <div className="flex shrink-0 items-center gap-1.5">
+            {/* 🆕 Botão de recolher / expandir (só no desktop) */}
+            <button
+              onClick={alternarColapso}
+              title={c ? "Expandir menu" : "Recolher menu"}
+              aria-label={c ? "Expandir menu" : "Recolher menu"}
+              aria-expanded={!c}
+              className="hidden lg:flex h-8 w-8 items-center justify-center rounded-full bg-black/[0.04] dark:bg-white/[0.06] text-zinc-500 hover:text-zinc-900 dark:hover:text-white hover:bg-black/[0.08] dark:hover:bg-white/[0.12] transition-all duration-300 active:scale-90"
+            >
+              <IconeToggle size={16} />
+            </button>
+
+            <button onClick={closeMobileSidebar} className="flex h-9 w-9 items-center justify-center rounded-full bg-black/[0.05] dark:bg-white/[0.08] text-zinc-500 hover:text-zinc-900 dark:hover:text-white lg:hidden transition-all active:scale-90">
+              <X size={17} />
+            </button>
+          </div>
         </div>
 
-        {/* NAVEGAÇÃO E MOTOR DINÂMICO INTOCÁVEIS AQUI PRA BAIXO */}
-        <nav className="custom-scrollbar flex-1 space-y-2 overflow-x-hidden overflow-y-auto px-4 py-6" style={{ WebkitAppRegion: 'no-drag' }}>
+        {/* NAVEGAÇÃO E MOTOR DINÂMICO */}
+        <nav className={`custom-scrollbar flex-1 space-y-2 overflow-x-hidden overflow-y-auto px-4 py-5 ${c ? "lg:px-3" : ""}`} style={{ WebkitAppRegion: 'no-drag' }}>
           
           {licencaExpirada && userRole === "admin" && (
-            <div className="flex animate-pulse flex-col items-center rounded-2xl border border-red-500/20 bg-red-50 dark:bg-red-500/10 p-4 text-center mb-6">
-              <AlertTriangle size={24} className="text-red-500 dark:text-red-400 mb-2" />
-              <span className="text-xs font-black uppercase tracking-wider text-red-600 dark:text-red-400">Licença Expirada</span>
+            <div className={`flex animate-pulse flex-col items-center rounded-[20px] border border-red-500/20 bg-red-500/10 p-4 text-center mb-6 ${c ? "lg:p-2.5" : ""}`} title={c ? "Licença Expirada" : undefined}>
+              <AlertTriangle size={24} className={`text-red-500 dark:text-red-400 ${c ? "lg:mb-0 mb-2" : "mb-2"}`} />
+              <span className={`text-xs font-semibold text-red-600 dark:text-red-400 ${esconderNoRecolhido}`}>Licença Expirada</span>
             </div>
           )}
 
           {userRole === "lojista" && (
             <div className="space-y-1 mb-6">
-              <div className="mb-4 px-2 text-[10px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-600">Portal de Compras</div>
+              <div className={`mb-3 px-3 text-[11px] font-semibold tracking-wide text-zinc-400 dark:text-zinc-500 ${esconderNoRecolhido}`}>Portal de Compras</div>
               <DashboardNavLink href="/b2b-inicio" icon={LayoutDashboard} label="Dashboard" />
-              <Link href="/b2b-pedidos" onClick={closeMobileSidebar} className={`flex w-full min-w-0 items-center gap-3 rounded-xl px-3 py-2.5 text-xs transition-all duration-300 sm:text-sm relative overflow-hidden group ${temPedidoAberto ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold border border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.15)]" : isActive("/b2b-pedidos") ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/20 font-bold border border-transparent" : "text-zinc-600 dark:text-zinc-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 hover:text-emerald-700 dark:hover:text-emerald-400 border border-transparent"}`}>
-                {isActive("/b2b-pedidos") && !temPedidoAberto && <div className="absolute left-0 top-1/2 -translate-y-1/2 h-1/2 w-1 bg-white/40 rounded-r-full" />}
+              <Link
+                href="/b2b-pedidos"
+                onClick={closeMobileSidebar}
+                title={c ? textoPedido : undefined}
+                className={`${linkBase} ${temPedidoAberto
+                  ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold ring-1 ring-emerald-500/30 shadow-[0_0_18px_rgba(16,185,129,0.18)]"
+                  : isActive("/b2b-pedidos")
+                    ? "bg-gradient-to-b from-emerald-500 to-emerald-600 text-white font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_8px_20px_-8px_rgba(16,185,129,0.6)]"
+                    : "text-zinc-600 dark:text-zinc-400 hover:bg-emerald-500/10 hover:text-emerald-700 dark:hover:text-emerald-400"}`}
+              >
                 <Store size={18} className={`shrink-0 transition-colors duration-300 ${temPedidoAberto ? "text-emerald-600 dark:text-emerald-400" : isActive("/b2b-pedidos") ? "text-white" : "text-zinc-400 dark:text-zinc-500 group-hover:text-inherit"}`} />
-                <span className="min-w-0 truncate">{textoPedido}</span>
+                <span className={`min-w-0 truncate ${esconderNoRecolhido}`}>{textoPedido}</span>
               </Link>
               <DashboardNavLink href="/b2b-historico" icon={Package} label="Meus Pedidos" />
               <DashboardNavLink href="/b2b-financeiro" icon={Receipt} label="Financeiro" />
@@ -319,22 +437,28 @@ export default function Sidebar() {
 
                 const btnClass = isOpen 
                   ? themeMap.open 
-                  : "border-transparent text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800/50 hover:text-zinc-900 dark:hover:text-zinc-200";
+                  : "text-zinc-600 dark:text-zinc-400 hover:bg-black/[0.04] dark:hover:bg-white/[0.05] hover:text-zinc-900 dark:hover:text-zinc-200";
                 
                 const iconClass = isOpen ? themeMap.iconOpen : "text-zinc-400 dark:text-zinc-500";
 
                 return (
-                  <div key={categoriaNome} className="pt-2">
-                    <button onClick={() => toggleMenu(categoriaNome)} className={`flex w-full items-center justify-between rounded-2xl px-3 py-3 text-xs transition-all duration-300 sm:text-sm border ${btnClass}`}>
+                  <div key={categoriaNome} className="pt-1">
+                    <button
+                      onClick={() => handleCategoriaClick(categoriaNome)}
+                      title={c ? categoriaNome : undefined}
+                      className={`flex w-full items-center justify-between rounded-[16px] px-2.5 py-2 text-sm transition-all duration-300 ${c ? "lg:justify-center lg:px-0" : ""} ${btnClass}`}
+                    >
                       <div className="flex min-w-0 items-center gap-3">
-                        <IconeGeral size={18} className={`shrink-0 transition-colors ${iconClass}`} />
-                        <span className="truncate text-[11px] font-bold uppercase tracking-wider sm:text-xs">{categoriaNome}</span>
+                        <Tile cor={cor} size={30}><IconeGeral size={15} /></Tile>
+                        <span className={`truncate text-[13px] font-semibold tracking-tight ${esconderNoRecolhido}`}>{categoriaNome}</span>
                       </div>
-                      {isOpen ? <ChevronDown size={14} className={iconClass}/> : <ChevronRight size={14} className="text-zinc-400 dark:text-zinc-500"/>}
+                      <span className={esconderNoRecolhido}>
+                        {isOpen ? <ChevronDown size={14} className={iconClass}/> : <ChevronRight size={14} className="text-zinc-400 dark:text-zinc-500"/>}
+                      </span>
                     </button>
 
                     {isOpen && (
-                      <div className="mt-2 ml-3 space-y-1 border-l-2 border-zinc-100 dark:border-white/5 pl-3 animate-in slide-in-from-top-2 pb-2">
+                      <div className={`mt-1.5 ml-5 space-y-1 border-l border-black/[0.08] dark:border-white/[0.08] pl-3 animate-in slide-in-from-top-2 pb-2 ${esconderNoRecolhido}`}>
                         {modulosLiberadosNestaCat.map(modulo => (
                           <SubNavLink key={modulo.slug} href={modulo.slug} iconName={modulo.icone} label={modulo.nome} colorTheme={cor} />
                         ))}
@@ -348,26 +472,30 @@ export default function Sidebar() {
         </nav>
 
         {/* RODAPÉ DO MENU */}
-        <div className="shrink-0 border-t border-zinc-100 dark:border-white/5 bg-zinc-50/50 dark:bg-black/20 p-5 transition-colors duration-300" style={{ WebkitAppRegion: 'no-drag' }}>
-          <div className="flex items-center justify-between bg-white dark:bg-[#0c0c0e] p-2.5 rounded-2xl border border-zinc-200/80 dark:border-white/5 shadow-sm">
+        <div className={`shrink-0 border-t border-black/[0.06] dark:border-white/[0.07] p-4 transition-all duration-300 ${c ? "lg:p-3" : ""}`} style={{ WebkitAppRegion: 'no-drag' }}>
+          <div className={`flex items-center justify-between rounded-[20px] bg-black/[0.03] dark:bg-white/[0.04] border border-black/[0.05] dark:border-white/[0.06] p-2.5 ${c ? "lg:flex-col lg:gap-2 lg:p-2" : ""}`}>
             <div className="flex items-center gap-3 min-w-0">
-              <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${userRole === "admin" ? "from-purple-100 to-indigo-50 border-purple-200 dark:from-purple-500/20 dark:to-indigo-500/10 dark:border-purple-500/30" : "from-emerald-100 to-teal-50 border-emerald-200 dark:from-emerald-500/20 dark:to-teal-500/10 dark:border-emerald-500/30"} border shadow-inner`}>
-                <LucideIcons.Users size={18} className={userRole === "admin" ? "text-purple-600 dark:text-purple-400" : "text-emerald-600 dark:text-emerald-400"} />
-              </div>
-              <div className="min-w-0 overflow-hidden">
-                <p className="truncate text-[13px] font-black text-zinc-800 dark:text-zinc-200 leading-tight">{userName}</p>
-                <p className={`text-[10px] uppercase tracking-widest font-bold mt-0.5 ${userRole === "admin" ? "text-purple-600 dark:text-purple-500" : "text-emerald-600 dark:text-emerald-500"}`}>{userRole}</p>
+              <Tile cor={userRole === "admin" ? "purple" : "emerald"} size={40}>
+                <LucideIcons.Users size={18} />
+              </Tile>
+              <div className={`min-w-0 overflow-hidden ${esconderNoRecolhido}`}>
+                <p className="truncate text-[13px] font-semibold tracking-tight text-zinc-800 dark:text-zinc-100 leading-tight">{userName}</p>
+                <p className={`text-[11px] capitalize font-medium mt-0.5 ${userRole === "admin" ? "text-purple-600 dark:text-purple-400" : "text-emerald-600 dark:text-emerald-400"}`}>{userRole}</p>
               </div>
             </div>
-            <button onClick={handleSairDoApp} className="mr-1 flex h-9 w-9 items-center justify-center rounded-xl text-zinc-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/10 dark:hover:text-rose-400 transition-colors border border-transparent hover:border-rose-200 dark:hover:border-rose-500/20">
+            <button
+              onClick={handleSairDoApp}
+              title="Sair"
+              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-zinc-400 hover:bg-rose-500/10 hover:text-rose-600 dark:hover:text-rose-400 transition-all active:scale-90 ${c ? "" : "mr-0.5"}`}
+            >
               <LogOut size={16} />
             </button>
           </div>
           
           {userRole === "admin" && (
-            <div className="mt-4 flex items-center justify-center gap-2 text-[10px] text-zinc-400 dark:text-zinc-600 font-bold tracking-widest uppercase">
+            <div className={`mt-4 flex items-center justify-center gap-2 text-[11px] text-zinc-400 dark:text-zinc-600 font-medium ${esconderNoRecolhido}`}>
               <span>Raizan Core</span>
-              <span className="h-1.5 w-1.5 rounded-full bg-zinc-300 dark:bg-zinc-700"></span>
+              <span className="h-1 w-1 rounded-full bg-zinc-300 dark:bg-zinc-700"></span>
               <span>v{packageJson.version}</span>
             </div>
           )}

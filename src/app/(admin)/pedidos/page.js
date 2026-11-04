@@ -1,17 +1,35 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import toast from 'react-hot-toast';
 import { getHubUrl, getHeaders } from "@/components/utils/api";
-import { ShoppingBag, Store, LayoutTemplate, Box, Layers, Search, Printer } from "lucide-react";
+import { ShoppingBag, Store, LayoutTemplate, Box, Layers, Search, Printer, X } from "lucide-react";
 
 import TabelaPedidos from "@/components/pedidos/TabelaPedidos";
 import ModalDetalhes from "@/components/pedidos/ModalDetalhes";
 
 import ListaSeparacao from "@/components/checkout/ListaSeparacao"; 
 import EtiquetaVolume from "@/components/checkout/etiqueta";
+
+// ==========================================
+// 🎨 DESIGN TOKENS (estilo Apple: vidro, hairlines, pílulas)
+// ==========================================
+
+// Barra de vidro (busca, empty state). Sem backdrop-blur no card da TABELA de propósito (ver abaixo).
+const VIDRO =
+  "relative rounded-[28px] border border-black/[0.06] dark:border-white/[0.07] " +
+  "bg-white/80 dark:bg-[#121214]/80 backdrop-blur-xl " +
+  "shadow-[0_1px_2px_rgba(0,0,0,0.04),0_14px_34px_-18px_rgba(0,0,0,0.14)] " +
+  "dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_24px_50px_-26px_rgba(0,0,0,0.9)] " +
+  "transition-colors duration-300";
+
+// Selects em formato de pílula (fundo sólido no escuro para a lista nativa ficar legível)
+const SELECT_PILULA =
+  "h-11 px-4 rounded-full bg-zinc-100 dark:bg-[#1a1a1d] border border-black/[0.06] dark:border-white/[0.08] " +
+  "text-sm font-semibold text-zinc-700 dark:text-zinc-200 outline-none cursor-pointer " +
+  "focus:border-purple-500/50 focus:ring-4 focus:ring-purple-500/15 transition-all dark:[color-scheme:dark]";
 
 const obterTenantSeguro = () => {
   if (typeof window === 'undefined') return null;
@@ -112,6 +130,8 @@ const prepararDadosEtiqueta = (pedidoCru, dadosOmie) => {
   };
 };
 
+const INTERVALO_ATUALIZACAO_MS = 10000;
+
 export default function Pedidos() {
   const [integracoesInstaladas, setIntegracoesInstaladas] = useState([]); 
   const [activeTabObj, setActiveTabObj] = useState(null); 
@@ -129,8 +149,19 @@ export default function Pedidos() {
   const [totalItems, setTotalItems] = useState(0);
 
   // ESTADOS DE BUSCA E FILTROS
+  // 🆕 buscaQuery/filtroStatus = o que está digitado/selecionado.
+  //    buscaAplicada/statusAplicado = o que realmente vai para a API (evita ler valor "velho" do React).
   const [buscaQuery, setBuscaQuery] = useState("");
   const [filtroStatus, setFiltroStatus] = useState("");
+  const [buscaAplicada, setBuscaAplicada] = useState("");
+  const [statusAplicado, setStatusAplicado] = useState("");
+  const [refreshTick, setRefreshTick] = useState(0);
+
+  // Evita que uma resposta antiga (mais lenta) sobrescreva a mais recente
+  const idRequisicao = useRef(0);
+  const primeiraRodadaBusca = useRef(true);
+  const requisicaoEmAndamento = useRef(false);
+  const carregarPedidosRef = useRef(null);
 
   // ESTADO DO SWITCH (MODO DIGITAL SISTEMAS)
   const [modoDigital, setModoDigital] = useState(false);
@@ -180,9 +211,13 @@ export default function Pedidos() {
     localStorage.setItem("@raizan:modo_digital", novoModo);
   };
 
-  const carregarPedidos = async () => {
+  // silencioso = atualização automática: sem loading na tela e, se falhar, a lista atual continua
+  const carregarPedidos = async (silencioso = false) => {
     if (!activeTabObj) return;
-    setLoading(true);
+    if (silencioso && requisicaoEmAndamento.current) return;
+    const meuId = ++idRequisicao.current;
+    requisicaoEmAndamento.current = true;
+    if (!silencioso) setLoading(true);
     try {
       const tenantId = obterTenantSeguro();
       const plataformaReal = (activeTabObj.plataforma || activeTabObj.tipo || "").toLowerCase();
@@ -196,31 +231,74 @@ export default function Pedidos() {
 
       const res = await fetch(endpoint, {
         method: "POST", 
-        headers: { ...getHeaders(), "x-tenant-id": tenantId },
+        // 🆕 Content-Type explícito: sem ele o servidor pode ignorar o corpo (page, limit, busca, status)
+        headers: { ...getHeaders(), "Content-Type": "application/json", "x-tenant-id": tenantId },
         body: JSON.stringify({ 
             page, 
             limit: Number(limit), 
             plataforma: plataformaReal, 
             integracao_id: activeTabObj.id,
-            busca: buscaQuery,
-            status: filtroStatus
+            busca: buscaAplicada,
+            status: statusAplicado
         }) 
       });
       
       const data = await res.json();
       
+      // 🆕 Se já existe uma requisição mais nova, ignora esta resposta
+      if (meuId !== idRequisicao.current) return;
+
       if (data.success && data.pedidos) {
         setPedidos(data.pedidos); setTotalPages(data.totalPages || 1); setTotalItems(data.totalItems || 0);
-      } else { 
+      } else if (!silencioso) {
         setPedidos([]); setTotalPages(1); setTotalItems(0);
       }
-    } catch (error) { 
-      setPedidos([]); setTotalPages(1); setTotalItems(0);
+    } catch (error) {
+      if (meuId !== idRequisicao.current) return;
+      if (!silencioso) { setPedidos([]); setTotalPages(1); setTotalItems(0); }
     }
+    requisicaoEmAndamento.current = false;
     setLoading(false);
   };
 
-  useEffect(() => { carregarPedidos(); }, [activeTabObj, page, limit]);
+  useEffect(() => { carregarPedidosRef.current = carregarPedidos; });
+
+  // 🆕 Recarrega sempre que aba, página, limite, busca ou status APLICADOS mudarem
+  useEffect(() => { carregarPedidos(); }, [activeTabObj, page, limit, buscaAplicada, statusAplicado, refreshTick]);
+
+  // Pedido novo, etapa ou cancelamento no Omie já chegam ao banco pelo webhook: a tela só precisa olhar de novo.
+  // WooCommerce fica de fora do relógio porque cada consulta vai até a loja externa.
+  useEffect(() => {
+    const atualizar = () => { if (!document.hidden) carregarPedidosRef.current?.(true); };
+    const plataforma = String(activeTabObj?.plataforma || activeTabObj?.tipo || '').toLowerCase();
+    const relogio = plataforma.includes('woo') ? null : setInterval(atualizar, INTERVALO_ATUALIZACAO_MS);
+
+    window.addEventListener('focus', atualizar);
+    document.addEventListener('visibilitychange', atualizar);
+    return () => {
+      clearInterval(relogio);
+      window.removeEventListener('focus', atualizar);
+      document.removeEventListener('visibilitychange', atualizar);
+    };
+  }, [activeTabObj]);
+
+  // 🆕 BUSCA AO DIGITAR (com pausa de 450ms para não disparar uma requisição por letra)
+  useEffect(() => {
+    if (primeiraRodadaBusca.current) { primeiraRodadaBusca.current = false; return; }
+    const t = setTimeout(() => {
+      setBuscaAplicada(buscaQuery.trim());
+      setPage(1);
+    }, 450);
+    return () => clearTimeout(t);
+  }, [buscaQuery]);
+
+  // 🆕 Enter e botão "Filtrar": aplica na hora, volta para a página 1 e força o recarregamento
+  const aplicarFiltros = () => {
+    setBuscaAplicada(buscaQuery.trim());
+    setStatusAplicado(filtroStatus);
+    setPage(1);
+    setRefreshTick(t => t + 1);
+  };
 
   const atualizarStatus = async (pedidoId, novoStatus) => {
     const loadingToast = toast.loading("Atualizando status...");
@@ -389,8 +467,10 @@ export default function Pedidos() {
     return "Loja";
   };
 
+  const isOmieAtivo = String(activeTabObj?.plataforma || activeTabObj?.tipo || '').toLowerCase().includes('omie');
+
   return (
-    <div className="flex min-h-screen bg-[#f5f5f7] dark:bg-[#000000] text-zinc-900 dark:text-zinc-100 font-sans transition-colors duration-300 print:block print:bg-white">
+    <div className="flex min-h-screen bg-[#f5f5f7] dark:bg-[#000000] text-zinc-900 dark:text-zinc-100 font-sans transition-colors duration-300 print:block print:bg-white antialiased">
       
       <div className="print:hidden">
         <Sidebar />
@@ -408,18 +488,18 @@ export default function Pedidos() {
           const dadosEtiqueta = prepararDadosEtiqueta(documentoImpressao.pedido, documentoImpressao.dadosOmie);
           
           return (
-            <div className="fixed inset-0 z-[9999] bg-zinc-900/80 backdrop-blur-md overflow-y-auto print:static print:inset-auto print:w-full print:h-auto print:overflow-visible print:bg-white print:backdrop-blur-none font-sans flex flex-col print:block items-center py-10 print:py-0 print:m-0">
+            <div className="fixed inset-0 z-[9999] bg-zinc-900/70 backdrop-blur-xl overflow-y-auto print:static print:inset-auto print:w-full print:h-auto print:overflow-visible print:bg-white print:backdrop-blur-none font-sans flex flex-col print:block items-center py-10 print:py-0 print:m-0">
               
-              <div className="print:hidden sticky top-0 bg-zinc-950 border border-zinc-800 text-white p-4 w-full max-w-md flex justify-between items-center shadow-2xl z-50 mb-8 rounded-2xl">
+              <div className="print:hidden sticky top-0 bg-zinc-950/90 backdrop-blur-2xl border border-white/10 text-white p-3 w-full max-w-md flex justify-between items-center shadow-[0_20px_60px_-20px_rgba(0,0,0,0.8)] z-50 mb-8 rounded-full">
                 <button 
                   onClick={() => setDocumentoImpressao({ tipo: null, pedido: null, dadosOmie: null })} 
-                  className="flex items-center gap-2 text-zinc-400 hover:text-white bg-zinc-900 hover:bg-zinc-800 px-4 py-2 rounded-xl font-bold transition-all"
+                  className="flex items-center gap-2 text-zinc-300 hover:text-white bg-white/[0.08] hover:bg-white/[0.14] px-5 h-11 rounded-full font-semibold transition-all active:scale-95"
                 >
                   Voltar
                 </button>
                 <button 
                   onClick={() => window.print()} 
-                  className="flex items-center gap-2 bg-purple-600 hover:bg-purple-500 text-white px-6 py-2.5 rounded-xl font-bold shadow-lg shadow-purple-500/20 transition-all active:scale-95"
+                  className="flex items-center gap-2 bg-gradient-to-b from-purple-500 to-purple-600 hover:from-purple-400 hover:to-purple-600 text-white px-6 h-11 rounded-full font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_10px_24px_-8px_rgba(147,51,234,0.6)] transition-all active:scale-95"
                 >
                   <Printer size={18} /> Imprimir Etiqueta
                 </button>
@@ -441,35 +521,47 @@ export default function Pedidos() {
         })()
       )}
 
-      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden print:hidden">
+      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden print:hidden relative">
+
+        {/* Luzes suaves atrás do vidro */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
+          <div className="absolute -top-40 left-1/4 w-[560px] h-[560px] rounded-full bg-purple-400/20 dark:bg-purple-600/10 blur-[120px]" />
+          <div className="absolute top-1/3 -right-32 w-[480px] h-[480px] rounded-full bg-indigo-400/20 dark:bg-indigo-600/10 blur-[120px]" />
+        </div>
+
         <Header />
         
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto custom-scrollbar">
+        {/* ⚠️ Sem z-index no <main>: senão os modais (fixed) ficam presos atrás do Header e da Sidebar */}
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto custom-scrollbar relative">
           <div className="max-w-7xl mx-auto space-y-6">
             
+            {/* Título + controles */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
               <div>
-                <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">Pedidos</h1>
-                <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1 font-medium">Gestão unificada de vendas e sincronização.</p>
+                <h1 className="text-3xl sm:text-[34px] leading-tight font-bold tracking-tight text-zinc-900 dark:text-zinc-50">Pedidos</h1>
+                <p className="text-sm sm:text-[15px] text-zinc-500 dark:text-zinc-400 mt-1">Gestão unificada de vendas e sincronização.</p>
               </div>
               
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 flex-wrap">
                 {/* 🟢 O SWITCH DE MODO DIGITAL SISTEMAS */}
-                {String(activeTabObj?.plataforma || activeTabObj?.tipo || '').toLowerCase().includes('omie') && (
-                  <div className="flex items-center gap-2 bg-purple-50 dark:bg-purple-500/10 p-1.5 px-3 rounded-2xl border border-purple-200 dark:border-purple-500/20 shadow-sm mr-1">
-                    <span className="text-[10px] font-bold text-purple-700 dark:text-purple-400 uppercase tracking-wider hidden sm:block">Modo Csv (Digital Sistemas)</span>
+                {isOmieAtivo && (
+                  <div className="flex items-center gap-3 bg-purple-500/10 border border-purple-500/20 pl-4 pr-2 h-11 rounded-full">
+                    <span className="text-xs font-semibold text-purple-700 dark:text-purple-300 hidden sm:block">Modo CSV (Digital Sistemas)</span>
                     <button 
+                      role="switch"
+                      aria-checked={modoDigital}
+                      aria-label="Modo CSV (Digital Sistemas)"
                       onClick={toggleModoDigital} 
-                      className={`w-9 h-5 rounded-full relative transition-colors duration-300 ${modoDigital ? 'bg-purple-600' : 'bg-zinc-300 dark:bg-zinc-700'}`}
+                      className={`relative w-[46px] h-[28px] rounded-full transition-colors duration-300 shrink-0 ${modoDigital ? 'bg-purple-600' : 'bg-zinc-300 dark:bg-zinc-700'}`}
                     >
-                      <div className={`w-3.5 h-3.5 bg-white rounded-full absolute top-[3px] transition-all duration-300 ${modoDigital ? 'left-[19px]' : 'left-1'}`}></div>
+                      <span className={`absolute top-[2px] left-[2px] w-6 h-6 bg-white rounded-full shadow-[0_2px_6px_rgba(0,0,0,0.3)] transition-transform duration-300 ${modoDigital ? 'translate-x-[18px]' : 'translate-x-0'}`} />
                     </button>
                   </div>
                 )}
 
-                <div className="flex items-center gap-3 bg-white dark:bg-zinc-900/50 p-1.5 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                  <span className="text-xs font-bold text-zinc-400 px-2 uppercase tracking-wider hidden sm:block">Exibir</span>
-                  <select value={limit} onChange={(e) => { setLimit(e.target.value); setPage(1); }} className="bg-transparent text-zinc-700 dark:text-zinc-300 px-2 py-1 rounded-xl text-sm font-bold outline-none cursor-pointer">
+                <div className="flex items-center gap-2 bg-white/80 dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/[0.08] pl-4 pr-1.5 h-11 rounded-full shadow-sm">
+                  <span className="text-xs font-semibold text-zinc-400 hidden sm:block">Exibir</span>
+                  <select value={limit} onChange={(e) => { setLimit(e.target.value); setPage(1); }} className="bg-transparent text-zinc-700 dark:text-zinc-200 px-2 py-1 rounded-full text-sm font-semibold outline-none cursor-pointer dark:[color-scheme:dark] dark:[&>option]:bg-[#1a1a1d]">
                     <option value="10">10 itens</option>
                     <option value="20">20 itens</option>
                     <option value="50">50 itens</option>
@@ -478,19 +570,20 @@ export default function Pedidos() {
               </div>
             </div>
 
+            {/* Abas dos canais: controle segmentado */}
             {integracoesInstaladas.length > 0 ? (
               <div className="relative w-full">
-                <div className="flex items-center gap-2 p-1.5 bg-zinc-200/50 dark:bg-zinc-900/80 rounded-2xl overflow-x-auto no-scrollbar w-max max-w-full shadow-inner border border-zinc-200/50 dark:border-white/5">
+                <div className="flex items-center gap-1 p-1 bg-black/[0.05] dark:bg-white/[0.06] rounded-full overflow-x-auto no-scrollbar w-max max-w-full border border-black/[0.04] dark:border-white/[0.05]">
                   {integracoesInstaladas.map(tab => {
                     const isActive = activeTabObj?.id === tab.id;
                     return (
                       <button
                         key={tab.id}
                         onClick={() => { setActiveTabObj(tab); setPage(1); }}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all duration-300 whitespace-nowrap outline-none select-none
+                        className={`flex items-center gap-2 px-4 h-9 rounded-full text-sm font-semibold transition-all duration-300 whitespace-nowrap outline-none select-none active:scale-95
                           ${isActive 
-                            ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-sm ring-1 ring-black/5 dark:ring-white/10' 
-                            : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50'
+                            ? 'bg-white dark:bg-white/[0.12] text-zinc-900 dark:text-white shadow-[0_1px_3px_rgba(0,0,0,0.12)] ring-1 ring-black/5 dark:ring-white/10' 
+                            : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 hover:bg-black/[0.04] dark:hover:bg-white/[0.05]'
                           }`}
                       >
                         <span className={isActive ? 'text-purple-600 dark:text-purple-400' : 'opacity-70'}>
@@ -503,35 +596,45 @@ export default function Pedidos() {
                 </div>
               </div>
             ) : (
-              <div className="bg-white dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 flex items-center gap-4 shadow-sm">
-                <div className="w-12 h-12 bg-amber-100 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-full flex items-center justify-center shrink-0">
+              <div className={`${VIDRO} p-6 flex items-center gap-4`}>
+                <div className="w-12 h-12 shrink-0 rounded-[15px] flex items-center justify-center bg-gradient-to-br from-amber-300 to-amber-500 text-white ring-1 ring-black/5 dark:ring-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.4),0_8px_20px_-8px_rgba(245,158,11,0.6)]">
                   <Layers size={20} />
                 </div>
                 <div>
-                  <h3 className="font-bold text-zinc-900 dark:text-white">Nenhum canal ativo</h3>
+                  <h3 className="font-semibold tracking-tight text-zinc-900 dark:text-white">Nenhum canal ativo</h3>
                   <p className="text-sm text-zinc-500">Conecte uma loja ou ERP no menu de integrações para receber pedidos.</p>
                 </div>
               </div>
             )}
 
+            {/* Busca + filtro de status */}
             {integracoesInstaladas.length > 0 && (
-              <div className="flex flex-col sm:flex-row items-center gap-3 bg-white dark:bg-zinc-900/40 p-3 rounded-2xl border border-zinc-200 dark:border-zinc-800/80 shadow-sm">
+              <div className={`${VIDRO} flex flex-col sm:flex-row items-center gap-3 p-3`}>
                 <div className="flex-1 relative w-full">
-                  <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
+                  <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" />
                   <input
                     type="text"
                     placeholder="Buscar por ID, Cliente, CNPJ..."
                     value={buscaQuery}
                     onChange={(e) => setBuscaQuery(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && carregarPedidos()}
-                    className="w-full bg-zinc-50 dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 pl-10 pr-4 py-2 rounded-xl text-sm outline-none focus:border-purple-500 transition-colors"
+                    onKeyDown={(e) => e.key === 'Enter' && aplicarFiltros()}
+                    className="w-full bg-black/[0.04] dark:bg-white/[0.05] border border-transparent focus:border-purple-500/50 focus:bg-white dark:focus:bg-white/[0.07] text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 pl-11 pr-10 h-11 rounded-full text-sm font-medium outline-none focus:ring-4 focus:ring-purple-500/15 transition-all"
                   />
+                  {buscaQuery && (
+                    <button
+                      onClick={() => setBuscaQuery("")}
+                      aria-label="Limpar busca"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center rounded-full bg-black/[0.08] dark:bg-white/[0.12] text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-all active:scale-90"
+                    >
+                      <X size={13} />
+                    </button>
+                  )}
                 </div>
                 <div className="w-full sm:w-auto">
                   <select
                     value={filtroStatus}
-                    onChange={(e) => { setFiltroStatus(e.target.value); }}
-                    className="w-full sm:w-48 bg-zinc-50 dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 px-3 py-2 rounded-xl text-sm outline-none focus:border-purple-500 transition-colors"
+                    onChange={(e) => { setFiltroStatus(e.target.value); setStatusAplicado(e.target.value); setPage(1); }}
+                    className={`w-full sm:w-56 ${SELECT_PILULA}`}
                   >
                     <option value="">Todos os Status</option>
                     <option value="pendente">Pendente / Aguardando</option>
@@ -543,15 +646,16 @@ export default function Pedidos() {
                   </select>
                 </div>
                 <button
-                  onClick={() => { setPage(1); carregarPedidos(); }}
-                  className="w-full sm:w-auto bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-200 text-white dark:text-zinc-900 px-6 py-2 rounded-xl text-sm font-bold transition-all"
+                  onClick={aplicarFiltros}
+                  className="w-full sm:w-auto h-11 bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-200 text-white dark:text-zinc-900 px-7 rounded-full text-sm font-semibold transition-all active:scale-95"
                 >
                   Filtrar
                 </button>
               </div>
             )}
 
-            <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800/80 rounded-[2rem] shadow-sm overflow-visible transition-colors duration-300">
+            {/* Tabela. Sem backdrop-blur aqui de propósito: ele criaria um "contêiner" que pode quebrar menus fixos dentro da TabelaPedidos */}
+            <div className="relative bg-white/90 dark:bg-[#121214]/90 border border-black/[0.06] dark:border-white/[0.07] rounded-[28px] shadow-[0_1px_2px_rgba(0,0,0,0.04),0_14px_34px_-18px_rgba(0,0,0,0.14)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_24px_50px_-26px_rgba(0,0,0,0.9)] overflow-visible transition-colors duration-300">
               <TabelaPedidos 
                 pedidos={pedidos} 
                 loading={loading} 

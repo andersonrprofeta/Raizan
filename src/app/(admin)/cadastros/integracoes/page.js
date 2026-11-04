@@ -3,12 +3,12 @@
 import { useState, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
-import { 
-  Plug, Plus, Globe, Settings, Pencil, Trash2, 
+import {
+  Plug, Plus, Globe, Settings, Pencil, Trash2,
   CheckCircle2, RefreshCw, Loader2, Store, Database,
-  Server, AlertTriangle, CreditCard, Truck, LayoutTemplate
+  Server, AlertTriangle, CreditCard, Truck, X
 } from "lucide-react";
-import toast from 'react-hot-toast';
+import toast from "react-hot-toast";
 
 // 🟢 IMPORTAÇÃO DOS COMPONENTES ISOLADOS
 import FormWooCommerce from "@/components/integracoes/FormWooCommerce";
@@ -17,23 +17,186 @@ import FormPortalB2B from "@/components/integracoes/FormPortalB2B";
 import FormMercadoPago from "@/components/integracoes/FormMercadoPago";
 import FormFrenet from "@/components/integracoes/FormFrenet";
 import FormOmie from "@/components/integracoes/FormOmie";
-import FormTiny from "@/components/integracoes/FormTiny"; 
-import EditarOmie from "@/components/integracoes/EditarOmie"; 
+import FormTiny from "@/components/integracoes/FormTiny";
+import EditarOmie from "@/components/integracoes/EditarOmie";
+
+/* ======================================================================
+   🎨 TOKENS DE DESIGN (mesmo padrão das outras telas)
+   ====================================================================== */
+const CARD =
+  "rounded-[28px] border border-black/[0.06] dark:border-white/[0.08] bg-white/70 dark:bg-white/[0.04] backdrop-blur-xl shadow-[0_8px_30px_rgba(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.35)]";
+
+const PAINEL =
+  "rounded-[28px] border border-black/[0.06] dark:border-white/[0.1] bg-white/90 dark:bg-[#121214]/90 backdrop-blur-2xl shadow-2xl";
+
+const PILULA_BASE =
+  "inline-flex items-center justify-center gap-2 rounded-full font-semibold transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed";
+
+const BTN_ROXO = `${PILULA_BASE} px-6 py-3 text-sm text-white bg-gradient-to-b from-purple-500 to-purple-700 shadow-lg shadow-purple-500/25 hover:brightness-110`;
+const BTN_NEUTRO = `${PILULA_BASE} px-5 py-2.5 text-sm text-zinc-700 dark:text-zinc-200 bg-black/[0.04] dark:bg-white/[0.07] border border-black/[0.06] dark:border-white/[0.08] hover:bg-black/[0.07] dark:hover:bg-white/[0.12]`;
+const BTN_PERIGO = `${PILULA_BASE} px-5 py-2.5 text-sm text-white bg-gradient-to-b from-red-500 to-red-700 shadow-lg shadow-red-500/25 hover:brightness-110`;
+
+// Cores completas (o Tailwind precisa ver a classe inteira escrita)
+const TILE_CORES = {
+  purple: "from-purple-500 to-violet-700 shadow-purple-500/30",
+  indigo: "from-indigo-500 to-indigo-700 shadow-indigo-500/30",
+  emerald: "from-emerald-400 to-emerald-600 shadow-emerald-500/30",
+  red: "from-red-500 to-rose-700 shadow-red-500/30",
+  zinc: "from-zinc-500 to-zinc-700 shadow-zinc-500/20",
+};
+
+const Tile = ({ icon: Icon, cor = "purple", size = 48 }) => (
+  <div
+    className={`shrink-0 flex items-center justify-center bg-gradient-to-br ${TILE_CORES[cor]} shadow-lg text-white`}
+    style={{ width: size, height: size, borderRadius: size * 0.3 }}
+  >
+    <Icon size={size * 0.5} strokeWidth={2.2} />
+  </div>
+);
+
+// Estilos do catálogo por cor
+const CAT_CORES = {
+  purple: {
+    borda: "border-purple-200/80 dark:border-purple-500/25 hover:border-purple-400 dark:hover:border-purple-400/60",
+    fundo: "from-purple-50/70 to-white/60 dark:from-purple-500/[0.08] dark:to-transparent",
+    luz: "bg-purple-500/10",
+    selo: "bg-purple-600",
+    botao: "bg-gradient-to-b from-purple-500 to-purple-700 text-white shadow-lg shadow-purple-500/25 hover:brightness-110",
+    suave: "bg-purple-50 text-purple-700 dark:bg-purple-500/10 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-500/20",
+  },
+  indigo: {
+    borda: "border-indigo-200/80 dark:border-indigo-500/25 hover:border-indigo-400 dark:hover:border-indigo-400/60",
+    fundo: "from-indigo-50/70 to-white/60 dark:from-indigo-500/[0.08] dark:to-transparent",
+    luz: "bg-indigo-500/10",
+    selo: "bg-indigo-600",
+    botao: "bg-gradient-to-b from-indigo-500 to-indigo-700 text-white shadow-lg shadow-indigo-500/25 hover:brightness-110",
+    suave: "bg-indigo-50 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-500/20",
+  },
+  sky: {
+    borda: "border-sky-200/80 dark:border-sky-500/25 hover:border-sky-400 dark:hover:border-sky-400/60",
+    fundo: "from-sky-50/70 to-white/60 dark:from-sky-500/[0.08] dark:to-transparent",
+    luz: "bg-sky-500/10",
+    selo: "bg-sky-600",
+    botao: "bg-gradient-to-b from-sky-500 to-sky-700 text-white shadow-lg shadow-sky-500/25 hover:brightness-110",
+    suave: "bg-sky-50 text-sky-700 dark:bg-sky-500/10 dark:text-sky-300 hover:bg-sky-100 dark:hover:bg-sky-500/20",
+  },
+  orange: {
+    borda: "border-orange-200/80 dark:border-orange-500/25 hover:border-orange-400 dark:hover:border-orange-400/60",
+    fundo: "from-orange-50/70 to-white/60 dark:from-orange-500/[0.08] dark:to-transparent",
+    luz: "bg-orange-500/10",
+    selo: "bg-orange-500",
+    botao: "bg-gradient-to-b from-orange-400 to-orange-600 text-white shadow-lg shadow-orange-500/25 hover:brightness-110",
+    suave: "bg-orange-50 text-orange-700 dark:bg-orange-500/10 dark:text-orange-300 hover:bg-orange-100 dark:hover:bg-orange-500/20",
+  },
+  emerald: {
+    borda: "border-emerald-200/80 dark:border-emerald-500/25 hover:border-emerald-400 dark:hover:border-emerald-400/60",
+    fundo: "from-emerald-50/70 to-white/60 dark:from-emerald-500/[0.08] dark:to-transparent",
+    luz: "bg-emerald-500/10",
+    selo: "bg-emerald-600",
+    botao: "bg-gradient-to-b from-emerald-500 to-emerald-700 text-white shadow-lg shadow-emerald-500/25 hover:brightness-110",
+    suave: "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-500/20",
+  },
+  blue: {
+    borda: "border-blue-200/80 dark:border-blue-500/25 hover:border-blue-400 dark:hover:border-blue-400/60",
+    fundo: "from-blue-50/70 to-white/60 dark:from-blue-500/[0.08] dark:to-transparent",
+    luz: "bg-blue-500/10",
+    selo: "bg-blue-600",
+    botao: "bg-gradient-to-b from-blue-500 to-blue-700 text-white shadow-lg shadow-blue-500/25 hover:brightness-110",
+    suave: "bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-500/20",
+  },
+  red: {
+    borda: "border-red-200/80 dark:border-red-500/25 hover:border-red-400 dark:hover:border-red-400/60",
+    fundo: "from-red-50/70 to-white/60 dark:from-red-500/[0.08] dark:to-transparent",
+    luz: "bg-red-500/10",
+    selo: "bg-red-600",
+    botao: "bg-gradient-to-b from-red-500 to-red-700 text-white shadow-lg shadow-red-500/25 hover:brightness-110",
+    suave: "bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-500/20",
+  },
+  zinc: {
+    borda: "border-black/[0.06] dark:border-white/[0.08] hover:border-zinc-300 dark:hover:border-white/20",
+    fundo: "from-white/60 to-white/30 dark:from-white/[0.04] dark:to-transparent",
+    luz: "bg-zinc-500/10",
+    selo: "bg-zinc-600",
+    botao: "bg-black/[0.05] dark:bg-white/[0.08] text-zinc-700 dark:text-zinc-200 border border-black/[0.06] dark:border-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.14]",
+    suave: "bg-black/[0.05] dark:bg-white/[0.08] text-zinc-700 dark:text-zinc-200 hover:bg-black/[0.08] dark:hover:bg-white/[0.14]",
+  },
+};
+
+/* ======================================================================
+   🧩 COMPONENTES VISUAIS (só aparência, sem regra de negócio)
+   ====================================================================== */
+
+// Cartão de plataforma disponível no catálogo
+const CartaoCatalogo = ({ cor, selo, icone, titulo, descricao, textoBotao, onClick, suave = false }) => {
+  const c = CAT_CORES[cor];
+  return (
+    <div className={`relative overflow-hidden group rounded-3xl border bg-gradient-to-b ${c.fundo} ${c.borda} p-5 flex flex-col items-center text-center transition-all hover:shadow-xl`}>
+      <div className={`absolute -top-10 -right-10 w-32 h-32 rounded-full blur-2xl pointer-events-none ${c.luz}`} />
+      {selo && (
+        <div className={`absolute top-3 right-3 ${c.selo} text-white text-[9px] font-bold uppercase px-2.5 py-1 rounded-full tracking-wider z-10`}>
+          {selo}
+        </div>
+      )}
+      <div className="relative w-16 h-16 mb-4 rounded-[20px] bg-white dark:bg-white/[0.06] border border-black/[0.05] dark:border-white/[0.08] shadow-sm flex items-center justify-center group-hover:scale-105 transition-transform">
+        {icone}
+      </div>
+      <h3 className="relative font-semibold text-base mb-1 text-zinc-900 dark:text-zinc-100">{titulo}</h3>
+      <p className="relative text-xs font-medium text-zinc-500 mb-5 min-h-[32px]">{descricao}</p>
+      <button
+        onClick={onClick}
+        className={`relative w-full py-2.5 rounded-full text-sm font-semibold transition-all active:scale-95 ${suave ? c.suave : c.botao}`}
+      >
+        {textoBotao}
+      </button>
+    </div>
+  );
+};
+
+// Cartão "Em breve" (desativado)
+const CartaoEmBreve = ({ src, alt, titulo, descricao }) => (
+  <div className="rounded-3xl border border-black/[0.06] dark:border-white/[0.06] bg-black/[0.02] dark:bg-white/[0.02] p-5 flex flex-col items-center text-center opacity-50 grayscale cursor-not-allowed">
+    <div className="w-16 h-16 mb-4 rounded-[20px] bg-white dark:bg-white/[0.06] border border-black/[0.05] dark:border-white/[0.08] flex items-center justify-center">
+      <img src={src} alt={alt} className="w-12 h-12 object-contain" />
+    </div>
+    <h3 className="font-semibold text-base mb-1">{titulo}</h3>
+    <p className="text-xs font-medium text-zinc-500 mb-5 min-h-[32px]">{descricao}</p>
+    <span className="w-full py-2.5 rounded-full bg-black/[0.05] dark:bg-white/[0.07] text-[11px] font-bold text-zinc-500 uppercase tracking-widest">
+      Em Breve
+    </span>
+  </div>
+);
+
+// Título de seção do catálogo
+const TituloSecao = ({ icon: Icon, children, topo = false }) => (
+  <h3
+    className={`text-xs font-bold text-zinc-400 uppercase tracking-[0.18em] mb-4 flex items-center gap-2 ${
+      topo ? "" : "mt-2 border-t border-black/[0.06] dark:border-white/[0.06] pt-8"
+    }`}
+  >
+    <Icon size={15} /> {children}
+  </h3>
+);
+
+const SeloAtivo = () => (
+  <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-500/10 dark:text-emerald-400 px-2.5 py-1 rounded-full border border-emerald-500/20">
+    <CheckCircle2 size={12} /> Ativo
+  </span>
+);
 
 export default function IntegracoesPage() {
   const [integracoesAtivas, setIntegracoesAtivas] = useState([]);
   const [oracleConfigurado, setOracleConfigurado] = useState(false);
   const [loading, setLoading] = useState(true);
   const [sincronizando, setSincronizando] = useState(false);
-  const [instalando, setInstalando] = useState(null); 
-  const [menuAberto, setMenuAberto] = useState(null); 
-  const [integracaoParaDeletar, setIntegracaoParaDeletar] = useState(null); 
-  
+  const [instalando, setInstalando] = useState(null);
+  const [menuAberto, setMenuAberto] = useState(null);
+  const [integracaoParaDeletar, setIntegracaoParaDeletar] = useState(null);
+
   // 🟢 ESTADO PARA CONTROLAR A EDIÇÃO
-  const [editandoInt, setEditandoInt] = useState(null); 
+  const [editandoInt, setEditandoInt] = useState(null);
 
   const pegarCnpjLogado = () => {
-    if (typeof window !== 'undefined') {
+    if (typeof window !== "undefined") {
       const storedUser = localStorage.getItem("@raizan:user");
       if (storedUser) return JSON.parse(storedUser).tenant_id;
     }
@@ -46,14 +209,17 @@ export default function IntegracoesPage() {
 
   const carregarIntegracoesEStatus = async () => {
     const cnpj = pegarCnpjLogado();
-    if (!cnpj) return;
+    if (!cnpj) {
+      setLoading(false); // 🛠️ evita spinner infinito quando não há usuário logado
+      return;
+    }
 
     const cacheInt = localStorage.getItem(`@raizan:cache_integracoes_${cnpj}`);
     const cacheOracle = localStorage.getItem(`@raizan:cache_oracle_${cnpj}`);
-    
+
     if (cacheInt) setIntegracoesAtivas(JSON.parse(cacheInt));
     if (cacheOracle) setOracleConfigurado(JSON.parse(cacheOracle));
-    if (cacheInt || cacheOracle) setLoading(false); 
+    if (cacheInt || cacheOracle) setLoading(false);
 
     try {
       const [resInt, resConf] = await Promise.all([
@@ -66,15 +232,15 @@ export default function IntegracoesPage() {
 
       if (dataInt.success) {
         setIntegracoesAtivas(dataInt.integracoes);
-        localStorage.setItem(`@raizan:cache_integracoes_${cnpj}`, JSON.stringify(dataInt.integracoes)); 
+        localStorage.setItem(`@raizan:cache_integracoes_${cnpj}`, JSON.stringify(dataInt.integracoes));
       }
 
       if (dataConf.success && dataConf.configuracoes?.oracle_host) {
         setOracleConfigurado(true);
-        localStorage.setItem(`@raizan:cache_oracle_${cnpj}`, JSON.stringify(true)); 
+        localStorage.setItem(`@raizan:cache_oracle_${cnpj}`, JSON.stringify(true));
       } else {
         setOracleConfigurado(false);
-        localStorage.setItem(`@raizan:cache_oracle_${cnpj}`, JSON.stringify(false)); 
+        localStorage.setItem(`@raizan:cache_oracle_${cnpj}`, JSON.stringify(false));
       }
     } catch (error) {
       console.log("Aviso: Falha ao sincronizar em background.");
@@ -86,7 +252,7 @@ export default function IntegracoesPage() {
   const [passosSync, setPassosSync] = useState([]);
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
 
-  // 🟢 NOVA FUNÇÃO PREMIUM DE SINCRONIZAÇÃO (COM O CARROSSEL COMPLETO)
+  // 🟢 FUNÇÃO PREMIUM DE SINCRONIZAÇÃO (COM O CARROSSEL COMPLETO)
   const sincronizarDadosDaLoja = async (idIntegracao) => {
     const cnpj = pegarCnpjLogado();
     setSincronizando(idIntegracao);
@@ -130,10 +296,10 @@ export default function IntegracoesPage() {
 
     try {
       const res = await fetch(`https://api.raizan.com.br/api/hub/integracoes/sync/${idIntegracao}`, {
-        method: "POST", headers: { "x-tenant-id": cnpj } 
+        method: "POST", headers: { "x-tenant-id": cnpj }
       });
       const data = await res.json();
-      
+
       clearInterval(temporizadorEtapas);
 
       if (data.success) {
@@ -151,9 +317,9 @@ export default function IntegracoesPage() {
       } else {
         // Mostra o erro no último passo caso falhe
         setPassosSync(prev => {
-          const comErro = [...prev];
-          const indiceLoading = comErro.findIndex(p => p.status === 'loading');
-          if (indiceLoading !== -1) comErro[indiceLoading].status = 'error';
+          const comErro = prev.map(p => ({ ...p })); // 🛠️ cópia (antes alterava o estado direto)
+          const indiceLoading = comErro.findIndex(p => p.status === "loading");
+          if (indiceLoading !== -1) comErro[indiceLoading].status = "error";
           return [...comErro, { id: 99, texto: data.message || "Erro na sincronização.", status: "error" }];
         });
         toast.error(data.message || "Erro na sincronização.");
@@ -162,7 +328,7 @@ export default function IntegracoesPage() {
     } catch (error) {
       clearInterval(temporizadorEtapas);
       setPassosSync(prev => [
-        ...prev.map(p => p.status === 'loading' ? { ...p, status: 'error' } : p),
+        ...prev.map(p => p.status === "loading" ? { ...p, status: "error" } : p),
         { id: 99, texto: "Erro crítico ao comunicar com o servidor.", status: "error" }
       ]);
       toast.error("Falha ao comunicar com o servidor.");
@@ -177,7 +343,7 @@ export default function IntegracoesPage() {
     const cnpj = pegarCnpjLogado();
     const id = integracaoParaDeletar.id;
     const toastId = toast.loading("Excluindo integração...");
-    
+
     try {
       const res = await fetch(`https://api.raizan.com.br/api/hub/integracoes/${id}`, {
         method: "DELETE", headers: { "x-tenant-id": cnpj }
@@ -185,38 +351,38 @@ export default function IntegracoesPage() {
       const data = await res.json();
       if (data.success) {
         toast.success("Integração removida com sucesso!", { id: toastId });
-        carregarIntegracoesEStatus(); 
+        carregarIntegracoesEStatus();
       } else { toast.error(data.message || "Erro ao excluir.", { id: toastId }); }
-    } catch (error) { toast.error("Erro ao comunicar com o servidor.", { id: toastId }); } 
+    } catch (error) { toast.error("Erro ao comunicar com o servidor.", { id: toastId }); }
     finally { setIntegracaoParaDeletar(null); }
   };
 
   const editarIntegracao = (int) => {
-    if (int.plataforma === 'omie') {
-      setEditandoInt(int); 
+    if (int.plataforma === "omie") {
+      setEditandoInt(int);
     } else {
-      toast("A tela de edição será liberada na próxima atualização!", { icon: '🚧' });
+      toast("A tela de edição será liberada na próxima atualização!", { icon: "🚧" });
     }
     setMenuAberto(null);
   };
 
   const getPlataformaIcon = (plataforma) => {
-    const imgClass = "h-14 w-auto max-w-[150px] object-contain drop-shadow-sm transition-transform hover:scale-105";
-    const frenetClass = `${imgClass} brightness-0 dark:brightness-100`; 
+    const imgClass = "h-12 w-auto max-w-[140px] object-contain drop-shadow-sm";
+    const frenetClass = `${imgClass} brightness-0 dark:brightness-100`;
 
-    if (plataforma === 'woocommerce') return <img src="/woocommerce.svg" alt="WooCommerce" className={imgClass} />;
-    if (plataforma === 'raizan_commerce') return <img src="/RaizanCommerce.png" alt="Raizan" className={imgClass} />;
-    if (plataforma === 'mercadopago') return <img src="/Mercadopago.svg" alt="Mercado Pago" className={imgClass} />;
-    if (plataforma === 'frenet') return <img src="/Frenet.svg" alt="Frenet" className={frenetClass} />;
-    if (plataforma === 'shopify') return <img src="/shopify.svg" alt="Shopify" className={imgClass} />;
-    if (plataforma === 'mercadolivre') return <img src="/mercadolibre.svg" alt="Mercado Livre" className={imgClass} />;
-    if (plataforma === 'shopee') return <img src="/shopee.svg" alt="Shopee" className={imgClass} />;
-    if (plataforma === 'oracle') return <img src="/oracle.svg" alt="Oracle" className={imgClass} />;
-    if (plataforma === 'portal_b2b') return <Globe size={48} className="text-indigo-500 drop-shadow-sm transition-transform hover:scale-105" />; 
-    if (plataforma === 'omie') return <img src="/omie.png" alt="Omie" className={imgClass} />;
-    if (plataforma === 'tiny') return <img src="/olist.svg" alt="Tiny" className={imgClass} />;
-    
-    return <Store size={48} className="text-zinc-300 dark:text-zinc-700 drop-shadow-sm" />;
+    if (plataforma === "woocommerce") return <img src="/woocommerce.svg" alt="WooCommerce" className={imgClass} />;
+    if (plataforma === "raizan_commerce") return <img src="/RaizanCommerce.png" alt="Raizan" className={imgClass} />;
+    if (plataforma === "mercadopago") return <img src="/Mercadopago.svg" alt="Mercado Pago" className={imgClass} />;
+    if (plataforma === "frenet") return <img src="/Frenet.svg" alt="Frenet" className={frenetClass} />;
+    if (plataforma === "shopify") return <img src="/shopify.svg" alt="Shopify" className={imgClass} />;
+    if (plataforma === "mercadolivre") return <img src="/mercadolibre.svg" alt="Mercado Livre" className={imgClass} />;
+    if (plataforma === "shopee") return <img src="/shopee.svg" alt="Shopee" className={imgClass} />;
+    if (plataforma === "oracle") return <img src="/oracle.svg" alt="Oracle" className={imgClass} />;
+    if (plataforma === "portal_b2b") return <Tile icon={Globe} cor="indigo" size={48} />;
+    if (plataforma === "omie") return <img src="/omie.png" alt="Omie" className={imgClass} />;
+    if (plataforma === "tiny") return <img src="/olist.svg" alt="Tiny" className={imgClass} />;
+
+    return <Tile icon={Store} cor="zinc" size={48} />;
   };
 
   const handleSuccess = () => {
@@ -225,32 +391,45 @@ export default function IntegracoesPage() {
     carregarIntegracoesEStatus();
   };
 
+  // Luz de fundo por plataforma (cartões ativos)
+  const luzPlataforma = (plataforma) => {
+    if (plataforma === "raizan_commerce") return "bg-purple-500/10";
+    if (plataforma === "mercadopago") return "bg-sky-500/10";
+    if (plataforma === "portal_b2b") return "bg-indigo-500/10";
+    return "";
+  };
+
   return (
-    <div className="flex h-screen bg-zinc-50 dark:bg-[#09090b] text-zinc-900 dark:text-zinc-100 overflow-hidden relative">
+    <div className="flex h-screen bg-[#f5f5f7] dark:bg-[#09090b] text-zinc-900 dark:text-zinc-100 overflow-hidden relative">
+      {/* Luzes suaves de fundo */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute -top-40 -left-40 w-[520px] h-[520px] rounded-full bg-purple-400/20 dark:bg-purple-600/10 blur-[120px]" />
+        <div className="absolute -bottom-40 -right-40 w-[520px] h-[520px] rounded-full bg-indigo-400/20 dark:bg-indigo-600/10 blur-[120px]" />
+      </div>
+
       <Sidebar />
       <div className="flex-1 flex flex-col h-screen relative min-w-0">
         <Header />
-        
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8" onClick={() => setMenuAberto(null)}>
+
+        {/* ⚠️ sem z-index aqui: senão os modais ficam atrás da Header/Sidebar */}
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 relative" onClick={() => setMenuAberto(null)}>
           <div className="max-w-[1200px] mx-auto space-y-6">
-            
+
             {/* HEADER DA PÁGINA */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-white dark:bg-[#0c0c0e] p-6 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm relative overflow-hidden gap-4">
-              <div className="absolute -left-10 -top-10 w-40 h-40 bg-purple-100 dark:bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
-              <div className="flex items-center gap-4 relative z-10">
-                <div className="w-14 h-14 shrink-0 rounded-2xl bg-purple-100 dark:bg-purple-500/10 flex items-center justify-center border border-purple-200 dark:border-purple-500/20">
-                  <Plug size={28} className="text-purple-600 dark:text-purple-400" />
-                </div>
+            <div className={`${CARD} relative overflow-hidden p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4`}>
+              <div className="absolute -left-10 -top-10 w-44 h-44 bg-purple-400/20 dark:bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
+              <div className="flex items-center gap-4 relative">
+                <Tile icon={Plug} cor="purple" size={56} />
                 <div>
-                  <h1 className="text-2xl font-black tracking-tight">Minhas Integrações</h1>
-                  <p className="text-sm font-medium text-zinc-500 mt-1">Conecte o Raizan Hub com suas frentes de loja e ERP.</p>
+                  <h1 className="text-2xl font-bold tracking-tight">Minhas Integrações</h1>
+                  <p className="text-sm font-medium text-zinc-500 mt-0.5">Conecte o Raizan Hub com suas frentes de loja e ERP.</p>
                 </div>
               </div>
-              
+
               {!instalando && (
-                <button 
-                  onClick={(e) => { e.stopPropagation(); setInstalando('catalogo'); }}
-                  className="w-full sm:w-auto bg-purple-600 hover:bg-purple-500 text-white px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-md shadow-purple-500/20 transition-all z-10 active:scale-95"
+                <button
+                  onClick={(e) => { e.stopPropagation(); setInstalando("catalogo"); }}
+                  className={`${BTN_ROXO} relative w-full sm:w-auto`}
                 >
                   <Plus size={18} /> Nova Integração
                 </button>
@@ -259,40 +438,43 @@ export default function IntegracoesPage() {
 
             {loading && integracoesAtivas.length === 0 && !oracleConfigurado ? (
               <div className="flex flex-col items-center justify-center py-20">
-                <Loader2 size={40} className="animate-spin text-purple-600 mb-4" />
-                <p className="text-zinc-500 font-bold tracking-widest text-sm uppercase">Carregando integrações...</p>
+                <Loader2 size={36} className="animate-spin text-purple-600 mb-4" />
+                <p className="text-zinc-500 font-semibold tracking-widest text-xs uppercase">Carregando integrações...</p>
               </div>
             ) : (
               <>
                 {/* LISTAGEM DAS INTEGRAÇÕES ATIVAS */}
                 {!instalando && (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-in fade-in duration-300">
-                    
-                    <div onClick={(e) => { e.stopPropagation(); setInstalando('catalogo'); }} className="border-2 border-dashed border-zinc-300 dark:border-zinc-700 rounded-2xl p-6 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800/50 transition-colors min-h-[220px]">
-                      <Plus size={32} className="text-zinc-400 mb-2" />
-                      <p className="font-bold text-zinc-700 dark:text-zinc-300">Nova Integração</p>
+
+                    {/* Cartão: Nova Integração */}
+                    <div
+                      onClick={(e) => { e.stopPropagation(); setInstalando("catalogo"); }}
+                      className="group rounded-[28px] border-2 border-dashed border-black/[0.12] dark:border-white/[0.12] p-6 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-white/60 dark:hover:bg-white/[0.04] hover:border-purple-400 dark:hover:border-purple-400/50 transition-all min-h-[220px]"
+                    >
+                      <div className="w-12 h-12 rounded-2xl bg-black/[0.04] dark:bg-white/[0.07] flex items-center justify-center mb-3 group-hover:bg-purple-500/10 transition-colors">
+                        <Plus size={24} className="text-zinc-400 group-hover:text-purple-500 transition-colors" />
+                      </div>
+                      <p className="font-semibold text-zinc-700 dark:text-zinc-300">Nova Integração</p>
                       <p className="text-xs font-medium text-zinc-500 mt-1">Ver plataformas disponíveis</p>
                     </div>
 
+                    {/* Cartão: Oracle */}
                     {oracleConfigurado && (
-                      <div className="bg-white dark:bg-[#121214] border border-red-200 dark:border-red-500/30 rounded-2xl p-6 flex flex-col justify-between shadow-sm hover:shadow-md transition-all min-h-[220px] relative group overflow-hidden">
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/5 rounded-full blur-2xl group-hover:bg-red-500/10 transition-colors pointer-events-none" />
-                        <div className="flex items-start justify-between relative z-10">
-                          <div className="flex items-center justify-center">
-                            <img src="/oracle.svg" alt="Oracle" className="h-10 w-auto max-w-[140px] object-contain drop-shadow-sm" />
-                          </div>
-                          <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50 dark:bg-emerald-500/10 dark:text-emerald-400 px-2 py-1 rounded-md border border-emerald-200 dark:border-emerald-500/20">
-                            <CheckCircle2 size={12} /> Ativo
-                          </span>
+                      <div className={`${CARD} p-6 flex flex-col justify-between min-h-[220px] relative group overflow-hidden hover:shadow-xl transition-shadow`}>
+                        <div className="absolute -top-10 -right-10 w-40 h-40 bg-red-500/10 rounded-full blur-3xl group-hover:bg-red-500/15 transition-colors pointer-events-none" />
+                        <div className="flex items-start justify-between relative">
+                          <img src="/oracle.svg" alt="Oracle" className="h-10 w-auto max-w-[140px] object-contain drop-shadow-sm" />
+                          <SeloAtivo />
                         </div>
-                        <div className="mt-4 mb-5 relative z-10">
-                          <h3 className="font-bold text-lg truncate text-zinc-900 dark:text-zinc-100">Oracle Database</h3>
-                          <p className="text-xs font-medium text-zinc-500 mt-1 truncate flex items-center gap-1.5"><Database size={12}/> Motor Local Vinculado</p>
+                        <div className="mt-4 mb-5 relative">
+                          <h3 className="font-semibold text-lg truncate text-zinc-900 dark:text-zinc-100">Oracle Database</h3>
+                          <p className="text-xs font-medium text-zinc-500 mt-1 truncate flex items-center gap-1.5"><Database size={12} /> Motor Local Vinculado</p>
                         </div>
-                        <div className="flex w-full mt-auto relative z-10">
-                          <button 
-                            onClick={(e) => { e.stopPropagation(); window.location.href = '/configuracoes'; }}
-                            className="w-full py-2.5 bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400 font-bold rounded-xl text-xs hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors flex items-center justify-center gap-1.5 border border-red-200 dark:border-red-500/30"
+                        <div className="flex w-full mt-auto relative">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); window.location.href = "/configuracoes"; }}
+                            className={`${PILULA_BASE} w-full py-2.5 text-xs bg-red-500/10 text-red-700 dark:text-red-400 border border-red-500/20 hover:bg-red-500/20`}
                           >
                             <Settings size={14} /> Ajustar Conexão
                           </button>
@@ -300,219 +482,212 @@ export default function IntegracoesPage() {
                       </div>
                     )}
 
-                    {integracoesAtivas.map(int => (
-                      <div key={int.id} className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 flex flex-col justify-between shadow-sm hover:shadow-md transition-all min-h-[220px] relative group">
-                        <div className="absolute inset-0 overflow-hidden rounded-2xl pointer-events-none z-0">
-                          {int.plataforma === 'raizan_commerce' && <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/5 rounded-full blur-2xl group-hover:bg-purple-500/10 transition-colors" />}
-                          {int.plataforma === 'mercadopago' && <div className="absolute top-0 right-0 w-32 h-32 bg-sky-500/5 rounded-full blur-2xl group-hover:bg-sky-500/10 transition-colors" />}
-                          {int.plataforma === 'portal_b2b' && <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full blur-2xl group-hover:bg-indigo-500/10 transition-colors" />}
-                        </div>
-                        
-                        <div className="flex items-start justify-between relative z-10">
-                          <div className="flex items-center justify-center">
-                            {getPlataformaIcon(int.plataforma)}
-                          </div>
-                          <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50 dark:bg-emerald-500/10 dark:text-emerald-400 px-2 py-1 rounded-md border border-emerald-200 dark:border-emerald-500/20">
-                            <CheckCircle2 size={12} /> Ativo
-                          </span>
-                        </div>
-
-                        <div className="mt-4 mb-5 relative z-10">
-                          <h3 className="font-bold text-lg truncate text-zinc-900 dark:text-zinc-100" title={int.nome_integracao}>{int.nome_integracao}</h3>
-                          <p className="text-xs font-medium text-zinc-500 mt-1 truncate flex items-center gap-1.5"><Globe size={12}/> {int.url_loja || 'Módulo Interno'}</p>
-                        </div>
-                        
-                        <div className="flex gap-2 w-full mt-auto relative z-10">
-                          {int.plataforma !== 'mercadopago' && int.plataforma !== 'portal_b2b' && (
-                            <button 
-                              onClick={(e) => { e.stopPropagation(); sincronizarDadosDaLoja(int.id); }}
-                              disabled={sincronizando === int.id}
-                              className="flex-1 py-2.5 bg-zinc-50 dark:bg-zinc-800/50 text-zinc-700 dark:text-zinc-300 font-bold rounded-xl text-xs hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-center justify-center gap-1.5 border border-zinc-200 dark:border-zinc-700 disabled:opacity-50"
-                            >
-                              {sincronizando === int.id ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-                              Sync Manual
-                            </button>
-                          )}
-                          
-                          <div className={`relative ${int.plataforma === 'mercadopago' || int.plataforma === 'portal_b2b' ? 'w-full' : ''}`}>
-                            <button 
-                              onClick={(e) => { 
-                                e.stopPropagation(); 
-                                setMenuAberto(menuAberto === int.id ? null : int.id); 
-                              }}
-                              className={`${int.plataforma === 'mercadopago' || int.plataforma === 'portal_b2b' ? 'w-full px-4' : 'px-4'} py-2.5 font-bold rounded-xl text-xs transition-colors flex items-center justify-center border ${menuAberto === int.id ? 'bg-zinc-200 dark:bg-zinc-700 border-zinc-300 dark:border-zinc-600 text-zinc-900 dark:text-white' : 'bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700'}`}
-                            >
-                              <Settings size={16} /> {(int.plataforma === 'mercadopago' || int.plataforma === 'portal_b2b') && <span className="ml-2">Configurações</span>}
-                            </button>
-
-                            {menuAberto === int.id && (
-                              <div 
-                                className={`absolute bottom-full mb-2 w-40 bg-white dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-xl overflow-hidden z-50 animate-in fade-in slide-in-from-bottom-2 ${int.plataforma === 'mercadopago' || int.plataforma === 'portal_b2b' ? 'left-1/2 -translate-x-1/2' : 'right-0'}`}
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <button onClick={() => editarIntegracao(int)} className="w-full text-left px-4 py-3 text-sm font-bold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors flex items-center gap-2 border-b border-zinc-100 dark:border-zinc-800/50">
-                                  <Pencil size={14} /> Editar
-                                </button>
-                                <button onClick={() => { setIntegracaoParaDeletar(int); setMenuAberto(null); }} className="w-full text-left px-4 py-3 text-sm font-bold text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors flex items-center gap-2">
-                                  <Trash2 size={14} /> Excluir
-                                </button>
-                              </div>
+                    {/* Cartões: integrações ativas */}
+                    {integracoesAtivas.map(int => {
+                      const semSync = int.plataforma === "mercadopago" || int.plataforma === "portal_b2b";
+                      return (
+                        <div
+                          key={int.id}
+                          className={`${CARD} p-6 flex flex-col justify-between min-h-[220px] relative group hover:shadow-xl transition-shadow ${menuAberto === int.id ? "z-20" : ""}`}
+                        >
+                          <div className="absolute inset-0 overflow-hidden rounded-[28px] pointer-events-none">
+                            {luzPlataforma(int.plataforma) && (
+                              <div className={`absolute -top-10 -right-10 w-40 h-40 rounded-full blur-3xl ${luzPlataforma(int.plataforma)}`} />
                             )}
                           </div>
+
+                          <div className="flex items-start justify-between relative">
+                            <div className="flex items-center justify-center">
+                              {getPlataformaIcon(int.plataforma)}
+                            </div>
+                            <SeloAtivo />
+                          </div>
+
+                          <div className="mt-4 mb-5 relative">
+                            <h3 className="font-semibold text-lg truncate text-zinc-900 dark:text-zinc-100" title={int.nome_integracao}>{int.nome_integracao}</h3>
+                            <p className="text-xs font-medium text-zinc-500 mt-1 truncate flex items-center gap-1.5"><Globe size={12} /> {int.url_loja || "Módulo Interno"}</p>
+                          </div>
+
+                          <div className="flex gap-2 w-full mt-auto relative">
+                            {!semSync && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); sincronizarDadosDaLoja(int.id); }}
+                                disabled={sincronizando === int.id}
+                                className={`${PILULA_BASE} flex-1 py-2.5 text-xs text-zinc-700 dark:text-zinc-200 bg-black/[0.04] dark:bg-white/[0.07] border border-black/[0.06] dark:border-white/[0.08] hover:bg-black/[0.07] dark:hover:bg-white/[0.12]`}
+                              >
+                                {sincronizando === int.id ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                                Sync Manual
+                              </button>
+                            )}
+
+                            <div className={`relative ${semSync ? "w-full" : ""}`}>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setMenuAberto(menuAberto === int.id ? null : int.id);
+                                }}
+                                className={`${PILULA_BASE} ${semSync ? "w-full px-4" : "px-4"} py-2.5 text-xs border ${
+                                  menuAberto === int.id
+                                    ? "bg-black/[0.1] dark:bg-white/[0.16] border-black/10 dark:border-white/20 text-zinc-900 dark:text-white"
+                                    : "bg-black/[0.04] dark:bg-white/[0.07] border-black/[0.06] dark:border-white/[0.08] text-zinc-700 dark:text-zinc-200 hover:bg-black/[0.07] dark:hover:bg-white/[0.12]"
+                                }`}
+                              >
+                                <Settings size={16} />
+                                {semSync && <span>Configurações</span>}
+                              </button>
+
+                              {menuAberto === int.id && (
+                                <div
+                                  className={`absolute bottom-full mb-2 w-44 ${PAINEL} !rounded-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-bottom-2 ${semSync ? "left-1/2 -translate-x-1/2" : "right-0"}`}
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <button
+                                    onClick={() => editarIntegracao(int)}
+                                    className="w-full text-left px-4 py-3 text-sm font-semibold text-zinc-700 dark:text-zinc-200 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors flex items-center gap-2 border-b border-black/[0.05] dark:border-white/[0.06]"
+                                  >
+                                    <Pencil size={14} /> Editar
+                                  </button>
+                                  <button
+                                    onClick={() => { setIntegracaoParaDeletar(int); setMenuAberto(null); }}
+                                    className="w-full text-left px-4 py-3 text-sm font-semibold text-red-600 dark:text-red-400 hover:bg-red-500/10 transition-colors flex items-center gap-2"
+                                  >
+                                    <Trash2 size={14} /> Excluir
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
 
                 {/* O CATÁLOGO MESTRE DE APPs */}
-                {instalando === 'catalogo' && (
-                  <div className="bg-white dark:bg-[#0c0c0e] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 sm:p-8 animate-in fade-in zoom-in-95 shadow-sm">
-                    <div className="flex items-center justify-between mb-8 pb-4 border-b border-zinc-100 dark:border-zinc-800/60">
+                {instalando === "catalogo" && (
+                  <div className={`${CARD} p-6 sm:p-8 animate-in fade-in zoom-in-95`}>
+                    <div className="flex items-center justify-between gap-4 mb-8 pb-5 border-b border-black/[0.06] dark:border-white/[0.06]">
                       <div>
-                        <h2 className="text-xl font-black text-zinc-900 dark:text-zinc-100">Catálogo de Aplicativos</h2>
+                        <h2 className="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">Catálogo de Aplicativos</h2>
                         <p className="text-sm font-medium text-zinc-500 mt-1">Selecione a plataforma para iniciar a configuração.</p>
                       </div>
-                      <button onClick={() => setInstalando(null)} className="text-sm font-bold text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-300 bg-zinc-100 dark:bg-zinc-900 px-4 py-2 rounded-lg transition-colors">Cancelar</button>
+                      <button onClick={() => setInstalando(null)} className={BTN_NEUTRO}>
+                        <X size={15} /> Cancelar
+                      </button>
                     </div>
-                    
+
                     <div className="space-y-10">
-                      
+
                       {/* E-COMMERCE */}
                       <div>
-                        <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                          <Store size={16} /> E-commerce & Portais
-                        </h3>
+                        <TituloSecao icon={Store} topo>E-commerce & Portais</TituloSecao>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                          
-                          <div className="border-2 border-purple-200 dark:border-purple-500/30 rounded-2xl p-5 flex flex-col items-center text-center hover:border-purple-500 hover:shadow-xl hover:shadow-purple-500/10 transition-all cursor-pointer bg-gradient-to-b from-purple-50/50 to-white dark:from-purple-900/10 dark:to-[#0c0c0e] relative overflow-hidden group">
-                            <div className="absolute top-0 right-0 bg-purple-600 text-white text-[9px] font-black uppercase px-2 py-1 rounded-bl-lg tracking-wider z-10">Nativo</div>
-                            <div className="w-16 h-16 bg-white dark:bg-[#121214] shadow-sm rounded-2xl flex items-center justify-center mb-4 border border-purple-100 dark:border-purple-500/20 group-hover:scale-110 transition-transform">
-                              <img src="/RaizanCommerce.png" alt="Raizan" className="w-12 h-12 object-contain drop-shadow-sm" />
-                            </div>
-                            <h3 className="font-bold text-base mb-1 text-zinc-900 dark:text-zinc-100">Raizan Commerce</h3>
-                            <p className="text-xs font-medium text-zinc-500 mb-5 h-8">Headless Store de altíssima performance.</p>
-                            <button onClick={(e) => { e.stopPropagation(); setInstalando('raizan'); }} className="w-full py-2.5 bg-purple-600 rounded-xl text-sm font-bold text-white hover:bg-purple-500 shadow-md shadow-purple-500/20 transition-all">Ativar Módulo</button>
-                          </div>
 
-                          <div className="border-2 border-indigo-200 dark:border-indigo-500/30 rounded-2xl p-5 flex flex-col items-center text-center hover:border-indigo-500 hover:shadow-xl hover:shadow-indigo-500/10 transition-all cursor-pointer bg-gradient-to-b from-indigo-50/50 to-white dark:from-indigo-900/10 dark:to-[#0c0c0e] relative overflow-hidden group">
-                            <div className="absolute top-0 right-0 bg-indigo-600 text-white text-[9px] font-black uppercase px-2 py-1 rounded-bl-lg tracking-wider z-10">Nativo</div>
-                            <div className="w-16 h-16 bg-white dark:bg-[#121214] shadow-sm rounded-2xl flex items-center justify-center mb-4 border border-indigo-100 dark:border-indigo-500/20 group-hover:scale-110 transition-transform">
-                              <Globe size={32} className="text-indigo-500 drop-shadow-sm" />
-                            </div>
-                            <h3 className="font-bold text-base mb-1 text-zinc-900 dark:text-zinc-100">Portal B2B</h3>
-                            <p className="text-xs font-medium text-zinc-500 mb-5 h-8">Seu portal de vendas exclusivo para lojistas.</p>
-                            <button onClick={(e) => { e.stopPropagation(); setInstalando('b2b'); }} className="w-full py-2.5 bg-indigo-600 rounded-xl text-sm font-bold text-white hover:bg-indigo-500 shadow-md shadow-indigo-500/20 transition-all">Configurar</button>
-                          </div>
+                          <CartaoCatalogo
+                            cor="purple" selo="Nativo"
+                            icone={<img src="/RaizanCommerce.png" alt="Raizan" className="w-11 h-11 object-contain drop-shadow-sm" />}
+                            titulo="Raizan Commerce" descricao="Headless Store de altíssima performance."
+                            textoBotao="Ativar Módulo"
+                            onClick={(e) => { e.stopPropagation(); setInstalando("raizan"); }}
+                          />
 
-                          <div className="border border-zinc-200 dark:border-zinc-800 rounded-2xl p-5 flex flex-col items-center text-center hover:border-zinc-300 dark:hover:border-zinc-700 hover:shadow-lg transition-all cursor-pointer bg-white dark:bg-[#121214] group">
-                            <div className="w-16 h-16 bg-zinc-50 dark:bg-zinc-900 rounded-2xl flex items-center justify-center mb-4 border border-zinc-100 dark:border-zinc-800 group-hover:scale-110 transition-transform">
-                              <img src="/woocommerce.svg" alt="Woo" className="w-12 h-12 object-contain" />
-                            </div>
-                            <h3 className="font-bold text-base mb-1 text-zinc-900 dark:text-zinc-100">WooCommerce</h3>
-                            <p className="text-xs font-medium text-zinc-500 mb-5 h-8">Sincronização de catálogo e pedidos WP.</p>
-                            <button onClick={(e) => { e.stopPropagation(); setInstalando('woocommerce'); }} className="w-full py-2.5 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl text-sm font-bold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors">Conectar</button>
-                          </div>
+                          <CartaoCatalogo
+                            cor="indigo" selo="Nativo"
+                            icone={<Tile icon={Globe} cor="indigo" size={44} />}
+                            titulo="Portal B2B" descricao="Seu portal de vendas exclusivo para lojistas."
+                            textoBotao="Configurar"
+                            onClick={(e) => { e.stopPropagation(); setInstalando("b2b"); }}
+                          />
 
-                          {['shopify', 'mercadolivre', 'shopee'].map(plataforma => (
-                            <div key={plataforma} className="border border-zinc-200 dark:border-zinc-800 rounded-2xl p-5 flex flex-col items-center text-center opacity-50 grayscale cursor-not-allowed bg-zinc-50/50 dark:bg-zinc-900/10">
-                              <div className="w-16 h-16 bg-white dark:bg-zinc-900 rounded-2xl flex items-center justify-center mb-4 border border-zinc-100 dark:border-zinc-800">
-                                <img src={`/${plataforma}.svg`} alt={plataforma} className="w-12 h-12 object-contain" />
-                              </div>
-                              <h3 className="font-bold text-base mb-1 capitalize">{plataforma.replace('mercadolivre', 'Mercado Livre')}</h3>
-                              <p className="text-xs font-medium text-zinc-500 mb-5 h-8">Integração em desenvolvimento.</p>
-                              <span className="w-full py-2.5 bg-zinc-200 dark:bg-zinc-800 rounded-xl text-xs font-bold text-zinc-500 uppercase tracking-widest">Em Breve</span>
-                            </div>
+                          <CartaoCatalogo
+                            cor="zinc"
+                            icone={<img src="/woocommerce.svg" alt="Woo" className="w-11 h-11 object-contain" />}
+                            titulo="WooCommerce" descricao="Sincronização de catálogo e pedidos WP."
+                            textoBotao="Conectar"
+                            onClick={(e) => { e.stopPropagation(); setInstalando("woocommerce"); }}
+                          />
+
+                          {["shopify", "mercadolivre", "shopee"].map(plataforma => (
+                            <CartaoEmBreve
+                              key={plataforma}
+                              src={`/${plataforma}.svg`}
+                              alt={plataforma}
+                              titulo={plataforma === "mercadolivre" ? "Mercado Livre" : plataforma.charAt(0).toUpperCase() + plataforma.slice(1)}
+                              descricao="Integração em desenvolvimento."
+                            />
                           ))}
                         </div>
                       </div>
 
                       {/* PAGAMENTOS */}
                       <div>
-                        <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest mb-4 flex items-center gap-2 mt-8 border-t border-zinc-200 dark:border-zinc-800/60 pt-8">
-                          <CreditCard size={16} /> Meios de Pagamento
-                        </h3>
+                        <TituloSecao icon={CreditCard}>Meios de Pagamento</TituloSecao>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                          
-                          <div className="border border-sky-200 dark:border-sky-500/30 rounded-2xl p-5 flex flex-col items-center text-center hover:border-sky-500 hover:shadow-xl transition-all cursor-pointer bg-gradient-to-b from-sky-50/50 to-white dark:from-sky-900/10 dark:to-[#0c0c0e] group relative overflow-hidden">
-                            <div className="w-16 h-16 bg-white dark:bg-[#121214] shadow-sm rounded-2xl flex items-center justify-center mb-4 border border-sky-100 dark:border-sky-500/20 group-hover:scale-110 transition-transform">
-                              <img src="/Mercadopago.svg" alt="Mercado Pago" className="w-12 h-12 object-contain" />
-                            </div>
-                            <h3 className="font-bold text-base mb-1 text-zinc-900 dark:text-zinc-100">Mercado Pago</h3>
-                            <p className="text-xs font-medium text-zinc-500 mb-5 h-8">Pix, Cartões e Boleto Transparente.</p>
-                            <button onClick={(e) => { e.stopPropagation(); setInstalando('mercadopago'); }} className="w-full py-2.5 bg-sky-600 rounded-xl text-sm font-bold text-white hover:bg-sky-500 shadow-md shadow-sky-500/20 transition-all">Configurar</button>
-                          </div>
-
+                          <CartaoCatalogo
+                            cor="sky"
+                            icone={<img src="/Mercadopago.svg" alt="Mercado Pago" className="w-11 h-11 object-contain" />}
+                            titulo="Mercado Pago" descricao="Pix, Cartões e Boleto Transparente."
+                            textoBotao="Configurar"
+                            onClick={(e) => { e.stopPropagation(); setInstalando("mercadopago"); }}
+                          />
                         </div>
                       </div>
 
                       {/* LOGÍSTICA E FRETE */}
                       <div>
-                        <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest mb-4 flex items-center gap-2 mt-8 border-t border-zinc-200 dark:border-zinc-800/60 pt-8">
-                          <Truck size={16} /> Logística e Frete
-                        </h3>
+                        <TituloSecao icon={Truck}>Logística e Frete</TituloSecao>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                          <div className="border border-orange-200 dark:border-orange-500/30 rounded-2xl p-5 flex flex-col items-center text-center hover:border-orange-500 hover:shadow-xl transition-all cursor-pointer bg-gradient-to-b from-orange-50/50 to-white dark:from-orange-900/10 dark:to-[#0c0c0e] group relative overflow-hidden">
-                            <div className="w-16 h-16 bg-white dark:bg-[#121214] shadow-sm rounded-2xl flex items-center justify-center mb-4 border border-orange-100 dark:border-orange-500/20 group-hover:scale-110 transition-transform">
-                              <img src="/Frenet.svg" alt="Frenet" className="w-12 h-12 object-contain brightness-0 dark:brightness-100" />
-                            </div>
-                            <h3 className="font-bold text-base mb-1 text-zinc-900 dark:text-zinc-100">Frenet</h3>
-                            <p className="text-xs font-medium text-zinc-500 mb-5 h-8">Cálculo de fretes e transportadoras.</p>
-                            <button onClick={(e) => { e.stopPropagation(); setInstalando('frenet'); }} className="w-full py-2.5 bg-orange-500 rounded-xl text-sm font-bold text-white hover:bg-orange-400 shadow-md shadow-orange-500/20 transition-all">Configurar</button>
-                          </div>
+                          <CartaoCatalogo
+                            cor="orange"
+                            icone={<img src="/Frenet.svg" alt="Frenet" className="w-11 h-11 object-contain brightness-0 dark:brightness-100" />}
+                            titulo="Frenet" descricao="Cálculo de fretes e transportadoras."
+                            textoBotao="Configurar"
+                            onClick={(e) => { e.stopPropagation(); setInstalando("frenet"); }}
+                          />
                         </div>
                       </div>
 
                       {/* ERP E BANCOS DE DADOS */}
                       <div>
-                        <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest mb-4 flex items-center gap-2 mt-8 border-t border-zinc-200 dark:border-zinc-800/60 pt-8">
-                          <Server size={16} /> Bancos de Dados & ERPs
-                        </h3>
+                        <TituloSecao icon={Server}>Bancos de Dados & ERPs</TituloSecao>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                          
-                          <div className="border border-emerald-200 dark:border-emerald-500/30 rounded-2xl p-5 flex flex-col items-center text-center hover:border-emerald-500 hover:shadow-xl transition-all cursor-pointer bg-gradient-to-b from-emerald-50/50 to-white dark:from-emerald-900/10 dark:to-[#0c0c0e] group relative overflow-hidden">
-                            <div className="absolute top-0 right-0 bg-emerald-600 text-white text-[9px] font-black uppercase px-2 py-1 rounded-bl-lg tracking-wider z-10">Ativo</div>
-                            <div className="w-16 h-16 bg-white dark:bg-[#121214] shadow-sm rounded-2xl flex items-center justify-center mb-4 border border-emerald-100 dark:border-emerald-500/20 group-hover:scale-110 transition-transform">
-                              <img src="/omie.png" alt="Omie" className="w-12 h-12 object-contain drop-shadow-sm" /> 
-                            </div>
-                            <h3 className="font-bold text-base mb-1 text-zinc-900 dark:text-zinc-100">Omie ERP</h3>
-                            <p className="text-xs font-medium text-zinc-500 mb-5 h-8">Sincronização de Pedidos e Clientes.</p>
-                            <button onClick={(e) => { e.stopPropagation(); setInstalando('omie'); }} className="w-full py-2.5 bg-emerald-600 rounded-xl text-sm font-bold text-white hover:bg-emerald-500 shadow-md shadow-emerald-500/20 transition-all">Configurar</button>
-                          </div>
 
-                          <div className="border border-blue-200 dark:border-blue-500/30 rounded-2xl p-5 flex flex-col items-center text-center hover:border-blue-500 hover:shadow-xl transition-all cursor-pointer bg-gradient-to-b from-blue-50/50 to-white dark:from-blue-900/10 dark:to-[#0c0c0e] group relative overflow-hidden">
-                            <div className="absolute top-0 right-0 bg-blue-600 text-white text-[9px] font-black uppercase px-2 py-1 rounded-bl-lg tracking-wider z-10">Novo</div>
-                            <div className="w-16 h-16 bg-white dark:bg-[#121214] shadow-sm rounded-2xl flex items-center justify-center mb-4 border border-blue-100 dark:border-blue-500/20 group-hover:scale-110 transition-transform">
-                              <img src="/olist.svg" alt="Tiny" className="w-12 h-12 object-contain drop-shadow-sm" />
-                            </div>
-                            <h3 className="font-bold text-base mb-1 text-zinc-900 dark:text-zinc-100">Tiny ERP</h3>
-                            <p className="text-xs font-medium text-zinc-500 mb-5 h-8">Sincronização Bidirecional.</p>
-                            <button onClick={(e) => { e.stopPropagation(); setInstalando('tiny'); }} className="w-full py-2.5 bg-blue-600 rounded-xl text-sm font-bold text-white hover:bg-blue-500 shadow-md shadow-blue-500/20 transition-all">Configurar</button>
-                          </div>
+                          <CartaoCatalogo
+                            cor="emerald" selo="Ativo"
+                            icone={<img src="/omie.png" alt="Omie" className="w-11 h-11 object-contain drop-shadow-sm" />}
+                            titulo="Omie ERP" descricao="Sincronização de Pedidos e Clientes."
+                            textoBotao="Configurar"
+                            onClick={(e) => { e.stopPropagation(); setInstalando("omie"); }}
+                          />
 
-                          <div className={`border ${oracleConfigurado ? 'border-red-200 dark:border-red-500/40 bg-red-50/30 dark:bg-red-900/10' : 'border-zinc-200 dark:border-zinc-800 bg-white dark:bg-[#121214]'} rounded-2xl p-5 flex flex-col items-center text-center hover:border-red-50 hover:shadow-xl transition-all cursor-pointer group relative overflow-hidden`}>
-                            {oracleConfigurado && (
-                              <div className="absolute top-0 right-0 bg-red-600 text-white text-[9px] font-black uppercase px-2 py-1 rounded-bl-lg tracking-wider z-10">Conectado</div>
-                            )}
-                            <div className={`w-16 h-16 shadow-sm rounded-2xl flex items-center justify-center mb-4 border group-hover:scale-110 transition-transform ${oracleConfigurado ? 'bg-white dark:bg-zinc-900 border-red-200 dark:border-red-500/30' : 'bg-zinc-50 dark:bg-zinc-900 border-zinc-100 dark:border-zinc-800'}`}>
-                              <img src="/oracle.svg" alt="Oracle" className="w-12 h-12 object-contain" />
-                            </div>
-                            <h3 className="font-bold text-base mb-1 text-zinc-900 dark:text-zinc-100">Oracle Database</h3>
-                            <p className="text-xs font-medium text-zinc-500 mb-5 h-8">{oracleConfigurado ? 'Sincronização bidirecional ativa.' : 'Sincronização bidirecional do ERP.'}</p>
-                            <button onClick={(e) => { e.stopPropagation(); toast("Acesse o menu Configurações para ajustar os parâmetros do Oracle.", { icon: '⚙️' }); }} className={`w-full py-2.5 rounded-xl text-sm font-bold transition-all ${oracleConfigurado ? 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-500/20' : 'bg-red-600 text-white hover:bg-red-500 shadow-md shadow-red-500/20'}`}>Ajustar Conexão</button>
-                          </div>
+                          <CartaoCatalogo
+                            cor="blue" selo="Novo"
+                            icone={<img src="/olist.svg" alt="Tiny" className="w-11 h-11 object-contain drop-shadow-sm" />}
+                            titulo="Tiny ERP" descricao="Sincronização Bidirecional."
+                            textoBotao="Configurar"
+                            onClick={(e) => { e.stopPropagation(); setInstalando("tiny"); }}
+                          />
 
-                          {['microsoft-sql', 'mysql'].map(db => (
-                            <div key={db} className="border border-zinc-200 dark:border-zinc-800 rounded-2xl p-5 flex flex-col items-center text-center opacity-50 grayscale cursor-not-allowed bg-zinc-50/50 dark:bg-zinc-900/10">
-                              <div className="w-16 h-16 bg-white dark:bg-zinc-900 rounded-2xl flex items-center justify-center mb-4 border border-zinc-100 dark:border-zinc-800">
-                                <img src={`/${db}.svg`} alt={db} className="w-12 h-12 object-contain" />
-                              </div>
-                              <h3 className="font-bold text-base mb-1">{db === 'mysql' ? 'MySQL' : 'SQL Server'}</h3>
-                              <p className="text-xs font-medium text-zinc-500 mb-5 h-8">Driver de banco de dados.</p>
-                              <span className="w-full py-2.5 bg-zinc-200 dark:bg-zinc-800 rounded-xl text-xs font-bold text-zinc-500 uppercase tracking-widest">Em Breve</span>
-                            </div>
+                          <CartaoCatalogo
+                            cor={oracleConfigurado ? "red" : "zinc"}
+                            selo={oracleConfigurado ? "Conectado" : null}
+                            icone={<img src="/oracle.svg" alt="Oracle" className="w-11 h-11 object-contain" />}
+                            titulo="Oracle Database"
+                            descricao={oracleConfigurado ? "Sincronização bidirecional ativa." : "Sincronização bidirecional do ERP."}
+                            textoBotao="Ajustar Conexão"
+                            suave={oracleConfigurado}
+                            onClick={(e) => { e.stopPropagation(); toast("Acesse o menu Configurações para ajustar os parâmetros do Oracle.", { icon: "⚙️" }); }}
+                          />
+
+                          {["microsoft-sql", "mysql"].map(db => (
+                            <CartaoEmBreve
+                              key={db}
+                              src={`/${db}.svg`}
+                              alt={db}
+                              titulo={db === "mysql" ? "MySQL" : "SQL Server"}
+                              descricao="Driver de banco de dados."
+                            />
                           ))}
-
                         </div>
                       </div>
 
@@ -521,13 +696,13 @@ export default function IntegracoesPage() {
                 )}
 
                 {/* COMPONENTES ISOLADOS (FORMULÁRIOS) */}
-                {instalando === 'woocommerce' && <FormWooCommerce onCancel={() => setInstalando('catalogo')} onSuccess={handleSuccess} />}
-                {instalando === 'raizan' && <FormRaizanCommerce onCancel={() => setInstalando('catalogo')} onSuccess={handleSuccess} />}
-                {instalando === 'b2b' && <FormPortalB2B onCancel={() => setInstalando('catalogo')} onSuccess={handleSuccess} />}
-                {instalando === 'mercadopago' && <FormMercadoPago onCancel={() => setInstalando('catalogo')} onSuccess={handleSuccess} />}
-                {instalando === 'frenet' && <FormFrenet onCancel={() => setInstalando('catalogo')} onSuccess={handleSuccess} />}
-                {instalando === 'omie' && <FormOmie onCancel={() => setInstalando('catalogo')} onSuccess={handleSuccess} />}
-                {instalando === 'tiny' && <FormTiny onCancel={() => setInstalando('catalogo')} onSuccess={handleSuccess} />}
+                {instalando === "woocommerce" && <FormWooCommerce onCancel={() => setInstalando("catalogo")} onSuccess={handleSuccess} />}
+                {instalando === "raizan" && <FormRaizanCommerce onCancel={() => setInstalando("catalogo")} onSuccess={handleSuccess} />}
+                {instalando === "b2b" && <FormPortalB2B onCancel={() => setInstalando("catalogo")} onSuccess={handleSuccess} />}
+                {instalando === "mercadopago" && <FormMercadoPago onCancel={() => setInstalando("catalogo")} onSuccess={handleSuccess} />}
+                {instalando === "frenet" && <FormFrenet onCancel={() => setInstalando("catalogo")} onSuccess={handleSuccess} />}
+                {instalando === "omie" && <FormOmie onCancel={() => setInstalando("catalogo")} onSuccess={handleSuccess} />}
+                {instalando === "tiny" && <FormTiny onCancel={() => setInstalando("catalogo")} onSuccess={handleSuccess} />}
 
               </>
             )}
@@ -538,24 +713,24 @@ export default function IntegracoesPage() {
 
       {/* MODAL DE EXCLUSÃO */}
       {integracaoParaDeletar && (
-        <div 
-          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-zinc-950/40 backdrop-blur-sm animate-in fade-in"
-          onClick={() => setIntegracaoParaDeletar(null)} 
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-zinc-950/40 backdrop-blur-md animate-in fade-in"
+          onClick={() => setIntegracaoParaDeletar(null)}
         >
-          <div 
-            className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-3xl shadow-2xl max-w-sm w-full p-6 animate-in zoom-in-95"
-            onClick={(e) => e.stopPropagation()} 
+          <div
+            className={`${PAINEL} max-w-sm w-full p-7 animate-in zoom-in-95`}
+            onClick={(e) => e.stopPropagation()}
           >
-            <div className="w-14 h-14 rounded-2xl bg-red-50 dark:bg-red-500/10 flex items-center justify-center mb-5 border border-red-100 dark:border-red-500/20">
-              <AlertTriangle className="text-red-600 dark:text-red-400" size={28} />
+            <div className="mb-5">
+              <Tile icon={AlertTriangle} cor="red" size={56} />
             </div>
-            <h2 className="text-xl font-black text-zinc-900 dark:text-zinc-100 mb-2">Excluir Integração</h2>
+            <h2 className="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100 mb-2">Excluir Integração</h2>
             <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-8 leading-relaxed">
-              Tem certeza que deseja desconectar e excluir a integração <b className="text-zinc-700 dark:text-zinc-300">{integracaoParaDeletar.nome_integracao}</b>? Esta ação não poderá ser desfeita.
+              Tem certeza que deseja desconectar e excluir a integração <b className="text-zinc-800 dark:text-zinc-200">{integracaoParaDeletar.nome_integracao}</b>? Esta ação não poderá ser desfeita.
             </p>
             <div className="flex gap-3 justify-end">
-              <button onClick={() => setIntegracaoParaDeletar(null)} className="px-5 py-2.5 rounded-xl font-bold text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-900 hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors">Cancelar</button>
-              <button onClick={confirmarExclusao} className="px-5 py-2.5 rounded-xl font-bold text-white bg-red-600 hover:bg-red-500 shadow-md shadow-red-500/20 transition-all active:scale-95">Sim, excluir</button>
+              <button onClick={() => setIntegracaoParaDeletar(null)} className={BTN_NEUTRO}>Cancelar</button>
+              <button onClick={confirmarExclusao} className={BTN_PERIGO}>Sim, excluir</button>
             </div>
           </div>
         </div>
@@ -563,14 +738,12 @@ export default function IntegracoesPage() {
 
       {/* 🟢 MODAL CHECKLIST DE ETAPAS */}
       {isSyncModalOpen && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-zinc-950/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-3xl shadow-2xl max-w-md w-full p-6 sm:p-8 animate-in zoom-in-95">
-            <div className="flex items-center gap-3 mb-6 pb-4 border-b border-zinc-100 dark:border-zinc-800/60">
-              <div className="p-3 bg-emerald-50 dark:bg-emerald-500/10 rounded-2xl text-emerald-500">
-                <RefreshCw size={22} className="animate-spin" />
-              </div>
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-zinc-950/60 backdrop-blur-md animate-in fade-in">
+          <div className={`${PAINEL} max-w-md w-full p-6 sm:p-8 animate-in zoom-in-95`}>
+            <div className="flex items-center gap-4 mb-6 pb-5 border-b border-black/[0.06] dark:border-white/[0.06]">
+              <Tile icon={RefreshCw} cor="emerald" size={48} />
               <div>
-                <h3 className="font-black text-lg text-zinc-900 dark:text-white">Motor de Sincronização</h3>
+                <h3 className="font-bold text-lg tracking-tight text-zinc-900 dark:text-white">Motor de Sincronização</h3>
                 <p className="text-xs text-zinc-500 font-medium">Processando fluxo Omie ERP em tempo real.</p>
               </div>
             </div>
@@ -578,12 +751,17 @@ export default function IntegracoesPage() {
             <div className="space-y-4">
               {passosSync.map((p) => (
                 <div key={p.id} className="flex items-center gap-3 animate-in slide-in-from-left-2">
-                  {p.status === 'done' && <CheckCircle2 size={20} className="text-emerald-500 shrink-0" />}
-                  {p.status === 'loading' && <Loader2 size={20} className="animate-spin text-emerald-500 shrink-0" />}
-                  {p.status === 'pending' && <div className="w-5 h-5 rounded-full border-2 border-zinc-200 dark:border-zinc-800 shrink-0" />}
-                  {p.status === 'error' && <AlertTriangle size={20} className="text-rose-500 shrink-0" />}
-                  
-                  <span className={`text-xs ${p.status === 'done' ? "font-bold text-emerald-600 dark:text-emerald-400" : p.status === 'loading' ? "font-bold text-zinc-900 dark:text-white" : "font-medium text-zinc-400"}`}>
+                  {p.status === "done" && <CheckCircle2 size={20} className="text-emerald-500 shrink-0" />}
+                  {p.status === "loading" && <Loader2 size={20} className="animate-spin text-emerald-500 shrink-0" />}
+                  {p.status === "pending" && <div className="w-5 h-5 rounded-full border-2 border-zinc-200 dark:border-zinc-700 shrink-0" />}
+                  {p.status === "error" && <AlertTriangle size={20} className="text-rose-500 shrink-0" />}
+
+                  <span className={`text-xs ${
+                    p.status === "done" ? "font-semibold text-emerald-600 dark:text-emerald-400"
+                    : p.status === "loading" ? "font-semibold text-zinc-900 dark:text-white"
+                    : p.status === "error" ? "font-semibold text-rose-600 dark:text-rose-400"
+                    : "font-medium text-zinc-400"
+                  }`}>
                     {p.texto}
                   </span>
                 </div>
@@ -595,19 +773,21 @@ export default function IntegracoesPage() {
 
       {/* MODAL DE EDIÇÃO */}
       {editandoInt && (
-        <div 
-          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-zinc-950/40 backdrop-blur-sm animate-in fade-in"
-          onClick={() => setEditandoInt(null)} 
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-zinc-950/40 backdrop-blur-md animate-in fade-in"
+          onClick={() => setEditandoInt(null)}
         >
-          {editandoInt.plataforma === 'omie' && (
-            <EditarOmie 
-              integracao={editandoInt} 
-              onCancel={() => setEditandoInt(null)} 
-              onSuccess={() => {
-                setEditandoInt(null);
-                carregarIntegracoesEStatus(); 
-              }} 
-            />
+          {editandoInt.plataforma === "omie" && (
+            <div onClick={(e) => e.stopPropagation()} className="contents">
+              <EditarOmie
+                integracao={editandoInt}
+                onCancel={() => setEditandoInt(null)}
+                onSuccess={() => {
+                  setEditandoInt(null);
+                  carregarIntegracoesEStatus();
+                }}
+              />
+            </div>
           )}
         </div>
       )}

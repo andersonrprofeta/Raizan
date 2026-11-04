@@ -245,7 +245,7 @@ export default function FinanceiroBI() {
   };
 
   return (
-    <div className="flex h-[100dvh] bg-zinc-50 dark:bg-[#09090b] text-zinc-900 dark:text-zinc-100 overflow-x-hidden transition-colors duration-300">
+    <div className="flex h-[100dvh] bg-[#f5f5f7] dark:bg-black text-zinc-900 dark:text-zinc-100 overflow-x-hidden transition-colors duration-300">
       <Sidebar />
 
       <div className="flex-1 flex flex-col min-h-0 min-w-0 relative">
@@ -261,8 +261,8 @@ export default function FinanceiroBI() {
             {[7, 30, 90, 365].map(d => (
               <button key={d}
                 onClick={() => setPeriodo(d)}
-                className={`flex-1 min-w-[80px] sm:flex-none px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-bold uppercase tracking-wider transition-all duration-300 shadow-sm ${
-                  periodo === d ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-purple-500/25" : "bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 hover:border-purple-300 dark:hover:border-purple-700 hover:text-purple-600 dark:hover:text-purple-400"
+                className={`flex-1 min-w-[80px] sm:flex-none px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-bold transition-all duration-300 shadow-sm ${
+                  periodo === d ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-purple-500/25" : "bg-white dark:bg-[#121214] border border-black/[0.06] dark:border-white/[0.07] text-zinc-500 dark:text-zinc-400 hover:border-purple-300 dark:hover:border-purple-700 hover:text-purple-600 dark:hover:text-purple-400"
                 }`}>
                 {d} dias
               </button>
@@ -281,8 +281,8 @@ export default function FinanceiroBI() {
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 min-w-0">
 
             {/* GRÁFICO COM LINHAS CURVAS (MONOTONE) E GLASSMORPHISM */}
-            <div className="xl:col-span-2 bg-white/70 dark:bg-[#121214]/70 backdrop-blur-xl border border-zinc-200 dark:border-zinc-800/80 rounded-[2rem] p-5 sm:p-7 min-w-0 shadow-lg shadow-zinc-200/20 dark:shadow-none transition-colors duration-300">
-              <h3 className="mb-6 text-zinc-900 dark:text-zinc-100 font-black text-lg md:text-xl tracking-tight">Fluxo Financeiro</h3>
+            <div className="xl:col-span-2 bg-white/70 dark:bg-[#121214]/70 backdrop-blur-xl border border-black/[0.06] dark:border-white/[0.07]/80 rounded-[28px] p-5 sm:p-7 min-w-0 shadow-lg shadow-zinc-200/20 dark:shadow-none transition-colors duration-300">
+              <h3 className="mb-6 text-zinc-900 dark:text-zinc-100 font-bold text-lg md:text-xl tracking-tight">Fluxo Financeiro</h3>
 
               <ResponsiveContainer width="100%" height={260}>
                 <AreaChart data={chartData} margin={{ top: 10, right: 0, left: 0, bottom: 0 }}>
@@ -324,13 +324,13 @@ export default function FinanceiroBI() {
             </div>
 
             {/* RANKING (TOP PRODUTOS) */}
-            <div className="bg-white/70 dark:bg-[#121214]/70 backdrop-blur-xl border border-zinc-200 dark:border-zinc-800/80 rounded-[2rem] p-5 sm:p-7 min-w-0 shadow-lg shadow-zinc-200/20 dark:shadow-none transition-colors duration-300">
-              <h3 className="mb-6 text-zinc-900 dark:text-zinc-100 font-black text-lg md:text-xl tracking-tight">Top Produtos</h3>
+            <div className="bg-white/70 dark:bg-[#121214]/70 backdrop-blur-xl border border-black/[0.06] dark:border-white/[0.07]/80 rounded-[28px] p-5 sm:p-7 min-w-0 shadow-lg shadow-zinc-200/20 dark:shadow-none transition-colors duration-300">
+              <h3 className="mb-6 text-zinc-900 dark:text-zinc-100 font-bold text-lg md:text-xl tracking-tight">Top Produtos</h3>
 
               {rankingLista.length === 0 ? (
                  <div className="flex flex-col items-center justify-center h-48 text-zinc-400">
                    <Package size={32} className="mb-2 opacity-50" />
-                   <p className="text-xs font-bold uppercase tracking-wider">Sem dados no período</p>
+                   <p className="text-xs font-bold">Sem dados no período</p>
                  </div>
               ) : (
                 <div className="space-y-5">
@@ -338,7 +338,7 @@ export default function FinanceiroBI() {
                     <div key={p.nome} className="min-w-0 group">
                       <div className="flex items-center justify-between mb-2 gap-2 min-w-0">
                         <span className="truncate flex-1 min-w-0 text-sm font-bold text-zinc-700 dark:text-zinc-300 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">{p.nome}</span>
-                        <span className="text-xs font-black text-zinc-900 dark:text-zinc-100 bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded-md">{p.qtd} un</span>
+                        <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100 bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded-md">{p.qtd} un</span>
                       </div>
 
                       <div className="w-full bg-zinc-100 dark:bg-zinc-800/50 h-2.5 rounded-full overflow-hidden shadow-inner">
@@ -356,13 +356,13 @@ export default function FinanceiroBI() {
           </div>
 
           {/* EXTRATO COM BOTÃO DE PDF */}
-          <div className="bg-white/70 dark:bg-[#121214]/70 backdrop-blur-xl border border-zinc-200 dark:border-zinc-800/80 rounded-[2rem] p-5 sm:p-7 min-w-0 shadow-lg shadow-zinc-200/20 dark:shadow-none transition-colors duration-300">
+          <div className="bg-white/70 dark:bg-[#121214]/70 backdrop-blur-xl border border-black/[0.06] dark:border-white/[0.07]/80 rounded-[28px] p-5 sm:p-7 min-w-0 shadow-lg shadow-zinc-200/20 dark:shadow-none transition-colors duration-300">
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
-              <h3 className="text-zinc-900 dark:text-zinc-100 font-black text-lg md:text-xl tracking-tight">Extrato de Movimentações</h3>
+              <h3 className="text-zinc-900 dark:text-zinc-100 font-bold text-lg md:text-xl tracking-tight">Extrato de Movimentações</h3>
               
               <button 
                 onClick={gerarPDF}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 hover:border-purple-300 dark:hover:border-purple-700 hover:text-purple-600 dark:hover:text-purple-400 text-zinc-700 dark:text-zinc-300 px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all shadow-sm active:scale-95"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 hover:border-purple-300 dark:hover:border-purple-700 hover:text-purple-600 dark:hover:text-purple-400 text-zinc-700 dark:text-zinc-300 px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-sm active:scale-95"
               >
                 <Printer size={16} /> Exportar (PDF)
               </button>
@@ -370,7 +370,7 @@ export default function FinanceiroBI() {
 
             <div className="max-h-[350px] overflow-y-auto overflow-x-hidden space-y-2 custom-scrollbar pr-1 sm:pr-3 min-w-0">
               {pedidosFiltrados.length === 0 && (
-                <p className="text-zinc-500 text-sm p-4 text-center border border-dashed border-zinc-200 dark:border-zinc-800 rounded-2xl">
+                <p className="text-zinc-500 text-sm p-4 text-center border border-dashed border-black/[0.06] dark:border-white/[0.07] rounded-2xl">
                   Nenhuma movimentação financeira neste período.
                 </p>
               )}
@@ -378,11 +378,11 @@ export default function FinanceiroBI() {
               {pedidosFiltrados.slice(0, 20).map(p => (
                 <div key={p.id} className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 p-4 rounded-2xl border border-transparent hover:border-zinc-200 dark:hover:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-all group min-w-0">
                   <div className="min-w-0 flex flex-col items-start">
-                    <p className="text-sm font-black text-zinc-800 dark:text-zinc-200 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors truncate">
+                    <p className="text-sm font-bold text-zinc-800 dark:text-zinc-200 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors truncate">
                       Pedido #{p.id}
                     </p>
                     
-                    <span className={`text-[9px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-md mt-1.5 inline-block border ${
+                    <span className={`text-[11px] font-bold px-2.5 py-1 rounded-md mt-1.5 inline-block border ${
                       statusPagos.includes(p.status) ? 'bg-purple-50 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-200 dark:border-purple-500/20' : 
                       statusCancelados.includes(p.status) ? 'bg-zinc-100 dark:bg-zinc-500/10 text-zinc-500 dark:text-zinc-400 border-zinc-200 dark:border-zinc-500/20' : 
                       'bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-500/20'
@@ -391,10 +391,10 @@ export default function FinanceiroBI() {
                     </span>
                   </div>
                   <div className="flex flex-col sm:items-end">
-                    <span className={`font-black text-base sm:text-lg tracking-tight ${statusPagos.includes(p.status) ? "text-purple-600 dark:text-purple-400" : statusCancelados.includes(p.status) ? "text-zinc-400 dark:text-zinc-500 line-through" : "text-rose-600 dark:text-rose-400"}`}>
+                    <span className={`font-bold text-base sm:text-lg tracking-tight ${statusPagos.includes(p.status) ? "text-purple-600 dark:text-purple-400" : statusCancelados.includes(p.status) ? "text-zinc-400 dark:text-zinc-500 line-through" : "text-rose-600 dark:text-rose-400"}`}>
                       {format(p.total)}
                     </span>
-                    <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest mt-0.5">
+                    <span className="text-[11px] text-zinc-400 font-bold mt-0.5">
                       {new Date(p.date_created).toLocaleDateString("pt-BR")}
                     </span>
                   </div>
@@ -424,14 +424,14 @@ function Card({ icon, title, value, color = "emerald" }) {
   const selectedColor = colorMap[color] || colorMap.purple;
 
   return (
-    <div className="bg-white/70 dark:bg-[#121214]/70 backdrop-blur-xl border border-zinc-200 dark:border-zinc-800/80 rounded-3xl p-5 hover:bg-zinc-50 dark:hover:bg-zinc-900/50 shadow-sm dark:shadow-none transition-colors relative overflow-hidden group min-w-0">
+    <div className="bg-white/70 dark:bg-[#121214]/70 backdrop-blur-xl border border-black/[0.06] dark:border-white/[0.07]/80 rounded-[28px] p-5 hover:bg-zinc-50 dark:hover:bg-zinc-900/50 shadow-sm dark:shadow-none transition-colors relative overflow-hidden group min-w-0">
       <div className="relative flex justify-between items-start mb-3">
         <div className={`w-10 h-10 rounded-2xl border flex items-center justify-center shadow-inner transition-transform group-hover:scale-110 ${selectedColor}`}>
           {icon}
         </div>
       </div>
-      <p className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider relative truncate mb-1">{title}</p>
-      <h3 className="text-2xl sm:text-3xl font-black text-zinc-900 dark:text-zinc-100 relative break-words tracking-tight">{value}</h3>
+      <p className="text-xs font-bold text-zinc-500 dark:text-zinc-400 relative truncate mb-1">{title}</p>
+      <h3 className="text-2xl sm:text-3xl font-bold text-zinc-900 dark:text-zinc-100 relative break-words tracking-tight">{value}</h3>
     </div>
   );
 }

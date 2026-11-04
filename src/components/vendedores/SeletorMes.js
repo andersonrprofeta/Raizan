@@ -22,7 +22,7 @@ export default function SeletorMes({ valor, onChange, permitirFuturo = false }) 
   const botao = "w-8 h-8 rounded-full flex items-center justify-center text-zinc-500 hover:bg-black/[0.05] dark:hover:bg-white/[0.08] transition-colors disabled:opacity-30 disabled:hover:bg-transparent";
 
   return (
-    <div className="inline-flex items-center gap-1 bg-white/80 dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/[0.08] p-1 rounded-full shadow-sm">
+    <div className="inline-flex self-start sm:self-auto items-center gap-1 bg-white/80 dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/[0.08] p-1 rounded-full shadow-sm">
       <button type="button" onClick={() => onChange(mesVizinho(valor, -1))} className={botao} aria-label="Mês anterior">
         <ChevronLeft size={16} />
       </button>

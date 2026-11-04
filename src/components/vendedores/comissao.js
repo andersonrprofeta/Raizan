@@ -1,465 +1,345 @@
-//comissoesController.js
-
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { 
-  DollarSign, Percent, Copy, Save, RefreshCw, 
-  Search, ShieldAlert, CheckCircle2, AlertCircle, 
-  TrendingUp, TrendingDown, Layers, ArrowRight,
-  Calculator, CheckSquare, X, Settings2, Tag,
-  FileSpreadsheet, FileText
-} from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { AlertCircle, Calculator, CheckCircle2, Copy, FileSpreadsheet, FileText, Search, Settings2 } from "lucide-react";
 import toast from "react-hot-toast";
-import { getHubUrl, getHeaders } from "@/components/utils/api";
-import SeletorMes, { mesDeHoje, nomeDoMes } from "@/components/vendedores/SeletorMes";
+import { nomeDoMes } from "@/components/vendedores/SeletorMes";
+import {
+  api, BOTAO_PRIMARIO, BOTAO_SECUNDARIO, CAMPO, Carregando, EstadoVazio, Kpi, moeda, Modal, ROTULO, Segmentado, VIDRO
+} from "@/components/vendedores/ui";
 
-const emReais = (valor) => `R$ ${Number(valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const SECOES = [
+  { id: "apuracao", rotulo: "Apuração", icone: Calculator },
+  { id: "regras", rotulo: "Regras", icone: Settings2 }
+];
 
-export default function TabComissoes({ vendedor, listaVendedores = [] }) {
-  const [subAba, setSubAba] = useState("regras");
-  const [busca, setBusca] = useState("");
-  const [sincronizando, setSincronizando] = useState(false);
-  const [fechando, setFechando] = useState(false);
-  
-  const [modalReplica, setModalReplica] = useState(false);
-  const [vendedoresSelecionados, setVendedoresSelecionados] = useState([]);
+const reais = (valor) => Number(valor || 0).toFixed(2).replace(".", ",");
 
-  const [loading, setLoading] = useState(true);
-  const [marcasReais, setMarcasReais] = useState([]);
-  const [vendedoresReais, setVendedoresReais] = useState([]); 
-  
-  // 🟢 ESTADOS REAIS
-  const [comissaoGeral, setComissaoGeral] = useState(5.0);
-  const [regrasMarcas, setRegrasMarcas] = useState({}); 
-  const [apuracaoDinamica, setApuracaoDinamica] = useState([]); // Agora é estado!
-
-  const [competencia, setCompetencia] = useState(mesDeHoje);
-  const [carregandoMes, setCarregandoMes] = useState(true);
+function Apuracao({ vendedor, competencia }) {
+  const { mes, ano } = competencia;
+  const [apuracao, setApuracao] = useState([]);
   const [fechamento, setFechamento] = useState(null);
   const [pendentes, setPendentes] = useState(null);
+  const [carregando, setCarregando] = useState(true);
+  const [fechando, setFechando] = useState(false);
   const ultimaBusca = useRef(0);
-  const { mes, ano } = competencia;
-
-  const baseVendedores = vendedoresReais.length > 0 ? vendedoresReais : listaVendedores;
-  const vendedoresDestino = baseVendedores.filter(v => String(v.id) !== String(vendedor?.id));
-
-  // ==========================================
-  // 🚀 BUSCA DE DADOS REAIS
-  // ==========================================
-  const carregarDados = useCallback(async () => {
-    setLoading(true);
-    try {
-      const tenant_id = JSON.parse(localStorage.getItem("@raizan:user"))?.tenant_id;
-      if (!tenant_id || !vendedor?.id) return;
-      
-      // Marcas, regras do vendedor e equipe (para o modal de copiar) ao mesmo tempo
-      const [dataMarcas, dataRegras, dataVend] = await Promise.all([
-        fetch(`${getHubUrl()}/api/hub/marcas?tenant_id=${tenant_id}`, { headers: getHeaders() }).then(r => r.json()),
-        fetch(`${getHubUrl()}/api/hub/comissoes/regras?tenant_id=${tenant_id}&vendedor_id=${vendedor.id}`, { headers: getHeaders() }).then(r => r.json()),
-        fetch(`${getHubUrl()}/api/hub/vendedores?tenant_id=${tenant_id}`, { headers: getHeaders() }).then(r => r.json())
-      ]);
-
-      let regrasAtuais = {};
-      if (dataRegras.success) {
-        setComissaoGeral(dataRegras.geral);
-        dataRegras.marcas.forEach(m => regrasAtuais[m.marca] = m.percentual);
-      }
-
-      if (dataMarcas.success) {
-        const marcasLimpas = dataMarcas.marcas.filter(m => !m.nome.toLowerCase().startsWith("provador"));
-        setMarcasReais(marcasLimpas);
-
-        const regrasForm = {};
-        marcasLimpas.forEach(m => {
-          regrasForm[m.nome] = regrasAtuais[m.nome] !== undefined ? regrasAtuais[m.nome] : "";
-        });
-        setRegrasMarcas(regrasForm);
-      }
-
-      if (dataVend.success) setVendedoresReais(dataVend.vendedores || []);
-
-    } catch (error) {
-      console.error("Erro ao puxar dados da API", error);
-    } finally {
-      setLoading(false);
-    }
-  }, [vendedor]);
 
   // Trocar de mês rápido não pode deixar a resposta de um mês na tela de outro
-  const carregarMes = useCallback(async () => {
-    if (!vendedor?.id) return;
+  const carregar = useCallback(async () => {
     const busca = ++ultimaBusca.current;
-    setCarregandoMes(true);
+    setCarregando(true);
     try {
-      const tenant_id = JSON.parse(localStorage.getItem("@raizan:user"))?.tenant_id;
-      const [resApuracao, resFechamentos] = await Promise.all([
-        fetch(`${getHubUrl()}/api/hub/comissoes/apuracao?tenant_id=${tenant_id}&vendedor_id=${vendedor.id}&mes=${mes}&ano=${ano}`, { headers: getHeaders() }),
-        fetch(`${getHubUrl()}/api/hub/comissoes/fechamentos?tenant_id=${tenant_id}&vendedor_id=${vendedor.id}`, { headers: getHeaders() })
+      const [dataApuracao, dataFechamentos] = await Promise.all([
+        api(`/comissoes/apuracao?vendedor_id=${vendedor.id}&mes=${mes}&ano=${ano}`),
+        api(`/comissoes/fechamentos?vendedor_id=${vendedor.id}`)
       ]);
-      const [dataApuracao, dataFechamentos] = await Promise.all([resApuracao.json(), resFechamentos.json()]);
       if (busca !== ultimaBusca.current) return;
-      if (!dataApuracao.success) throw new Error(dataApuracao.message);
+      if (!dataApuracao.success) throw new Error();
 
-      setApuracaoDinamica(dataApuracao.apuracao || []);
+      setApuracao(dataApuracao.apuracao || []);
       setPendentes(dataApuracao.pendentes || null);
-      setFechamento((dataFechamentos.fechamentos || []).find(f => Number(f.mes) === mes && Number(f.ano) === ano) || null);
-    } catch (error) {
+      setFechamento((dataFechamentos.fechamentos || []).find((f) => Number(f.mes) === mes && Number(f.ano) === ano) || null);
+    } catch (erro) {
       if (busca !== ultimaBusca.current) return;
-      setApuracaoDinamica([]);
+      setApuracao([]);
       setPendentes(null);
       setFechamento(null);
       toast.error("Erro ao carregar a apuração do mês.");
     } finally {
-      if (busca === ultimaBusca.current) setCarregandoMes(false);
+      if (busca === ultimaBusca.current) setCarregando(false);
     }
-  }, [vendedor, mes, ano]);
+  }, [vendedor.id, mes, ano]);
 
-  useEffect(() => { carregarDados(); }, [carregarDados]);
-  useEffect(() => { carregarMes(); }, [carregarMes]);
+  useEffect(() => { carregar(); }, [carregar]);
 
-  // ==========================================
-  // 🛠️ EVENTOS E INTEGRAÇÃO (SALVAR E COPIAR)
-  // ==========================================
-  const handlePercentualChange = (nomeMarca, valor) => {
-    let num = valor.replace(/[^0-9.]/g, ''); 
-    if (Number(num) > 100) num = "100";
-    setRegrasMarcas(prev => ({ ...prev, [nomeMarca]: num }));
-  };
+  const totais = apuracao.reduce((acc, item) => ({
+    vendas: acc.vendas + item.vendas,
+    devolucoes: acc.devolucoes + item.devolucoes,
+    base: acc.base + item.base,
+    comissao: acc.comissao + item.comissao
+  }), { vendas: 0, devolucoes: 0, base: 0, comissao: 0 });
 
-  const handleSalvarRegras = async () => {
-    setSincronizando(true);
-    const toastId = toast.loading("Salvando comissões no banco...");
-    try {
-      const tenant_id = JSON.parse(localStorage.getItem("@raizan:user"))?.tenant_id;
-      const payload = {
-        tenant_id,
-        vendedor_id: vendedor.id,
-        comissao_geral: comissaoGeral,
-        marcas_excecao: Object.entries(regrasMarcas)
-          .filter(([_, valor]) => valor !== "")
-          .map(([nome, valor]) => ({ marca: nome, percentual: Number(valor) }))
-      };
-
-      const res = await fetch(`${getHubUrl()}/api/hub/comissoes/regras`, { method: 'POST', headers: getHeaders(), body: JSON.stringify(payload) });
-      const data = await res.json();
-      if (data.success) {
-        toast.success("Comissões salvas! Atualizando apuração...", { id: toastId });
-        carregarDados(); // Recarrega para aplicar a nova regra
-        carregarMes();
-      } else throw new Error(data.message);
-    } catch(e) {
-      toast.error("Erro ao salvar", { id: toastId });
-    } finally { setSincronizando(false); }
-  };
-
-  const handleCopiarComissao = async () => {
-    if (vendedoresSelecionados.length === 0) return toast.error("Selecione pelo menos um vendedor!");
-    const toastId = toast.loading("Copiando estrutura...");
-    try {
-      const tenant_id = JSON.parse(localStorage.getItem("@raizan:user"))?.tenant_id;
-      const payload = { tenant_id, vendedor_origem_id: vendedor.id, vendedores_destino: vendedoresSelecionados };
-      const res = await fetch(`${getHubUrl()}/api/hub/comissoes/copiar`, { method: 'POST', headers: getHeaders(), body: JSON.stringify(payload) });
-      const data = await res.json();
-      if (data.success) {
-        toast.success(`Copiado para ${vendedoresSelecionados.length} vendedor(es)!`, { id: toastId });
-        setModalReplica(false); setVendedoresSelecionados([]);
-      } else throw new Error(data.message);
-    } catch(e) { toast.error("Erro ao copiar", { id: toastId }); }
-  };
-
-  const totalVendasBrutas = apuracaoDinamica.reduce((acc, curr) => acc + curr.vendas, 0);
-  const totalDevolucoes = apuracaoDinamica.reduce((acc, curr) => acc + curr.devolucoes, 0);
-  const totalBaseCalc = apuracaoDinamica.reduce((acc, curr) => acc + curr.base, 0);
-  const totalComissaoCalculada = apuracaoDinamica.reduce((acc, curr) => acc + curr.comissao, 0);
-
-  const handleFecharComissao = async () => {
+  const fechar = async () => {
     setFechando(true);
-    const toastId = toast.loading("Congelando período no banco...");
     try {
-      const tenant_id = JSON.parse(localStorage.getItem("@raizan:user"))?.tenant_id;
-      const payload = { tenant_id, vendedor_id: vendedor.id, mes, ano, total_vendas: totalVendasBrutas, total_devolucoes: totalDevolucoes, comissao_final: totalComissaoCalculada };
-      const res = await fetch(`${getHubUrl()}/api/hub/comissoes/fechar`, { method: 'POST', headers: getHeaders(), body: JSON.stringify(payload) });
-      const data = await res.json();
-      if (data.success) {
-        toast.success(`Comissão de ${nomeDoMes(competencia)} fechada!`, { id: toastId });
-        carregarMes();
-      } else throw new Error(data.message);
-    } catch(e) { toast.error("Erro ao fechar comissão", { id: toastId }); }
-    finally { setFechando(false); }
+      const data = await api("/comissoes/fechar", {
+        metodo: "POST",
+        corpo: { vendedor_id: vendedor.id, mes, ano, total_vendas: totais.vendas, total_devolucoes: totais.devolucoes, comissao_final: totais.comissao }
+      });
+      if (!data.success) throw new Error();
+      toast.success(`Comissão de ${nomeDoMes(competencia)} fechada.`);
+      carregar();
+    } catch (erro) {
+      toast.error("Erro ao fechar a comissão.");
+    } finally {
+      setFechando(false);
+    }
   };
 
-  // 🟢 EXPORTAÇÃO
-  const exportarParaExcel = () => {
-    let csv = "Marca/Familia;Vendas Brutas (R$);Devolucoes (R$);Base de Calculo (R$);Regra Aplicada (%);Valor da Comissao (R$)\n";
-    apuracaoDinamica.forEach(item => {
-      csv += `"${item.marca}";"${item.vendas.toFixed(2).replace('.', ',')}";"${item.devolucoes.toFixed(2).replace('.', ',')}";"${item.base.toFixed(2).replace('.', ',')}";"${item.regra.toFixed(1).replace('.', ',')}";"${item.comissao.toFixed(2).replace('.', ',')}"\n`;
-    });
-    csv += `"TOTAIS DO MES";"${totalVendasBrutas.toFixed(2).replace('.', ',')}";"${totalDevolucoes.toFixed(2).replace('.', ',')}";"${totalBaseCalc.toFixed(2).replace('.', ',')}";"-";"${totalComissaoCalculada.toFixed(2).replace('.', ',')}"\n`;
-    const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
+  const exportarCsv = () => {
+    const linhas = apuracao.map((i) => `"${i.marca}";"${reais(i.vendas)}";"${reais(i.devolucoes)}";"${reais(i.base)}";"${String(i.regra).replace(".", ",")}";"${reais(i.comissao)}"`);
+    const csv = ["Marca;Vendas;Devolucoes;Base;Regra (%);Comissao", ...linhas, `"Total";"${reais(totais.vendas)}";"${reais(totais.devolucoes)}";"${reais(totais.base)}";"-";"${reais(totais.comissao)}"`].join("\n");
+    const url = URL.createObjectURL(new Blob([`﻿${csv}`], { type: "text/csv;charset=utf-8;" }));
     const link = document.createElement("a");
-    link.href = url; link.download = `Comissao_Raizan_${vendedor?.nome || 'Vendedor'}_${mes}-${ano}.csv`;
-    document.body.appendChild(link); link.click(); document.body.removeChild(link);
-    toast.success("Excel gerado!");
+    link.href = url;
+    link.download = `Comissao_${vendedor.nome.replace(/\s+/g, "_")}_${mes}-${ano}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
   };
 
-  const exportarParaPDF = () => {
-    const conteudo = document.getElementById('tabela-apuracao').outerHTML;
-    const janela = window.open('', '', 'width=900,height=650');
-    janela.document.write(`
-      <html>
-        <head><title>Relatório de Comissões</title>
-        <style>
-          body { font-family: sans-serif; padding: 30px; color: #18181b; }
-          h2 { margin-bottom: 5px; color: #4f46e5; }
-          p { color: #71717a; margin-bottom: 30px; }
-          table { width: 100%; border-collapse: collapse; font-size: 14px; }
-          th, td { border-bottom: 1px solid #e4e4e7; padding: 12px; text-align: left; }
-          th { background-color: #f4f4f5; text-transform: uppercase; font-size: 12px; }
-          .text-right { text-align: right; } .text-center { text-align: center; }
-          @media print { button { display: none; } }
-        </style></head>
-        <body>
-          <h2>Relatório de Comissões - ${vendedor?.nome || 'Vendedor'}</h2>
-          <p>Competência: ${nomeDoMes(competencia)}</p>
-          ${conteudo}
-          <script>window.onload=function(){window.print();window.close();}</script>
-        </body>
-      </html>
-    `);
+  const exportarPdf = () => {
+    const janela = window.open("", "", "width=900,height=650");
+    if (!janela) return toast.error("Libere as janelas do navegador para gerar o PDF.");
+    const tabela = document.getElementById(`apuracao-${vendedor.id}`).outerHTML;
+    janela.document.write(`<html><head><title>Comissões</title><style>
+      body{font-family:-apple-system,Segoe UI,sans-serif;padding:32px;color:#18181b}h2{margin:0 0 4px}p{color:#71717a;margin:0 0 24px}
+      table{width:100%;border-collapse:collapse;font-size:13px}th,td{border-bottom:1px solid #e4e4e7;padding:10px;text-align:right}
+      th:first-child,td:first-child{text-align:left}th{color:#71717a;font-weight:500}
+      </style></head><body><h2>Comissão de ${vendedor.nome}</h2><p>${nomeDoMes(competencia)}</p>${tabela}
+      <script>window.onload=function(){window.print();window.close();}</script></body></html>`);
     janela.document.close();
   };
 
-  const marcasFiltradas = marcasReais.filter(m => m.nome.toLowerCase().includes(busca.toLowerCase()));
-  const alternarVend = (id) => setVendedoresSelecionados(p => p.includes(id) ? p.filter(v => v !== id) : [...p, id]);
-  const selecionarTodos = () => setVendedoresSelecionados(vendedoresSelecionados.length === vendedoresDestino.length ? [] : vendedoresDestino.map(v => v.id));
-
-  if (loading) return (
-    <div className="flex flex-col items-center justify-center py-32 text-zinc-500">
-      <RefreshCw size={32} className="animate-spin mb-4 text-indigo-500" />
-      <p className="font-bold uppercase tracking-widest text-xs">Carregando Motor de Vendas...</p>
-    </div>
-  );
-
   return (
-    <div className="space-y-6 pb-20">
-      
-      {/* CABEÇALHO */}
-      <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row flex-wrap items-start sm:items-center justify-between shadow-sm gap-4">
-        <div className="flex items-center gap-4">
-          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center bg-indigo-100 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 shrink-0">
-            <DollarSign size={20} className="sm:w-6 sm:h-6" />
-          </div>
-          <div>
-            <h3 className="font-bold text-base sm:text-lg text-zinc-900 dark:text-white">Comissionamento</h3>
-            <p className="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400">Gerencie e apure de forma simples.</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2 w-full sm:w-auto bg-zinc-100 dark:bg-zinc-900/50 p-1 rounded-xl border border-zinc-200 dark:border-zinc-800">
-          <button onClick={() => setSubAba('regras')} className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 ${subAba === 'regras' ? 'bg-white dark:bg-[#18181b] shadow-sm text-indigo-600 dark:text-indigo-400' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}><Settings2 size={14} /> Regras</button>
-          <button onClick={() => setSubAba('apuracao')} className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 ${subAba === 'apuracao' ? 'bg-white dark:bg-[#18181b] shadow-sm text-indigo-600 dark:text-indigo-400' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}><Calculator size={14} /> Apuração</button>
-        </div>
+    <div className="space-y-6">
+      <div className={`grid grid-cols-2 lg:grid-cols-4 gap-4 transition-opacity ${carregando ? "opacity-50" : ""}`}>
+        <Kpi rotulo="Comissão" valor={moeda(totais.comissao)} tom="text-purple-600 dark:text-purple-400" detalhe={fechamento ? `Fechado em ${moeda(fechamento.comissao_final)}` : "Mês em aberto"} />
+        <Kpi rotulo="Vendas" valor={moeda(totais.vendas)} />
+        <Kpi rotulo="Devoluções" valor={moeda(totais.devolucoes)} />
+        <Kpi rotulo="Base de cálculo" valor={moeda(totais.base)} />
       </div>
 
-      <AnimatePresence mode="wait">
-        {subAba === 'regras' ? (
-          <motion.div key="regras" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-6">
-            
-            {/* REGRA GERAL */}
-            <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-5 shadow-sm flex flex-col gap-4">
-              <div>
-                <h4 className="font-bold flex items-center gap-2 text-zinc-900 dark:text-white text-base sm:text-lg">
-                  <Percent size={18} className="text-indigo-500"/> Regra Geral do Vendedor
-                </h4>
-                <p className="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 mt-1">Percentual base aplicado em produtos sem exceção.</p>
-              </div>
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="relative w-full sm:w-32 shrink-0">
-                  <input type="number" step="0.1" value={comissaoGeral} onChange={(e) => setComissaoGeral(Number(e.target.value))} className="w-full bg-zinc-50 dark:bg-black/40 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3 text-lg font-black text-center outline-none focus:border-indigo-500 transition-colors dark:text-white" />
-                  <span className="absolute right-3 top-3.5 text-zinc-400 font-bold">%</span>
-                </div>
-                <div className="flex w-full sm:w-auto items-center gap-2 sm:ml-auto">
-                  <button onClick={() => setModalReplica(true)} className="flex-1 sm:flex-none bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 font-bold py-3 px-4 rounded-xl text-xs sm:text-sm transition-all flex items-center justify-center gap-2">
-                    <Copy size={16} /> Copiar
-                  </button>
-                  <button onClick={handleSalvarRegras} disabled={sincronizando} className="flex-1 sm:flex-none bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-xl text-xs sm:text-sm transition-all shadow-[0_4px_14px_rgba(79,70,229,0.3)] flex items-center justify-center gap-2 disabled:opacity-50">
-                    {sincronizando ? <RefreshCw size={16} className="animate-spin" /> : <Save size={16} />} Salvar
-                  </button>
-                </div>
-              </div>
-            </div>
+      {pendentes?.quantidade > 0 && (
+        <div className="flex items-start gap-3 rounded-2xl bg-amber-500/10 px-5 py-3.5 text-sm text-amber-800 dark:text-amber-300">
+          <AlertCircle size={17} className="shrink-0 mt-0.5" />
+          <p>{pendentes.quantidade === 1 ? "1 pedido deste mês ainda não foi faturado" : `${pendentes.quantidade} pedidos deste mês ainda não foram faturados`} ({moeda(pendentes.valor)}). Eles ficam fora da comissão enquanto não faturarem.</p>
+        </div>
+      )}
 
-            {/* MARCAS */}
-            <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-sm overflow-hidden flex flex-col">
-              <div className="p-5 border-b border-zinc-100 dark:border-zinc-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-zinc-50/50 dark:bg-[#0c0c0e]/50">
-                <div>
-                  <h4 className="font-bold flex items-center gap-2 text-zinc-900 dark:text-white text-base sm:text-lg">
-                    <Layers size={18} className="text-indigo-500"/> Exceções por Marca
-                  </h4>
-                  <p className="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 mt-1">Deixe em branco para usar a Regra Geral.</p>
-                </div>
-                <div className="relative w-full sm:w-64 shrink-0">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Search size={16} className="text-zinc-400" /></div>
-                  <input type="text" placeholder="Buscar marca..." value={busca} onChange={(e) => setBusca(e.target.value)} className="w-full bg-white dark:bg-black/40 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-white py-2 pl-9 pr-4 rounded-xl text-sm outline-none focus:border-indigo-500 transition-colors shadow-sm" />
-                </div>
-              </div>
+      <section className={`${VIDRO} overflow-hidden`}>
+        <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-black/[0.05] dark:border-white/[0.06]">
+          <h2 className="font-semibold tracking-tight">Por marca</h2>
+          <div className="flex items-center gap-1">
+            <button type="button" onClick={exportarCsv} disabled={apuracao.length === 0} className="inline-flex items-center gap-1.5 h-9 px-3 rounded-full text-sm font-medium text-zinc-500 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] disabled:opacity-40 transition-colors"><FileSpreadsheet size={15} /> CSV</button>
+            <button type="button" onClick={exportarPdf} disabled={apuracao.length === 0} className="inline-flex items-center gap-1.5 h-9 px-3 rounded-full text-sm font-medium text-zinc-500 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] disabled:opacity-40 transition-colors"><FileText size={15} /> PDF</button>
+          </div>
+        </div>
 
-              <div className="flex flex-col max-h-[450px] overflow-y-auto custom-scrollbar p-0 sm:p-2">
-                {marcasFiltradas.map((marca) => (
-                  <div key={marca.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 mx-2 my-1 rounded-xl hover:bg-zinc-50 dark:hover:bg-zinc-800/30 border border-transparent hover:border-zinc-100 dark:hover:border-zinc-800 transition-colors gap-3 sm:gap-0">
-                    <div className="flex items-center gap-3 flex-1">
-                      <div className="w-8 h-8 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-400 shrink-0"><Tag size={14} /></div>
-                      <div className="flex-1">
-                        <p className="font-bold text-zinc-800 dark:text-zinc-200 text-sm sm:text-base">{marca.nome}</p>
-                        <p className="text-[10px] text-zinc-400 font-mono tracking-widest mt-0.5">ID: {marca.id}</p>
-                      </div>
-                    </div>
-                    <div className="relative w-full sm:w-28 shrink-0 flex justify-end">
-                      <input type="number" step="0.1" placeholder="Geral" value={regrasMarcas[marca.nome] || ""} onChange={(e) => handlePercentualChange(marca.nome, e.target.value)} className="w-full sm:w-24 bg-transparent border-b-2 border-zinc-200 dark:border-zinc-700 py-1 pr-5 text-right text-sm sm:text-base font-bold text-zinc-900 dark:text-indigo-400 outline-none focus:border-indigo-500 transition-colors placeholder:text-zinc-300 dark:placeholder:text-zinc-600" />
-                      <span className="absolute right-0 top-1 text-zinc-400 font-bold text-xs sm:text-sm">%</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </motion.div>
+        {carregando && apuracao.length === 0 ? (
+          <Carregando texto="Apurando o mês..." />
+        ) : apuracao.length === 0 ? (
+          <EstadoVazio icone={Calculator} titulo="Nenhuma venda faturada" texto={`Não há faturamento de ${vendedor.nome} em ${nomeDoMes(competencia)}.`} />
         ) : (
-          <motion.div key="apuracao" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-6">
-            
-            {/* APURAÇÃO */}
-            <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-sm overflow-hidden flex flex-col">
-              <div className="p-5 border-b border-zinc-100 dark:border-zinc-800 flex flex-col gap-4 bg-zinc-50/50 dark:bg-[#0c0c0e]/50">
-                <div>
-                  <h4 className="font-bold text-base sm:text-lg text-zinc-900 dark:text-white flex items-center gap-2">
-                    <CheckSquare className="text-indigo-500" size={18} /> Fechamento de Comissão
-                  </h4>
-                  <p className="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 mt-1">Cálculo exato de Vendas abatendo as Devoluções.</p>
-                </div>
-                
-                <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                  <SeletorMes valor={competencia} onChange={setCompetencia} />
-                  {fechamento && (
-                    <span className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-xs font-semibold whitespace-nowrap">
-                      <CheckCircle2 size={14} /> Fechado em {emReais(fechamento.comissao_final)}
-                    </span>
-                  )}
-                  <div className="flex items-center gap-2 w-full sm:w-auto">
-                    <button onClick={exportarParaExcel} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-50 text-emerald-600 border border-emerald-200 rounded-lg hover:bg-emerald-100 dark:bg-emerald-500/10 dark:border-emerald-500/30 dark:text-emerald-400 transition-colors text-[10px] sm:text-xs font-bold uppercase tracking-wider whitespace-nowrap"><FileSpreadsheet size={14} /> Exportar CSV</button>
-                    <button onClick={exportarParaPDF} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2 bg-rose-50 text-rose-600 border border-rose-200 rounded-lg hover:bg-rose-100 dark:bg-rose-500/10 dark:border-rose-500/30 dark:text-rose-400 transition-colors text-[10px] sm:text-xs font-bold uppercase tracking-wider whitespace-nowrap"><FileText size={14} /> Gerar PDF</button>
-                  </div>
-                </div>
-              </div>
-
-              {pendentes?.quantidade > 0 && (
-                <div className="mx-5 mt-4 flex items-start gap-2.5 rounded-2xl bg-amber-500/10 px-4 py-3 text-xs sm:text-sm text-amber-800 dark:text-amber-300">
-                  <AlertCircle size={16} className="shrink-0 mt-0.5" />
-                  <p>
-                    {pendentes.quantidade === 1 ? "1 pedido deste mês ainda não foi faturado" : `${pendentes.quantidade} pedidos deste mês ainda não foram faturados`} ({emReais(pendentes.valor)}). Eles ficam fora da comissão enquanto não faturarem.
-                  </p>
-                </div>
-              )}
-
-              <div className={`overflow-x-auto w-full custom-scrollbar transition-opacity ${carregandoMes ? 'opacity-40' : ''}`}>
-                <table id="tabela-apuracao" className="w-full min-w-[750px] text-sm text-left">
-                  <thead className="bg-zinc-50 dark:bg-[#0c0c0e] text-[10px] uppercase tracking-wider text-zinc-500 dark:text-zinc-500">
-                    <tr>
-                      <th className="px-5 py-3 font-bold whitespace-nowrap">Marca</th>
-                      <th className="px-5 py-3 font-bold text-right text-blue-600/70 whitespace-nowrap">Vendas (R$)</th>
-                      <th className="px-5 py-3 font-bold text-right text-rose-500/70 whitespace-nowrap">(-) Devoluções</th>
-                      <th className="px-5 py-3 font-bold text-right text-zinc-700 dark:text-zinc-300 whitespace-nowrap">Base Calculo</th>
-                      <th className="px-5 py-3 font-bold text-center whitespace-nowrap">Regra (%)</th>
-                      <th className="px-5 py-3 font-bold text-right text-indigo-600/80 whitespace-nowrap">Comissão (R$)</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/50">
-                    {!carregandoMes && apuracaoDinamica.length === 0 && (
-                      <tr>
-                        <td colSpan={6} className="px-5 py-10 text-center text-sm text-zinc-500">Nenhuma venda faturada em {nomeDoMes(competencia)}.</td>
-                      </tr>
-                    )}
-                    {apuracaoDinamica.map((item, idx) => (
-                      <tr key={idx} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors text-xs sm:text-sm">
-                        <td className="px-5 py-3 font-bold text-zinc-800 dark:text-zinc-200 whitespace-nowrap">{item.marca}</td>
-                        <td className="px-5 py-3 text-right text-zinc-600 dark:text-zinc-400 whitespace-nowrap">{item.vendas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-                        <td className="px-5 py-3 text-right text-rose-500 dark:text-rose-400 whitespace-nowrap">{item.devolucoes > 0 ? `-${item.devolucoes.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '-'}</td>
-                        <td className="px-5 py-3 text-right font-medium text-zinc-700 dark:text-zinc-300 bg-zinc-50/50 dark:bg-zinc-900/20 whitespace-nowrap">{item.base.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-                        <td className="px-5 py-3 text-center font-bold text-indigo-600 dark:text-indigo-400 whitespace-nowrap">{item.regra.toFixed(1)}%</td>
-                        <td className="px-5 py-3 text-right font-black text-indigo-600 dark:text-indigo-400 whitespace-nowrap">R$ {item.comissao.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot className="bg-zinc-100/80 dark:bg-[#0c0c0e]/80 border-t border-zinc-200 dark:border-zinc-700 text-xs sm:text-sm">
-                    <tr>
-                      <td className="px-5 py-4 font-black text-zinc-900 dark:text-white uppercase tracking-widest whitespace-nowrap">Totais do Mês</td>
-                      <td className="px-5 py-4 text-right font-black text-blue-600 dark:text-blue-400 whitespace-nowrap">R$ {totalVendasBrutas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-                      <td className="px-5 py-4 text-right font-black text-rose-500 dark:text-rose-400 whitespace-nowrap">- R$ {totalDevolucoes.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-                      <td className="px-5 py-4 text-right font-black text-zinc-800 dark:text-zinc-200 whitespace-nowrap">R$ {totalBaseCalc.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-                      <td className="px-5 py-4 text-center text-zinc-400 whitespace-nowrap">-</td>
-                      <td className="px-5 py-4 text-right font-black text-indigo-600 dark:text-indigo-400 text-base whitespace-nowrap bg-indigo-50/50 dark:bg-indigo-900/10">R$ {totalComissaoCalculada.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
-              <div className="p-5 bg-zinc-50 dark:bg-[#0c0c0e] border-t border-zinc-200 dark:border-zinc-800 flex flex-col md:flex-row justify-between items-center gap-4">
-                <div className="flex items-center gap-3 text-xs sm:text-sm text-zinc-500 dark:text-zinc-400">
-                  <ShieldAlert size={16} className="text-indigo-500 shrink-0" />
-                  <p>{fechamento
-                    ? <>Este mês já foi fechado. Atualizar substitui o valor que o vendedor vê no <strong>Raizan Seller</strong>.</>
-                    : <>O fechamento grava o total do mês e envia o resultado ao <strong>Raizan Seller</strong>.</>}</p>
-                </div>
-                <button onClick={handleFecharComissao} disabled={fechando || carregandoMes || apuracaoDinamica.length === 0} className="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-[0_4px_14px_rgba(79,70,229,0.3)] flex items-center justify-center gap-2 disabled:opacity-50 shrink-0 text-sm">
-                  {fechando ? <RefreshCw size={18} className="animate-spin" /> : <CheckCircle2 size={18} />} {fechando ? "Processando..." : fechamento ? "Atualizar Fechamento" : "Fechar Comissão e Enviar"}
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* 🟢 MODAL COPIAR */}
-      <AnimatePresence>
-        {modalReplica && (
-          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in transition-colors">
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-3xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
-              <div className="p-5 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-[#18181b] flex justify-between items-center">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-indigo-100 dark:bg-indigo-500/20 rounded-xl flex items-center justify-center text-indigo-600 dark:text-indigo-400"><Copy size={20} /></div>
-                  <h2 className="text-lg font-black text-zinc-900 dark:text-white">Copiar Regras</h2>
-                </div>
-                <button onClick={() => setModalReplica(false)} className="p-2 bg-zinc-200 dark:bg-zinc-800 rounded-full hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-colors"><X size={18} className="text-zinc-600 dark:text-zinc-400"/></button>
-              </div>
-              <div className="p-5 overflow-y-auto custom-scrollbar space-y-4">
-                <p className="text-sm text-zinc-500 dark:text-zinc-400">Copie a regra Geral ({comissaoGeral}%) e as Exceções configuradas de <strong className="text-zinc-800 dark:text-zinc-200">{vendedor?.nome}</strong> para outros membros.</p>
-                <div>
-                  <div className="flex justify-between items-center mb-3">
-                    <p className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider">Selecione os Destinos</p>
-                    <button onClick={selecionarTodos} className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline">{vendedoresSelecionados.length === vendedoresDestino.length ? 'Desmarcar Todos' : 'Selecionar Todos'}</button>
-                  </div>
-                  <div className="space-y-2">
-                    {vendedoresDestino.map((v) => (
-                      <label key={v.id} onClick={() => alternarVend(v.id)} className={`flex items-center gap-3 p-3 border rounded-xl cursor-pointer transition-all ${vendedoresSelecionados.includes(v.id) ? 'bg-indigo-50 dark:bg-indigo-500/10 border-indigo-200 dark:border-indigo-500/30' : 'bg-white dark:bg-[#18181b] border-zinc-200 dark:border-zinc-800 hover:border-indigo-500/50'}`}>
-                        <div className={`w-5 h-5 rounded flex items-center justify-center border transition-colors ${vendedoresSelecionados.includes(v.id) ? 'bg-indigo-500 border-indigo-500 text-white' : 'bg-transparent border-zinc-300 dark:border-zinc-600'}`}>
-                          {vendedoresSelecionados.includes(v.id) && <CheckCircle2 size={14} />}
-                        </div>
-                        <div className="flex flex-col pointer-events-none">
-                          <span className={`text-sm font-bold ${vendedoresSelecionados.includes(v.id) ? 'text-indigo-900 dark:text-indigo-100' : 'text-zinc-700 dark:text-zinc-300'}`}>{v.nome}</span>
-                          <span className="text-[10px] text-zinc-400 font-mono">ID ERP: {v.codigo_erp || v.id}</span>
-                        </div>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              <div className="p-5 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-[#18181b] flex gap-3">
-                <button onClick={() => setModalReplica(false)} className="flex-1 py-3 bg-zinc-200 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 rounded-xl font-bold transition-colors text-sm">Cancelar</button>
-                <button onClick={handleCopiarComissao} className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-[0_4px_14px_rgba(79,70,229,0.3)] transition-all text-sm">Aplicar ({vendedoresSelecionados.length})</button>
-              </div>
-            </motion.div>
+          <div className={`overflow-x-auto custom-scrollbar transition-opacity ${carregando ? "opacity-50" : ""}`}>
+            <table id={`apuracao-${vendedor.id}`} className="w-full min-w-[640px] text-sm tabular-nums">
+              <thead>
+                <tr className="text-xs text-zinc-400 border-b border-black/[0.05] dark:border-white/[0.06]">
+                  <th className="px-5 py-2.5 font-medium text-left">Marca</th>
+                  <th className="px-5 py-2.5 font-medium text-right">Vendas</th>
+                  <th className="px-5 py-2.5 font-medium text-right">Devoluções</th>
+                  <th className="px-5 py-2.5 font-medium text-right">Base</th>
+                  <th className="px-5 py-2.5 font-medium text-right">Regra</th>
+                  <th className="px-5 py-2.5 font-medium text-right">Comissão</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-black/[0.05] dark:divide-white/[0.05]">
+                {apuracao.map((item) => (
+                  <tr key={item.marca}>
+                    <td className="px-5 py-3 font-medium text-left text-zinc-900 dark:text-white">{item.marca}</td>
+                    <td className="px-5 py-3 text-right text-zinc-600 dark:text-zinc-400">{moeda(item.vendas)}</td>
+                    <td className="px-5 py-3 text-right text-zinc-600 dark:text-zinc-400">{item.devolucoes > 0 ? `- ${moeda(item.devolucoes)}` : "—"}</td>
+                    <td className="px-5 py-3 text-right text-zinc-600 dark:text-zinc-400">{moeda(item.base)}</td>
+                    <td className="px-5 py-3 text-right text-zinc-600 dark:text-zinc-400">{Number(item.regra).toLocaleString("pt-BR")}%</td>
+                    <td className="px-5 py-3 text-right font-semibold text-zinc-900 dark:text-white">{moeda(item.comissao)}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="border-t border-black/[0.08] dark:border-white/[0.1] font-semibold">
+                  <td className="px-5 py-3 text-left">Total</td>
+                  <td className="px-5 py-3 text-right">{moeda(totais.vendas)}</td>
+                  <td className="px-5 py-3 text-right">{totais.devolucoes > 0 ? `- ${moeda(totais.devolucoes)}` : "—"}</td>
+                  <td className="px-5 py-3 text-right">{moeda(totais.base)}</td>
+                  <td className="px-5 py-3 text-right">—</td>
+                  <td className="px-5 py-3 text-right text-purple-600 dark:text-purple-400">{moeda(totais.comissao)}</td>
+                </tr>
+              </tfoot>
+            </table>
           </div>
         )}
-      </AnimatePresence>
+
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-4 border-t border-black/[0.05] dark:border-white/[0.06]">
+          <p className="text-sm text-zinc-500">
+            {fechamento ? "Mês já fechado. Atualizar substitui o valor que o vendedor vê no Raizan Seller." : "O fechamento grava o total do mês e envia ao Raizan Seller."}
+          </p>
+          <button type="button" onClick={fechar} disabled={fechando || carregando || apuracao.length === 0} className={`${BOTAO_PRIMARIO} shrink-0`}>
+            <CheckCircle2 size={16} /> {fechando ? "Salvando..." : fechamento ? "Atualizar fechamento" : "Fechar comissão"}
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function ModalCopiar({ vendedor, comissaoGeral, onFechar }) {
+  const [destinos, setDestinos] = useState([]);
+  const [selecionados, setSelecionados] = useState([]);
+  const [salvando, setSalvando] = useState(false);
+
+  useEffect(() => {
+    api("/vendedores")
+      .then((data) => setDestinos((data.vendedores || []).filter((v) => String(v.id) !== String(vendedor.id))))
+      .catch(() => toast.error("Erro ao carregar a equipe."));
+  }, [vendedor.id]);
+
+  const alternar = (id) => setSelecionados((atuais) => (atuais.includes(id) ? atuais.filter((v) => v !== id) : [...atuais, id]));
+  const todosMarcados = destinos.length > 0 && selecionados.length === destinos.length;
+
+  const copiar = async () => {
+    if (selecionados.length === 0) return toast.error("Selecione ao menos um vendedor.");
+    setSalvando(true);
+    try {
+      const data = await api("/comissoes/copiar", { metodo: "POST", corpo: { vendedor_origem_id: vendedor.id, vendedores_destino: selecionados } });
+      if (!data.success) throw new Error();
+      toast.success(`Regras copiadas para ${selecionados.length} vendedor(es).`);
+      onFechar();
+    } catch (erro) {
+      toast.error("Erro ao copiar as regras.");
+      setSalvando(false);
+    }
+  };
+
+  return (
+    <Modal
+      titulo="Copiar regras"
+      descricao={`Copia a regra geral (${comissaoGeral}%) e as exceções de ${vendedor.nome}. Substitui as regras dos selecionados.`}
+      onFechar={onFechar}
+      rodape={<>
+        <button type="button" onClick={onFechar} className={`${BOTAO_SECUNDARIO} flex-1`}>Cancelar</button>
+        <button type="button" onClick={copiar} disabled={salvando} className={`${BOTAO_PRIMARIO} flex-1`}>Aplicar ({selecionados.length})</button>
+      </>}
+    >
+      <div className="flex justify-end mb-2">
+        <button type="button" onClick={() => setSelecionados(todosMarcados ? [] : destinos.map((v) => v.id))} className="text-sm font-semibold text-purple-600 dark:text-purple-400">
+          {todosMarcados ? "Desmarcar todos" : "Selecionar todos"}
+        </button>
+      </div>
+      <div className="space-y-1">
+        {destinos.map((destino) => (
+          <label key={destino.id} className="flex items-center gap-3 p-3 rounded-2xl cursor-pointer hover:bg-black/[0.03] dark:hover:bg-white/[0.04] transition-colors">
+            <input type="checkbox" checked={selecionados.includes(destino.id)} onChange={() => alternar(destino.id)} className="w-4 h-4 accent-purple-600" />
+            <span className="text-sm font-medium truncate">{destino.nome}</span>
+          </label>
+        ))}
+      </div>
+    </Modal>
+  );
+}
+
+function Regras({ vendedor }) {
+  const [carregando, setCarregando] = useState(true);
+  const [salvando, setSalvando] = useState(false);
+  const [copiando, setCopiando] = useState(false);
+  const [geral, setGeral] = useState("5");
+  const [marcas, setMarcas] = useState([]);
+  const [excecoes, setExcecoes] = useState({});
+  const [busca, setBusca] = useState("");
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const [dataMarcas, dataRegras] = await Promise.all([api("/marcas"), api(`/comissoes/regras?vendedor_id=${vendedor.id}`)]);
+        if (dataRegras.success) {
+          setGeral(String(dataRegras.geral));
+          setExcecoes(Object.fromEntries((dataRegras.marcas || []).map((m) => [m.marca, String(Number(m.percentual))])));
+        }
+        if (dataMarcas.success) setMarcas((dataMarcas.marcas || []).filter((m) => !m.nome.toLowerCase().startsWith("provador")));
+      } catch (erro) {
+        toast.error("Erro ao carregar as regras.");
+      } finally {
+        setCarregando(false);
+      }
+    })();
+  }, [vendedor.id]);
+
+  const mudarExcecao = (marca, valor) => {
+    const limpo = valor.replace(/[^0-9.]/g, "");
+    setExcecoes((atuais) => ({ ...atuais, [marca]: Number(limpo) > 100 ? "100" : limpo }));
+  };
+
+  const salvar = async () => {
+    setSalvando(true);
+    try {
+      const data = await api("/comissoes/regras", {
+        metodo: "POST",
+        corpo: {
+          vendedor_id: vendedor.id,
+          comissao_geral: Number(geral) || 0,
+          marcas_excecao: Object.entries(excecoes).filter(([, valor]) => valor !== "").map(([marca, percentual]) => ({ marca, percentual: Number(percentual) }))
+        }
+      });
+      if (!data.success) throw new Error();
+      toast.success("Regras salvas.");
+    } catch (erro) {
+      toast.error("Erro ao salvar as regras.");
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  if (carregando) return <Carregando texto="Buscando regras..." />;
+
+  const visiveis = marcas.filter((m) => m.nome.toLowerCase().includes(busca.toLowerCase()));
+
+  return (
+    <div className="space-y-6">
+      <section className={`${VIDRO} p-5 flex flex-col sm:flex-row sm:items-end justify-between gap-4`}>
+        <div className="w-full sm:w-44">
+          <label className={ROTULO}>Regra geral (%)</label>
+          <input inputMode="decimal" value={geral} onChange={(e) => setGeral(e.target.value.replace(/[^0-9.]/g, ""))} className={`${CAMPO} text-lg font-semibold tabular-nums`} />
+        </div>
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={() => setCopiando(true)} className={`${BOTAO_SECUNDARIO} flex-1 sm:flex-none`}><Copy size={15} /> Copiar</button>
+          <button type="button" onClick={salvar} disabled={salvando} className={`${BOTAO_PRIMARIO} flex-1 sm:flex-none`}>Salvar regras</button>
+        </div>
+      </section>
+
+      <section className={`${VIDRO} overflow-hidden`}>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-4 border-b border-black/[0.05] dark:border-white/[0.06]">
+          <div>
+            <h2 className="font-semibold tracking-tight">Exceções por marca</h2>
+            <p className="text-xs text-zinc-500 mt-0.5">Em branco, a marca usa a regra geral.</p>
+          </div>
+          <div className="relative sm:w-64">
+            <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" />
+            <input placeholder="Buscar marca" value={busca} onChange={(e) => setBusca(e.target.value)} className={`${CAMPO} rounded-full pl-10`} />
+          </div>
+        </div>
+        <div className="max-h-[460px] overflow-y-auto custom-scrollbar divide-y divide-black/[0.05] dark:divide-white/[0.05]">
+          {visiveis.map((marca) => (
+            <div key={marca.id ?? marca.nome} className="flex items-center justify-between gap-4 px-5 py-2.5">
+              <span className="text-sm font-medium truncate">{marca.nome}</span>
+              <div className="relative w-24 shrink-0">
+                <input inputMode="decimal" aria-label={`Comissão de ${marca.nome}`} placeholder="Geral" value={excecoes[marca.nome] ?? ""} onChange={(e) => mudarExcecao(marca.nome, e.target.value)} className={`${CAMPO} h-9 text-right pr-7 tabular-nums`} />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-zinc-400">%</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {copiando && <ModalCopiar vendedor={vendedor} comissaoGeral={geral} onFechar={() => setCopiando(false)} />}
+    </div>
+  );
+}
+
+export default function TabComissoes({ vendedor, competencia }) {
+  const [secao, setSecao] = useState("apuracao");
+
+  return (
+    <div className="space-y-6 pb-10">
+      <Segmentado opcoes={SECOES} valor={secao} onChange={setSecao} />
+      {secao === "apuracao" ? <Apuracao vendedor={vendedor} competencia={competencia} /> : <Regras vendedor={vendedor} />}
     </div>
   );
 }

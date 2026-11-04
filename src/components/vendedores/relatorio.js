@@ -1,414 +1,206 @@
-//essa página usa o controller desempenhoVendedorController para buscar os dados do relatório de vendas do vendedor selecionado. Ela exibe KPIs, gráficos e tabelas com informações detalhadas sobre o desempenho comercial do vendedor, incluindo faturamento, quantidade de pedidos, evolução diária, faturamento por marca e cidade, além de listas dos top produtos e clientes faturados. A página também permite a exportação do relatório em PDF (em desenvolvimento) e a visualização expandida dos gráficos.
-
 "use client";
 
-import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { 
-  TrendingUp, Users, UserPlus, UserCheck, AlertTriangle, 
-  MapPin, ShoppingBag, Award, CalendarDays,
-  Download, Maximize2, X, RefreshCw
-} from "lucide-react";
-import { 
-  ResponsiveContainer, AreaChart, Area, BarChart, Bar, Line, ComposedChart,
-  XAxis, YAxis, Tooltip, PieChart, Pie, Cell, CartesianGrid
-} from "recharts";
+import { useEffect, useRef, useState } from "react";
+import { AlertTriangle } from "lucide-react";
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import toast from "react-hot-toast";
-import { getHubUrl, getHeaders } from "@/components/utils/api";
+import { mesDeHoje, nomeDoMes } from "@/components/vendedores/SeletorMes";
+import { api, Carregando, EstadoVazio, Kpi, moeda, moedaCurta, VIDRO } from "@/components/vendedores/ui";
 
-const CORES_RESERVA = ["#4f46e5", "#10b981", "#f59e0b", "#ec4899", "#6366f1", "#8b5cf6", "#14b8a6"];
+const eixoEmReais = (valor) => (valor >= 1000 ? `${(valor / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}k` : valor);
 
-// ==========================================
-// COMPONENTES MENORES
-// ==========================================
-
-// 🟢 NOVO TOOLTIP: Mostra Dinheiro e Quantidade!
-const CustomTooltipComposed = ({ active, payload, label }) => {
-  if (active && payload && payload.length) {
-    return (
-      <div className="bg-zinc-900/90 backdrop-blur-md border border-zinc-700 p-3 rounded-xl shadow-xl min-w-[160px]">
-        <p className="text-zinc-300 text-xs font-bold mb-2 border-b border-zinc-700 pb-1">{label}</p>
-        {payload.map((item, idx) => (
-          <div key={idx} className="flex justify-between items-center gap-4 mb-1">
-            <span style={{ color: item.color }} className="text-xs font-bold uppercase">
-              {item.name === 'valor' ? 'Faturamento' : 'Pedidos (Qtd)'}
-            </span>
-            <span className="text-white font-black text-sm">
-              {item.name === 'valor' ? `R$ ${item.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : item.value}
-            </span>
-          </div>
-        ))}
-      </div>
-    );
-  }
-  return null;
-};
-
-const CustomTooltip = ({ active, payload, label }) => {
-  if (active && payload && payload.length && payload[0].value !== undefined) {
-    return (
-      <div className="bg-zinc-900/90 backdrop-blur-md border border-zinc-700 p-3 rounded-xl shadow-xl">
-        <p className="text-zinc-300 text-xs font-bold mb-1">{label}</p>
-        <p className="text-white font-black text-sm">
-          R$ {payload[0].value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-        </p>
-      </div>
-    );
-  }
-  return null;
-};
-
-const CardKPI = ({ titulo, valor, icon: Icon, bdClass, txtClass, icnClass, valClass }) => (
-  <div className={`bg-white dark:bg-[#121214] border rounded-xl p-4 shadow-sm flex flex-col justify-between ${bdClass}`}>
-    <div className="flex justify-between items-start mb-2">
-      <span dangerouslySetInnerHTML={{ __html: titulo }} className={`text-[10px] font-bold uppercase tracking-wider leading-tight ${txtClass}`} />
-      <Icon size={16} className={icnClass} />
+function DicaGrafico({ active, payload, label }) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="rounded-2xl bg-zinc-900/95 px-3.5 py-2.5 text-xs text-white shadow-xl">
+      <p className="text-zinc-400 mb-1">{label}</p>
+      <p className="font-semibold tabular-nums">{moeda(payload[0].value)}</p>
+      <p className="text-zinc-400 tabular-nums">{payload[0].payload.pedidos} pedido(s)</p>
     </div>
-    <h3 className={`text-xl sm:text-2xl font-black ${valClass}`}>{valor}</h3>
-  </div>
-);
+  );
+}
 
-const GraficoContainer = ({ titulo, icon: Icon, icnClass, onExpand, extraHead, children, isDonut }) => (
-  <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-5 shadow-sm group flex flex-col">
-    <div className="flex justify-between items-center mb-6">
-      <h4 className="font-bold text-zinc-900 dark:text-white flex items-center gap-2">
-        <Icon size={18} className={icnClass}/> {titulo}
-      </h4>
-      <div className="flex items-center gap-3">
-        {extraHead}
-        {onExpand && (
-          <button onClick={onExpand} className="text-zinc-400 hover:text-blue-500 transition-colors p-1 opacity-0 group-hover:opacity-100" title="Expandir">
-            <Maximize2 size={16} />
-          </button>
-        )}
-      </div>
-    </div>
-    <div className={`w-full ${isDonut ? 'flex-1' : 'h-[250px]'}`}>
+function Cartao({ titulo, children }) {
+  return (
+    <section className={`${VIDRO} p-5 min-w-0`}>
+      <h2 className="font-semibold tracking-tight mb-4">{titulo}</h2>
       {children}
-    </div>
-  </div>
-);
+    </section>
+  );
+}
 
-const TabelaContainer = ({ titulo, icon: Icon, icnClass, thead, tbody }) => (
-  <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-sm overflow-hidden flex flex-col">
-    <div className="p-5 border-b border-zinc-100 dark:border-zinc-800">
-      <h4 className="font-bold text-zinc-900 dark:text-white flex items-center gap-2">
-        <Icon size={18} className={icnClass}/> {titulo}
-      </h4>
-    </div>
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm text-left">
-        <thead className="bg-zinc-50 dark:bg-[#0c0c0e] text-xs uppercase text-zinc-500">
-          <tr>{thead}</tr>
-        </thead>
-        <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/50">
-          {tbody}
-        </tbody>
-      </table>
-    </div>
-  </div>
-);
-
-// ==========================================
-// COMPONENTE PRINCIPAL
-// ==========================================
-export default function TabVisaoGeral({ vendedor }) {
-  const [graficoExpandido, setGraficoExpandido] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [dados, setDados] = useState(null);
-
-  useEffect(() => {
-    async function carregarDadosRelatorio() {
-      if (!vendedor?.id) return;
-
-      setLoading(true);
-      try {
-        const tenant_id = JSON.parse(localStorage.getItem("@raizan:user"))?.tenant_id;
-        const res = await fetch(`${getHubUrl()}/api/hub/vendedores/${vendedor.id}/relatorio?tenant_id=${tenant_id}`, {
-          headers: getHeaders()
-        });
-        const data = await res.json();
-
-        if (data.success && data.relatorio) {
-          setDados(data.relatorio);
-        } else {
-          toast.error("Erro ao carregar dados do ERP.");
-          setDados(null);
-        }
-      } catch (error) {
-        console.error("Erro ao comunicar com a API do Relatório:", error);
-        toast.error("Falha de conexão com o Servidor.");
-        setDados(null);
-      } finally {
-        setLoading(false);
-      }
-    }
-    carregarDadosRelatorio();
-  }, [vendedor]);
-
-  const handleExportarPDF = () => {
-    toast.success("Módulo de PDF em desenvolvimento.");
-  };
-
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center py-32 text-zinc-500">
-        <RefreshCw size={32} className="animate-spin mb-4 text-blue-500" />
-        <p className="font-bold uppercase tracking-widest text-xs">Analisando Vendas no ERP...</p>
-      </div>
-    );
-  }
-
-  if (!dados) {
-    return (
-      <div className="flex flex-col items-center justify-center py-32 text-zinc-500 text-center">
-        <AlertTriangle size={32} className="mb-4 text-rose-500" />
-        <p className="font-bold uppercase tracking-widest text-sm text-zinc-900 dark:text-white">Nenhum dado encontrado</p>
-        <p className="text-xs mt-2">O vendedor não possui histórico de vendas ou ocorreu um erro.</p>
-      </div>
-    );
-  }
-
-  const { 
-    carteiraKPIs = { totalBase: 0, atendidosMes: 0, novosMes: 0, positivados: 0, inativos: 0 }, 
-    vendasGeralMensal = [], 
-    vendasDiarias = [], 
-    vendasPorMarca = [], 
-    vendasPorCidade = [], 
-    topProdutos = [], 
-    topClientes = [] 
-  } = dados;
-
-  const renderGrafico = (id) => {
-    switch (id) {
-      case 'mensal':
-        return (
-          <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={vendasGeralMensal} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#333" opacity={0.3} />
-              <XAxis dataKey="mes" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#888' }} dy={10} />
-              
-              <YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#888' }} tickFormatter={(val) => `R$${val/1000}k`} />
-              <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#888' }} />
-              
-              <Tooltip content={<CustomTooltipComposed />} cursor={{ fill: 'transparent' }} />
-              
-              <Bar yAxisId="left" dataKey="valor" radius={[6, 6, 0, 0]} fill="#3b82f6" fillOpacity={0.8} />
-              <Line yAxisId="right" type="monotone" dataKey="pedidos" stroke="#f59e0b" strokeWidth={3} dot={{ r: 4, fill: '#f59e0b' }} />
-            </ComposedChart>
-          </ResponsiveContainer>
-        );
-      case 'diario':
-        return (
-          <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={vendasDiarias} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-              <defs>
-                <linearGradient id="colorValor" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#6366f1" stopOpacity={0.4}/>
-                  <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#333" opacity={0.3} />
-              <XAxis dataKey="dia" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#888' }} dy={10} />
-              
-              <YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#888' }} tickFormatter={(val) => `R$${val/1000}k`} />
-              <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#888' }} />
-              
-              <Tooltip content={<CustomTooltipComposed />} />
-              
-              <Area yAxisId="left" type="monotone" dataKey="valor" stroke="#6366f1" strokeWidth={3} fillOpacity={1} fill="url(#colorValor)" />
-              <Line yAxisId="right" type="monotone" dataKey="pedidos" stroke="#f59e0b" strokeWidth={2} dot={{ r: 3, fill: '#f59e0b' }} />
-            </ComposedChart>
-          </ResponsiveContainer>
-        );
-      case 'marca':
-        return (
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie data={vendasPorMarca} innerRadius={graficoExpandido ? 120 : 60} outerRadius={graficoExpandido ? 160 : 80} paddingAngle={5} dataKey="value" stroke="none">
-                {vendasPorMarca.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color || CORES_RESERVA[index % CORES_RESERVA.length]} />
-                ))}
-              </Pie>
-              <Tooltip content={<CustomTooltip />} />
-            </PieChart>
-          </ResponsiveContainer>
-        );
-      case 'cidade':
-        return (
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart layout="vertical" data={vendasPorCidade} margin={{ top: 0, right: 10, left: 30, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#333" opacity={0.3} />
-              <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#888' }} />
-              <YAxis dataKey="cidade" type="category" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#888' }} width={80} />
-              <Tooltip content={<CustomTooltip />} cursor={{ fill: 'transparent' }} />
-              <Bar dataKey="valor" fill="#10b981" radius={[0, 6, 6, 0]} barSize={graficoExpandido ? 40 : 20} />
-            </BarChart>
-          </ResponsiveContainer>
-        );
-      default: return null;
-    }
-  };
+// Barras simples: leem melhor que pizza e não pesam a página
+function Ranking({ itens, vazio }) {
+  if (itens.length === 0) return <p className="text-sm text-zinc-500 py-6 text-center">{vazio}</p>;
+  const maior = Math.max(...itens.map((i) => i.valor), 1);
 
   return (
-    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 pb-10">
-      
-      {/* CABEÇALHO */}
-      <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-5 flex flex-wrap items-center justify-between shadow-sm gap-4">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400">
-            <TrendingUp size={24} />
+    <div className="space-y-3.5">
+      {itens.map((item) => (
+        <div key={item.nome}>
+          <div className="flex justify-between gap-3 mb-1.5 text-sm">
+            <span className="truncate text-zinc-700 dark:text-zinc-300" title={item.nome}>{item.nome}</span>
+            <span className="shrink-0 font-semibold tabular-nums">{moedaCurta(item.valor)}</span>
           </div>
-          <div>
-            <h3 className="font-bold text-lg text-zinc-900 dark:text-white">Desempenho Comercial</h3>
-            <p className="text-sm text-zinc-500 dark:text-zinc-400">Relatório de vendas de {vendedor?.nome || 'Vendedor'}.</p>
+          <div className="h-1.5 rounded-full bg-black/[0.06] dark:bg-white/[0.08] overflow-hidden">
+            <div style={{ width: `${(item.valor / maior) * 100}%` }} className="h-full rounded-full bg-gradient-to-r from-purple-500 to-indigo-500" />
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="bg-zinc-50 dark:bg-[#0c0c0e]/50 border border-zinc-200 dark:border-zinc-800 px-4 py-2.5 rounded-xl text-sm font-bold text-zinc-700 dark:text-zinc-300 flex items-center gap-2">
-            <CalendarDays size={16} className="text-blue-500"/> Mês Atual
+      ))}
+    </div>
+  );
+}
+
+function ListaTop({ itens, detalhe, vazio }) {
+  if (itens.length === 0) return <p className="text-sm text-zinc-500 py-6 text-center">{vazio}</p>;
+  return (
+    <ol className="divide-y divide-black/[0.05] dark:divide-white/[0.05]">
+      {itens.map((item, indice) => (
+        <li key={`${item.nome}-${indice}`} className="flex items-center gap-3 py-2.5">
+          <span className="w-5 text-center text-sm tabular-nums text-zinc-400">{indice + 1}</span>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium truncate" title={item.nome}>{item.nome}</p>
+            <p className="text-xs text-zinc-500 tabular-nums">{detalhe(item)}</p>
           </div>
-          <button onClick={handleExportarPDF} className="bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-900 px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-all shadow-md">
-            <Download size={16} /> PDF
-          </button>
-        </div>
-      </div>
+          <span className="text-sm font-semibold tabular-nums shrink-0">{moeda(item.valor)}</span>
+        </li>
+      ))}
+    </ol>
+  );
+}
 
-      {/* KPIS DE CARTEIRA */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-        <CardKPI titulo="Total<br/>Base" valor={carteiraKPIs.totalBase} icon={Users} bdClass="border-zinc-200 dark:border-zinc-800" txtClass="text-zinc-500" icnClass="text-zinc-400" valClass="text-zinc-900 dark:text-white" />
-        <CardKPI titulo="Atendidos<br/>(Mês)" valor={carteiraKPIs.atendidosMes} icon={ShoppingBag} bdClass="border-blue-200 dark:border-blue-500/30" txtClass="text-blue-600/70 dark:text-blue-400/70" icnClass="text-blue-500" valClass="text-blue-600 dark:text-blue-400" />
-        <CardKPI titulo="Novos<br/>Clientes" valor={`+${carteiraKPIs.novosMes}`} icon={UserPlus} bdClass="border-emerald-200 dark:border-emerald-500/30" txtClass="text-emerald-600/70 dark:text-emerald-400/70" icnClass="text-emerald-500" valClass="text-emerald-600 dark:text-emerald-400" />
-        <CardKPI titulo="Clientes<br/>Positivados" valor={carteiraKPIs.positivados} icon={UserCheck} bdClass="border-purple-200 dark:border-purple-500/30" txtClass="text-purple-600/70 dark:text-purple-400/70" icnClass="text-purple-500" valClass="text-purple-600 dark:text-purple-400" />
-        <CardKPI titulo="Inativos<br/>> 60 dias" valor={carteiraKPIs.inativos} icon={AlertTriangle} bdClass="border-rose-200 dark:border-rose-500/30" txtClass="text-rose-600/70 dark:text-rose-400/70" icnClass="text-rose-500" valClass="text-rose-600 dark:text-rose-400" />
-      </div>
+const projetar = (faturado, competencia) => {
+  const hoje = mesDeHoje();
+  if (competencia.mes !== hoje.mes || competencia.ano !== hoje.ano) return null;
+  const dia = new Date().getDate();
+  const diasNoMes = new Date(competencia.ano, competencia.mes, 0).getDate();
+  return (faturado / dia) * diasNoMes;
+};
 
-      {/* GRÁFICOS */}
-      <div className="flex flex-col gap-6">
-        <GraficoContainer 
-          titulo="Faturamento vs Quantidade (Últimos 6 meses)" 
-          icon={TrendingUp} icnClass="text-blue-500" 
-          onExpand={() => setGraficoExpandido('mensal')}
-          extraHead={
-            <div className="flex items-center gap-3 text-[10px] font-bold uppercase">
-              <span className="flex items-center gap-1 text-blue-500"><div className="w-2 h-2 bg-blue-500 rounded-sm"></div> Faturamento</span>
-              <span className="flex items-center gap-1 text-amber-500"><div className="w-2 h-2 bg-amber-500 rounded-full"></div> Pedidos</span>
-            </div>
-          }
-        >
-          {renderGrafico('mensal')}
-        </GraficoContainer>
+export default function TabDesempenho({ vendedor, competencia }) {
+  const [dados, setDados] = useState(null);
+  const [carregando, setCarregando] = useState(true);
+  const ultimaBusca = useRef(0);
 
-        <GraficoContainer 
-          titulo="Evolução Diária (Mês Atual)" 
-          icon={CalendarDays} icnClass="text-indigo-500" 
-          onExpand={() => setGraficoExpandido('diario')}
-          extraHead={
-            <div className="flex items-center gap-3 text-[10px] font-bold uppercase">
-              <span className="flex items-center gap-1 text-indigo-500"><div className="w-2 h-2 bg-indigo-500 rounded-sm"></div> Faturamento</span>
-              <span className="flex items-center gap-1 text-amber-500"><div className="w-2 h-2 bg-amber-500 rounded-full"></div> Pedidos</span>
-            </div>
-          }
-        >
-          {renderGrafico('diario')}
-        </GraficoContainer>
+  useEffect(() => {
+    (async () => {
+      const busca = ++ultimaBusca.current;
+      setCarregando(true);
+      try {
+        const data = await api(`/vendedores/${vendedor.id}/relatorio?mes=${competencia.mes}&ano=${competencia.ano}`);
+        if (busca !== ultimaBusca.current) return;
+        if (!data.success || !data.relatorio) throw new Error();
+        setDados(data.relatorio);
+      } catch (erro) {
+        if (busca !== ultimaBusca.current) return;
+        setDados(null);
+        toast.error("Erro ao carregar o desempenho.");
+      } finally {
+        if (busca === ultimaBusca.current) setCarregando(false);
+      }
+    })();
+  }, [vendedor.id, competencia]);
 
-        <GraficoContainer titulo="Faturamento por Marca (NFE Emitida)" icon={Award} icnClass="text-amber-500" onExpand={() => setGraficoExpandido('marca')} isDonut>
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-6 h-[200px]">
-            <div className="h-full w-full sm:w-[200px] shrink-0">
-               {renderGrafico('marca')}
-            </div>
-            <div className="w-full grid grid-cols-2 gap-3 sm:block sm:space-y-3 overflow-y-auto custom-scrollbar pr-2 h-full">
-              {vendasPorMarca.map((marca, i) => (
-                <div key={i} className="flex items-center justify-between text-sm bg-zinc-50 dark:bg-zinc-800/30 p-2 sm:p-0 sm:bg-transparent rounded-lg sm:rounded-none">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: marca.color || CORES_RESERVA[i % CORES_RESERVA.length] }}></div>
-                    <span className="text-zinc-600 dark:text-zinc-300 font-medium truncate max-w-[100px]">{marca.name}</span>
-                  </div>
-                  <span className="font-bold text-zinc-900 dark:text-white shrink-0">R$ {(marca.value/1000).toFixed(1)}k</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </GraficoContainer>
+  if (!dados) {
+    return carregando
+      ? <Carregando texto="Analisando vendas..." />
+      : <EstadoVazio icone={AlertTriangle} titulo="Sem dados" texto="Não foi possível carregar o desempenho deste vendedor." />;
+  }
 
-        <GraficoContainer titulo="Mapa de Calor (Faturamento por Cidade)" icon={MapPin} icnClass="text-emerald-500" onExpand={() => setGraficoExpandido('cidade')}>
-          {renderGrafico('cidade')}
-        </GraficoContainer>
-      </div>
+  const {
+    carteiraKPIs = {}, vendasGeralMensal = [], vendasDiarias = [], vendasPorMarca = [],
+    vendasPorCidade = [], topProdutos = [], topClientes = []
+  } = dados;
 
-      {/* TABELAS */}
-      <div className="flex flex-col gap-6 mt-6">
-        <TabelaContainer 
-          titulo="Curva A - Top Produtos Faturados" icon={ShoppingBag} icnClass="text-purple-500"
-          thead={
-            <>
-              <th className="px-5 py-3 font-bold">Produto</th>
-              <th className="px-5 py-3 font-bold text-center">Qtd Vendida</th>
-              <th className="px-5 py-3 font-bold text-right">Faturamento Real</th>
-            </>
-          }
-          tbody={
-            topProdutos.map((prod, i) => (
-              <tr key={i} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors">
-                <td className="px-5 py-4 font-medium text-zinc-800 dark:text-zinc-200 truncate max-w-[200px]" title={prod.nome}>{prod.nome}</td>
-                <td className="px-5 py-4 text-center text-zinc-500 dark:text-zinc-400">{prod.qtd}</td>
-                <td className="px-5 py-4 text-right font-bold text-purple-600 dark:text-purple-400">R$ {prod.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-              </tr>
-            ))
-          }
+  const mesAtual = vendasGeralMensal.at(-1) || { valor: 0, pedidos: 0, faturados: 0 };
+  const mesAnterior = vendasGeralMensal.at(-2);
+  const variacao = mesAnterior?.valor > 0 ? ((mesAtual.valor - mesAnterior.valor) / mesAnterior.valor) * 100 : null;
+  const ticket = mesAtual.faturados > 0 ? mesAtual.valor / mesAtual.faturados : 0;
+  const projecao = projetar(mesAtual.valor, competencia);
+
+  // Dia que ainda não chegou fica fora: uma queda a zero no gráfico pareceria venda perdida
+  const noMesCorrente = competencia.mes === mesDeHoje().mes && competencia.ano === mesDeHoje().ano;
+  const diasDoGrafico = noMesCorrente ? vendasDiarias.filter((d) => Number(d.dia) <= new Date().getDate()) : vendasDiarias;
+
+  return (
+    <div className={`space-y-6 pb-10 transition-opacity ${carregando ? "opacity-50" : ""}`}>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <Kpi
+          rotulo="Faturado"
+          valor={moedaCurta(mesAtual.valor)}
+          detalhe={variacao === null ? nomeDoMes(competencia) : `${variacao >= 0 ? "+" : ""}${variacao.toFixed(1)}% sobre o mês anterior`}
         />
-
-        <TabelaContainer 
-          titulo="Top Clientes Faturados (Mês)" icon={Users} icnClass="text-orange-500"
-          thead={
-            <>
-              <th className="px-5 py-3 font-bold">Cliente</th>
-              <th className="px-5 py-3 font-bold text-center">Qtd Pedidos</th>
-              <th className="px-5 py-3 font-bold text-right">Faturamento Real</th>
-            </>
-          }
-          tbody={
-            topClientes.map((cli, idx) => (
-              <tr key={idx} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors">
-                <td className="px-5 py-4 font-medium text-zinc-800 dark:text-zinc-200">
-                  <div className="flex items-center gap-2">
-                    <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${idx === 0 ? 'bg-amber-100 text-amber-600' : idx === 1 ? 'bg-zinc-200 text-zinc-600' : idx === 2 ? 'bg-orange-100 text-orange-600' : 'bg-zinc-800 text-zinc-400'}`}>
-                      {idx + 1}
-                    </span>
-                    <span className="truncate max-w-[150px]" title={cli.nome}>{cli.nome}</span>
-                  </div>
-                </td>
-                <td className="px-5 py-4 text-center text-zinc-500 dark:text-zinc-400">{cli.pedidos}</td>
-                <td className="px-5 py-4 text-right font-bold text-emerald-600 dark:text-emerald-400">R$ {cli.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-              </tr>
-            ))
-          }
-        />
+        <Kpi rotulo="Pedidos" valor={mesAtual.pedidos} detalhe={`${mesAtual.faturados} faturado(s)`} />
+        <Kpi rotulo="Ticket médio" valor={moedaCurta(ticket)} detalhe="Por pedido faturado" />
+        <Kpi rotulo={projecao === null ? "Clientes atendidos" : "Projeção do mês"} valor={projecao === null ? carteiraKPIs.atendidosMes ?? 0 : moedaCurta(projecao)} detalhe={projecao === null ? nomeDoMes(competencia) : "No ritmo atual"} />
       </div>
 
-      {/* MODAL TELA CHEIA */}
-      <AnimatePresence>
-        {graficoExpandido && (
-          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 sm:p-8 bg-black/90 backdrop-blur-md">
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} 
-              className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-3xl w-full h-full max-h-screen shadow-2xl flex flex-col overflow-hidden"
-            >
-              <div className="flex justify-between items-center p-6 border-b border-zinc-200 dark:border-zinc-800">
-                <h3 className="text-xl font-black text-zinc-900 dark:text-white uppercase tracking-wider">Visualização Expandida</h3>
-                <button onClick={() => setGraficoExpandido(null)} className="p-2 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-500 rounded-full transition-colors">
-                  <X size={24} />
-                </button>
-              </div>
-              <div className="flex-1 p-8">
-                {renderGrafico(graficoExpandido)}
-              </div>
-            </motion.div>
+      <section className={`${VIDRO} grid grid-cols-2 sm:grid-cols-5 divide-black/[0.05] dark:divide-white/[0.05] sm:divide-x`}>
+        {[
+          ["Carteira", carteiraKPIs.totalBase],
+          ["Atendidos no mês", carteiraKPIs.atendidosMes],
+          ["Novos", carteiraKPIs.novosMes],
+          ["Compraram em 45 dias", carteiraKPIs.positivados],
+          ["Sem comprar há 60 dias", carteiraKPIs.inativos]
+        ].map(([rotulo, valor]) => (
+          <div key={rotulo} className="px-5 py-4 min-w-0">
+            <p className="text-xl font-semibold tracking-tight tabular-nums">{valor ?? 0}</p>
+            <p className="text-xs text-zinc-500 mt-1 truncate" title={rotulo}>{rotulo}</p>
           </div>
-        )}
-      </AnimatePresence>
+        ))}
+      </section>
 
-    </motion.div>
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <Cartao titulo="Últimos 6 meses">
+          <div className="h-[240px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={vendasGeralMensal} margin={{ top: 4, right: 0, left: -12, bottom: 0 }}>
+                <CartesianGrid vertical={false} stroke="currentColor" strokeOpacity={0.08} />
+                <XAxis dataKey="mes" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "#8e8e93" }} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "#8e8e93" }} tickFormatter={eixoEmReais} />
+                <Tooltip content={<DicaGrafico />} cursor={{ fill: "rgba(124,58,237,0.06)" }} />
+                <Bar dataKey="valor" fill="#7c3aed" radius={[8, 8, 3, 3]} maxBarSize={44} isAnimationActive={false} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </Cartao>
+
+        <Cartao titulo={`Dia a dia de ${nomeDoMes(competencia)}`}>
+          <div className="h-[240px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={diasDoGrafico} margin={{ top: 4, right: 0, left: -12, bottom: 0 }}>
+                <defs>
+                  <linearGradient id={`area-${vendedor.id}`} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#7c3aed" stopOpacity={0.3} />
+                    <stop offset="100%" stopColor="#7c3aed" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid vertical={false} stroke="currentColor" strokeOpacity={0.08} />
+                <XAxis dataKey="dia" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "#8e8e93" }} minTickGap={16} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "#8e8e93" }} tickFormatter={eixoEmReais} />
+                <Tooltip content={<DicaGrafico />} />
+                <Area type="monotone" dataKey="valor" stroke="#7c3aed" strokeWidth={2} fill={`url(#area-${vendedor.id})`} isAnimationActive={false} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </Cartao>
+
+        <Cartao titulo="Marcas">
+          <Ranking itens={vendasPorMarca.map((m) => ({ nome: m.name, valor: m.value }))} vazio="Sem faturamento por marca neste mês." />
+        </Cartao>
+
+        <Cartao titulo="Cidades">
+          <Ranking itens={vendasPorCidade.map((c) => ({ nome: c.cidade, valor: c.valor }))} vazio="Sem faturamento por cidade neste mês." />
+        </Cartao>
+
+        <Cartao titulo="Produtos mais vendidos">
+          <ListaTop itens={topProdutos} detalhe={(p) => `${p.qtd} unidade(s)`} vazio="Sem produtos neste mês." />
+        </Cartao>
+
+        <Cartao titulo="Maiores clientes">
+          <ListaTop itens={topClientes} detalhe={(c) => `${c.pedidos} pedido(s)`} vazio="Sem clientes faturados neste mês." />
+        </Cartao>
+      </div>
+    </div>
   );
 }

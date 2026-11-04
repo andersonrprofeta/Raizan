@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Target, Trophy, Medal, Plus, Copy, StopCircle, 
@@ -10,6 +10,7 @@ import {
 import toast from "react-hot-toast";
 import { toPng } from "html-to-image";
 import { getHubUrl, getHeaders } from "@/components/utils/api";
+import SeletorMes, { mesDeHoje, mesVizinho, nomeDoMes } from "@/components/vendedores/SeletorMes";
 
 // 🟢 MÁGICA: FUNÇÕES DE MÁSCARA DE MOEDA (Estilo App de Banco)
 const mascaraMoeda = (valor) => {
@@ -57,7 +58,35 @@ export default function TabMetasCampanhas({ vendedor }) {
   const [novaMetaValor, setNovaMetaValor] = useState("");
   const [editMetaValor, setEditMetaValor] = useState(""); 
   const [replicarTodos, setReplicarTodos] = useState(false);
-  const [acrescimoMeta, setAcrescimoMeta] = useState(10);
+  const [acrescimoMeta, setAcrescimoMeta] = useState(0);
+  const [replicarMesParaTodos, setReplicarMesParaTodos] = useState(false);
+  const [competencia, setCompetencia] = useState(mesDeHoje);
+  const [carregandoMetas, setCarregandoMetas] = useState(true);
+  const ultimaBusca = useRef(0);
+  const { mes, ano } = competencia;
+
+  // Trocar de mês rápido não pode deixar as metas de um mês na tela de outro
+  const carregarMetas = useCallback(async () => {
+    const busca = ++ultimaBusca.current;
+    setCarregandoMetas(true);
+    try {
+      const tenant_id = JSON.parse(localStorage.getItem("@raizan:user"))?.tenant_id;
+      if (!tenant_id) return;
+
+      const filtroVendedor = vendedor?.id ? `&vendedor_id=${vendedor.id}` : "";
+      const resMetas = await fetch(`${getHubUrl()}/api/hub/metas?tenant_id=${tenant_id}${filtroVendedor}&mes=${mes}&ano=${ano}`, { headers: getHeaders() });
+      const dataMetas = await resMetas.json();
+      if (busca !== ultimaBusca.current) return;
+      if (!dataMetas.success) throw new Error(dataMetas.message);
+      setMetas(dataMetas.metas || []);
+    } catch (error) {
+      if (busca !== ultimaBusca.current) return;
+      setMetas([]);
+      toast.error("Erro ao carregar as metas do mês.");
+    } finally {
+      if (busca === ultimaBusca.current) setCarregandoMetas(false);
+    }
+  }, [vendedor, mes, ano]);
 
   const carregarDados = useCallback(async (silencioso = false) => {
     if (!silencioso) setLoading(true);
@@ -73,24 +102,20 @@ export default function TabMetasCampanhas({ vendedor }) {
       const dataCamp = await resCamp.json();
       if (dataCamp.success) setCampanhas(dataCamp.campanhas || []);
 
-      const urlMetas = vendedor?.id 
-        ? `${getHubUrl()}/api/hub/metas?tenant_id=${tenant_id}&vendedor_id=${vendedor.id}`
-        : `${getHubUrl()}/api/hub/metas?tenant_id=${tenant_id}`;
-        
-      const resMetas = await fetch(urlMetas, { headers: getHeaders() });
-      const dataMetas = await resMetas.json();
-      if (dataMetas.success) setMetas(dataMetas.metas || []);
-
     } catch (error) {
       console.error("Erro ao puxar dados de Metas/Campanhas", error);
     } finally {
       if (!silencioso) setLoading(false);
     }
-  }, [vendedor]);
+  }, []);
 
   useEffect(() => {
     carregarDados();
   }, [carregarDados]);
+
+  useEffect(() => {
+    carregarMetas();
+  }, [carregarMetas]);
 
   const campanhasAtivas = campanhas.filter(c => c.status !== 'encerrada');
   
@@ -182,13 +207,13 @@ export default function TabMetasCampanhas({ vendedor }) {
     const toastId = toast.loading("Cadastrando meta...");
     try {
       // 🟢 REVERTE O VALOR PRA NÚMERO
-      const payload = { vendedor_id: vendedor?.id, tipo: novaMetaTipo, marca: novaMetaTipo === 'Marca' ? novaMetaMarca : null, valor_alvo: reverterMoeda(novaMetaValor), replicar_todos: replicarTodos };
+      const payload = { vendedor_id: vendedor?.id, tipo: novaMetaTipo, marca: novaMetaTipo === 'Marca' ? novaMetaMarca : null, valor_alvo: reverterMoeda(novaMetaValor), replicar_todos: replicarTodos, mes, ano };
       const res = await fetch(`${getHubUrl()}/api/hub/metas/criar`, { method: "POST", headers: getHeaders(), body: JSON.stringify(payload) });
       const data = await res.json();
       if (data.success) {
         toast.success(replicarTodos ? "Meta aplicada para TODOS!" : "Meta cadastrada!", { id: toastId });
         setModalNovaMeta(false); setNovaMetaValor(""); setNovaMetaMarca(""); setReplicarTodos(false);
-        carregarDados(true);
+        carregarMetas();
       } else { toast.error(data.message, { id: toastId }); }
     } catch (err) { toast.error("Falha de conexão.", { id: toastId }); }
   };
@@ -209,7 +234,7 @@ export default function TabMetasCampanhas({ vendedor }) {
       if (data.success) {
         toast.success("Meta atualizada com sucesso!", { id: toastId });
         setModalEditarMeta({ open: false, meta: null });
-        carregarDados(true);
+        carregarMetas();
       } else { 
         toast.error("Endpoint de edição ainda não criado na API.", { id: toastId }); 
       }
@@ -219,13 +244,24 @@ export default function TabMetasCampanhas({ vendedor }) {
     }
   };
 
-  const replicarMetas = (e) => {
+  const replicarMetas = async (e) => {
     e.preventDefault();
-    const toastId = toast.loading("Calculando novos valores...");
-    setTimeout(() => {
-      toast.success(`Metas replicadas com +${acrescimoMeta}%!`, { id: toastId });
+    const toastId = toast.loading("Replicando metas...");
+    try {
+      const res = await fetch(`${getHubUrl()}/api/hub/metas/replicar`, {
+        method: "POST",
+        headers: getHeaders(),
+        body: JSON.stringify({ vendedor_id: vendedor?.id, replicar_todos: replicarMesParaTodos, acrescimo: acrescimoMeta, mes, ano })
+      });
+      const data = await res.json();
+      if (!data.success) return toast.error(data.message || "Erro ao replicar.", { id: toastId });
+
+      const jaExistiam = data.ignoradas > 0 ? ` ${data.ignoradas} já existia(m) e não mudou(aram).` : "";
+      toast.success(`${data.criadas} meta(s) criada(s).${jaExistiam}`, { id: toastId });
       setModalReplicarMetas(false);
-    }, 2000);
+      setReplicarMesParaTodos(false);
+      carregarMetas();
+    } catch (err) { toast.error("Falha de conexão.", { id: toastId }); }
   };
 
   const exportarImagemCampanha = async (campId, campNome) => {
@@ -525,9 +561,10 @@ export default function TabMetasCampanhas({ vendedor }) {
             <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-5 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
               <div>
                 <h4 className="font-bold flex items-center gap-2 text-zinc-900 dark:text-white">
-                  <Target size={18} className="text-indigo-500"/> Metas do Mês Atual
+                  <Target size={18} className="text-indigo-500"/> Metas de {nomeDoMes(competencia)}
                 </h4>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">Acompanhamento de objetivos gerais e por marcas.</p>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 mb-3">Acompanhamento de objetivos gerais e por marcas.</p>
+                <SeletorMes valor={competencia} onChange={setCompetencia} permitirFuturo />
               </div>
               
               <div className="flex flex-col sm:flex-row w-full md:w-auto gap-2">
@@ -540,13 +577,16 @@ export default function TabMetasCampanhas({ vendedor }) {
               </div>
             </div>
 
-            {metas.length === 0 ? (
+            {carregandoMetas && metas.length === 0 ? (
+              <div className="flex justify-center py-20 text-zinc-400"><RefreshCw size={24} className="animate-spin" /></div>
+            ) : metas.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 text-center bg-white dark:bg-[#121214] border border-dashed border-zinc-300 dark:border-zinc-800 rounded-3xl">
                 <Target size={48} className="text-zinc-300 dark:text-zinc-700 mb-4" />
-                <h4 className="text-lg font-black text-zinc-700 dark:text-zinc-300">Sem metas para este mês</h4>
+                <h4 className="text-lg font-black text-zinc-700 dark:text-zinc-300">Sem metas em {nomeDoMes(competencia)}</h4>
+                <p className="text-sm text-zinc-500 mt-2">Crie uma nova meta ou replique as do mês anterior.</p>
               </div>
             ) : (
-              <div className="flex flex-col gap-3">
+              <div className={`flex flex-col gap-3 transition-opacity ${carregandoMetas ? 'opacity-40' : ''}`}>
                 {metas.map((meta) => {
                   const valorRealizado = Number(meta.realizado) || 0;
                   const valorAlvo = Number(meta.alvo) || 0;
@@ -690,7 +730,7 @@ export default function TabMetasCampanhas({ vendedor }) {
           <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-3xl w-full max-w-md shadow-2xl flex flex-col overflow-hidden">
               <div className="p-6 border-b border-zinc-200 dark:border-zinc-800 flex justify-between items-center bg-zinc-50 dark:bg-[#18181b]">
-                <h2 className="text-xl font-black text-zinc-900 dark:text-white flex items-center gap-2"><Target className="text-indigo-500"/> Definir Nova Meta</h2>
+                <h2 className="text-xl font-black text-zinc-900 dark:text-white flex items-center gap-2"><Target className="text-indigo-500"/> Meta de {nomeDoMes(competencia)}</h2>
                 <button onClick={() => setModalNovaMeta(false)} className="p-2 bg-zinc-200 dark:bg-zinc-800 rounded-full hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-colors"><X size={20} className="text-zinc-600 dark:text-zinc-400"/></button>
               </div>
               
@@ -831,7 +871,7 @@ export default function TabMetasCampanhas({ vendedor }) {
               </div>
               <h2 className="text-xl font-black text-zinc-900 dark:text-white mb-2">Replicar do Mês Anterior</h2>
               <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-6">
-                Isso criará as metas deste mês baseadas nos alvos do mês passado. Você pode aplicar um acréscimo automático.
+                Copia as metas de {nomeDoMes(mesVizinho(competencia, -1))} para {nomeDoMes(competencia)}. Metas que já existem em {nomeDoMes(competencia)} não mudam.
               </p>
               
               <div className="mb-6">
@@ -842,6 +882,11 @@ export default function TabMetasCampanhas({ vendedor }) {
                   <span className="absolute right-4 top-3.5 text-zinc-400 font-bold">%</span>
                 </div>
               </div>
+
+              <label className="flex items-center gap-3 bg-zinc-50 dark:bg-[#18181b] p-3 rounded-xl border border-zinc-200 dark:border-zinc-800 mb-6 cursor-pointer">
+                <input type="checkbox" checked={replicarMesParaTodos} onChange={(e) => setReplicarMesParaTodos(e.target.checked)} className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500" />
+                <span className="text-sm font-bold text-zinc-700 dark:text-zinc-300 select-none">Replicar para TODOS os vendedores</span>
+              </label>
 
               <div className="flex gap-3">
                 <button onClick={() => setModalReplicarMetas(false)} className="flex-1 py-3 bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-xl font-bold">Cancelar</button>

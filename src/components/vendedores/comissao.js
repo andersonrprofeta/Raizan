@@ -2,17 +2,20 @@
 
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   DollarSign, Percent, Copy, Save, RefreshCw, 
   Search, ShieldAlert, CheckCircle2, AlertCircle, 
   TrendingUp, TrendingDown, Layers, ArrowRight,
-  Calculator, CheckSquare, X, Settings2, Tag, CalendarDays,
+  Calculator, CheckSquare, X, Settings2, Tag,
   FileSpreadsheet, FileText
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { getHubUrl, getHeaders } from "@/components/utils/api";
+import SeletorMes, { mesDeHoje, nomeDoMes } from "@/components/vendedores/SeletorMes";
+
+const emReais = (valor) => `R$ ${Number(valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 export default function TabComissoes({ vendedor, listaVendedores = [] }) {
   const [subAba, setSubAba] = useState("regras");
@@ -32,8 +35,12 @@ export default function TabComissoes({ vendedor, listaVendedores = [] }) {
   const [regrasMarcas, setRegrasMarcas] = useState({}); 
   const [apuracaoDinamica, setApuracaoDinamica] = useState([]); // Agora é estado!
 
-  const mesAtual = new Date().getMonth() + 1;
-  const anoAtual = new Date().getFullYear();
+  const [competencia, setCompetencia] = useState(mesDeHoje);
+  const [carregandoMes, setCarregandoMes] = useState(true);
+  const [fechamento, setFechamento] = useState(null);
+  const [pendentes, setPendentes] = useState(null);
+  const ultimaBusca = useRef(0);
+  const { mes, ano } = competencia;
 
   const baseVendedores = vendedoresReais.length > 0 ? vendedoresReais : listaVendedores;
   const vendedoresDestino = baseVendedores.filter(v => String(v.id) !== String(vendedor?.id));
@@ -77,11 +84,6 @@ export default function TabComissoes({ vendedor, listaVendedores = [] }) {
       const dataVend = await resVend.json();
       if (dataVend.success) setVendedoresReais(dataVend.vendedores || []);
 
-      // 4. Busca Apuração (Matemática Real!)
-      const resApuracao = await fetch(`${getHubUrl()}/api/hub/comissoes/apuracao?tenant_id=${tenant_id}&vendedor_id=${vendedor.id}&mes=${mesAtual}&ano=${anoAtual}`, { headers: getHeaders() });
-      const dataApuracao = await resApuracao.json();
-      if (dataApuracao.success) setApuracaoDinamica(dataApuracao.apuracao || []);
-
     } catch (error) {
       console.error("Erro ao puxar dados da API", error);
     } finally {
@@ -89,7 +91,37 @@ export default function TabComissoes({ vendedor, listaVendedores = [] }) {
     }
   }, [vendedor]);
 
+  // Trocar de mês rápido não pode deixar a resposta de um mês na tela de outro
+  const carregarMes = useCallback(async () => {
+    if (!vendedor?.id) return;
+    const busca = ++ultimaBusca.current;
+    setCarregandoMes(true);
+    try {
+      const tenant_id = JSON.parse(localStorage.getItem("@raizan:user"))?.tenant_id;
+      const [resApuracao, resFechamentos] = await Promise.all([
+        fetch(`${getHubUrl()}/api/hub/comissoes/apuracao?tenant_id=${tenant_id}&vendedor_id=${vendedor.id}&mes=${mes}&ano=${ano}`, { headers: getHeaders() }),
+        fetch(`${getHubUrl()}/api/hub/comissoes/fechamentos?tenant_id=${tenant_id}&vendedor_id=${vendedor.id}`, { headers: getHeaders() })
+      ]);
+      const [dataApuracao, dataFechamentos] = await Promise.all([resApuracao.json(), resFechamentos.json()]);
+      if (busca !== ultimaBusca.current) return;
+      if (!dataApuracao.success) throw new Error(dataApuracao.message);
+
+      setApuracaoDinamica(dataApuracao.apuracao || []);
+      setPendentes(dataApuracao.pendentes || null);
+      setFechamento((dataFechamentos.fechamentos || []).find(f => Number(f.mes) === mes && Number(f.ano) === ano) || null);
+    } catch (error) {
+      if (busca !== ultimaBusca.current) return;
+      setApuracaoDinamica([]);
+      setPendentes(null);
+      setFechamento(null);
+      toast.error("Erro ao carregar a apuração do mês.");
+    } finally {
+      if (busca === ultimaBusca.current) setCarregandoMes(false);
+    }
+  }, [vendedor, mes, ano]);
+
   useEffect(() => { carregarDados(); }, [carregarDados]);
+  useEffect(() => { carregarMes(); }, [carregarMes]);
 
   // ==========================================
   // 🛠️ EVENTOS E INTEGRAÇÃO (SALVAR E COPIAR)
@@ -119,6 +151,7 @@ export default function TabComissoes({ vendedor, listaVendedores = [] }) {
       if (data.success) {
         toast.success("Comissões salvas! Atualizando apuração...", { id: toastId });
         carregarDados(); // Recarrega para aplicar a nova regra
+        carregarMes();
       } else throw new Error(data.message);
     } catch(e) {
       toast.error("Erro ao salvar", { id: toastId });
@@ -150,11 +183,13 @@ export default function TabComissoes({ vendedor, listaVendedores = [] }) {
     const toastId = toast.loading("Congelando período no banco...");
     try {
       const tenant_id = JSON.parse(localStorage.getItem("@raizan:user"))?.tenant_id;
-      const payload = { tenant_id, vendedor_id: vendedor.id, mes: mesAtual, ano: anoAtual, total_vendas: totalVendasBrutas, total_devolucoes: totalDevolucoes, comissao_final: totalComissaoCalculada };
+      const payload = { tenant_id, vendedor_id: vendedor.id, mes, ano, total_vendas: totalVendasBrutas, total_devolucoes: totalDevolucoes, comissao_final: totalComissaoCalculada };
       const res = await fetch(`${getHubUrl()}/api/hub/comissoes/fechar`, { method: 'POST', headers: getHeaders(), body: JSON.stringify(payload) });
       const data = await res.json();
-      if (data.success) toast.success("Comissão fechada com sucesso!", { id: toastId });
-      else throw new Error(data.message);
+      if (data.success) {
+        toast.success(`Comissão de ${nomeDoMes(competencia)} fechada!`, { id: toastId });
+        carregarMes();
+      } else throw new Error(data.message);
     } catch(e) { toast.error("Erro ao fechar comissão", { id: toastId }); }
     finally { setFechando(false); }
   };
@@ -169,7 +204,7 @@ export default function TabComissoes({ vendedor, listaVendedores = [] }) {
     const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    link.href = url; link.download = `Comissao_Raizan_${vendedor?.nome || 'Vendedor'}.csv`;
+    link.href = url; link.download = `Comissao_Raizan_${vendedor?.nome || 'Vendedor'}_${mes}-${ano}.csv`;
     document.body.appendChild(link); link.click(); document.body.removeChild(link);
     toast.success("Excel gerado!");
   };
@@ -192,7 +227,7 @@ export default function TabComissoes({ vendedor, listaVendedores = [] }) {
         </style></head>
         <body>
           <h2>Relatório de Comissões - ${vendedor?.nome || 'Vendedor'}</h2>
-          <p>Competência: ${mesAtual}/${anoAtual}</p>
+          <p>Competência: ${nomeDoMes(competencia)}</p>
           ${conteudo}
           <script>window.onload=function(){window.print();window.close();}</script>
         </body>
@@ -308,13 +343,12 @@ export default function TabComissoes({ vendedor, listaVendedores = [] }) {
                 </div>
                 
                 <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                  <div className="bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/20 px-3 py-1.5 rounded-lg flex items-center gap-2 shrink-0">
-                    <CalendarDays size={14} className="text-indigo-600 dark:text-indigo-400" />
-                    <div>
-                      <p className="text-[9px] font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400 whitespace-nowrap">Competência</p>
-                      <p className="text-xs font-bold text-indigo-800 dark:text-indigo-300 whitespace-nowrap">Mês {mesAtual}</p>
-                    </div>
-                  </div>
+                  <SeletorMes valor={competencia} onChange={setCompetencia} />
+                  {fechamento && (
+                    <span className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-xs font-semibold whitespace-nowrap">
+                      <CheckCircle2 size={14} /> Fechado em {emReais(fechamento.comissao_final)}
+                    </span>
+                  )}
                   <div className="flex items-center gap-2 w-full sm:w-auto">
                     <button onClick={exportarParaExcel} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-50 text-emerald-600 border border-emerald-200 rounded-lg hover:bg-emerald-100 dark:bg-emerald-500/10 dark:border-emerald-500/30 dark:text-emerald-400 transition-colors text-[10px] sm:text-xs font-bold uppercase tracking-wider whitespace-nowrap"><FileSpreadsheet size={14} /> Exportar CSV</button>
                     <button onClick={exportarParaPDF} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2 bg-rose-50 text-rose-600 border border-rose-200 rounded-lg hover:bg-rose-100 dark:bg-rose-500/10 dark:border-rose-500/30 dark:text-rose-400 transition-colors text-[10px] sm:text-xs font-bold uppercase tracking-wider whitespace-nowrap"><FileText size={14} /> Gerar PDF</button>
@@ -322,7 +356,16 @@ export default function TabComissoes({ vendedor, listaVendedores = [] }) {
                 </div>
               </div>
 
-              <div className="overflow-x-auto w-full custom-scrollbar">
+              {pendentes?.quantidade > 0 && (
+                <div className="mx-5 mt-4 flex items-start gap-2.5 rounded-2xl bg-amber-500/10 px-4 py-3 text-xs sm:text-sm text-amber-800 dark:text-amber-300">
+                  <AlertCircle size={16} className="shrink-0 mt-0.5" />
+                  <p>
+                    {pendentes.quantidade === 1 ? "1 pedido deste mês ainda não foi faturado" : `${pendentes.quantidade} pedidos deste mês ainda não foram faturados`} ({emReais(pendentes.valor)}). Eles ficam fora da comissão enquanto não faturarem.
+                  </p>
+                </div>
+              )}
+
+              <div className={`overflow-x-auto w-full custom-scrollbar transition-opacity ${carregandoMes ? 'opacity-40' : ''}`}>
                 <table id="tabela-apuracao" className="w-full min-w-[750px] text-sm text-left">
                   <thead className="bg-zinc-50 dark:bg-[#0c0c0e] text-[10px] uppercase tracking-wider text-zinc-500 dark:text-zinc-500">
                     <tr>
@@ -335,6 +378,11 @@ export default function TabComissoes({ vendedor, listaVendedores = [] }) {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/50">
+                    {!carregandoMes && apuracaoDinamica.length === 0 && (
+                      <tr>
+                        <td colSpan={6} className="px-5 py-10 text-center text-sm text-zinc-500">Nenhuma venda faturada em {nomeDoMes(competencia)}.</td>
+                      </tr>
+                    )}
                     {apuracaoDinamica.map((item, idx) => (
                       <tr key={idx} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors text-xs sm:text-sm">
                         <td className="px-5 py-3 font-bold text-zinc-800 dark:text-zinc-200 whitespace-nowrap">{item.marca}</td>
@@ -361,10 +409,12 @@ export default function TabComissoes({ vendedor, listaVendedores = [] }) {
               <div className="p-5 bg-zinc-50 dark:bg-[#0c0c0e] border-t border-zinc-200 dark:border-zinc-800 flex flex-col md:flex-row justify-between items-center gap-4">
                 <div className="flex items-center gap-3 text-xs sm:text-sm text-zinc-500 dark:text-zinc-400">
                   <ShieldAlert size={16} className="text-indigo-500 shrink-0" />
-                  <p>O fechamento congela a competência e envia o resultado ao <strong>Raizan Seller</strong>.</p>
+                  <p>{fechamento
+                    ? <>Este mês já foi fechado. Atualizar substitui o valor que o vendedor vê no <strong>Raizan Seller</strong>.</>
+                    : <>O fechamento grava o total do mês e envia o resultado ao <strong>Raizan Seller</strong>.</>}</p>
                 </div>
-                <button onClick={handleFecharComissao} disabled={fechando} className="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-[0_4px_14px_rgba(79,70,229,0.3)] flex items-center justify-center gap-2 disabled:opacity-50 shrink-0 text-sm">
-                  {fechando ? <RefreshCw size={18} className="animate-spin" /> : <CheckCircle2 size={18} />} {fechando ? "Processando..." : "Fechar Comissão e Enviar"}
+                <button onClick={handleFecharComissao} disabled={fechando || carregandoMes || apuracaoDinamica.length === 0} className="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-[0_4px_14px_rgba(79,70,229,0.3)] flex items-center justify-center gap-2 disabled:opacity-50 shrink-0 text-sm">
+                  {fechando ? <RefreshCw size={18} className="animate-spin" /> : <CheckCircle2 size={18} />} {fechando ? "Processando..." : fechamento ? "Atualizar Fechamento" : "Fechar Comissão e Enviar"}
                 </button>
               </div>
             </div>
@@ -389,7 +439,7 @@ export default function TabComissoes({ vendedor, listaVendedores = [] }) {
                 <div>
                   <div className="flex justify-between items-center mb-3">
                     <p className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider">Selecione os Destinos</p>
-                    <button onClick={selecionarTodosVendedores} className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline">{vendedoresSelecionados.length === vendedoresDestino.length ? 'Desmarcar Todos' : 'Selecionar Todos'}</button>
+                    <button onClick={selecionarTodos} className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline">{vendedoresSelecionados.length === vendedoresDestino.length ? 'Desmarcar Todos' : 'Selecionar Todos'}</button>
                   </div>
                   <div className="space-y-2">
                     {vendedoresDestino.map((v) => (

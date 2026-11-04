@@ -7,13 +7,14 @@ import { getHubUrl, getHeaders } from "@/components/utils/api";
 import { 
   Users, RefreshCw, Search, Key, ShieldCheck, 
   Mail, X, Lock, UserCog, Ban, CheckCircle, AlertTriangle,
-  LayoutGrid, List, ChevronRight, TrendingUp, Target, DollarSign, Wallet
+  LayoutGrid, List, ChevronRight, TrendingUp, Target, DollarSign, Eye, EyeOff
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import toast, { Toaster } from "react-hot-toast";
 
 // 🟢 IMPORTAÇÃO DOS SEUS NOVOS COMPONENTES PREMIUM AQUI!
-import TabContaFlex from "@/components/vendedores/flex";
+// Conta Flex fora do painel até existir de verdade: a tela só tem dados de exemplo e nada é salvo.
+// import TabContaFlex from "@/components/vendedores/flex";
 import TabComissoes from "@/components/vendedores/comissao";
 import TabMetasCampanhas from "@/components/vendedores/metas";
 import TabVisaoGeral from "@/components/vendedores/relatorio";
@@ -29,6 +30,7 @@ export default function VendedoresPage() {
   const [modalAberto, setModalAberto] = useState(false);
   const [vendedorSelecionado, setVendedorSelecionado] = useState(null);
   const [novaSenha, setNovaSenha] = useState("");
+  const [mostrarSenha, setMostrarSenha] = useState(false);
 
   const [modalBloqueioAberto, setModalBloqueioAberto] = useState(false);
   const [vendedorParaBloquear, setVendedorParaBloquear] = useState(null);
@@ -124,6 +126,7 @@ export default function VendedoresPage() {
     if(e) e.stopPropagation(); // Evita abrir o painel lateral
     setVendedorSelecionado(vendedor);
     setNovaSenha("");
+    setMostrarSenha(false);
     setModalAberto(true);
   };
 
@@ -420,7 +423,6 @@ export default function VendedoresPage() {
                   <TabButton id="resumo" icon={TrendingUp} label="Visão Geral" active={abaAtiva} onClick={setAbaAtiva} />
                   <TabButton id="metas" icon={Target} label="Metas & Campanhas" active={abaAtiva} onClick={setAbaAtiva} />
                   <TabButton id="comissoes" icon={DollarSign} label="Comissões" active={abaAtiva} onClick={setAbaAtiva} />
-                  <TabButton id="contaflex" icon={Wallet} label="Conta Flex" active={abaAtiva} onClick={setAbaAtiva} />
                 </div>
 
                 {/* Área de Conteúdo Scrollável */}
@@ -428,7 +430,6 @@ export default function VendedoresPage() {
                   {abaAtiva === 'resumo' && <TabVisaoGeral vendedor={vendedorDetalhe} />}
                   {abaAtiva === 'metas' && <TabMetasCampanhas vendedor={vendedorDetalhe} />}
                   {abaAtiva === 'comissoes' && <TabComissoes vendedor={vendedorDetalhe} />}
-                  {abaAtiva === 'contaflex' && <TabContaFlex vendedor={vendedorDetalhe} />}
                 </div>
 
               </motion.div>
@@ -467,14 +468,25 @@ export default function VendedoresPage() {
 
               <div>
                 <label className="text-xs font-bold text-zinc-500 dark:text-zinc-500 uppercase tracking-widest mb-2 block transition-colors">Nova Senha</label>
-                <input
-                  type="text"
-                  placeholder="Mínimo 6 caracteres..."
-                  value={novaSenha}
-                  onChange={(e) => setNovaSenha(e.target.value)}
-                  className="w-full bg-white dark:bg-[#09090b] border border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-white p-3.5 rounded-xl text-sm outline-none focus:border-purple-500 transition-colors placeholder:text-zinc-400 dark:placeholder:text-zinc-600 shadow-sm dark:shadow-none"
-                  required
-                />
+                <div className="relative">
+                  <input
+                    type={mostrarSenha ? "text" : "password"}
+                    autoComplete="new-password"
+                    placeholder="Mínimo 6 caracteres..."
+                    value={novaSenha}
+                    onChange={(e) => setNovaSenha(e.target.value)}
+                    className="w-full bg-white dark:bg-[#09090b] border border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-white p-3.5 pr-11 rounded-xl text-sm outline-none focus:border-purple-500 transition-colors placeholder:text-zinc-400 dark:placeholder:text-zinc-600 shadow-sm dark:shadow-none"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setMostrarSenha(!mostrarSenha)}
+                    aria-label={mostrarSenha ? "Ocultar senha" : "Mostrar senha"}
+                    className="absolute inset-y-0 right-3 flex items-center text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
+                  >
+                    {mostrarSenha ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
               </div>
 
               <div className="pt-2">

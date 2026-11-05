@@ -19,10 +19,12 @@ const TIPOS_DE_AJUSTE = [
   { id: "devolucao", rotulo: "Devolução" },
   { id: "cancelamento", rotulo: "Cancelamento" },
   { id: "estorno", rotulo: "Estorno" },
-  { id: "manual", rotulo: "Manual" }
+  { id: "venda", rotulo: "Venda" },
+  { id: "campanha", rotulo: "Campanha" },
+  { id: "correcao", rotulo: "Correção administrativa" },
+  { id: "manual", rotulo: "Outros" }
 ];
-const ROTULO_DO_TIPO = { ...Object.fromEntries(TIPOS_DE_AJUSTE.map((t) => [t.id, t.rotulo])), refechamento: "Recálculo" };
-const ROTULO_DA_ORIGEM = { omie: "Omie", erp: "ERP", manual: "Manual" };
+const ROTULO_DA_ORIGEM = { omie: "Omie", erp: "ERP", manual: "Manual", sistema: "Sistema" };
 
 const usuarioLogado = () => {
   try {
@@ -101,15 +103,13 @@ function ModalAjuste({ vendedor, competencia, onFechar, onLancado }) {
   );
 }
 
-function Historico({ resumo, ajustes, podeLancar, onNovo }) {
+function Historico({ resumo, ajustes, razao, podeLancar, onNovo }) {
   const somaDoTipo = (tipo) => ajustes.filter((a) => a.tipo === tipo).reduce((acc, a) => acc + a.valor, 0);
   const linhas = [
     ["Comissão original", resumo.comissao_original],
-    ["Ajustes por devolução", somaDoTipo("devolucao")],
-    ["Ajustes por cancelamento", somaDoTipo("cancelamento")],
-    ["Estornos", somaDoTipo("estorno")],
-    ["Ajustes manuais", somaDoTipo("manual")]
+    ...TIPOS_DE_AJUSTE.filter((tipo) => somaDoTipo(tipo.id) !== 0).map((tipo) => [tipo.rotulo, somaDoTipo(tipo.id)])
   ];
+  const lancamentos = [...razao].reverse();
 
   return (
     <section className={`${VIDRO} overflow-hidden`}>
@@ -133,25 +133,30 @@ function Historico({ resumo, ajustes, podeLancar, onNovo }) {
 
       {ajustes.length > 0 && (
         <ul className="border-t border-black/[0.05] dark:border-white/[0.06] divide-y divide-black/[0.05] dark:divide-white/[0.05]">
-          {ajustes.map((ajuste) => (
-            <li key={ajuste.id} className="flex items-start justify-between gap-4 px-5 py-3">
+          {lancamentos.map((linha) => (
+            <li key={linha.id} className="flex items-start justify-between gap-4 px-5 py-3">
               <div className="min-w-0">
                 <p className="text-sm font-medium">
-                  {ROTULO_DO_TIPO[ajuste.tipo] || ajuste.tipo}
-                  <span className="ml-2 text-xs font-normal text-zinc-500">{ROTULO_DA_ORIGEM[ajuste.origem] || ajuste.origem}</span>
+                  {linha.titulo}
+                  <span className="ml-2 text-xs font-normal text-zinc-500">{ROTULO_DA_ORIGEM[linha.origem] || linha.origem}</span>
                 </p>
-                {ajuste.motivo && <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-0.5">{ajuste.motivo}</p>}
-                <p className="text-xs text-zinc-500 mt-0.5">
-                  {ajuste.criado_em_br}
-                  {ajuste.criado_por && ` · ${ajuste.criado_por}${ajuste.usuario_verificado ? "" : " (não verificado)"}`}
-                  {ajuste.referencia && ` · ${ajuste.referencia}`}
-                </p>
+                {linha.motivo && <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-0.5">{linha.motivo}</p>}
+                {linha.data && (
+                  <p className="text-xs text-zinc-500 mt-0.5">
+                    {linha.data}
+                    {linha.responsavel && ` · ${linha.responsavel}${linha.usuario_verificado ? "" : " (não verificado)"}`}
+                    {linha.referencia && ` · ${linha.referencia}`}
+                  </p>
+                )}
               </div>
-              {ajuste.tipo !== "refechamento" && (
-                <span className={`shrink-0 text-sm font-semibold tabular-nums ${ajuste.valor < 0 ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-400"}`}>
-                  {ajuste.valor > 0 ? "+ " : ""}{moeda(ajuste.valor)}
-                </span>
-              )}
+              <div className="shrink-0 text-right tabular-nums">
+                {linha.natureza !== "registro" && (
+                  <p className={`text-sm font-semibold ${linha.natureza === "debito" ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-400"}`}>
+                    {linha.valor > 0 ? "+ " : ""}{moeda(linha.valor)}
+                  </p>
+                )}
+                <p className="text-xs text-zinc-500">{moeda(linha.comissao_antes)} para {moeda(linha.comissao_depois)}</p>
+              </div>
             </li>
           ))}
         </ul>
@@ -164,6 +169,7 @@ function Apuracao({ vendedor, competencia }) {
   const { mes, ano } = competencia;
   const [apuracao, setApuracao] = useState([]);
   const [ajustes, setAjustes] = useState([]);
+  const [razao, setRazao] = useState([]);
   const [resumo, setResumo] = useState({ fechado: false, congelado: false, comissao_original: 0, comissao_liquida: 0 });
   const [lancando, setLancando] = useState(false);
   const [fechamento, setFechamento] = useState(null);
@@ -186,6 +192,7 @@ function Apuracao({ vendedor, competencia }) {
 
       setApuracao(dataApuracao.apuracao || []);
       setAjustes(dataApuracao.ajustes || []);
+      setRazao(dataApuracao.razao || []);
       setResumo({
         fechado: Boolean(dataApuracao.fechado),
         congelado: Boolean(dataApuracao.congelado),
@@ -198,6 +205,7 @@ function Apuracao({ vendedor, competencia }) {
       if (busca !== ultimaBusca.current) return;
       setApuracao([]);
       setAjustes([]);
+      setRazao([]);
       setResumo({ fechado: false, congelado: false, comissao_original: 0, comissao_liquida: 0 });
       setPendentes(null);
       setFechamento(null);
@@ -345,7 +353,7 @@ function Apuracao({ vendedor, competencia }) {
         </div>
       </section>
 
-      <Historico resumo={resumo} ajustes={ajustes} podeLancar={!resumo.fechado && !carregando} onNovo={() => setLancando(true)} />
+      <Historico resumo={resumo} ajustes={ajustes} razao={razao} podeLancar={!resumo.fechado && !carregando} onNovo={() => setLancando(true)} />
 
       {lancando && (
         <ModalAjuste

@@ -158,7 +158,7 @@ export function ModalVendedor({ vendedor, onFechar, onSalvo }) {
   const editando = Boolean(vendedor);
   const [nome, setNome] = useState(vendedor?.nome || "");
   const [email, setEmail] = useState(vendedor?.email || "");
-  const [comissao, setComissao] = useState("5");
+  const [comissao, setComissao] = useState("");
   const [senha, setSenha] = useState("");
   const [salvando, setSalvando] = useState(false);
 
@@ -209,7 +209,7 @@ export function ModalVendedor({ vendedor, onFechar, onSalvo }) {
           <div className="grid grid-cols-[110px_1fr] gap-3">
             <div>
               <label className={ROTULO}>Comissão (%)</label>
-              <input inputMode="decimal" value={comissao} onChange={(e) => setComissao(e.target.value.replace(/[^0-9.,]/g, ""))} className={CAMPO} />
+              <input inputMode="decimal" placeholder="Equipe" value={comissao} onChange={(e) => setComissao(e.target.value.replace(/[^0-9.,]/g, ""))} className={CAMPO} />
             </div>
             <div>
               <label className={ROTULO}>Senha do app (opcional)</label>

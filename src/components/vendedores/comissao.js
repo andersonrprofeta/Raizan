@@ -149,7 +149,10 @@ function Apuracao({ vendedor, competencia }) {
                     <td className="px-5 py-3 text-right text-zinc-600 dark:text-zinc-400">{moeda(item.vendas)}</td>
                     <td className="px-5 py-3 text-right text-zinc-600 dark:text-zinc-400">{item.devolucoes > 0 ? `- ${moeda(item.devolucoes)}` : "—"}</td>
                     <td className="px-5 py-3 text-right text-zinc-600 dark:text-zinc-400">{moeda(item.base)}</td>
-                    <td className="px-5 py-3 text-right text-zinc-600 dark:text-zinc-400">{Number(item.regra).toLocaleString("pt-BR")}%</td>
+                    <td className="px-5 py-3 text-right text-zinc-600 dark:text-zinc-400">
+                      {Number(item.regra).toLocaleString("pt-BR")}%
+                      {item.origem === "vendedor" && <span className="block text-[11px] text-purple-600 dark:text-purple-400">Regra própria</span>}
+                    </td>
                     <td className="px-5 py-3 text-right font-semibold text-zinc-900 dark:text-white">{moeda(item.comissao)}</td>
                   </tr>
                 ))}
@@ -212,7 +215,7 @@ function ModalCopiar({ vendedor, comissaoGeral, onFechar }) {
   return (
     <Modal
       titulo="Copiar regras"
-      descricao={`Copia a regra geral (${comissaoGeral}%) e as exceções de ${vendedor.nome}. Substitui as regras dos selecionados.`}
+      descricao={`Copia a regra geral (${comissaoGeral ? `${comissaoGeral}%` : "da equipe"}) e as exceções de ${vendedor.nome}. Substitui as regras dos selecionados.`}
       onFechar={onFechar}
       rodape={<>
         <button type="button" onClick={onFechar} className={`${BOTAO_SECUNDARIO} flex-1`}>Cancelar</button>
@@ -240,7 +243,8 @@ function Regras({ vendedor }) {
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
   const [copiando, setCopiando] = useState(false);
-  const [geral, setGeral] = useState("5");
+  const [geral, setGeral] = useState("");
+  const [equipe, setEquipe] = useState({ geral: null, marcas: [] });
   const [marcas, setMarcas] = useState([]);
   const [excecoes, setExcecoes] = useState({});
   const [busca, setBusca] = useState("");
@@ -250,7 +254,9 @@ function Regras({ vendedor }) {
       try {
         const [dataMarcas, dataRegras] = await Promise.all([api("/marcas"), api(`/comissoes/regras?vendedor_id=${vendedor.id}`)]);
         if (dataRegras.success) {
-          setGeral(String(dataRegras.geral));
+          const proprio = dataRegras.geral_proprio;
+          setGeral(proprio === null || proprio === undefined ? "" : String(Number(proprio)));
+          setEquipe(dataRegras.equipe || { geral: null, marcas: [] });
           setExcecoes(Object.fromEntries((dataRegras.marcas || []).map((m) => [m.marca, String(Number(m.percentual))])));
         }
         if (dataMarcas.success) setMarcas((dataMarcas.marcas || []).filter((m) => !m.nome.toLowerCase().startsWith("provador")));
@@ -274,7 +280,7 @@ function Regras({ vendedor }) {
         metodo: "POST",
         corpo: {
           vendedor_id: vendedor.id,
-          comissao_geral: Number(geral) || 0,
+          comissao_geral: geral === "" ? null : Number(geral),
           marcas_excecao: Object.entries(excecoes).filter(([, valor]) => valor !== "").map(([marca, percentual]) => ({ marca, percentual: Number(percentual) }))
         }
       });
@@ -290,13 +296,16 @@ function Regras({ vendedor }) {
   if (carregando) return <Carregando texto="Buscando regras..." />;
 
   const visiveis = marcas.filter((m) => m.nome.toLowerCase().includes(busca.toLowerCase()));
+  const geralDaEquipe = equipe.geral ?? 5;
+  const percentualDaEquipe = (marca) => equipe.marcas.find((m) => m.marca.toLowerCase() === marca.toLowerCase())?.percentual;
 
   return (
     <div className="space-y-6">
       <section className={`${VIDRO} p-5 flex flex-col sm:flex-row sm:items-end justify-between gap-4`}>
-        <div className="w-full sm:w-44">
-          <label className={ROTULO}>Regra geral (%)</label>
-          <input inputMode="decimal" value={geral} onChange={(e) => setGeral(e.target.value.replace(/[^0-9.]/g, ""))} className={`${CAMPO} text-lg font-semibold tabular-nums`} />
+        <div className="w-full sm:w-52">
+          <label className={ROTULO}>Regra geral própria (%)</label>
+          <input inputMode="decimal" placeholder={`Equipe: ${Number(geralDaEquipe)}`} value={geral} onChange={(e) => setGeral(e.target.value.replace(/[^0-9.]/g, ""))} className={`${CAMPO} text-lg font-semibold tabular-nums`} />
+          <p className="text-xs text-zinc-500 mt-2">Em branco, segue a regra da equipe.</p>
         </div>
         <div className="flex items-center gap-2">
           <button type="button" onClick={() => setCopiando(true)} className={`${BOTAO_SECUNDARIO} flex-1 sm:flex-none`}><Copy size={15} /> Copiar</button>
@@ -308,7 +317,7 @@ function Regras({ vendedor }) {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-4 border-b border-black/[0.05] dark:border-white/[0.06]">
           <div>
             <h2 className="font-semibold tracking-tight">Exceções por marca</h2>
-            <p className="text-xs text-zinc-500 mt-0.5">Em branco, a marca usa a regra geral.</p>
+            <p className="text-xs text-zinc-500 mt-0.5">Em branco, a marca segue a regra da equipe.</p>
           </div>
           <div className="relative sm:w-64">
             <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" />
@@ -320,7 +329,7 @@ function Regras({ vendedor }) {
             <div key={marca.id ?? marca.nome} className="flex items-center justify-between gap-4 px-5 py-2.5">
               <span className="text-sm font-medium truncate">{marca.nome}</span>
               <div className="relative w-24 shrink-0">
-                <input inputMode="decimal" aria-label={`Comissão de ${marca.nome}`} placeholder="Geral" value={excecoes[marca.nome] ?? ""} onChange={(e) => mudarExcecao(marca.nome, e.target.value)} className={`${CAMPO} h-9 text-right pr-7 tabular-nums`} />
+                <input inputMode="decimal" aria-label={`Comissão de ${marca.nome}`} placeholder={percentualDaEquipe(marca.nome) === undefined ? "Geral" : String(Number(percentualDaEquipe(marca.nome)))} value={excecoes[marca.nome] ?? ""} onChange={(e) => mudarExcecao(marca.nome, e.target.value)} className={`${CAMPO} h-9 text-right pr-7 tabular-nums`} />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-zinc-400">%</span>
               </div>
             </div>

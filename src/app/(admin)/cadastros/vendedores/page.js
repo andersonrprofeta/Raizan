@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronRight, Plus, RefreshCw, Search, Target, Trophy, Users, X } from "lucide-react";
+import { ChevronRight, Percent, Plus, RefreshCw, Search, Target, Trophy, Users, X } from "lucide-react";
 import toast from "react-hot-toast";
 import Campanhas from "@/components/vendedores/Campanhas";
+import ComissoesEquipe from "@/components/vendedores/ComissoesEquipe";
 import EquipeMetas from "@/components/vendedores/EquipeMetas";
 import { ModalVendedor } from "@/components/vendedores/Modais";
 import SeletorMes, { mesDeHoje, nomeDoMes } from "@/components/vendedores/SeletorMes";
@@ -16,6 +17,7 @@ import {
 const SECOES = [
   { id: "equipe", rotulo: "Equipe", icone: Users },
   { id: "metas", rotulo: "Metas", icone: Target },
+  { id: "comissoes", rotulo: "Comissões", icone: Percent },
   { id: "campanhas", rotulo: "Campanhas", icone: Trophy }
 ];
 
@@ -176,7 +178,7 @@ export default function VendedoresPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
         <div>
           <h1 className="text-3xl sm:text-[34px] leading-tight font-bold tracking-tight">Vendedores</h1>
-          <p className="text-sm sm:text-[15px] text-zinc-500 dark:text-zinc-400 mt-1">Equipe, metas e campanhas em um só lugar.</p>
+          <p className="text-sm sm:text-[15px] text-zinc-500 dark:text-zinc-400 mt-1">Equipe, metas, comissões e campanhas em um só lugar.</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <button type="button" onClick={sincronizar} disabled={sincronizando} className={BOTAO_SECUNDARIO}>
@@ -188,7 +190,7 @@ export default function VendedoresPage() {
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <Segmentado opcoes={SECOES} valor={secao} onChange={setSecao} />
-        {secao !== "campanhas" && <SeletorMes valor={competencia} onChange={setCompetencia} permitirFuturo={secao === "metas"} />}
+        {secao !== "campanhas" && secao !== "comissoes" && <SeletorMes valor={competencia} onChange={setCompetencia} permitirFuturo={secao === "metas"} />}
       </div>
 
       {secao === "equipe" && (
@@ -247,6 +249,7 @@ export default function VendedoresPage() {
       )}
 
       {secao === "metas" && <EquipeMetas vendedores={ordenados} equipe={equipe} competencia={competencia} onAtualizar={carregarMes} />}
+      {secao === "comissoes" && <ComissoesEquipe onAtualizar={carregarMes} />}
       {secao === "campanhas" && <Campanhas />}
 
       {cadastrando && (

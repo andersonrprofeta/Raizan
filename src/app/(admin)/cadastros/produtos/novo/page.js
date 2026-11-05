@@ -110,7 +110,7 @@ function FormularioInterno() {
     if (!produtoParaSalvar.basico.sku || produtoParaSalvar.basico.sku.trim() === "") {
        const skuAleatorio = Math.floor(Math.random() * 99999).toString().padStart(5, '0');
        produtoParaSalvar.basico.sku = skuAleatorio;
-       toast.success(`SKU gerado automaticamente: ${skuAleatorio}`, { icon: '🔢' });
+       toast.success(`SKU gerado automaticamente: ${skuAleatorio}`);
     }
 
     const url = isEditMode 

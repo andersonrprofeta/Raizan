@@ -1,5 +1,5 @@
 import "./globals.css";
-import { Toaster } from 'react-hot-toast';
+import ToasterRaizan from "@/components/ToasterRaizan";
 import WorkspaceExterno from "@/components/WorkspaceExterno"; // 🟢 Cortina comprada!
 
 // 🟢 Provedor com caminho relativo (se Providers estiver na mesma pasta app)
@@ -19,18 +19,7 @@ export default function RootLayout({ children }) {
           
           {children}
 
-          <Toaster 
-            position="bottom-right" 
-            toastOptions={{
-              style: {
-                background: '#18181b',
-                color: '#e4e4e7',
-                border: '1px solid #27272a',
-              },
-              success: { iconTheme: { primary: '#10b981', secondary: '#18181b' } },
-              error: { iconTheme: { primary: '#f43f5e', secondary: '#18181b' } },
-            }} 
-          />
+          <ToasterRaizan />
 
           {/* 🟢 CORTINA PENDURADA! Agora ela vai escutar o clique lá no Header! */}
           <WorkspaceExterno />

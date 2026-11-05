@@ -111,6 +111,48 @@ export function ModalBloqueio({ vendedor, onFechar, onSalvo }) {
   );
 }
 
+export function ModalExcluir({ vendedor, onFechar, onExcluido }) {
+  const [salvando, setSalvando] = useState(false);
+
+  const confirmar = async () => {
+    setSalvando(true);
+    try {
+      const data = await api(`/vendedores/${vendedor.id}`, { metodo: "DELETE" });
+      if (!data.success) throw new Error(data.message);
+      toast.success("Vendedor excluído.");
+      onExcluido();
+    } catch (erro) {
+      toast.error(erro.message || "Não foi possível excluir o vendedor.");
+      setSalvando(false);
+    }
+  };
+
+  return (
+    <Modal
+      titulo="Excluir vendedor?"
+      descricao={`${vendedor.nome} sai da equipe e perde o acesso ao Raizan Seller.`}
+      onFechar={onFechar}
+      largura="max-w-sm"
+      rodape={<>
+        <button type="button" onClick={onFechar} className={`${BOTAO_SECUNDARIO} flex-1`}>Cancelar</button>
+        <button
+          type="button"
+          onClick={confirmar}
+          disabled={salvando}
+          className="flex-1 inline-flex items-center justify-center h-11 rounded-full text-sm font-semibold text-white bg-rose-600 hover:bg-rose-500 transition-all active:scale-95 disabled:opacity-40"
+        >
+          Excluir
+        </button>
+      </>}
+    >
+      <p className="text-sm text-zinc-500 dark:text-zinc-400">
+        As metas deste mês em diante são removidas. Vendas e comissões já registradas continuam no histórico.
+        {!vendedor.manual && " O cadastro não volta ao sincronizar com o ERP."}
+      </p>
+    </Modal>
+  );
+}
+
 // Sem vendedor cadastra um novo; com vendedor, edita nome e e-mail
 export function ModalVendedor({ vendedor, onFechar, onSalvo }) {
   const editando = Boolean(vendedor);

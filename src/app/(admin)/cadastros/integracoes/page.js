@@ -361,7 +361,7 @@ export default function IntegracoesPage() {
     if (int.plataforma === "omie") {
       setEditandoInt(int);
     } else {
-      toast("A tela de edição será liberada na próxima atualização!", { icon: "🚧" });
+      toast("A tela de edição será liberada na próxima atualização!");
     }
     setMenuAberto(null);
   };
@@ -676,7 +676,7 @@ export default function IntegracoesPage() {
                             descricao={oracleConfigurado ? "Sincronização bidirecional ativa." : "Sincronização bidirecional do ERP."}
                             textoBotao="Ajustar Conexão"
                             suave={oracleConfigurado}
-                            onClick={(e) => { e.stopPropagation(); toast("Acesse o menu Configurações para ajustar os parâmetros do Oracle.", { icon: "⚙️" }); }}
+                            onClick={(e) => { e.stopPropagation(); toast("Acesse o menu Configurações para ajustar os parâmetros do Oracle."); }}
                           />
 
                           {["microsoft-sql", "mysql"].map(db => (

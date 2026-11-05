@@ -47,7 +47,7 @@ export default function WhatsappCatalogPage() {
 
   const handleForcarSincronizacao = () => {
     setSincronizando(true);
-    toast("Iniciando varredura do catálogo...", { icon: '🔄' });
+    toast("Iniciando varredura do catálogo...");
     setTimeout(() => {
       toast.success("Catálogo sincronizado com o Meta!");
       setSincronizando(false);

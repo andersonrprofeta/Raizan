@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronRight, Plus, RefreshCw, Search, Target, Trophy, Users, X } from "lucide-react";
-import toast, { Toaster } from "react-hot-toast";
+import toast from "react-hot-toast";
 import Campanhas from "@/components/vendedores/Campanhas";
 import EquipeMetas from "@/components/vendedores/EquipeMetas";
 import { ModalVendedor } from "@/components/vendedores/Modais";
@@ -173,8 +173,6 @@ export default function VendedoresPage() {
 
   return (
     <CascaPagina>
-      <Toaster position="top-right" />
-
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
         <div>
           <h1 className="text-3xl sm:text-[34px] leading-tight font-bold tracking-tight">Vendedores</h1>

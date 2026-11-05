@@ -158,7 +158,7 @@ function ScannerMesa() {
               if (confInicial[ch]) confInicial[ch].qtdBipada = Math.min(parsed[ch].qtdBipada, confInicial[ch].qtdPedida);
             });
             setProgressoRecuperado(true);
-            toast.success("Progresso recuperado.", { icon: '💾', style: { borderRadius: '12px', fontSize: '14px' } });
+            toast.success("Progresso recuperado.");
           } catch(e) {
             localStorage.removeItem(cacheKey);
           }

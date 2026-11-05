@@ -83,7 +83,7 @@ export default function AbaKit({ produto, atualizarCampo }) {
     
     atualizarCampo('composicao_kit', novosItens);
     setLinhaBuscando(null); // Fecha o menu flutuante
-    toast.success("Produto vinculado!", { icon: "🔗" });
+    toast.success("Produto vinculado!");
   };
 
   return (

@@ -149,7 +149,7 @@ function EditarPedidoConteudo() {
     setModalBusca(false);
     setCatalogo([]);
     setTermoBusca("");
-    toast.success("Produto adicionado ao pedido!", { icon: '📦' });
+    toast.success("Produto adicionado ao pedido!");
   };
 
   const handleQtdChange = (index, novaQtd) => {
@@ -161,7 +161,7 @@ function EditarPedidoConteudo() {
   // 🟢 FUNÇÃO MÁGICA: Remove o item do Array e a matemática já faz o resto!
   const removerItem = (indexParaRemover) => {
     setItens(itens.filter((_, index) => index !== indexParaRemover));
-    toast.success("Item removido!", { icon: '🗑️' });
+    toast.success("Item removido!");
   };
 
   const subtotalItens = itens.reduce((acc, item) => acc + (parseFloat(item.price || 0) * (item.quantity || 0)), 0);

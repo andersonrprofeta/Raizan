@@ -3,12 +3,12 @@
 import { Suspense, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Ban, CheckCircle, ChevronLeft, DollarSign, Key, Pencil, Target, TrendingUp } from "lucide-react";
-import toast, { Toaster } from "react-hot-toast";
+import { Ban, CheckCircle, ChevronLeft, DollarSign, Key, Pencil, Target, Trash2, TrendingUp } from "lucide-react";
+import toast from "react-hot-toast";
 import TabComissoes from "@/components/vendedores/comissao";
 import TabMetas from "@/components/vendedores/metas";
 import TabDesempenho from "@/components/vendedores/relatorio";
-import { ModalBloqueio, ModalSenha, ModalVendedor } from "@/components/vendedores/Modais";
+import { ModalBloqueio, ModalExcluir, ModalSenha, ModalVendedor } from "@/components/vendedores/Modais";
 import SeletorMes, { mesDeHoje } from "@/components/vendedores/SeletorMes";
 import { api, Avatar, BOTAO_PRIMARIO, BOTAO_SECUNDARIO, Carregando, CascaPagina, Segmentado, StatusAcesso, VIDRO } from "@/components/vendedores/ui";
 
@@ -85,6 +85,7 @@ function PaginaVendedor() {
               {bloqueado ? <><CheckCircle size={15} /> Liberar</> : <><Ban size={15} /> Bloquear</>}
             </button>
           )}
+          <button type="button" onClick={() => setModal("excluir")} className={`${BOTAO_SECUNDARIO} !text-rose-600 dark:!text-rose-400`}><Trash2 size={15} /> Excluir</button>
         </div>
       </section>
 
@@ -100,6 +101,7 @@ function PaginaVendedor() {
       {modal === "senha" && <ModalSenha vendedor={vendedor} onFechar={() => setModal(null)} onSalvo={aoSalvar} />}
       {modal === "bloqueio" && <ModalBloqueio vendedor={vendedor} onFechar={() => setModal(null)} onSalvo={aoSalvar} />}
       {modal === "editar" && <ModalVendedor vendedor={vendedor} onFechar={() => setModal(null)} onSalvo={aoSalvar} />}
+      {modal === "excluir" && <ModalExcluir vendedor={vendedor} onFechar={() => setModal(null)} onExcluido={() => router.push("/cadastros/vendedores")} />}
     </>
   );
 }
@@ -107,7 +109,6 @@ function PaginaVendedor() {
 export default function DetalhesVendedorPage() {
   return (
     <CascaPagina>
-      <Toaster position="top-right" />
       <Suspense fallback={<Carregando texto="Abrindo vendedor..." />}>
         <PaginaVendedor />
       </Suspense>

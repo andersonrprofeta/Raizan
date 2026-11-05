@@ -101,7 +101,7 @@ function ModalPagamentoRetentativa({ isOpen, onClose, pedido, user, onSucesso })
 
   const processarPagamento = async (dadosCartaoMp = null) => {
     if (!user?.telefone || !user?.endereco || !user?.endereco?.cep) {
-      toast.error("⚠️ Cadastro Incompleto! Vá no menu 'Meu Perfil' e preencha seu Endereço e Telefone antes de pagar.", { duration: 6000 });
+      toast.error("Cadastro incompleto. Vá no menu 'Meu Perfil' e preencha seu Endereço e Telefone antes de pagar.", { duration: 6000 });
       return;
     }
 

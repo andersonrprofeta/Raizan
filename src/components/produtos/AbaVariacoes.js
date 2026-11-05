@@ -82,7 +82,7 @@ export default function AbaVariacoes({ produto, atualizarCampo }) {
     }, 150);
 
     setTeveAlteracao(true);
-    toast.success("Convertido para Produto Simples! Estoque consolidado.", { icon: "🧹" });
+    toast.success("Convertido para Produto Simples! Estoque consolidado.");
   };
 
   // ==========================================

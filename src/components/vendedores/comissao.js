@@ -1,11 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AlertCircle, Calculator, CheckCircle2, Copy, FileSpreadsheet, FileText, Search, Settings2 } from "lucide-react";
+import { AlertCircle, Calculator, CheckCircle2, Copy, FileSpreadsheet, FileText, Lock, Plus, Search, Settings2 } from "lucide-react";
 import toast from "react-hot-toast";
 import { nomeDoMes } from "@/components/vendedores/SeletorMes";
 import {
-  api, BOTAO_PRIMARIO, BOTAO_SECUNDARIO, CAMPO, Carregando, EstadoVazio, Kpi, moeda, Modal, ROTULO, Segmentado, VIDRO
+  api, BOTAO_PRIMARIO, BOTAO_SECUNDARIO, CAMPO, Carregando, EstadoVazio, Kpi, lerMoeda, mascaraMoeda, moeda, Modal, ROTULO, Segmentado, VIDRO
 } from "@/components/vendedores/ui";
 
 const SECOES = [
@@ -15,9 +15,157 @@ const SECOES = [
 
 const reais = (valor) => Number(valor || 0).toFixed(2).replace(".", ",");
 
+const TIPOS_DE_AJUSTE = [
+  { id: "devolucao", rotulo: "Devolução" },
+  { id: "cancelamento", rotulo: "Cancelamento" },
+  { id: "estorno", rotulo: "Estorno" },
+  { id: "manual", rotulo: "Manual" }
+];
+const ROTULO_DO_TIPO = { ...Object.fromEntries(TIPOS_DE_AJUSTE.map((t) => [t.id, t.rotulo])), refechamento: "Recálculo" };
+const ROTULO_DA_ORIGEM = { omie: "Omie", erp: "ERP", manual: "Manual" };
+
+const usuarioLogado = () => {
+  try {
+    return JSON.parse(localStorage.getItem("@raizan:user"))?.nome || "";
+  } catch (erro) {
+    return "";
+  }
+};
+
+function ModalAjuste({ vendedor, competencia, onFechar, onLancado }) {
+  const [tipo, setTipo] = useState("devolucao");
+  const [sentido, setSentido] = useState("desconto");
+  const [valor, setValor] = useState("");
+  const [motivo, setMotivo] = useState("");
+  const [referencia, setReferencia] = useState("");
+  const [salvando, setSalvando] = useState(false);
+
+  const lancar = async () => {
+    if (lerMoeda(valor) <= 0) return toast.error("Digite o valor do ajuste.");
+    if (!motivo.trim()) return toast.error("Informe o motivo.");
+
+    setSalvando(true);
+    try {
+      const data = await api("/comissoes/ajustes", {
+        metodo: "POST",
+        corpo: {
+          vendedor_id: vendedor.id, ...competencia, tipo, motivo, referencia, usuario: usuarioLogado(),
+          valor: sentido === "desconto" ? -lerMoeda(valor) : lerMoeda(valor)
+        }
+      });
+      if (!data.success) throw new Error(data.message);
+      toast.success("Ajuste lançado.");
+      onLancado();
+    } catch (erro) {
+      toast.error(erro.message || "Erro ao lançar o ajuste.");
+      setSalvando(false);
+    }
+  };
+
+  return (
+    <Modal
+      titulo="Novo ajuste"
+      descricao={`Entra na comissão de ${nomeDoMes(competencia)}. Depois de lançado não pode ser apagado: para corrigir, lance o valor contrário.`}
+      onFechar={onFechar}
+      rodape={<>
+        <button type="button" onClick={onFechar} className={`${BOTAO_SECUNDARIO} flex-1`}>Cancelar</button>
+        <button type="button" onClick={lancar} disabled={salvando} className={`${BOTAO_PRIMARIO} flex-1`}>Lançar ajuste</button>
+      </>}
+    >
+      <div className="space-y-4">
+        <div>
+          <label htmlFor="tipo-ajuste" className={ROTULO}>Tipo</label>
+          <select id="tipo-ajuste" value={tipo} onChange={(e) => setTipo(e.target.value)} className={CAMPO}>
+            {TIPOS_DE_AJUSTE.map((t) => <option key={t.id} value={t.id}>{t.rotulo}</option>)}
+          </select>
+        </div>
+        <Segmentado
+          opcoes={[{ id: "desconto", rotulo: "Descontar" }, { id: "credito", rotulo: "Acrescentar" }]}
+          valor={sentido}
+          onChange={setSentido}
+        />
+        <div>
+          <label htmlFor="valor-ajuste" className={ROTULO}>Valor da comissão</label>
+          <input id="valor-ajuste" inputMode="numeric" placeholder="0,00" value={valor} onChange={(e) => setValor(mascaraMoeda(e.target.value))} className={`${CAMPO} tabular-nums`} />
+        </div>
+        <div>
+          <label htmlFor="motivo-ajuste" className={ROTULO}>Motivo</label>
+          <input id="motivo-ajuste" maxLength={255} value={motivo} onChange={(e) => setMotivo(e.target.value)} className={CAMPO} />
+        </div>
+        <div>
+          <label htmlFor="referencia-ajuste" className={ROTULO}>Pedido ou nota (opcional)</label>
+          <input id="referencia-ajuste" maxLength={100} value={referencia} onChange={(e) => setReferencia(e.target.value)} className={CAMPO} />
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+function Historico({ resumo, ajustes, podeLancar, onNovo }) {
+  const somaDoTipo = (tipo) => ajustes.filter((a) => a.tipo === tipo).reduce((acc, a) => acc + a.valor, 0);
+  const linhas = [
+    ["Comissão original", resumo.comissao_original],
+    ["Ajustes por devolução", somaDoTipo("devolucao")],
+    ["Ajustes por cancelamento", somaDoTipo("cancelamento")],
+    ["Estornos", somaDoTipo("estorno")],
+    ["Ajustes manuais", somaDoTipo("manual")]
+  ];
+
+  return (
+    <section className={`${VIDRO} overflow-hidden`}>
+      <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-black/[0.05] dark:border-white/[0.06]">
+        <h2 className="font-semibold tracking-tight">Histórico financeiro</h2>
+        {podeLancar && <button type="button" onClick={onNovo} className={BOTAO_SECUNDARIO}><Plus size={15} /> Novo ajuste</button>}
+      </div>
+
+      <dl className="px-5 py-3 divide-y divide-black/[0.05] dark:divide-white/[0.05] text-sm tabular-nums">
+        {linhas.map(([rotulo, valor]) => (
+          <div key={rotulo} className="flex justify-between gap-4 py-2">
+            <dt className="text-zinc-500">{rotulo}</dt>
+            <dd className="font-medium text-zinc-900 dark:text-zinc-100">{moeda(valor)}</dd>
+          </div>
+        ))}
+        <div className="flex justify-between gap-4 py-2.5 font-semibold">
+          <dt>Comissão líquida</dt>
+          <dd className="text-purple-600 dark:text-purple-400">{moeda(resumo.comissao_liquida)}</dd>
+        </div>
+      </dl>
+
+      {ajustes.length > 0 && (
+        <ul className="border-t border-black/[0.05] dark:border-white/[0.06] divide-y divide-black/[0.05] dark:divide-white/[0.05]">
+          {ajustes.map((ajuste) => (
+            <li key={ajuste.id} className="flex items-start justify-between gap-4 px-5 py-3">
+              <div className="min-w-0">
+                <p className="text-sm font-medium">
+                  {ROTULO_DO_TIPO[ajuste.tipo] || ajuste.tipo}
+                  <span className="ml-2 text-xs font-normal text-zinc-500">{ROTULO_DA_ORIGEM[ajuste.origem] || ajuste.origem}</span>
+                </p>
+                {ajuste.motivo && <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-0.5">{ajuste.motivo}</p>}
+                <p className="text-xs text-zinc-500 mt-0.5">
+                  {ajuste.criado_em_br}
+                  {ajuste.criado_por && ` · ${ajuste.criado_por}${ajuste.usuario_verificado ? "" : " (não verificado)"}`}
+                  {ajuste.referencia && ` · ${ajuste.referencia}`}
+                </p>
+              </div>
+              {ajuste.tipo !== "refechamento" && (
+                <span className={`shrink-0 text-sm font-semibold tabular-nums ${ajuste.valor < 0 ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-400"}`}>
+                  {ajuste.valor > 0 ? "+ " : ""}{moeda(ajuste.valor)}
+                </span>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
 function Apuracao({ vendedor, competencia }) {
   const { mes, ano } = competencia;
   const [apuracao, setApuracao] = useState([]);
+  const [ajustes, setAjustes] = useState([]);
+  const [resumo, setResumo] = useState({ fechado: false, congelado: false, comissao_original: 0, comissao_liquida: 0 });
+  const [lancando, setLancando] = useState(false);
   const [fechamento, setFechamento] = useState(null);
   const [pendentes, setPendentes] = useState(null);
   const [carregando, setCarregando] = useState(true);
@@ -37,11 +185,20 @@ function Apuracao({ vendedor, competencia }) {
       if (!dataApuracao.success) throw new Error();
 
       setApuracao(dataApuracao.apuracao || []);
+      setAjustes(dataApuracao.ajustes || []);
+      setResumo({
+        fechado: Boolean(dataApuracao.fechado),
+        congelado: Boolean(dataApuracao.congelado),
+        comissao_original: dataApuracao.comissao_original || 0,
+        comissao_liquida: dataApuracao.comissao_liquida || 0
+      });
       setPendentes(dataApuracao.pendentes || null);
       setFechamento((dataFechamentos.fechamentos || []).find((f) => Number(f.mes) === mes && Number(f.ano) === ano) || null);
     } catch (erro) {
       if (busca !== ultimaBusca.current) return;
       setApuracao([]);
+      setAjustes([]);
+      setResumo({ fechado: false, congelado: false, comissao_original: 0, comissao_liquida: 0 });
       setPendentes(null);
       setFechamento(null);
       toast.error("Erro ao carregar a apuração do mês.");
@@ -64,7 +221,7 @@ function Apuracao({ vendedor, competencia }) {
     try {
       const data = await api("/comissoes/fechar", {
         metodo: "POST",
-        corpo: { vendedor_id: vendedor.id, mes, ano, total_vendas: totais.vendas, total_devolucoes: totais.devolucoes, comissao_final: totais.comissao }
+        corpo: { vendedor_id: vendedor.id, mes, ano, usuario: usuarioLogado() }
       });
       if (!data.success) throw new Error();
       toast.success(`Comissão de ${nomeDoMes(competencia)} fechada.`);
@@ -78,7 +235,7 @@ function Apuracao({ vendedor, competencia }) {
 
   const exportarCsv = () => {
     const linhas = apuracao.map((i) => `"${i.marca}";"${reais(i.vendas)}";"${reais(i.devolucoes)}";"${reais(i.base)}";"${String(i.regra).replace(".", ",")}";"${reais(i.comissao)}"`);
-    const csv = ["Marca;Vendas;Devolucoes;Base;Regra (%);Comissao", ...linhas, `"Total";"${reais(totais.vendas)}";"${reais(totais.devolucoes)}";"${reais(totais.base)}";"-";"${reais(totais.comissao)}"`].join("\n");
+    const csv = ["Marca;Vendas;Devolucoes;Base;Regra (%);Comissao", ...linhas, `"Total";"${reais(totais.vendas)}";"${reais(totais.devolucoes)}";"${reais(totais.base)}";"-";"${reais(totais.comissao)}"`, `"Comissao liquida";"";"";"";"";"${reais(resumo.comissao_liquida)}"`].join("\n");
     const url = URL.createObjectURL(new Blob([`﻿${csv}`], { type: "text/csv;charset=utf-8;" }));
     const link = document.createElement("a");
     link.href = url;
@@ -103,7 +260,7 @@ function Apuracao({ vendedor, competencia }) {
   return (
     <div className="space-y-6">
       <div className={`grid grid-cols-2 lg:grid-cols-4 gap-4 transition-opacity ${carregando ? "opacity-50" : ""}`}>
-        <Kpi rotulo="Comissão" valor={moeda(totais.comissao)} tom="text-purple-600 dark:text-purple-400" detalhe={fechamento ? `Fechado em ${moeda(fechamento.comissao_final)}` : "Mês em aberto"} />
+        <Kpi rotulo="Comissão líquida" valor={moeda(resumo.comissao_liquida)} tom="text-purple-600 dark:text-purple-400" detalhe={resumo.fechado ? "Mês fechado" : "Mês em aberto"} />
         <Kpi rotulo="Vendas" valor={moeda(totais.vendas)} />
         <Kpi rotulo="Devoluções" valor={moeda(totais.devolucoes)} />
         <Kpi rotulo="Base de cálculo" valor={moeda(totais.base)} />
@@ -113,6 +270,13 @@ function Apuracao({ vendedor, competencia }) {
         <div className="flex items-start gap-3 rounded-2xl bg-amber-500/10 px-5 py-3.5 text-sm text-amber-800 dark:text-amber-300">
           <AlertCircle size={17} className="shrink-0 mt-0.5" />
           <p>{pendentes.quantidade === 1 ? "1 pedido deste mês ainda não foi faturado" : `${pendentes.quantidade} pedidos deste mês ainda não foram faturados`} ({moeda(pendentes.valor)}). Eles ficam fora da comissão enquanto não faturarem.</p>
+        </div>
+      )}
+
+      {resumo.congelado && (
+        <div className="flex items-start gap-3 rounded-2xl bg-black/[0.04] dark:bg-white/[0.05] px-5 py-3.5 text-sm text-zinc-600 dark:text-zinc-300">
+          <Lock size={16} className="shrink-0 mt-0.5" />
+          <p>Valores congelados no fechamento{fechamento?.fechado_em_br ? ` de ${fechamento.fechado_em_br}` : ""}{fechamento?.fechado_por ? `, por ${fechamento.fechado_por}` : ""}. Mudar uma regra não altera este mês, e novos ajustes entram no mês em aberto.</p>
         </div>
       )}
 
@@ -173,13 +337,24 @@ function Apuracao({ vendedor, competencia }) {
 
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-4 border-t border-black/[0.05] dark:border-white/[0.06]">
           <p className="text-sm text-zinc-500">
-            {fechamento ? "Mês já fechado. Atualizar substitui o valor que o vendedor vê no Raizan Seller." : "O fechamento grava o total do mês e envia ao Raizan Seller."}
+            {fechamento ? "Atualizar recalcula o mês com as regras de hoje e substitui o valor que o vendedor vê no Raizan Seller." : "O fechamento congela o mês e envia o valor ao Raizan Seller."}
           </p>
-          <button type="button" onClick={fechar} disabled={fechando || carregando || apuracao.length === 0} className={`${BOTAO_PRIMARIO} shrink-0`}>
+          <button type="button" onClick={fechar} disabled={fechando || carregando || (apuracao.length === 0 && ajustes.length === 0)} className={`${BOTAO_PRIMARIO} shrink-0`}>
             <CheckCircle2 size={16} /> {fechando ? "Salvando..." : fechamento ? "Atualizar fechamento" : "Fechar comissão"}
           </button>
         </div>
       </section>
+
+      <Historico resumo={resumo} ajustes={ajustes} podeLancar={!resumo.fechado && !carregando} onNovo={() => setLancando(true)} />
+
+      {lancando && (
+        <ModalAjuste
+          vendedor={vendedor}
+          competencia={competencia}
+          onFechar={() => setLancando(false)}
+          onLancado={() => { setLancando(false); carregar(); }}
+        />
+      )}
     </div>
   );
 }

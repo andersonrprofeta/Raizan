@@ -85,7 +85,7 @@ function ScannerMesa() {
   const catalogoRef = useRef(null);
 
   const tocarSucesso = () => new Audio('/sucesso.mp3').play().catch(()=>{});
-  const tocarErro = () => new Audio('/erro.mp3').play().catch(()=>{});
+  const tocarErro = () => new Audio('/error.mp3').play().catch(()=>{});
 
   // Trava a contagem até alguém confirmar
   const bloquearContagem = (dados) => {

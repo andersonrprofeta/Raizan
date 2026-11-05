@@ -202,7 +202,7 @@ function PaginaCliente() {
   const id = useSearchParams().get("id");
   const [dados, setDados] = useState(null);
   const [rota, setRota] = useState(null);
-  const [condicoes, setCondicoes] = useState([]);
+  const [condicoes, setCondicoes] = useState(null);
 
   const carregar = useCallback(async () => {
     try {
@@ -230,8 +230,8 @@ function PaginaCliente() {
     carregar();
     fetch(`${getHubUrl()}/api/hub/integracoes/omie/condicoes-pagamento`, { headers: getHeaders() })
       .then((res) => res.json())
-      .then((data) => { if (data.success) setCondicoes(data.condicoes || []); })
-      .catch(() => {});
+      .then((data) => setCondicoes(data.success ? data.condicoes || [] : []))
+      .catch(() => setCondicoes([]));
   }, [id, carregar, router]);
 
   if (!dados) return <Carregando texto="Abrindo cliente..." />;
@@ -326,9 +326,13 @@ function PaginaCliente() {
               <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-1.5">Prazos liberados no app</p>
               {prazos.length === 0 ? (
                 <p className="text-sm font-medium">Todos os prazos</p>
+              ) : condicoes === null ? (
+                <p className="text-sm text-zinc-500">Buscando os prazos...</p>
+              ) : condicoes.length === 0 ? (
+                <p className="text-sm text-zinc-500">{prazos.length} prazo(s) liberado(s). Os nomes não carregaram agora: reabra em 1 minuto.</p>
               ) : (
                 <div className="flex flex-wrap gap-1.5">
-                  {prazos.map((codigo) => <Pilula key={codigo}>{condicoes.find((c) => String(c.codigo) === String(codigo))?.descricao || `Código ${codigo}`}</Pilula>)}
+                  {prazos.map((codigo) => <Pilula key={codigo}>{condicoes.find((c) => String(c.codigo) === String(codigo))?.descricao || "Prazo não encontrado no Omie"}</Pilula>)}
                 </div>
               )}
             </div>

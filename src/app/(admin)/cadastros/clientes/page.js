@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import { 
   Users, Search, Plus, Edit, Trash2, 
   Mail, Phone, Building2, User as UserIcon,
-  Loader2, ChevronLeft, ChevronRight, Database, DownloadCloud
+  Loader2, ChevronLeft, ChevronRight, Database, DownloadCloud, SlidersHorizontal, X
 } from "lucide-react";
 import Link from "next/link";
 import toast from 'react-hot-toast';
@@ -50,11 +50,38 @@ const INPUT_MODAL =
   "w-full bg-zinc-100/80 dark:bg-white/[0.05] border border-black/[0.06] dark:border-white/[0.08] text-zinc-900 dark:text-zinc-100 " +
   "p-4 rounded-2xl text-center text-lg font-bold tracking-widest outline-none transition-all";
 
+const FILTROS_VAZIOS = { vendedor: "", cidade: "", bairro: "", uf: "", situacao: "" };
+
+const lerJson = (valor) => {
+  try {
+    return (typeof valor === "string" ? JSON.parse(valor) : valor) || {};
+  } catch (erro) {
+    return {};
+  }
+};
+
+const normalizar = (texto) => String(texto || "").trim();
+const opcoesDe = (lista) => [...new Set(lista.map(normalizar).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR"));
+
+function CampoFiltro({ rotulo, valor, opcoes, onChange }) {
+  return (
+    <label className="block min-w-0">
+      <span className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1.5">{rotulo}</span>
+      <select value={valor} onChange={(e) => onChange(e.target.value)} className="w-full h-10 px-3 rounded-xl bg-black/[0.04] dark:bg-white/[0.05] border border-transparent focus:border-purple-500/50 text-sm text-zinc-900 dark:text-zinc-100 outline-none">
+        <option value="">Todos</option>
+        {opcoes.map((opcao) => <option key={opcao} value={opcao}>{opcao}</option>)}
+      </select>
+    </label>
+  );
+}
+
 export default function ListaClientesHub() {
   const [clientes, setClientes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busca, setBusca] = useState("");
-  
+  const [filtros, setFiltros] = useState(FILTROS_VAZIOS);
+  const [filtrosAbertos, setFiltrosAbertos] = useState(false);
+
   const [paginaAtual, setPaginaAtual] = useState(1);
   const itensPorPagina = 10; 
 
@@ -171,14 +198,60 @@ export default function ListaClientesHub() {
     }
   };
 
-  const clientesFiltrados = clientes.filter(c => {
+  // Endereço e bloqueio ficam em JSON: lidos uma vez só para a lista não pesar a cada tecla
+  const clientesComDados = useMemo(() => clientes.map((cliente) => {
+    const endereco = lerJson(cliente.endereco_json);
+    return {
+      cliente,
+      vendedor: normalizar(cliente.nome_vendedor),
+      cidade: normalizar(endereco.cidade),
+      bairro: normalizar(endereco.bairro),
+      uf: normalizar(endereco.uf).toUpperCase(),
+      bloqueado: Boolean(lerJson(cliente.metadata_json).bloqueado)
+    };
+  }), [clientes]);
+
+  const opcoesDeFiltro = useMemo(() => {
+    const naRegiao = clientesComDados.filter((c) => (!filtros.uf || c.uf === filtros.uf) && (!filtros.cidade || c.cidade === filtros.cidade));
+    return {
+      vendedor: opcoesDe(clientesComDados.map((c) => c.vendedor)),
+      uf: opcoesDe(clientesComDados.map((c) => c.uf)),
+      cidade: opcoesDe(clientesComDados.filter((c) => !filtros.uf || c.uf === filtros.uf).map((c) => c.cidade)),
+      bairro: opcoesDe(naRegiao.map((c) => c.bairro))
+    };
+  }, [clientesComDados, filtros.uf, filtros.cidade]);
+
+  const filtrosAtivos = Object.values(filtros).filter(Boolean).length;
+
+  const mudarFiltro = (campo, valor) => {
+    setFiltros((atuais) => ({
+      ...atuais,
+      [campo]: valor,
+      ...(campo === "uf" ? { cidade: "", bairro: "" } : {}),
+      ...(campo === "cidade" ? { bairro: "" } : {})
+    }));
+    setPaginaAtual(1);
+  };
+
+  const limparFiltros = () => {
+    setFiltros(FILTROS_VAZIOS);
+    setPaginaAtual(1);
+  };
+
+  const clientesFiltrados = clientesComDados.filter((item) => {
+    const c = item.cliente;
     const termo = busca.toLowerCase();
-    return (
-      (c.nome && c.nome.toLowerCase().includes(termo)) ||
+    const bateBusca = (c.nome && c.nome.toLowerCase().includes(termo)) ||
       (c.email && c.email.toLowerCase().includes(termo)) ||
-      (c.cpf_cnpj && c.cpf_cnpj.includes(termo))
-    );
-  });
+      (c.cpf_cnpj && c.cpf_cnpj.includes(termo));
+
+    return bateBusca
+      && (!filtros.vendedor || item.vendedor === filtros.vendedor)
+      && (!filtros.uf || item.uf === filtros.uf)
+      && (!filtros.cidade || item.cidade === filtros.cidade)
+      && (!filtros.bairro || item.bairro === filtros.bairro)
+      && (!filtros.situacao || (filtros.situacao === "Bloqueados") === item.bloqueado);
+  }).map((item) => item.cliente);
 
   const totalPaginas = Math.ceil(clientesFiltrados.length / itensPorPagina);
   const indexUltimoCliente = paginaAtual * itensPorPagina;
@@ -303,7 +376,8 @@ export default function ListaClientesHub() {
             </div>
 
             {/* Busca */}
-            <div className={`${CARD} p-3 sm:p-4 flex flex-col sm:flex-row gap-4`}>
+            <div className={`${CARD} p-3 sm:p-4 !overflow-visible`}>
+              <div className="flex flex-col sm:flex-row gap-3">
               <div className="relative flex-1">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 dark:text-zinc-500" size={18} />
                 <input 
@@ -316,6 +390,33 @@ export default function ListaClientesHub() {
                   className="w-full bg-black/[0.04] dark:bg-white/[0.05] border border-transparent focus:border-purple-500/50 focus:bg-white dark:focus:bg-white/[0.07] text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 pl-11 pr-4 h-11 rounded-full text-sm outline-none focus:ring-4 focus:ring-purple-500/15 font-medium transition-all"
                 />
               </div>
+                <button
+                  type="button"
+                  onClick={() => setFiltrosAbertos(!filtrosAbertos)}
+                  aria-expanded={filtrosAbertos}
+                  className={`h-12 px-5 shrink-0 inline-flex items-center justify-center gap-2 rounded-2xl text-sm font-semibold transition-colors ${filtrosAtivos > 0 ? "bg-purple-600 text-white" : "bg-black/[0.04] dark:bg-white/[0.05] text-zinc-700 dark:text-zinc-200 hover:bg-black/[0.07] dark:hover:bg-white/[0.08]"}`}
+                >
+                  <SlidersHorizontal size={16} /> Filtros{filtrosAtivos > 0 ? ` (${filtrosAtivos})` : ""}
+                </button>
+              </div>
+
+              {filtrosAbertos && (
+                <div className="mt-3 pt-3 border-t border-black/[0.06] dark:border-white/[0.07]">
+                  <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+                    <CampoFiltro rotulo="Vendedor" valor={filtros.vendedor} opcoes={opcoesDeFiltro.vendedor} onChange={(v) => mudarFiltro("vendedor", v)} />
+                    <CampoFiltro rotulo="Estado" valor={filtros.uf} opcoes={opcoesDeFiltro.uf} onChange={(v) => mudarFiltro("uf", v)} />
+                    <CampoFiltro rotulo="Cidade" valor={filtros.cidade} opcoes={opcoesDeFiltro.cidade} onChange={(v) => mudarFiltro("cidade", v)} />
+                    <CampoFiltro rotulo="Bairro" valor={filtros.bairro} opcoes={opcoesDeFiltro.bairro} onChange={(v) => mudarFiltro("bairro", v)} />
+                    <CampoFiltro rotulo="Situação" valor={filtros.situacao} opcoes={["Ativos", "Bloqueados"]} onChange={(v) => mudarFiltro("situacao", v)} />
+                  </div>
+                  <div className="flex items-center justify-between gap-3 mt-3 text-sm text-zinc-500 dark:text-zinc-400">
+                    <span>{clientesFiltrados.length} cliente(s) encontrado(s)</span>
+                    {filtrosAtivos > 0 && (
+                      <button type="button" onClick={limparFiltros} className="inline-flex items-center gap-1 font-semibold text-purple-600 dark:text-purple-400"><X size={14} /> Limpar filtros</button>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Tabela */}

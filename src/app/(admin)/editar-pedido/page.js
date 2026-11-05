@@ -104,7 +104,7 @@ function EditarPedidoConteudo() {
         }
 
       } else {
-        const res = await fetch(`https://api.raizan.com.br/api/hub/produtos?busca=${termoBusca}`, { 
+        const res = await fetch(`https://api.raizan.com.br/api/hub/produtos?busca=${termoBusca}&para_venda=1`, { 
           headers: { "x-tenant-id": tenantId } 
         });
         const data = await res.json();

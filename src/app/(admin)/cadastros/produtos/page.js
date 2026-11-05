@@ -9,7 +9,7 @@ import {
   Package, Search, Plus, Edit, Trash2, 
   Image as ImageIcon, Loader2, Filter,
   MoreHorizontal, Box, Layers, X,
-  ChevronLeft, ChevronRight, Barcode, AlertTriangle, CloudSync, LayoutTemplate
+  ChevronLeft, ChevronRight, Barcode, AlertTriangle, CloudSync, LayoutTemplate, Ban
 } from "lucide-react";
 import Link from "next/link";
 import toast from 'react-hot-toast';
@@ -185,11 +185,20 @@ export default function ListaProdutosHub() {
     } catch (error) { toast.error("Erro ao excluir."); }
   };
 
-  const inativarProduto = () => {
+  const bloquearProduto = async () => {
     const id = modalDelete.produto.id;
-    setProdutos(produtos.map(p => p.id === id ? { ...p, status: 'inativo' } : p));
-    toast.success("Produto Inativado!");
-    setModalDelete({ open: false, produto: null, temVendas: false });
+    try {
+      const res = await fetch(`https://api.raizan.com.br/api/hub/produtos/${id}/bloqueio`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", "x-tenant-id": pegarCnpjLogado() },
+        body: JSON.stringify({ geral: true, motivo: "Bloqueado na lista de produtos" })
+      });
+      const data = await res.json();
+      if (!data.success) return toast.error(data.message);
+      setProdutos(produtos.map(p => p.id === id ? { ...p, bloqueado: true } : p));
+      toast.success("Produto bloqueado para venda.");
+      setModalDelete({ open: false, produto: null, temVendas: false });
+    } catch (error) { toast.error("Erro ao bloquear o produto."); }
   };
 
   const formatarMoeda = (valor) => Number(valor).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -197,7 +206,7 @@ export default function ListaProdutosHub() {
   const produtosFiltrados = produtos.filter(p => {
     const termo = busca.toLowerCase();
     const matchBusca = (p.nome && p.nome.toLowerCase().includes(termo)) || (p.sku && p.sku.toLowerCase().includes(termo)) || (p.gtin && p.gtin.toLowerCase().includes(termo)) || (p.marca && p.marca.toLowerCase().includes(termo));
-    const matchStatus = filtros.status ? p.status === filtros.status : true;
+    const matchStatus = filtros.status === 'bloqueado' ? p.bloqueado : (filtros.status ? p.status === filtros.status : true);
     
     let matchTipo = true;
     if (filtros.tipo) {
@@ -396,6 +405,7 @@ export default function ListaProdutosHub() {
                                     </div>
                                     
                                     <div className="flex flex-wrap items-center gap-1.5">
+                                      {produto.bloqueado && <span className={`${PILULA} bg-rose-600 text-white border-rose-600`}><Ban size={11} /> BLOQUEADO</span>}
                                       {isVar && <span className={`${PILULA} bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20`}><Layers size={11} /> Variação</span>}
                                       {produto.tipo_produto === 'kit' && <span className={`${PILULA} bg-fuchsia-500/10 text-fuchsia-600 dark:text-fuchsia-400 border-fuchsia-500/20`}><Box size={11} /> Kit</span>}
                                       
@@ -588,6 +598,7 @@ export default function ListaProdutosHub() {
                           <option value="">Todos os Status</option>
                           <option value="ativo">🟢 Ativos</option>
                           <option value="inativo">🔴 Inativos</option>
+                          <option value="bloqueado">⛔ Bloqueados para venda</option>
                         </select>
                       </div>
 
@@ -688,7 +699,7 @@ export default function ListaProdutosHub() {
                     Tem certeza que deseja apagar o produto <strong className="font-semibold text-zinc-800 dark:text-zinc-200">"{modalDelete.produto?.nome}"</strong>? <br />
                     
                     {modalDelete.temVendas 
-                      ? <span className="text-orange-600 dark:text-orange-400 font-medium mt-2 block">Cuidado: Este produto já possui vendas. Recomendamos inativá-lo para não perder o histórico financeiro.</span> 
+                      ? <span className="text-orange-600 dark:text-orange-400 font-medium mt-2 block">Cuidado: Este produto já possui vendas. Recomendamos bloqueá-lo para venda para não perder o histórico financeiro.</span> 
                       : <span className="mt-2 block">Esta ação é irreversível e o apagará completamente do seu Hub.</span>}
                   </p>
                   
@@ -702,10 +713,10 @@ export default function ListaProdutosHub() {
                     
                     {modalDelete.temVendas ? (
                       <button 
-                        onClick={inativarProduto} 
+                        onClick={bloquearProduto} 
                         className="flex-1 h-12 bg-gradient-to-b from-orange-400 to-orange-500 hover:from-orange-300 hover:to-orange-500 text-white rounded-full font-semibold transition-all shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_10px_24px_-8px_rgba(249,115,22,0.6)] active:scale-95"
                       >
-                        Inativar Produto
+                        Bloquear para venda
                       </button>
                     ) : (
                       <button 

@@ -617,7 +617,7 @@ export default function CatalogoB2B() {
         };
 
         const [dataProd, dataCli, dataRotas, dataCond] = await Promise.all([
-          safeFetch(`${getHubUrl()}/api/hub/produtos?limit=5000`),
+          safeFetch(`${getHubUrl()}/api/hub/produtos?limit=5000&para_venda=1`),
           safeFetch(`${getHubUrl()}/api/hub/clientes`),
           safeFetch(`${getHubUrl()}/api/hub/rotas-frete`),
           safeFetch(`${getHubUrl()}/api/hub/integracoes/omie/condicoes-pagamento`)

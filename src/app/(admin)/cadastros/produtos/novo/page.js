@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
-import { ArrowLeft, Save, Package, Layers, Box, FileText, Settings, Loader2, ClipboardList, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Save, Package, Layers, Box, FileText, Settings, Loader2, ClipboardList, AlertTriangle, Ban } from "lucide-react";
 import Link from "next/link";
 import toast from 'react-hot-toast';
 
@@ -13,6 +13,7 @@ import AbaComplementar from "@/components/produtos/AbaComplementar";
 import AbaFichaTecnica from "@/components/produtos/AbaFichaTecnica"; 
 import AbaVariacoes from "@/components/produtos/AbaVariacoes";
 import AbaKit from "@/components/produtos/AbaKit";
+import AbaRestricoes from "@/components/produtos/AbaRestricoes";
 
 function FormularioInterno() {
   const router = useRouter();
@@ -37,7 +38,8 @@ function FormularioInterno() {
     ficha_tecnica: { breve_descricao: "", garantia: "", composicao: "", cuidados: "", formula: "", atributos: [] },
     imagens_anexos: [],
     variacoes: [], 
-    composicao_kit: []
+    composicao_kit: [],
+    restricoes: { geral: false, app: false, integracoes: false, motivo: "", data: "", origem: "" }
   });
 
   // 🔥 Função para pegar o Tenant ID logado
@@ -151,6 +153,7 @@ function FormularioInterno() {
   const abas = [
     { id: "basico", label: "Dados Básicos", icon: <Package size={18} /> },
     { id: "complementares", label: "Dados Complementares", icon: <FileText size={18} /> },
+    { id: "restricoes", label: "Restrições Comerciais", icon: <Ban size={18} /> },
     { id: "ficha_tecnica", label: "Ficha Técnica", icon: <ClipboardList size={18} /> },
     ...(tipo === "variacoes" || tipo === "variavel" ? [{ id: "variacoes", label: "Variações (Grade)", icon: <Layers size={18} /> }] : []),
     ...(tipo === "kit" ? [{ id: "kit", label: "Composição do Kit", icon: <Box size={18} /> }] : []),
@@ -216,6 +219,7 @@ function FormularioInterno() {
               <div className="bg-white dark:bg-[#0c0c0e] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-4 sm:p-6 shadow-md dark:shadow-2xl min-h-[500px] relative">
                 {abaAtiva === "basico" && <AbaBasico produto={produto} atualizarCampo={atualizarCampo} />}
                 {abaAtiva === "complementares" && <AbaComplementar produto={produto} atualizarCampo={atualizarCampo} setProduto={setProduto} isEditMode={isEditMode} />}
+                {abaAtiva === "restricoes" && <AbaRestricoes produto={produto} atualizarCampo={atualizarCampo} />}
                 {abaAtiva === "ficha_tecnica" && <AbaFichaTecnica produto={produto} atualizarCampo={atualizarCampo} />}
                 {abaAtiva === "variacoes" && <AbaVariacoes produto={produto} atualizarCampo={atualizarCampo} />}
                 {abaAtiva === "kit" && <AbaKit produto={produto} atualizarCampo={atualizarCampo} />}

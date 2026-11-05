@@ -8,6 +8,8 @@ import { getHubUrl, getHeaders } from '@/components/utils/api';
 
 const MOTIVO_CORTE_PADRAO = 'Estoque insuficiente ou ajuste no ERP';
 const TEMPO_MAXIMO_ATUALIZACAO_MS = 5000;
+// Mesma altura do quadro de observações: a última linha de produtos não pode encostar nos quadros
+const ALTURA_ANTES_DOS_QUADROS = '14mm';
 
 const moeda = (valor) => Number(valor || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 const nomeDoItem = (item) => String(item.name || item.nome || '');
@@ -26,7 +28,9 @@ export function montarSeparacao(pedido) {
   const itens = (pedido.line_items || []).map((item) => {
     const qtdPedida = Number(item.quantity || item.quantidade || item.qtd || 0);
     const qtdSeparar = item.qtd_faturada === null || item.qtd_faturada === undefined ? qtdPedida : Number(item.qtd_faturada);
-    return { ...item, qtdPedida, qtdSeparar, qtdCortada: Math.max(0, qtdPedida - qtdSeparar) };
+    const qtdCortada = Math.max(0, qtdPedida - qtdSeparar);
+    const precoUnitario = Number(item.price ?? item.preco ?? item.preco_unitario ?? 0);
+    return { ...item, qtdPedida, qtdSeparar, qtdCortada, precoUnitario, valorCortado: Number((qtdCortada * precoUnitario).toFixed(2)) };
   }).sort(porMarcaENome);
 
   const itensCortados = itens.filter((item) => item.qtdCortada > 0);
@@ -37,12 +41,13 @@ export function montarSeparacao(pedido) {
   return {
     itensParaSeparar: itens.filter((item) => item.qtdSeparar > 0),
     itensCortados,
+    totalCortado: Number(itensCortados.reduce((acc, item) => acc + item.valorCortado, 0).toFixed(2)),
     totalOriginal,
     totalPedido: usaFaturado ? faturado : totalOriginal
   };
 }
 
-export default function ListaSeparacao({ pedido: pedidoRecebido, onFechar }) {
+export default function MapaSeparacao({ pedido: pedidoRecebido, onFechar }) {
   const [pedido, setPedido] = useState(pedidoRecebido);
   const [empresa, setEmpresa] = useState({ nome: 'CARREGANDO...', cnpj: '...' });
   const [prontoParaImprimir, setProntoParaImprimir] = useState(false);
@@ -66,7 +71,7 @@ export default function ListaSeparacao({ pedido: pedidoRecebido, onFechar }) {
         const atualizado = data.pedidos?.find((p) => p.id === pedidoRecebido.id);
         if (atualizado) setPedido(atualizado);
       } catch (error) {
-        console.error('Lista de separação: não foi possível atualizar o pedido.', error);
+        console.error('Mapa de separação: não foi possível atualizar o pedido.', error);
       }
     };
 
@@ -94,10 +99,16 @@ export default function ListaSeparacao({ pedido: pedidoRecebido, onFechar }) {
 
   useEffect(() => {
     if (prontoParaImprimir) {
+      // O navegador usa o título da página como nome do PDF
+      const tituloDaTela = document.title;
+      document.title = `Mapa de Separação ${pedidoRecebido?.pedido_id || ''}`.trim();
       const timer = setTimeout(() => {
         window.print();
       }, 500);
-      return () => clearTimeout(timer);
+      return () => {
+        clearTimeout(timer);
+        document.title = tituloDaTela;
+      };
     }
   }, [prontoParaImprimir]);
 
@@ -109,7 +120,7 @@ export default function ListaSeparacao({ pedido: pedidoRecebido, onFechar }) {
 
   if (!pedido) return null;
 
-  const { itensParaSeparar, itensCortados, totalOriginal, totalPedido } = montarSeparacao(pedido);
+  const { itensParaSeparar, itensCortados, totalCortado, totalOriginal, totalPedido } = montarSeparacao(pedido);
   const totalItens = itensParaSeparar.length;
   const totalUnidades = itensParaSeparar.reduce((acc, item) => acc + item.qtdSeparar, 0);
 
@@ -167,22 +178,22 @@ export default function ListaSeparacao({ pedido: pedidoRecebido, onFechar }) {
     return (
       <div className="fixed inset-0 z-[9999] bg-zinc-900/60 backdrop-blur-sm flex flex-col items-center justify-center">
         <Loader2 className="text-white animate-spin mb-4" size={48} />
-        <p className="text-white font-bold tracking-widest uppercase">Gerando Documento...</p>
+        <p className="text-white font-bold tracking-widest uppercase">Gerando Mapa de Separação...</p>
       </div>
     );
   }
 
   // Vai direto no body: dentro da tela, a impressão cortava a lista na primeira página
   return createPortal(
-    <div className="lista-separacao fixed inset-0 z-[9999] bg-zinc-900/60 backdrop-blur-sm overflow-y-auto print:static print:inset-auto print:h-auto print:overflow-visible print:bg-white print:backdrop-blur-none font-sans">
+    <div className="mapa-separacao fixed inset-0 z-[9999] bg-zinc-900/60 backdrop-blur-sm overflow-y-auto print:static print:inset-auto print:h-auto print:overflow-visible print:bg-white print:backdrop-blur-none font-sans">
       
       <style dangerouslySetInnerHTML={{__html: `
         @media print {
           @page { size: A4 portrait; margin: 8mm; }
           html, body { height: auto !important; overflow: visible !important; background: #fff !important; }
           body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          body > *:not(.lista-separacao) { display: none !important; }
-          .lista-separacao tr, .lista-separacao .page-break-inside-avoid { break-inside: avoid; }
+          body > *:not(.mapa-separacao) { display: none !important; }
+          .mapa-separacao tr, .mapa-separacao .page-break-inside-avoid { break-inside: avoid; }
         }
       `}} />
 
@@ -193,7 +204,7 @@ export default function ListaSeparacao({ pedido: pedidoRecebido, onFechar }) {
           </button>
         </div>
         <button onClick={() => window.print()} className="flex items-center gap-2 bg-purple-600 hover:bg-purple-500 text-white px-6 py-2.5 rounded-xl font-bold shadow-lg shadow-purple-500/20 transition-all active:scale-95">
-          <Printer size={18} /> Imprimir Separação
+          <Printer size={18} /> Imprimir Mapa
         </button>
       </div>
 
@@ -211,7 +222,7 @@ export default function ListaSeparacao({ pedido: pedidoRecebido, onFechar }) {
           </div>
           <div className="text-right flex flex-col items-end">
             <div className="bg-purple-700 text-white text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded mb-1.5">
-              Lista de Separação
+              Mapa de Separação
             </div>
             <Barcode value={String(pedido.pedido_id)} format="CODE128" width={1.4} height={34} displayValue={false} margin={0} background="#ffffff" />
             <p className="text-[10px] font-bold text-zinc-800 mt-1">Nº DO PEDIDO #{pedido.pedido_id}</p>
@@ -306,6 +317,8 @@ export default function ListaSeparacao({ pedido: pedidoRecebido, onFechar }) {
             </tbody>
           </table>
 
+          {(itensCortados.length > 0 || pedido.observacoes) && <div aria-hidden style={{ height: ALTURA_ANTES_DOS_QUADROS }} />}
+
           {itensCortados.length > 0 && (
             <div className="border border-red-300 rounded-lg p-2 mb-4" style={{ breakInside: 'avoid' }}>
               <strong className="text-red-700 text-[10px] uppercase tracking-widest block mb-1">
@@ -314,24 +327,37 @@ export default function ListaSeparacao({ pedido: pedidoRecebido, onFechar }) {
               <table className="w-full text-left border-collapse text-[9px]">
                 <thead>
                   <tr className="border-b border-red-200">
-                    <th className="py-1 px-1 font-bold text-zinc-700 uppercase w-[39%]">Produto</th>
-                    <th className="py-1 px-1 font-bold text-zinc-700 uppercase w-[8%] text-center">Pedido</th>
-                    <th className="py-1 px-1 font-bold text-zinc-700 uppercase w-[8%] text-center">Atendido</th>
-                    <th className="py-1 px-1 font-black text-red-700 uppercase w-[8%] text-center">Cortado</th>
-                    <th className="py-1 px-1 font-bold text-zinc-700 uppercase w-[37%]">Motivo</th>
+                    <th className="py-1 px-1 font-bold text-zinc-700 uppercase w-[31%]">Produto</th>
+                    <th className="py-1 px-1 font-bold text-zinc-700 uppercase w-[23%]">Motivo</th>
+                    <th className="py-1 px-1 font-bold text-zinc-700 uppercase w-[7%] text-center">Pedido</th>
+                    <th className="py-1 px-1 font-bold text-zinc-700 uppercase w-[7%] text-center">Atendido</th>
+                    <th className="py-1 px-1 font-black text-red-700 uppercase w-[8%] text-center">Qtd. cortada</th>
+                    <th className="py-1 px-1 font-bold text-zinc-700 uppercase w-[12%] text-right">Valor unit.</th>
+                    <th className="py-1 px-1 font-black text-red-700 uppercase w-[12%] text-right">Valor cortado</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-red-100">
                   {itensCortados.map((item, index) => (
                     <tr key={index}>
-                      <td className="py-1 px-1 uppercase font-medium text-zinc-800">{nomeDoItem(item)}</td>
+                      <td className="py-1 px-1 uppercase font-medium text-zinc-800">
+                        {nomeDoItem(item)}
+                        <span className="block font-mono font-bold normal-case text-zinc-600">SKU {item.sku || item.product_id}</span>
+                      </td>
+                      <td className="py-1 px-1 text-zinc-700">{item.motivo_corte || MOTIVO_CORTE_PADRAO}</td>
                       <td className="py-1 px-1 text-center text-zinc-700">{item.qtdPedida}</td>
                       <td className="py-1 px-1 text-center text-zinc-700">{item.qtdSeparar}</td>
                       <td className="py-1 px-1 text-center font-black text-[11px] text-red-700">{item.qtdCortada}</td>
-                      <td className="py-1 px-1 text-zinc-700">{item.motivo_corte || MOTIVO_CORTE_PADRAO}</td>
+                      <td className="py-1 px-1 text-right text-zinc-700 whitespace-nowrap">{moeda(item.precoUnitario)}</td>
+                      <td className="py-1 px-1 text-right font-bold text-red-700 whitespace-nowrap">{moeda(item.valorCortado)}</td>
                     </tr>
                   ))}
                 </tbody>
+                <tfoot>
+                  <tr className="border-t-2 border-red-200">
+                    <td colSpan={6} className="pt-1.5 px-1 text-right font-black text-zinc-900 uppercase">Total de cortes do pedido</td>
+                    <td className="pt-1.5 px-1 text-right font-black text-[11px] text-red-700 whitespace-nowrap">{moeda(totalCortado)}</td>
+                  </tr>
+                </tfoot>
               </table>
             </div>
           )}

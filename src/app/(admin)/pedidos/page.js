@@ -10,7 +10,7 @@ import { ShoppingBag, Store, LayoutTemplate, Box, Layers, Search, Printer, X } f
 import TabelaPedidos from "@/components/pedidos/TabelaPedidos";
 import ModalDetalhes from "@/components/pedidos/ModalDetalhes";
 
-import ListaSeparacao from "@/components/checkout/ListaSeparacao"; 
+import MapaSeparacao from "@/components/checkout/MapaSeparacao"; 
 import EtiquetaVolume from "@/components/checkout/etiqueta";
 
 // ==========================================
@@ -477,7 +477,7 @@ export default function Pedidos() {
       </div>
 
       {documentoImpressao.tipo === 'separacao' && (
-        <ListaSeparacao 
+        <MapaSeparacao 
           pedido={documentoImpressao.pedido} 
           onFechar={() => setDocumentoImpressao({ tipo: null, pedido: null, dadosOmie: null })} 
         />

@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { getHubUrl, getHeaders } from "@/components/utils/api";
 import toast from 'react-hot-toast';
-import ListaSeparacao, { montarSeparacao } from "@/components/checkout/ListaSeparacao";
+import MapaSeparacao, { montarSeparacao } from "@/components/checkout/MapaSeparacao";
 import { VIDRO, BOTAO_ROXO, BOTAO_VIDRO, SELO, LuzesDeFundo, NotificacaoVidro } from "@/components/checkout/estilos";
 
 const BOTAO_MODO = "w-10 h-9 rounded-full flex items-center justify-center transition-all duration-300";
@@ -299,7 +299,7 @@ export default function CheckoutConferencia() {
       </div>
 
       {pedidoParaImprimir && (
-        <ListaSeparacao
+        <MapaSeparacao
           pedido={pedidoParaImprimir}
           onFechar={() => setPedidoParaImprimir(null)}
         />
@@ -330,7 +330,7 @@ function AcoesDoCard({ aberto, onAlternar, onFechar, onImprimir }) {
               className="w-full h-10 px-3 rounded-xl flex items-center gap-3 text-sm font-medium hover:bg-black/[0.05] dark:hover:bg-white/[0.08] transition-colors"
             >
               <Printer size={16} className="text-zinc-400" />
-              Imprimir separação
+              Imprimir mapa
             </button>
           </div>
         </>

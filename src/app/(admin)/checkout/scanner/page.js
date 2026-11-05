@@ -7,7 +7,7 @@ import toast from 'react-hot-toast';
 import { getHubUrl, getHeaders } from "@/components/utils/api";
 import ModalConfirmacaoSair from "@/components/checkout/ModalConfirmacaoSair";
 import ManipulaDados from "@/components/checkout/ManipulaDados";
-import { montarSeparacao } from "@/components/checkout/ListaSeparacao";
+import { montarSeparacao } from "@/components/checkout/MapaSeparacao";
 import { VIDRO, BOTAO_ROXO, BOTAO_VERDE, BOTAO_VIDRO, LuzesDeFundo } from "@/components/checkout/estilos";
 
 const codigosDoItem = (item) => [
@@ -15,7 +15,7 @@ const codigosDoItem = (item) => [
 ].filter(val => val !== null && val !== undefined && String(val).trim() !== '')
  .map(val => String(val).trim().toLowerCase());
 
-// A conferência usa a mesma conta da lista de separação: só entra o que foi atendido
+// A conferência usa a mesma conta do mapa de separação: só entra o que foi atendido
 const montarConferencia = (ped) => {
   const conferencia = {};
   montarSeparacao(ped).itensParaSeparar.forEach((item, index) => {

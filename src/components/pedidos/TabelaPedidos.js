@@ -232,7 +232,7 @@ export default function TabelaPedidos({
                         {isEmSeparacao && (
                           <button 
                             onClick={(e) => { e.stopPropagation(); onPrintSeparacao(pedido); }}
-                            title="Imprimir Lista de Separação"
+                            title="Imprimir Mapa de Separação"
                             className={`${ICON_BTN} hover:text-blue-600 hover:bg-blue-500/10`}
                           >
                             <Printer size={18} />

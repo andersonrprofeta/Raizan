@@ -4,7 +4,7 @@ import { AlertTriangle, ShoppingCart, Tag, ArrowRight, Zap, X, Plus, Minus, Pack
 import Link from "next/link";
 import { useTheme } from "next-themes";
 import { getApiUrl, getHeaders, getHubUrl } from "@/components/utils/api";
-import { lerUsuario } from "@/components/utils/sessaoCore";
+import { lerUsuario, rotuloDoUsuario } from "@/components/utils/sessaoCore";
 import toast from 'react-hot-toast';
 import SinoNotificacoes from "@/components/SinoNotificacoes";
 import LauncherAplicacoes from "@/components/apps/LauncherAplicacoes";
@@ -381,12 +381,12 @@ export default function Header() {
       const emailStr = localStorage.getItem("@raizan:email");
       const usuarioLogado = lerUsuario();
       const nomeAdmin = usuarioLogado?.nome || localStorage.getItem("@raizan:nome");
-      setPerfilUsuario(usuarioLogado?.perfil === "Administrador" && usuarioLogado?.principal ? "Administrador Master" : usuarioLogado?.perfil || "");
+      setPerfilUsuario(rotuloDoUsuario(usuarioLogado));
 
       if (emailStr && !savedUser) {
         setUserEmail(emailStr);
         if (nomeAdmin && nomeAdmin.trim() !== "") {
-          setUserName(nomeAdmin.split(' ')[0]);
+          setUserName(usuarioLogado ? nomeAdmin : nomeAdmin.split(' ')[0]);
           setUserInitial(gerarIniciais(nomeAdmin));
         } else {
           setUserName("Admin");
@@ -488,7 +488,7 @@ export default function Header() {
               <h2 className="text-sm md:text-[17px] font-bold tracking-tight text-zinc-900 dark:text-zinc-50 flex items-center gap-1 md:gap-2 truncate">
                 Olá, <span className="bg-gradient-to-r from-purple-600 to-indigo-500 dark:from-purple-400 dark:to-indigo-300 bg-clip-text text-transparent">
                   {userName}
-                </span>! <span className="animate-wave origin-bottom-right inline-block">👋</span>
+                </span>
                 {perfilUsuario && <span className="hidden sm:inline-flex items-center h-6 px-2.5 rounded-full bg-purple-500/10 text-[11px] font-semibold text-purple-700 dark:text-purple-300">{perfilUsuario}</span>}
               </h2>
               <span className="hidden sm:block text-[11px] md:text-xs text-zinc-500 dark:text-zinc-400 font-medium truncate">{dataHora}</span>

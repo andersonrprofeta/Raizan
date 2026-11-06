@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { getHubUrl } from "@/components/utils/api";
-import { lerUsuario, limparSessao, renovarSessao, sairDoCore, temPermissao } from "@/components/utils/sessaoCore";
+import { lerUsuario, limparSessao, renovarSessao, rotuloDoUsuario, sairDoCore, temPermissao } from "@/components/utils/sessaoCore";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import * as LucideIcons from "lucide-react"; 
@@ -175,7 +175,7 @@ export default function Sidebar() {
     const usuarioLogado = lerUsuario();
     setUsuario(usuarioLogado);
     const nomeSalvo = usuarioLogado?.nome || localStorage.getItem("@raizan:nome");
-    setUserName(nomeSalvo && nomeSalvo.trim() !== "" ? nomeSalvo.split(' ')[0] : "Admin");
+    setUserName(nomeSalvo && nomeSalvo.trim() !== "" ? (usuarioLogado ? nomeSalvo : nomeSalvo.split(' ')[0]) : "Admin");
 
     const modulos = localStorage.getItem("@raizan:modulos");
     const vencimento = localStorage.getItem("@raizan:expires_at");
@@ -523,7 +523,7 @@ export default function Sidebar() {
               </Tile>
               <div className={`min-w-0 overflow-hidden ${esconderNoRecolhido}`}>
                 <p className="truncate text-[13px] font-semibold tracking-tight text-zinc-800 dark:text-zinc-100 leading-tight">{userName}</p>
-                <p className={`text-[11px] capitalize font-medium mt-0.5 ${userRole === "admin" ? "text-purple-600 dark:text-purple-400" : "text-emerald-600 dark:text-emerald-400"}`}>{usuario?.perfil || userRole}</p>
+                <p className={`text-[11px] capitalize font-medium mt-0.5 ${userRole === "admin" ? "text-purple-600 dark:text-purple-400" : "text-emerald-600 dark:text-emerald-400"}`}>{rotuloDoUsuario(usuario) || userRole}</p>
               </div>
             </div>
             <button

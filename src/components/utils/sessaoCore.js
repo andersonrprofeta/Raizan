@@ -29,6 +29,13 @@ export function identificarTerminal() {
   return terminal;
 }
 
+// O cargo digitado no cadastro diz mais do que o nome técnico do perfil
+export function rotuloDoUsuario(usuario) {
+  if (!usuario) return "";
+  if (usuario.cargo) return usuario.cargo;
+  return usuario.principal ? "Administrador Master" : usuario.perfil || "";
+}
+
 // Sessão por licença não tem usuário e continua vendo tudo o que a licença libera
 export function temPermissao(chave) {
   const usuario = lerUsuario();

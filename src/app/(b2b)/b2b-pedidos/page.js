@@ -7,7 +7,11 @@ import Header from "@/components/Header";
 import { Search, ShoppingCart, CheckCircle2, AlertCircle, Package, Barcode, Loader2, Zap, X, FileText, QrCode, Building2, Truck, MapPin, CreditCard, CalendarDays, ChevronLeft, ChevronRight, Tag, Clock, ShieldCheck, RefreshCw, Trash2, ArrowRight, Map as MapIcon } from "lucide-react";
 import { getApiUrl, getHubUrl, getHeaders } from "@/components/utils/api";
 import toast from 'react-hot-toast';
+import FiltroMarcas from "@/components/b2b/FiltroMarcas";
 import { initMercadoPago, Payment } from '@mercadopago/sdk-react';
+
+// Fica no próprio arquivo: a imagem de reserva não pode depender de um site de fora
+const FOTO_AUSENTE = "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#f4f4f5"/><text x="50" y="54" font-family="sans-serif" font-size="12" text-anchor="middle" fill="#a1a1aa">Sem foto</text></svg>');
 
 const formatarMoeda = (valor) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor || 0);
@@ -23,7 +27,7 @@ const obterCapa = (produto) => {
       }
     } catch(e) {}
   }
-  return "https://placehold.co/100x100/18181b/52525b?text=Sem+Foto"; 
+  return FOTO_AUSENTE; 
 };
 
 // ==========================================
@@ -709,6 +713,14 @@ export default function CatalogoB2B() {
     return matchBusca && matchOferta && matchMarca;
   });
 
+  const filtroAtivo = Boolean(search || somenteOfertas || marcaSelecionada);
+  const limparFiltros = () => {
+    setSearch("");
+    setSomenteOfertas(false);
+    setMarcaSelecionada("");
+    setPage(1);
+  };
+
   const totalPages = Math.ceil(produtosFiltrados.length / limit);
   const offset = (page - 1) * limit;
   const produtosPaginados = produtosFiltrados.slice(offset, offset + Number(limit));
@@ -820,168 +832,150 @@ export default function CatalogoB2B() {
           <div className="max-w-7xl mx-auto space-y-6">
             
             {/* CABEÇALHO B2B COM FILTRO DE MARCAS */}
-            <div className="bg-white/70 dark:bg-[#121214]/70 backdrop-blur-xl p-5 sm:p-6 rounded-[28px] border border-black/[0.06] dark:border-white/[0.07]/80 shadow-sm transition-colors duration-300 flex flex-col">
-              
-              <div className="flex flex-col xl:flex-row gap-4 items-start xl:items-center justify-between w-full">
-                <div className="w-full xl:w-auto shrink-0">
-                  <h1 className="text-xl sm:text-2xl font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-3 tracking-tight">
+            <div className="rounded-[28px] border border-black/[0.06] bg-white/70 p-5 shadow-sm backdrop-blur-xl transition-colors duration-300 dark:border-white/[0.07] dark:bg-[#121214]/70 sm:p-6">
+              <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+                <div className="shrink-0">
+                  <h1 className="flex items-center gap-3 text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100 sm:text-2xl">
                     <Package className="text-purple-600 dark:text-purple-400" size={24} /> Catálogo de produtos
                   </h1>
-                  <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">Faça a reposição do seu estoque com facilidade.</p>
+                  <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">Faça a reposição do seu estoque com facilidade.</p>
                 </div>
 
-                <div className="flex w-full xl:w-auto items-stretch sm:items-center gap-3 flex-col sm:flex-row sm:flex-wrap xl:justify-end">
-                  <label className="w-full sm:w-auto flex items-center gap-2 cursor-pointer bg-white dark:bg-zinc-900 border border-black/[0.06] dark:border-white/[0.07] px-4 py-2.5 rounded-xl transition-all shadow-sm hover:border-purple-300 dark:hover:border-purple-700">
-                    <input type="checkbox" checked={somenteOfertas} onChange={(e) => { setSomenteOfertas(e.target.checked); setPage(1); }} className="w-4 h-4 rounded border-zinc-300 text-purple-600 focus:ring-purple-600 cursor-pointer"/>
-                    <Zap size={14} className={somenteOfertas ? "text-amber-500 fill-amber-500" : "text-zinc-400"} />
-                    <span className={`text-xs font-bold ${somenteOfertas ? "text-zinc-900 dark:text-zinc-100" : "text-zinc-500 dark:text-zinc-400"}`}>Ofertas</span>
-                  </label>
+                <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center xl:justify-end">
+                  <div className="flex gap-2.5">
+                    <button
+                      type="button"
+                      aria-pressed={somenteOfertas}
+                      onClick={() => { setSomenteOfertas(!somenteOfertas); setPage(1); }}
+                      className={`flex h-11 flex-1 items-center justify-center gap-2 rounded-full border px-4 text-sm font-semibold transition-all active:scale-95 sm:flex-none ${somenteOfertas ? "border-amber-500/30 bg-amber-500/15 text-amber-700 dark:text-amber-300" : "border-black/[0.06] bg-white text-zinc-600 hover:text-zinc-900 dark:border-white/[0.07] dark:bg-white/[0.06] dark:text-zinc-300 dark:hover:text-white"}`}
+                    >
+                      <Zap size={15} className={somenteOfertas ? "fill-amber-500 text-amber-500" : ""} /> Ofertas
+                    </button>
 
-                  <select value={limit} onChange={(e) => { setLimit(e.target.value); setPage(1); }} className="w-full sm:w-auto bg-white dark:bg-zinc-900 border border-black/[0.06] dark:border-white/[0.07] text-zinc-700 dark:text-zinc-300 px-4 py-2.5 rounded-xl text-xs font-bold outline-none focus:border-purple-500 cursor-pointer shadow-sm">
-                    <option value="20">20 itens</option>
-                    <option value="50">50 itens</option>
-                    <option value="100">100 itens</option>
-                  </select>
+                    <select value={limit} onChange={(e) => { setLimit(e.target.value); setPage(1); }} aria-label="Itens por página" className="h-11 flex-1 cursor-pointer rounded-full border border-black/[0.06] bg-white px-4 text-sm font-semibold text-zinc-700 outline-none transition-colors focus:border-purple-500 dark:border-white/[0.07] dark:bg-[#1a1a1d] dark:text-zinc-300 dark:[color-scheme:dark] sm:flex-none">
+                      <option value="20">20 itens</option>
+                      <option value="50">50 itens</option>
+                      <option value="100">100 itens</option>
+                    </select>
+                  </div>
 
-                  <form onSubmit={handleSearch} className="relative w-full sm:w-72 lg:w-80 shadow-sm">
-                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
-                    <input type="text" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder="Buscar por produto, SKU ou EAN..." className="w-full bg-white dark:bg-zinc-900 border border-black/[0.06] dark:border-white/[0.07] text-zinc-900 dark:text-zinc-100 pl-9 pr-4 py-2.5 rounded-xl text-sm outline-none focus:border-purple-500 transition-all placeholder:text-zinc-400" />
+                  <form onSubmit={handleSearch} className="relative w-full sm:w-72 lg:w-80">
+                    <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" />
+                    <input type="search" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder="Buscar por produto, SKU ou EAN" aria-label="Buscar produto" className="h-11 w-full rounded-full border border-black/[0.06] bg-white pl-10 pr-4 text-sm text-zinc-900 outline-none transition-all placeholder:text-zinc-400 focus:border-purple-500 focus:ring-4 focus:ring-purple-500/10 dark:border-white/[0.07] dark:bg-white/[0.06] dark:text-zinc-100" />
                   </form>
                 </div>
               </div>
 
-              {/* 🟢 BARRA DE MARCAS (SCROLL HORIZONTAL) */}
               {marcasUnicas.length > 0 && (
-                <div className="flex items-center gap-2 mt-5 pt-4 border-t border-zinc-100 dark:border-zinc-800/60 overflow-x-auto custom-scrollbar pb-1 w-full">
-                  <span className="text-[11px] font-bold text-zinc-400 dark:text-zinc-500 shrink-0 mr-2">Filtro Rápido:</span>
-                  
-                  <button 
-                    onClick={() => { setMarcaSelecionada(""); setPage(1); }} 
-                    className={`shrink-0 px-4 py-1.5 rounded-full text-[11px] font-bold transition-all border ${marcaSelecionada === "" ? "bg-purple-600 text-white border-purple-600 shadow-md shadow-purple-500/20" : "bg-zinc-50 dark:bg-zinc-900 text-zinc-500 dark:text-zinc-400 border-black/[0.06] dark:border-white/[0.07] hover:border-purple-300 dark:hover:border-purple-700 hover:text-purple-600 dark:hover:text-purple-400"}`}
-                  >
-                    Todas
-                  </button>
-                  
-                  {marcasUnicas.map(marca => (
-                    <button 
-                      key={marca}
-                      onClick={() => { setMarcaSelecionada(marca); setPage(1); }} 
-                      className={`shrink-0 px-4 py-1.5 rounded-full text-[11px] font-bold transition-all border ${marcaSelecionada === marca ? "bg-purple-600 text-white border-purple-600 shadow-md shadow-purple-500/20" : "bg-zinc-50 dark:bg-zinc-900 text-zinc-500 dark:text-zinc-400 border-black/[0.06] dark:border-white/[0.07] hover:border-purple-300 dark:hover:border-purple-700 hover:text-purple-600 dark:hover:text-purple-400"}`}
-                    >
-                      {marca}
-                    </button>
-                  ))}
-                </div>
+                <FiltroMarcas marcas={marcasUnicas} selecionada={marcaSelecionada} onChange={(marca) => { setMarcaSelecionada(marca); setPage(1); }} />
               )}
-
             </div>
 
-            <div className="border border-black/[0.06] dark:border-white/[0.07]/80 bg-white dark:bg-[#121214] rounded-[28px] overflow-hidden relative min-h-[400px] flex flex-col shadow-sm transition-colors duration-300">
-              {loading && <div className="absolute inset-0 z-10 bg-white/50 dark:bg-[#121214]/50 backdrop-blur-sm flex items-center justify-center"><Loader2 size={32} className="text-purple-600 animate-spin" /></div>}
+            <div className="relative flex min-h-[400px] flex-col overflow-hidden rounded-[28px] border border-black/[0.06] bg-white shadow-sm transition-colors duration-300 dark:border-white/[0.07] dark:bg-[#121214]">
+              {loading && <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/50 backdrop-blur-sm dark:bg-[#121214]/50"><Loader2 size={32} className="animate-spin text-purple-600" /></div>}
 
-              <div className="overflow-x-auto flex-1 p-1 sm:p-2">
-                <table className="w-full min-w-[800px] text-sm text-left border-collapse">
-                  <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/40">
-                    {produtosPaginados.length === 0 && !loading && (
-                      <tr><td colSpan="5" className="px-5 py-20 text-center text-zinc-500"><Package size={40} className="mx-auto mb-3 text-zinc-300 dark:text-zinc-700" /><p className="font-medium text-sm">Nenhum produto encontrado.</p></td></tr>
-                    )}
-
-                    {produtosPaginados.map((produto) => {
-                      const qtdNoCarrinho = carrinho[produto.sku]?.qtd || 0;
-                      const imageUrl = obterCapa(produto);
-                      const temEstoque = produto.estoque_inicial > 0;
-                      const precoOriginal = parseFloat(produto.preco_venda || 0);
-                      const minExigido = parseInt(produto.qtd_minima_promocao) || 1;
-                      const emPromocao = parseFloat(produto.preco_promocional) > 0;
-                      const atingiuMinimo = emPromocao && qtdNoCarrinho >= minExigido;
-                      const precoExibicao = atingiuMinimo ? parseFloat(produto.preco_promocional) : precoOriginal;
-                      const desconto = atingiuMinimo && precoOriginal > 0 ? Math.round(((precoOriginal - precoExibicao) / precoOriginal) * 100) : 0;
-                      
-                      return (
-                        <tr key={produto.sku} className={`transition-colors group ${!temEstoque ? 'opacity-50 grayscale bg-zinc-50 dark:bg-zinc-900/10' : 'hover:bg-zinc-50/50 dark:hover:bg-zinc-800/30'}`}>
-                          <td className="px-4 py-4 w-20">
-                            <div className="relative w-14 h-14 bg-white dark:bg-zinc-900 border border-black/[0.06] dark:border-white/[0.07] rounded-xl flex items-center justify-center overflow-hidden shrink-0 mx-auto">
-                              
-                              {emPromocao && desconto > 0 && (
-                                <div className="absolute top-0 right-0 bg-purple-600 text-white text-[10px] font-semibold px-1.5 py-0.5 rounded-bl-lg z-10 flex items-center gap-0.5">
-                                  <Zap size={8} fill="currentColor" />-{desconto}%
-                                </div>
-                              )}
-
-                              <img src={imageUrl} alt={produto.nome} className="w-full h-full object-contain p-1" onError={(e) => { e.target.src = "https://placehold.co/100x100/18181b/52525b?text=Sem+Foto"; }} />
-                            </div>
-                          </td>
-                          <td className="px-4 py-4">
-                            <h3 className="font-bold text-zinc-800 dark:text-zinc-200 text-sm leading-snug line-clamp-2">{produto.nome}</h3>
-                            <div className="flex items-center gap-3 mt-1 text-[11px] font-bold text-zinc-400 dark:text-zinc-500">
-                              <span>{produto.marca || "SEM MARCA"}</span>
-                              <span className="w-1 h-1 rounded-full bg-zinc-300 dark:bg-zinc-700"></span>
-                              <span>SKU: {produto.sku}</span>
-                              {produto.gtin && (
-                                <>
-                                  <span className="w-1 h-1 rounded-full bg-zinc-300 dark:bg-zinc-700"></span>
-                                  <span className="flex items-center gap-1"><Barcode size={10}/> {produto.gtin}</span>
-                                </>
-                              )}
-                            </div>
-                          </td>
-                          
-                          <td className="px-4 py-4 text-center w-28">
-                            {temEstoque ? (
-                              <div className="inline-flex items-center justify-center bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-bold px-2.5 py-1 rounded-lg border border-emerald-100 dark:border-emerald-500/20">
-                                {produto.estoque_inicial} UN
-                              </div>
-                            ) : (
-                              <div className="inline-flex items-center justify-center bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 text-[11px] font-bold px-2.5 py-1 rounded-lg">
-                                Sem Estoque
-                              </div>
-                            )}
-                          </td>
-
-                          <td className="px-4 py-4 text-right w-44">
-                            {emPromocao ? (
-                              <div className="flex flex-col items-end">
-                                {atingiuMinimo && <span className="text-zinc-400 line-through text-[11px] font-medium leading-none mb-0.5">{formatarMoeda(precoOriginal)}</span>}
-                                <span className={`font-bold tracking-tight ${atingiuMinimo ? 'text-purple-600 dark:text-purple-400 text-base' : 'text-zinc-900 dark:text-zinc-100 text-sm'}`}>{formatarMoeda(precoExibicao)}</span>
-                                {!atingiuMinimo ? (
-                                   <span className="mt-1.5 inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-purple-500/10 px-2 py-0.5 text-[11px] font-semibold text-purple-700 dark:text-purple-300">
-                                     <Tag size={11} /> {formatarMoeda(parseFloat(produto.preco_promocional))} a partir de {minExigido} un
-                                   </span>
-                                ) : (
-                                   <span className="mt-1.5 inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
-                                     <Zap size={11} fill="currentColor" /> Promoção aplicada
-                                   </span>
-                                )}
-                              </div>
-                            ) : (
-                              <span className="font-bold text-zinc-900 dark:text-zinc-100 text-sm">{formatarMoeda(precoOriginal)}</span>
-                            )}
-                          </td>
-                          <td className="px-4 py-4 w-32">
-                            {temEstoque ? (
-                              <SeletorQuantidade id={produto.sku} qtd={qtdNoCarrinho} onQtdChange={(id, qtd) => handleQuantidade(produto, qtd)} />
-                            ) : (
-                              <div className="w-24 h-8 flex items-center justify-center bg-zinc-100 dark:bg-zinc-900 text-zinc-400 rounded-lg text-[11px] font-bold">Esgotado</div>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+              <div className="flex items-center justify-between gap-3 border-b border-black/[0.05] px-5 py-3.5 text-sm dark:border-white/[0.06]">
+                <span className="font-semibold text-zinc-700 dark:text-zinc-300">
+                  {produtosFiltrados.length.toLocaleString("pt-BR")} {produtosFiltrados.length === 1 ? "produto" : "produtos"}
+                </span>
+                {filtroAtivo && (
+                  <button type="button" onClick={limparFiltros} className="font-semibold text-purple-600 hover:text-purple-500 dark:text-purple-400">Limpar filtros</button>
+                )}
               </div>
 
-              <div className="p-4 border-t border-zinc-100 dark:border-zinc-800/60 flex items-center justify-between text-sm">
-                <span className="text-zinc-400 text-[11px] font-bold">
-                  Pág. <span className="text-zinc-900 dark:text-zinc-100">{page}</span> / {totalPages || 1}
+              <div className="flex-1 divide-y divide-black/[0.05] dark:divide-white/[0.06]">
+                {produtosPaginados.length === 0 && !loading && (
+                  <div className="px-5 py-20 text-center text-zinc-500">
+                    <Package size={40} className="mx-auto mb-3 text-zinc-300 dark:text-zinc-700" />
+                    <p className="text-sm font-medium">Nenhum produto encontrado.</p>
+                    {filtroAtivo && <button type="button" onClick={limparFiltros} className="mt-3 text-sm font-semibold text-purple-600 hover:text-purple-500 dark:text-purple-400">Limpar filtros</button>}
+                  </div>
+                )}
+
+                {produtosPaginados.map((produto) => {
+                  const qtdNoCarrinho = carrinho[produto.sku]?.qtd || 0;
+                  const imageUrl = obterCapa(produto);
+                  const temEstoque = produto.estoque_inicial > 0;
+                  const precoOriginal = parseFloat(produto.preco_venda || 0);
+                  const minExigido = parseInt(produto.qtd_minima_promocao) || 1;
+                  const emPromocao = parseFloat(produto.preco_promocional) > 0;
+                  const atingiuMinimo = emPromocao && qtdNoCarrinho >= minExigido;
+                  const precoExibicao = atingiuMinimo ? parseFloat(produto.preco_promocional) : precoOriginal;
+                  const desconto = atingiuMinimo && precoOriginal > 0 ? Math.round(((precoOriginal - precoExibicao) / precoOriginal) * 100) : 0;
+
+                  return (
+                    <article key={produto.sku} className={`grid grid-cols-[64px_minmax(0,1fr)] items-center gap-x-4 gap-y-3 p-4 transition-colors lg:grid-cols-[64px_minmax(0,1fr)_128px_190px_120px] lg:px-5 ${temEstoque ? "hover:bg-black/[0.02] dark:hover:bg-white/[0.03]" : "bg-black/[0.02] opacity-60 grayscale dark:bg-white/[0.02]"}`}>
+                      <div className="relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-black/[0.06] bg-white dark:border-white/[0.07]">
+                        {emPromocao && desconto > 0 && (
+                          <div className="absolute right-0 top-0 z-10 flex items-center gap-0.5 rounded-bl-lg bg-purple-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                            <Zap size={8} fill="currentColor" />-{desconto}%
+                          </div>
+                        )}
+                        <img src={imageUrl} alt="" loading="lazy" className="h-full w-full object-contain p-1" onError={(e) => { e.target.onerror = null; e.target.src = FOTO_AUSENTE; }} />
+                      </div>
+
+                      <div className="min-w-0">
+                        <h3 className="line-clamp-2 text-sm font-semibold leading-snug text-zinc-900 dark:text-zinc-100">{produto.nome}</h3>
+                        <div className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-xs text-zinc-500 dark:text-zinc-400">
+                          <span className="font-semibold">{produto.marca || "Sem marca"}</span>
+                          <span>SKU {produto.sku}</span>
+                          {produto.gtin && <span className="flex items-center gap-1"><Barcode size={11} aria-hidden /> {produto.gtin}</span>}
+                        </div>
+                      </div>
+
+                      <div className="col-span-2 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2.5 lg:contents">
+                        <div className="lg:text-center">
+                          {temEstoque ? (
+                            <span className="inline-flex h-7 items-center whitespace-nowrap rounded-full bg-emerald-500/10 px-3 text-xs font-semibold text-emerald-700 dark:text-emerald-400">{produto.estoque_inicial} em estoque</span>
+                          ) : (
+                            <span className="inline-flex h-7 items-center whitespace-nowrap rounded-full bg-zinc-500/10 px-3 text-xs font-semibold text-zinc-500">Sem estoque</span>
+                          )}
+                        </div>
+
+                        <div className="text-right">
+                          {emPromocao ? (
+                            <div className="flex flex-col items-end">
+                              {atingiuMinimo && <span className="mb-0.5 text-[11px] font-medium leading-none text-zinc-400 line-through">{formatarMoeda(precoOriginal)}</span>}
+                              <span className={`font-bold tracking-tight ${atingiuMinimo ? "text-base text-purple-600 dark:text-purple-400" : "text-sm text-zinc-900 dark:text-zinc-100"}`}>{formatarMoeda(precoExibicao)}</span>
+                              {!atingiuMinimo ? (
+                                <span className="mt-1.5 inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-purple-500/10 px-2 py-0.5 text-[11px] font-semibold text-purple-700 dark:text-purple-300">
+                                  <Tag size={11} /> {formatarMoeda(parseFloat(produto.preco_promocional))} a partir de {minExigido} un
+                                </span>
+                              ) : (
+                                <span className="mt-1.5 inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
+                                  <Zap size={11} fill="currentColor" /> Promoção aplicada
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-base font-bold tracking-tight text-zinc-900 dark:text-zinc-100">{formatarMoeda(precoOriginal)}</span>
+                          )}
+                        </div>
+
+                        <div className="col-span-2 flex justify-end lg:col-span-1">
+                          {temEstoque ? (
+                            <SeletorQuantidade id={produto.sku} qtd={qtdNoCarrinho} onQtdChange={(id, qtd) => handleQuantidade(produto, qtd)} />
+                          ) : (
+                            <span className="text-xs font-semibold text-zinc-400">Esgotado</span>
+                          )}
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+
+              <div className="flex items-center justify-between border-t border-black/[0.05] p-4 text-sm dark:border-white/[0.06]">
+                <span className="text-zinc-500 dark:text-zinc-400 tabular-nums">
+                  Página <span className="font-semibold text-zinc-900 dark:text-zinc-100">{page}</span> de {totalPages || 1}
                 </span>
                 <div className="flex items-center gap-2">
-                  <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="bg-zinc-50 dark:bg-zinc-900 border border-black/[0.06] dark:border-white/[0.07] hover:bg-zinc-100 w-8 h-8 rounded-lg flex items-center justify-center text-zinc-500 transition-colors disabled:opacity-50"><ChevronLeft size={16} /></button>
-                  <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages || totalPages === 0} className="bg-zinc-50 dark:bg-zinc-900 border border-black/[0.06] dark:border-white/[0.07] hover:bg-zinc-100 w-8 h-8 rounded-lg flex items-center justify-center text-zinc-500 transition-colors disabled:opacity-50"><ChevronRight size={16} /></button>
+                  <button type="button" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} aria-label="Página anterior" className="flex h-9 w-9 items-center justify-center rounded-full bg-black/[0.05] text-zinc-600 transition-colors hover:bg-black/[0.08] disabled:opacity-40 dark:bg-white/[0.07] dark:text-zinc-300 dark:hover:bg-white/[0.12]"><ChevronLeft size={16} /></button>
+                  <button type="button" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages || totalPages === 0} aria-label="Próxima página" className="flex h-9 w-9 items-center justify-center rounded-full bg-black/[0.05] text-zinc-600 transition-colors hover:bg-black/[0.08] disabled:opacity-40 dark:bg-white/[0.07] dark:text-zinc-300 dark:hover:bg-white/[0.12]"><ChevronRight size={16} /></button>
                 </div>
               </div>
             </div>
-            
+
             {Object.keys(carrinho).length > 0 && <div className="h-32 w-full shrink-0"></div>}
 
           </div>

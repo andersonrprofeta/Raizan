@@ -1,5 +1,7 @@
 "use client";
 
+import PainelDoUsuario from "@/components/PainelDoUsuario";
+import { temPermissao } from "@/components/utils/sessaoCore";
 import { useEffect, useMemo, useState } from "react";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
@@ -427,7 +429,16 @@ const somarCanaisVisiveis = (lista, canaisVisiveis) => (lista || [])
 // ==========================================
 // 🚀 TELA PRINCIPAL (DASHBOARD ANALÍTICO)
 // ==========================================
-export default function DashboardAnalitico() {
+export default function TelaInicial() {
+  const [executivo, setExecutivo] = useState(null);
+
+  useEffect(() => { setExecutivo(temPermissao("dashboard_executivo")); }, []);
+
+  if (executivo === null) return null;
+  return executivo ? <DashboardAnalitico /> : <PainelDoUsuario />;
+}
+
+function DashboardAnalitico() {
   const [dados, setDados] = useState(null);
   const [loading, setLoading] = useState(true);
   // Motor do Hub desativado, ver os blocos "MOTOR DO HUB" abaixo

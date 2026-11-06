@@ -4,19 +4,76 @@ import { useState } from "react";
 import { Database, Lock, Mail, ArrowRight, AlertTriangle, ShieldCheck } from "lucide-react"; 
 // 🟢 MUDANÇA 1: Trocamos getApiUrl por getHubUrl para bater no Node.js
 import { getHubUrl, getHeaders } from "@/components/utils/api";
+import { guardarSessao, identificarTerminal } from "@/components/utils/sessaoCore";
+import { ModalTerminais, TrocarSenha } from "@/components/login/TelasDeAcesso";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [license, setLicense] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState(""); 
+  const [errorMsg, setErrorMsg] = useState("");
+  const [senha, setSenha] = useState("");
+  // Enquanto todos não recebem o acesso novo, a chave continua entrando
+  const [entrarComChave, setEntrarComChave] = useState(false);
+  const [limite, setLimite] = useState(null);
+  const [trocandoSenha, setTrocandoSenha] = useState(false);
+  const [aviso, setAviso] = useState("");
+
+  const abrirSistema = () => { window.location.href = "/resumo"; };
+
+  const entrarComSenha = async (derrubarSessao) => {
+    const response = await fetch(`${getHubUrl()}/api/auth/core/entrar`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, senha, terminal: identificarTerminal(), derrubar_sessao: derrubarSessao })
+    });
+    const data = await response.json();
+
+    if (data.limite_terminais) {
+      setLimite(data);
+      return;
+    }
+    if (!data.success) {
+      setErrorMsg(data.message || "Falha na autenticação.");
+      return;
+    }
+
+    setLimite(null);
+    guardarSessao(data);
+    if (data.trocar_senha) setTrocandoSenha(true);
+    else abrirSistema();
+  };
+
+  const esqueciSenha = async () => {
+    setErrorMsg("");
+    setAviso("");
+    if (!email) return setErrorMsg("Digite seu e-mail para receber o link.");
+    try {
+      const res = await fetch(`${getHubUrl()}/api/auth/core/esqueci-senha`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email })
+      });
+      const data = await res.json();
+      setAviso(data.message || "Confira seu e-mail.");
+    } catch (err) {
+      setErrorMsg("Erro de conexão.");
+    }
+  };
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setIsLoading(true);
-    setErrorMsg(""); 
-    
+    setErrorMsg("");
+    setAviso("");
+
     try {
+      if (!entrarComChave) {
+        await entrarComSenha();
+        setIsLoading(false);
+        return;
+      }
+
       // 🟢 MUDANÇA 2: Usando o getHubUrl() para bater na rota /api/auth/login do Node
       const response = await fetch(`${getHubUrl()}/api/auth/login`, {
         method: "POST",
@@ -165,6 +222,17 @@ export default function Login() {
             </div>
           )}
 
+          {aviso && <p role="status" className="mb-6 text-sm font-medium text-emerald-700 dark:text-emerald-400">{aviso}</p>}
+
+          {limite && (
+            <ModalTerminais limite={limite} ocupado={isLoading} aoFechar={() => setLimite(null)} aoDerrubar={async (id) => {
+              setIsLoading(true);
+              try { await entrarComSenha(id); } catch (err) { setErrorMsg("Erro de conexão."); }
+              setIsLoading(false);
+            }} />
+          )}
+          {trocandoSenha && <TrocarSenha senhaAtual={senha} aoConcluir={abrirSistema} />}
+
           <form onSubmit={handleLogin} className="flex flex-col gap-5">
             
             {/* Campo E-mail */}
@@ -191,9 +259,9 @@ export default function Login() {
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between">
                 <label className="text-[11px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-widest transition-colors">
-                  Chave de Licença
+                  {entrarComChave ? "Chave de Licença" : "Senha"}
                 </label>
-                <button type="button" className="text-[10px] font-bold text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 transition-colors uppercase tracking-widest">
+                <button type="button" onClick={esqueciSenha} hidden={entrarComChave} className="text-[10px] font-bold text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 transition-colors uppercase tracking-widest">
                   Esqueceu?
                 </button>
               </div>
@@ -203,8 +271,8 @@ export default function Login() {
                 </div>
                 <input
                   type="password"
-                  value={license}
-                  onChange={(e) => setLicense(e.target.value)}
+                  value={entrarComChave ? license : senha}
+                  onChange={(e) => (entrarComChave ? setLicense(e.target.value) : setSenha(e.target.value))}
                   placeholder="••••••••••••••••"
                   className="w-full bg-white dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 rounded-xl py-3.5 pl-11 pr-4 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600 font-mono font-bold shadow-sm dark:shadow-none tracking-widest"
                   required
@@ -227,6 +295,10 @@ export default function Login() {
               )}
             </button>
           </form>
+
+          <button type="button" onClick={() => { setEntrarComChave(!entrarComChave); setErrorMsg(""); setAviso(""); }} className="mt-5 w-full text-center text-xs font-semibold text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors">
+            {entrarComChave ? "Entrar com e-mail e senha" : "Ainda não recebi meu acesso: entrar com a chave"}
+          </button>
 
           {/* Rodapé Mobile (Aparece mais em telas menores) */}
           <div className="mt-12 text-center text-xs font-medium text-zinc-500 dark:text-zinc-500 space-y-5 transition-colors">

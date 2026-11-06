@@ -1,5 +1,7 @@
 "use client";
 
+import { History } from "lucide-react";
+import Link from "next/link";
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation'; // 🟢 ADD: Roteador do Next.js
@@ -179,6 +181,13 @@ export default function CheckoutConferencia() {
                   <List size={17} />
                 </button>
               </div>
+
+              {!modoTV && (
+                <Link href="/checkout/historico" className="inline-flex items-center gap-2 h-11 px-5 rounded-full text-sm font-semibold bg-white/80 dark:bg-white/[0.06] border border-black/[0.06] dark:border-white/[0.08]">
+                  <History size={17} />
+                  Histórico
+                </Link>
+              )}
 
               {!modoTV && (
                 <button onClick={ativarModoTV} className={`${BOTAO_ROXO} h-11 px-5 text-sm`}>

@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { getHubUrl } from "@/components/utils/api";
+import { lerUsuario, limparSessao, renovarSessao, sairDoCore, temPermissao } from "@/components/utils/sessaoCore";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import * as LucideIcons from "lucide-react"; 
@@ -34,6 +35,9 @@ const Tile = ({ cor = "purple", size = 40, children, className = "" }) => (
   </div>
 );
 
+// A sessão é conferida ao abrir e a cada 5 minutos: isso também mantém o terminal marcado como em uso
+const INTERVALO_DA_SESSAO_MS = 5 * 60 * 1000;
+
 // Chave onde guardamos se o menu está recolhido (só ícones)
 const CHAVE_COLAPSO = "@raizan:sidebar_colapsada";
 
@@ -60,6 +64,32 @@ export default function Sidebar() {
   // 🆕 MODO RECOLHIDO (só no desktop; no celular a gaveta continua sempre completa)
   const [colapsada, setColapsada] = useState(false);
   const c = colapsada;
+
+  const [usuario, setUsuario] = useState(null);
+
+  useEffect(() => {
+    if (!lerUsuario()) return;
+
+    const conferirSessao = async () => {
+      try {
+        const { ok, encerrada } = await renovarSessao();
+        if (encerrada) {
+          limparSessao();
+          window.location.href = "/login";
+          return;
+        }
+        if (ok) {
+          const modulos = localStorage.getItem("@raizan:modulos");
+          setModulosLiberados(modulos ? JSON.parse(modulos) : []);
+          setUsuario(lerUsuario());
+        }
+      } catch (e) {}
+    };
+
+    conferirSessao();
+    const intervalo = setInterval(conferirSessao, INTERVALO_DA_SESSAO_MS);
+    return () => clearInterval(intervalo);
+  }, []);
 
   useEffect(() => {
     try {
@@ -142,7 +172,9 @@ export default function Sidebar() {
     }
 
     setUserRole("admin");
-    const nomeSalvo = localStorage.getItem("@raizan:nome");
+    const usuarioLogado = lerUsuario();
+    setUsuario(usuarioLogado);
+    const nomeSalvo = usuarioLogado?.nome || localStorage.getItem("@raizan:nome");
     setUserName(nomeSalvo && nomeSalvo.trim() !== "" ? nomeSalvo.split(' ')[0] : "Admin");
 
     const modulos = localStorage.getItem("@raizan:modulos");
@@ -234,6 +266,8 @@ export default function Sidebar() {
     if (userRole === "lojista") {
       toast.success("Saindo da conta...");
       setTimeout(() => { localStorage.removeItem("raizan_user"); localStorage.removeItem("@raizan:token"); window.location.href = "/login-b2b"; }, 1000);
+    } else if (lerUsuario()) {
+      sairDoCore();
     } else {
       toast.success("Encerrando o sistema...");
       setTimeout(() => window.close(), 1000);
@@ -242,7 +276,16 @@ export default function Sidebar() {
 
   const toggleMenu = (menu) => setOpenMenus(prev => ({ ...prev, [menu]: !prev[menu] }));
   const isActive = (path) => pathname === path || pathname === `/${path}`;
-  const hasAccess = (slug) => { if (!slug) return true; return modulosLiberados.includes(slug); };
+  // A licença é o teto: o usuário nunca vê um módulo que a empresa não tem
+  const hasAccess = (slug) => { if (!slug) return true; return modulosLiberados.includes(slug) && temPermissao(slug); };
+
+  // Sem barra de endereço ainda há atalhos e janelas antigas: a tela sem permissão volta para o início
+  useEffect(() => {
+    if (!usuario || !pathname) return;
+    const modulos = Object.values(menuDinamico).flat();
+    const atual = modulos.find((modulo) => pathname === `/${modulo.slug}` || pathname.startsWith(`/${modulo.slug}/`));
+    if (atual && !temPermissao(atual.slug)) window.location.href = "/resumo";
+  }, [usuario, pathname, menuDinamico]);
 
   // 🆕 Clique numa categoria: se o menu está recolhido (desktop), expande e já abre a categoria.
   // Caso contrário, funciona exatamente como antes (toggleMenu).
@@ -422,7 +465,8 @@ export default function Sidebar() {
           {userRole === "admin" && (
             <>
               <div className="space-y-1 pb-4">
-                <DashboardNavLink href="/" icon={LayoutDashboard} label="Dashboard Admin" />
+                <DashboardNavLink href="/" icon={LayoutDashboard} label={temPermissao("dashboard_executivo") ? "Dashboard Admin" : "Início"} />
+                {temPermissao("usuarios") && <DashboardNavLink href="/usuarios" icon={Users} label="Usuários e Permissões" />}
               </div>
 
               {!carregandoMenu && Object.keys(menuDinamico).map(categoriaNome => {
@@ -480,7 +524,7 @@ export default function Sidebar() {
               </Tile>
               <div className={`min-w-0 overflow-hidden ${esconderNoRecolhido}`}>
                 <p className="truncate text-[13px] font-semibold tracking-tight text-zinc-800 dark:text-zinc-100 leading-tight">{userName}</p>
-                <p className={`text-[11px] capitalize font-medium mt-0.5 ${userRole === "admin" ? "text-purple-600 dark:text-purple-400" : "text-emerald-600 dark:text-emerald-400"}`}>{userRole}</p>
+                <p className={`text-[11px] capitalize font-medium mt-0.5 ${userRole === "admin" ? "text-purple-600 dark:text-purple-400" : "text-emerald-600 dark:text-emerald-400"}`}>{usuario?.perfil || userRole}</p>
               </div>
             </div>
             <button

@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import { getApiUrl, getTenantId } from "@/components/utils/api";
+import { lerUsuario, renovarSessao } from "@/components/utils/sessaoCore";
 import {
   ShieldCheck, LogOut, CheckCircle2, Store,
   Eye, EyeOff, Lock, RefreshCw, AlertTriangle,
@@ -120,6 +121,17 @@ export default function MinhaConta() {
   const handleSincronizar = async () => {
     setSincronizando(true);
     try {
+      if (lerUsuario()) {
+        const { ok } = await renovarSessao();
+        if (ok) {
+          carregarDadosDaMemoria();
+          toast.success("Licença sincronizada com sucesso!");
+        } else {
+          toast.error("Sessão expirada. Entre novamente.");
+        }
+        return;
+      }
+
       const email = localStorage.getItem("@raizan:email");
       const license = localStorage.getItem("@raizan:license");
       

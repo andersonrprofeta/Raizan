@@ -33,7 +33,7 @@ const obterCapa = (produto) => {
 // ==========================================
 // COMPONENTE: MODAL DE CHECKOUT B2B
 // ==========================================
-function ModalCheckout({ isOpen, onClose, carrinho, onFinalizarPedido, onRemoverItem, rotasFrete, condicoesOmie, clienteMestre }) {
+function ModalCheckout({ isOpen, onClose, carrinho, onFinalizarPedido, onRemoverItem, rotasFrete, condicoesOmie, clienteMestre, prazosGerais }) {
   const [metodoPagamento, setMetodoPagamento] = useState('faturado');
   const [prazoBoleto, setPrazoBoleto] = useState(''); 
   const [metodoEnvio, setMetodoEnvio] = useState('transportadora');
@@ -61,6 +61,8 @@ function ModalCheckout({ isOpen, onClose, carrinho, onFinalizarPedido, onRemover
       condicoesPermitidas = meta.condicoes_permitidas || [];
     } catch(e) {}
   }
+  // Prazo geral vale para todos, e o do cadastro é um extra só deste cliente
+  condicoesPermitidas = [...new Set([...prazosGerais, ...condicoesPermitidas].map((codigo) => String(codigo).trim()))];
 
   let pagamentosFiltrados = condicoesPermitidas.length > 0 
     ? condicoesOmie.filter(opcao => condicoesPermitidas.includes(String(opcao.codigo).trim()))
@@ -566,6 +568,7 @@ export default function CatalogoB2B() {
   const [clienteMestre, setClienteMestre] = useState(null);
   const [rotasFrete, setRotasFrete] = useState([]);
   const [condicoesOmie, setCondicoesOmie] = useState([]);
+  const [prazosGerais, setPrazosGerais] = useState([]);
 
   useEffect(() => {
     const carregarCarrinhoEListners = () => {
@@ -619,11 +622,12 @@ export default function CatalogoB2B() {
           }
         };
 
-        const [dataProd, dataCli, dataRotas, dataCond] = await Promise.all([
+        const [dataProd, dataCli, dataRotas, dataCond, dataRegras] = await Promise.all([
           safeFetch(`${getHubUrl()}/api/hub/produtos?limit=5000&para_venda=1`),
           safeFetch(`${getHubUrl()}/api/hub/clientes`),
           safeFetch(`${getHubUrl()}/api/hub/rotas-frete`),
-          safeFetch(`${getHubUrl()}/api/hub/integracoes/omie/condicoes-pagamento`)
+          safeFetch(`${getHubUrl()}/api/hub/integracoes/omie/condicoes-pagamento`),
+          safeFetch(`${getHubUrl()}/api/hub/parametros/app`)
         ]);
         
         if (dataProd && dataProd.success) {
@@ -673,6 +677,8 @@ export default function CatalogoB2B() {
         if (dataRotas && dataRotas.success) {
           setRotasFrete(dataRotas.rotas);
         }
+
+        if (dataRegras?.success) setPrazosGerais(dataRegras.regras.prazos_gerais || []);
 
         if (dataCond && dataCond.success) {
           setCondicoesOmie(dataCond.condicoes);
@@ -1016,6 +1022,7 @@ export default function CatalogoB2B() {
         clienteMestre={clienteMestre}
         rotasFrete={rotasFrete}
         condicoesOmie={condicoesOmie}
+        prazosGerais={prazosGerais}
       />
       
     </div>

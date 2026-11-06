@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Database, Loader2, Save, ShoppingBag, Smartphone, Store } from "lucide-react";
+import { CalendarClock, Database, Loader2, Save, ShoppingBag, Smartphone, Store } from "lucide-react";
 import toast from "react-hot-toast";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import AbaOracle from "@/components/parametros/AbaOracle";
+import AbaPrazos from "@/components/parametros/AbaPrazos";
 import AbaRaizanSeller from "@/components/parametros/AbaRaizanSeller";
 import { Aviso, Grupo, LinhaSwitch } from "@/components/parametros/ui";
 import { getHeaders, getHubUrl } from "@/components/utils/api";
@@ -17,6 +18,7 @@ const GUIAS = [
   { id: "app", rotulo: "Raizan Seller", icone: Smartphone },
   { id: "portal", rotulo: "Portal B2B", icone: Store },
   { id: "ecommerce", rotulo: "E-commerce", icone: ShoppingBag },
+  { id: "prazos", rotulo: "Prazos", icone: CalendarClock },
   { id: "oracle", rotulo: "Oracle", icone: Database },
 ];
 
@@ -41,6 +43,14 @@ export default function ParametrosDoSistema() {
       }
     })();
   }, []);
+
+  // Sair com o switch ligado e sem salvar faria a regra parecer ativa sem estar
+  useEffect(() => {
+    if (!alterado) return undefined;
+    const avisar = (evento) => { evento.preventDefault(); evento.returnValue = ""; };
+    window.addEventListener("beforeunload", avisar);
+    return () => window.removeEventListener("beforeunload", avisar);
+  }, [alterado]);
 
   const alterar = (secao) => (mudanca) => {
     setParametros((atuais) => ({ ...atuais, [secao]: { ...atuais[secao], ...mudanca } }));
@@ -97,6 +107,8 @@ export default function ParametrosDoSistema() {
               <div className={`${VIDRO} flex justify-center p-14`}><Loader2 size={28} className="animate-spin text-purple-500" /></div>
             ) : guia === "app" ? (
               <AbaRaizanSeller parametros={parametros} opcoes={opcoes} alterarApp={alterar("app")} alterarProvadores={alterar("provadores")} />
+            ) : guia === "prazos" ? (
+              <AbaPrazos prazosLiberados={parametros.pagamentos.prazos_liberados} onChange={(prazos_liberados) => alterar("pagamentos")({ prazos_liberados })} />
             ) : guia === "portal" ? (
               <Grupo titulo="Catálogo do portal" texto="Vale para os lojistas na próxima vez que abrirem o portal.">
                 <LinhaSwitch titulo="Não enviar produtos sem estoque" texto="Produto zerado some do portal." ligado={parametros.portal.ocultar_sem_estoque} onChange={(valor) => alterar("portal")({ ocultar_sem_estoque: valor })} />
@@ -110,6 +122,15 @@ export default function ParametrosDoSistema() {
                   <LinhaSwitch titulo="Não enviar produtos sem estoque" ligado={parametros.ecommerce.ocultar_sem_estoque} onChange={(valor) => alterar("ecommerce")({ ocultar_sem_estoque: valor })} />
                   <LinhaSwitch titulo="Não enviar provadores" ligado={parametros.ecommerce.ocultar_provadores} onChange={(valor) => alterar("ecommerce")({ ocultar_provadores: valor })} />
                 </Grupo>
+              </div>
+            )}
+
+            {alterado && guia !== "oracle" && (
+              <div className="sticky bottom-4 z-20 flex items-center justify-between gap-3 rounded-full border border-amber-500/30 bg-white/95 py-2 pl-5 pr-2 shadow-xl backdrop-blur-xl dark:bg-[#1a1a1d]/95">
+                <span className="text-sm font-semibold text-amber-700 dark:text-amber-300">Alterações ainda não salvas</span>
+                <button type="button" onClick={salvar} disabled={salvando} className="flex h-10 shrink-0 items-center gap-2 rounded-full bg-gradient-to-b from-purple-500 to-purple-700 px-5 text-sm font-semibold text-white disabled:opacity-50">
+                  {salvando ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} Salvar
+                </button>
               </div>
             )}
           </div>

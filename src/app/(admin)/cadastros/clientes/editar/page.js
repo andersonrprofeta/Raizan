@@ -11,6 +11,7 @@ import {
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import toast from 'react-hot-toast';
+import { getHeaders, getHubUrl } from "@/components/utils/api";
 
 function FormularioEdicao() {
   const router = useRouter();
@@ -24,6 +25,7 @@ function FormularioEdicao() {
   
   // Prazos do Omie para montar os botões
   const [condicoesOmie, setCondicoesOmie] = useState([]);
+  const [prazosGerais, setPrazosGerais] = useState([]);
   
   // 🟢 ESTADO NOVO: Guardar as Rotas de Frete disponíveis
   const [rotasFrete, setRotasFrete] = useState([]);
@@ -67,6 +69,11 @@ function FormularioEdicao() {
     }
 
     try {
+      fetch(`${getHubUrl()}/api/hub/parametros/app`, { headers: getHeaders() })
+        .then((res) => res.json())
+        .then((data) => { if (data.success) setPrazosGerais((data.regras.prazos_gerais || []).map(String)); })
+        .catch(() => {});
+
       // 1. Busca os Prazos de Pagamento do Omie
       fetch(`https://api.raizan.com.br/api/hub/integracoes/omie/condicoes-pagamento`, {
         headers: { "x-tenant-id": tenantId }
@@ -447,11 +454,14 @@ function FormularioEdicao() {
                      <span className="text-xs text-zinc-500 p-2 flex items-center gap-2"><Loader2 size={12} className="animate-spin"/> Carregando prazos do ERP...</span>
                   ) : (
                     condicoesOmie.map(c => {
-                      const isSelected = formData.metadata.condicoes_permitidas?.includes(c.codigo);
+                      const paraTodos = prazosGerais.includes(String(c.codigo));
+                      const isSelected = paraTodos || formData.metadata.condicoes_permitidas?.includes(c.codigo);
                       return (
                         <button
                           type="button"
                           key={c.codigo}
+                          disabled={paraTodos}
+                          title={paraTodos ? "Liberado para todos em Parâmetros de sistema" : undefined}
                           onClick={() => toggleCondicaoPermitida(c.codigo)}
                           className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${isSelected ? 'bg-indigo-100 text-indigo-700 border-indigo-300 dark:bg-indigo-500/20 dark:text-indigo-400 dark:border-indigo-500/50 shadow-sm' : 'bg-white text-zinc-500 border-zinc-200 dark:bg-[#121214] dark:text-zinc-400 dark:border-zinc-800 hover:border-indigo-300 dark:hover:border-indigo-500/50'}`}
                         >

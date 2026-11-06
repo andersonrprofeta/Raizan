@@ -9,6 +9,7 @@ import { lerUsuario } from "@/components/utils/sessaoCore";
 import ModalConfirmacaoSair from "@/components/checkout/ModalConfirmacaoSair";
 import ManipulaDados from "@/components/checkout/ManipulaDados";
 import { montarSeparacao } from "@/components/checkout/MapaSeparacao";
+import EscolherSeparador from "@/components/checkout/EscolherSeparador";
 import { VIDRO, BOTAO_ROXO, BOTAO_VERDE, BOTAO_VIDRO, LuzesDeFundo } from "@/components/checkout/estilos";
 
 const codigosDoItem = (item) => [
@@ -55,36 +56,6 @@ function AvisoBloqueio({ aviso, onConfirmar }) {
         >
           Entendi, continuar contagem
         </button>
-      </div>
-    </div>
-  );
-}
-
-// Quem bipa informa quem separou. Quem bipa não precisa ser informado: a API usa a sessão logada.
-function EscolherSeparador({ equipe, aoEscolher }) {
-  const [nome, setNome] = useState('');
-
-  return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-zinc-900/60 dark:bg-black/80 backdrop-blur-md">
-      <div role="dialog" aria-modal="true" aria-label="Quem separou este pedido" className={`${VIDRO} !bg-white/95 dark:!bg-[#121214]/95 w-full max-w-md p-6`}>
-        <h2 className="text-[22px] leading-tight font-bold tracking-tight">Quem separou este pedido?</h2>
-        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">Fica registrado no histórico da conferência.</p>
-
-        {equipe.length > 0 && (
-          <div className="mt-4 max-h-64 space-y-2 overflow-y-auto">
-            {equipe.map((pessoa) => (
-              <button key={pessoa.id} type="button" onClick={() => aoEscolher({ id: pessoa.id, nome: pessoa.nome })} className="w-full flex items-center justify-between gap-3 rounded-2xl bg-black/[0.03] dark:bg-white/[0.05] hover:bg-purple-500/10 px-4 py-3 text-left">
-                <span className="font-semibold truncate">{pessoa.nome}</span>
-                {pessoa.cargo && <span className="shrink-0 text-xs text-zinc-500 dark:text-zinc-400">{pessoa.cargo}</span>}
-              </button>
-            ))}
-          </div>
-        )}
-
-        <form onSubmit={(e) => { e.preventDefault(); if (nome.trim()) aoEscolher({ id: null, nome: nome.trim() }); }} className="mt-4 flex gap-2">
-          <input aria-label="Nome de quem separou" placeholder={equipe.length > 0 ? 'Outra pessoa' : 'Nome de quem separou'} value={nome} onChange={(e) => setNome(e.target.value)} autoFocus className="flex-1 min-w-0 h-11 px-4 rounded-2xl bg-black/[0.04] dark:bg-white/[0.05] outline-none text-sm" />
-          <button type="submit" className={`${BOTAO_ROXO} h-11 px-5 text-sm`}>Confirmar</button>
-        </form>
       </div>
     </div>
   );

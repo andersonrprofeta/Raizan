@@ -19,6 +19,9 @@ const NOME_DA_ACAO = {
   senha_trocada: "Trocou a senha", senha_definida: "Criou a senha", sessao_derrubada: "Desconectou um terminal",
 };
 
+// A lista do select é desenhada pelo sistema: sem isso, o tema escuro mostra texto claro em fundo branco
+const SELETOR = `${CAMPO} dark:[color-scheme:dark] [&>option]:bg-white [&>option]:text-zinc-900 dark:[&>option]:bg-[#1c1c1f] dark:[&>option]:text-zinc-100`;
+
 const dataHora = (valor) => (valor ? new Date(valor).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "Nunca");
 
 function ModalLink({ link, emailEnviado, aoFechar }) {
@@ -102,13 +105,13 @@ function ModalUsuario({ editando, opcoes, aoFechar, aoSalvar }) {
             )}
             <div>
               <label htmlFor="perfil" className={ROTULO}>Perfil de acesso</label>
-              <select id="perfil" disabled={editando?.principal} value={form.perfil} onChange={(e) => escolherPerfil(e.target.value)} className={`${CAMPO} disabled:opacity-50`}>
+              <select id="perfil" disabled={editando?.principal} value={form.perfil} onChange={(e) => escolherPerfil(e.target.value)} className={`${SELETOR} disabled:opacity-50`}>
                 {Object.keys(opcoes.perfis).map((perfil) => <option key={perfil} value={perfil}>{perfil}</option>)}
               </select>
             </div>
             <div>
               <label htmlFor="vendedor" className={ROTULO}>Vendedor vinculado</label>
-              <select id="vendedor" value={form.vendedor_id} onChange={(e) => alterar("vendedor_id", e.target.value)} className={CAMPO}>
+              <select id="vendedor" value={form.vendedor_id} onChange={(e) => alterar("vendedor_id", e.target.value)} className={SELETOR}>
                 <option value="">Nenhum</option>
                 {opcoes.vendedores.map((vendedor) => <option key={vendedor.id} value={vendedor.id}>{vendedor.nome}</option>)}
               </select>

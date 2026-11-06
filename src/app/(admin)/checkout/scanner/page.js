@@ -108,7 +108,8 @@ function ScannerMesa() {
   });
 
   const horaLocal = () => new Date().toLocaleString('sv-SE');
-  const precisaSeparador = Boolean(registro) && !registro.separador;
+  const [trocandoSeparador, setTrocandoSeparador] = useState(false);
+  const precisaSeparador = Boolean(registro) && (!registro.separador || trocandoSeparador);
 
   const tocarSucesso = () => new Audio('/sucesso.mp3').play().catch(()=>{});
   const tocarErro = () => new Audio('/error.mp3').play().catch(()=>{});
@@ -157,7 +158,8 @@ function ScannerMesa() {
     const res = await fetch(`${getHubUrl()}/api/hub/pedidos/omie`, {
       method: 'POST',
       headers: { ...getHeaders(), 'x-tenant-id': tenantId },
-      body: JSON.stringify({ page: 1, limit: 100 })
+      // A busca pelo número acha o pedido mesmo fora dos mais recentes
+      body: JSON.stringify({ page: 1, limit: 50, busca: String(pedidoId) })
     });
     const data = await res.json();
 
@@ -430,7 +432,13 @@ function ScannerMesa() {
       <LuzesDeFundo />
 
       {aviso && <AvisoBloqueio aviso={aviso} onConfirmar={liberarContagem} />}
-      {precisaSeparador && <EscolherSeparador equipe={equipe} aoEscolher={(separador) => atualizarRegistro(() => ({ separador }))} />}
+      {precisaSeparador && (
+        <EscolherSeparador
+          equipe={equipe}
+          aoEscolher={(separador) => { atualizarRegistro(() => ({ separador })); setTrocandoSeparador(false); }}
+          aoFechar={registro.separador ? () => setTrocandoSeparador(false) : null}
+        />
+      )}
 
       <ModalConfirmacaoSair isOpen={modalSairAberto} onConfirm={() => window.close()} onCancel={() => { setModalSairAberto(false); setTimeout(() => inputRef.current?.focus(), 100); }} />
       <ManipulaDados isOpen={modalDadosAberto} onClose={() => { setModalDadosAberto(false); setTimeout(() => inputRef.current?.focus(), 100); }} onConfirm={finalizarExpedicao} pedido={pedido} />
@@ -491,7 +499,13 @@ function ScannerMesa() {
         <div className="max-w-4xl mx-auto w-full">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
             <div className="min-w-0">
-              {registro?.separador && <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-0.5">Separado por {registro.separador.nome} · Conferindo: {lerUsuario()?.nome || 'acesso por licença'}</p>}
+              {registro?.separador && (
+                <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-0.5">
+                  Separado por {registro.separador.nome}
+                  <button type="button" onClick={() => setTrocandoSeparador(true)} className="mx-1.5 font-semibold text-purple-600 dark:text-purple-400 hover:underline">Trocar</button>
+                  · Conferindo: {lerUsuario()?.nome || 'acesso por licença'}
+                </p>
+              )}
               <h1 className="text-2xl sm:text-[28px] leading-tight font-bold tracking-tight tabular-nums flex items-center gap-2.5">
                 Pedido #{pedido.pedido_id}
                 {progressoRecuperado && (

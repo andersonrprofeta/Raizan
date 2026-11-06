@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Search, UserRound } from "lucide-react";
+import { Search, UserRound, X } from "lucide-react";
 import { VIDRO } from "@/components/checkout/estilos";
 
 const CHAVE_RECENTES = "@raizan:separadores_recentes";
@@ -21,7 +21,7 @@ const lerRecentes = () => {
 
 // Quem bipa informa quem separou. Quem bipa não precisa ser informado: a API usa a sessão logada.
 // O Enter só escolhe alguém da lista: o leitor manda Enter sozinho, e um código bipado aqui não pode virar nome.
-export default function EscolherSeparador({ equipe, aoEscolher }) {
+export default function EscolherSeparador({ equipe, aoEscolher, aoFechar }) {
   const [busca, setBusca] = useState("");
   const [indice, setIndice] = useState(0);
   const [recentes] = useState(lerRecentes);
@@ -74,7 +74,12 @@ export default function EscolherSeparador({ equipe, aoEscolher }) {
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-zinc-900/60 dark:bg-black/80 backdrop-blur-md">
       <div role="dialog" aria-modal="true" aria-label="Quem separou este pedido" className={`${VIDRO} !bg-white/95 dark:!bg-[#121214]/95 w-full max-w-md p-6`}>
-        <h2 className="text-[22px] leading-tight font-bold tracking-tight">Quem separou este pedido?</h2>
+        <div className="flex items-start justify-between gap-3">
+          <h2 className="text-[22px] leading-tight font-bold tracking-tight">Quem separou este pedido?</h2>
+          {aoFechar && (
+            <button type="button" onClick={aoFechar} aria-label="Manter o separador atual" className="shrink-0 w-9 h-9 rounded-full bg-black/[0.05] dark:bg-white/[0.08] flex items-center justify-center"><X size={17} /></button>
+          )}
+        </div>
         <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">Fica registrado no histórico da conferência.</p>
 
         <div className="mt-4 flex items-center gap-2.5 h-12 px-4 rounded-2xl bg-black/[0.04] dark:bg-white/[0.05] focus-within:ring-2 focus-within:ring-purple-500/40">

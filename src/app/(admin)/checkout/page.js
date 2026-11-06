@@ -12,6 +12,7 @@ import {
   Home // 🟢 ADD: Ícone da casinha
 } from 'lucide-react';
 import { getHubUrl, getHeaders, getTenantId } from "@/components/utils/api";
+import { limparSessao } from "@/components/utils/sessaoCore";
 import toast from 'react-hot-toast';
 import MapaSeparacao, { montarSeparacao } from "@/components/checkout/MapaSeparacao";
 import { VIDRO, BOTAO_ROXO, BOTAO_VIDRO, SELO, LuzesDeFundo, NotificacaoVidro } from "@/components/checkout/estilos";
@@ -19,6 +20,9 @@ import { VIDRO, BOTAO_ROXO, BOTAO_VIDRO, SELO, LuzesDeFundo, NotificacaoVidro } 
 const BOTAO_MODO = "w-10 h-9 rounded-full flex items-center justify-center transition-all duration-300";
 const BOTAO_MODO_ATIVO = "bg-white dark:bg-white/[0.12] text-zinc-900 dark:text-white shadow-[0_1px_3px_rgba(0,0,0,0.12)]";
 const BOTAO_MODO_INATIVO = "text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200";
+
+const LIMITE_DA_FILA = 200;
+const STATUS_DA_FILA = ['20', 'processando', 'processing', 'separacao', 'separar estoque'];
 
 export default function CheckoutConferencia() {
   const router = useRouter(); // 🟢 ADD: Instanciando o roteador
@@ -69,14 +73,23 @@ export default function CheckoutConferencia() {
       const res = await fetch(`${getHubUrl()}/api/hub/pedidos/omie`, {
         method: 'POST',
         headers: { ...getHeaders(), 'x-tenant-id': tenantId },
-        body: JSON.stringify({ page: 1, limit: 100 })
+        // Pedido antigo que volta para separação não está entre os mais recentes: o filtro vai na consulta
+        body: JSON.stringify({ page: 1, limit: LIMITE_DA_FILA, status: 'processando' })
       });
       const data = await res.json();
+
+      // Esta tela não tem menu: sem isso, sessão encerrada viraria uma fila vazia sem aviso
+      if (data.sessaoEncerrada) {
+        limparSessao();
+        window.location.href = '/login';
+        return;
+      }
+      if (!data.success) toast.error(data.message || "Erro ao carregar fila de separação.", { id: 'fila-separacao' });
 
       if (data.success) {
         const fila = data.pedidos.filter(p => {
           const s = String(p.status_pedido || p.status || '').toLowerCase().trim();
-          return s === '20' || s === 'processando' || s === 'separacao';
+          return STATUS_DA_FILA.includes(s);
         });
 
         const novosIds = fila.map(p => p.id);

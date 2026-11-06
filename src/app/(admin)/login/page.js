@@ -1,11 +1,11 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Database, Lock, Mail, ArrowRight, AlertTriangle, ShieldCheck } from "lucide-react"; 
 // 🟢 MUDANÇA 1: Trocamos getApiUrl por getHubUrl para bater no Node.js
 import { getHubUrl, getHeaders } from "@/components/utils/api";
 import { esquecerComputadorConfiavel, guardarComputadorConfiavel, guardarSessao, identificarTerminal, lerComputadorConfiavel } from "@/components/utils/sessaoCore";
-import { ModalTerminais, TelaDoCodigo, TrocarSenha } from "@/components/login/TelasDeAcesso";
+import { ModalOutroLocal, ModalTerminais, TelaDoCodigo, TrocarSenha } from "@/components/login/TelasDeAcesso";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -16,17 +16,29 @@ export default function Login() {
   // Enquanto todos não recebem o acesso novo, a chave continua entrando
   const [entrarComChave, setEntrarComChave] = useState(false);
   const [limite, setLimite] = useState(null);
+  const [outroLocal, setOutroLocal] = useState(null);
   const [trocandoSenha, setTrocandoSenha] = useState(false);
   const [aviso, setAviso] = useState("");
   const [desafio, setDesafio] = useState(null);
   const [erroDoCodigo, setErroDoCodigo] = useState("");
   // O limite de terminais aparece depois do código certo: o envio se repete com quem deve sair
   const codigoConferido = useRef(null);
+  // Vale até o fim do login: o limite de terminais pode pedir mais um envio depois da confirmação
+  const encerrarOutroLocal = useRef(false);
+
+  useEffect(() => {
+    try {
+      const motivo = sessionStorage.getItem("@raizan:motivo_saida");
+      if (motivo) setAviso(motivo);
+      sessionStorage.removeItem("@raizan:motivo_saida");
+    } catch (e) {}
+  }, []);
 
   const abrirSistema = () => { window.location.href = "/resumo"; };
 
   const concluirLogin = (data) => {
     setLimite(null);
+    setOutroLocal(null);
     setDesafio(null);
     if (data.computador_confiavel) guardarComputadorConfiavel(email, data.computador_confiavel);
     guardarSessao(data);
@@ -43,6 +55,7 @@ export default function Login() {
         senha,
         terminal: identificarTerminal(),
         derrubar_sessao: derrubarSessao,
+        encerrar_outro_local: encerrarOutroLocal.current,
         computador_confiavel: lerComputadorConfiavel(email)
       })
     });
@@ -52,6 +65,10 @@ export default function Login() {
       esquecerComputadorConfiavel(email);
       setErroDoCodigo("");
       setDesafio(data);
+      return;
+    }
+    if (data.sessao_em_outro_local) {
+      setOutroLocal(data);
       return;
     }
     if (data.limite_terminais) {
@@ -73,12 +90,16 @@ export default function Login() {
       const response = await fetch(`${getHubUrl()}/api/auth/core/confirmar-codigo`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ desafio: desafio.desafio, codigo, confiar, terminal: identificarTerminal(), derrubar_sessao: derrubarSessao })
+        body: JSON.stringify({ desafio: desafio.desafio, codigo, confiar, terminal: identificarTerminal(), derrubar_sessao: derrubarSessao, encerrar_outro_local: encerrarOutroLocal.current })
       });
       const data = await response.json();
 
-      if (data.limite_terminais) {
+      if (data.sessao_em_outro_local) {
         codigoConferido.current = { codigo, confiar };
+        setOutroLocal(data);
+      } else if (data.limite_terminais) {
+        codigoConferido.current = { codigo, confiar };
+        setOutroLocal(null);
         setLimite(data);
       } else if (data.success) {
         concluirLogin(data);
@@ -90,6 +111,25 @@ export default function Login() {
       setErroDoCodigo("Erro de conexão. Tente novamente.");
     }
     setIsLoading(false);
+  };
+
+  const confirmarOutroLocal = async () => {
+    encerrarOutroLocal.current = true;
+    if (codigoConferido.current) return confirmarCodigo(codigoConferido.current);
+
+    setIsLoading(true);
+    try {
+      await entrarComSenha();
+    } catch (err) {
+      setErrorMsg("Erro de conexão. Tente novamente.");
+    }
+    setIsLoading(false);
+  };
+
+  const fecharOutroLocal = () => {
+    encerrarOutroLocal.current = false;
+    codigoConferido.current = null;
+    setOutroLocal(null);
   };
 
   const reenviarCodigo = async () => {
@@ -293,6 +333,7 @@ export default function Login() {
               aoVoltar={() => { setDesafio(null); setErroDoCodigo(""); }}
             />
           )}
+          {outroLocal && <ModalOutroLocal mensagem={outroLocal.message} ocupado={isLoading} aoConfirmar={confirmarOutroLocal} aoFechar={fecharOutroLocal} />}
           {limite && (
             <ModalTerminais limite={limite} ocupado={isLoading} aoFechar={() => setLimite(null)} aoDerrubar={async (id) => {
               if (desafio) return confirmarCodigo(codigoConferido.current, id);

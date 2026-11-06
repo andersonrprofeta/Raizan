@@ -36,6 +36,22 @@ export function ModalTerminais({ limite, ocupado, aoDerrubar, aoFechar }) {
   );
 }
 
+export function ModalOutroLocal({ mensagem, ocupado, aoConfirmar, aoFechar }) {
+  return (
+    <div role="dialog" aria-modal="true" aria-label="Conta aberta em outro local" className={FUNDO}>
+      <div className={CAIXA}>
+        <MonitorX size={26} className="text-amber-500" aria-hidden />
+        <h2 className="mt-3 text-lg font-bold tracking-tight">Conta aberta em outro local</h2>
+        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">{mensagem}</p>
+        <button type="button" disabled={ocupado} onClick={aoConfirmar} className={`${BOTAO} mt-5`}>
+          {ocupado ? <Loader2 size={18} className="animate-spin" /> : "Desconectar o outro local e entrar"}
+        </button>
+        <button type="button" disabled={ocupado} onClick={aoFechar} className="mt-2 w-full h-11 rounded-full text-sm font-semibold bg-black/[0.05] dark:bg-white/[0.08]">Voltar</button>
+      </div>
+    </div>
+  );
+}
+
 // A chave do componente é o desafio: um código novo limpa o campo e reinicia a contagem
 export function TelaDoCodigo({ desafio, erro, ocupado, aoConfirmar, aoReenviar, aoVoltar }) {
   const [codigo, setCodigo] = useState("");

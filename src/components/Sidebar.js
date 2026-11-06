@@ -75,6 +75,7 @@ export default function Sidebar() {
         const { ok, encerrada } = await renovarSessao();
         if (encerrada) {
           limparSessao();
+          try { sessionStorage.setItem("@raizan:motivo_saida", "Sua sessão foi encerrada. Se você entrou em outro computador, esta tela foi desconectada."); } catch (e) {}
           window.location.href = "/login";
           return;
         }

@@ -2,8 +2,65 @@
 
 import { useState, useEffect } from "react";
 // 🟢 Adicionado 'Tag' para o ícone de Marcas
-import { Database, RefreshCw, ShoppingCart, Users, Receipt, Briefcase, Clock, Save, X, Zap, Loader2, CreditCard, Tag } from "lucide-react";
+import { Database, RefreshCw, ShoppingCart, Users, Receipt, Briefcase, Clock, Save, X, Zap, Loader2, CreditCard, Tag, Link2 } from "lucide-react";
 import toast from 'react-hot-toast';
+import { encerrarAplicacao } from "@/components/apps/aplicacoes";
+import { buscarAppsIntegrados, normalizarEndereco, salvarAppIntegrado } from "@/components/apps/appsIntegrados";
+
+// O link fica fora da integração: salvar aqui nunca regrava as regras que recebem pedidos
+function LinkDoPainel() {
+  const [link, setLink] = useState("");
+  const [salvando, setSalvando] = useState(false);
+
+  useEffect(() => {
+    buscarAppsIntegrados().then((conectados) => setLink(conectados.omie?.url || "")).catch(() => {});
+  }, []);
+
+  const salvar = async () => {
+    const url = link.trim() ? normalizarEndereco(link) : null;
+    if (link.trim() && !url?.includes("omie.com.br")) {
+      toast.error("Cole o link do seu painel, como app.omie.com.br/gestao/sua-empresa/");
+      return;
+    }
+
+    setSalvando(true);
+    try {
+      await salvarAppIntegrado("omie", url ? { url } : null);
+      encerrarAplicacao("omie");
+      toast.success(url ? "Link salvo nas Aplicações!" : "Link removido.");
+    } catch (error) {
+      toast.error("Não foi possível salvar o link.");
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  return (
+    <div className="p-5 bg-purple-50/50 dark:bg-purple-900/10 border border-purple-100 dark:border-purple-500/20 rounded-2xl">
+      <div className="flex items-center gap-4 mb-4">
+        <div className="p-3 bg-white dark:bg-zinc-900 rounded-xl shadow-sm text-purple-500">
+          <Link2 size={20} />
+        </div>
+        <div>
+          <label htmlFor="link-painel-omie" className="text-sm font-bold text-zinc-800 dark:text-zinc-200">Link do painel Omie</label>
+          <p className="text-[11px] text-zinc-500 mt-0.5">Abre direto na sua empresa pelas Aplicações, no topo do sistema.</p>
+        </div>
+      </div>
+      <div className="flex flex-col sm:flex-row gap-2">
+        <input
+          id="link-painel-omie"
+          value={link}
+          onChange={(e) => setLink(e.target.value)}
+          placeholder="https://app.omie.com.br/gestao/sua-empresa/"
+          className="flex-1 min-w-0 border p-3 rounded-xl font-medium text-sm outline-none transition-all bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 focus:border-purple-500 dark:text-white shadow-sm"
+        />
+        <button type="button" onClick={salvar} disabled={salvando} className="shrink-0 min-w-28 flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-sm font-bold transition-colors disabled:opacity-50">
+          {salvando ? <Loader2 size={16} className="animate-spin" /> : "Salvar link"}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export default function EditarOmie({ integracao, onCancel, onSuccess }) {
   const [loading, setLoading] = useState(false);
@@ -153,6 +210,8 @@ export default function EditarOmie({ integracao, onCancel, onSuccess }) {
       <div className="p-6 overflow-y-auto custom-scrollbar flex-1">
         <form onSubmit={salvarEdicao} className="space-y-6">
           
+          <LinkDoPainel />
+
           {/* TEMPO */}
           <div className="flex flex-col md:flex-row md:items-center justify-between p-5 bg-emerald-50/50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-500/20 rounded-2xl gap-4">
             <div className="flex items-center gap-4">

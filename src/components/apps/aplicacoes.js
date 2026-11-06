@@ -18,7 +18,7 @@ export function montarAplicacoes(conectados, plataformas) {
     lista.push({ id: "email", nome: "E-mail", descricao: conectados.email.nome, url: conectados.email.url });
   }
   if (plataformas.has("omie")) {
-    lista.push({ id: "omie", nome: "Omie", descricao: "Integração ativa", url: "https://app.omie.com.br/", logo: "/omie.png" });
+    lista.push({ id: "omie", nome: "Omie", descricao: "Integração ativa", url: conectados.omie?.url || "https://app.omie.com.br/", logo: "/omie.png" });
   }
   return lista;
 }

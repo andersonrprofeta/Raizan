@@ -1,15 +1,17 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AlertCircle, Calculator, CheckCircle2, Copy, FileSpreadsheet, FileText, Lock, Plus, Search, Settings2 } from "lucide-react";
+import { AlertCircle, Calculator, CheckCircle2, Copy, FileSpreadsheet, FileText, Lock, Plus, ReceiptText, Search, Settings2 } from "lucide-react";
+import ExtratoComissao from "@/components/vendedores/extrato";
 import toast from "react-hot-toast";
 import { nomeDoMes } from "@/components/vendedores/SeletorMes";
 import {
-  api, BOTAO_PRIMARIO, BOTAO_SECUNDARIO, CAMPO, Carregando, EstadoVazio, Kpi, lerMoeda, mascaraMoeda, moeda, Modal, ROTULO, Segmentado, VIDRO
+  api, BOTAO_PRIMARIO, BOTAO_SECUNDARIO, CAMPO, Carregando, EstadoVazio, Kpi, lerMarcasComissionaveis, lerMoeda, mascaraMoeda, moeda, Modal, ROTULO, Segmentado, VIDRO
 } from "@/components/vendedores/ui";
 
 const SECOES = [
   { id: "apuracao", rotulo: "Apuração", icone: Calculator },
+  { id: "extrato", rotulo: "Extrato", icone: ReceiptText },
   { id: "regras", rotulo: "Regras", icone: Settings2 }
 ];
 
@@ -435,14 +437,14 @@ function Regras({ vendedor }) {
   useEffect(() => {
     (async () => {
       try {
-        const [dataMarcas, dataRegras] = await Promise.all([api("/marcas"), api(`/comissoes/regras?vendedor_id=${vendedor.id}`)]);
+        const [marcasDeVenda, dataRegras] = await Promise.all([lerMarcasComissionaveis(), api(`/comissoes/regras?vendedor_id=${vendedor.id}`)]);
         if (dataRegras.success) {
           const proprio = dataRegras.geral_proprio;
           setGeral(proprio === null || proprio === undefined ? "" : String(Number(proprio)));
           setEquipe(dataRegras.equipe || { geral: null, marcas: [] });
           setExcecoes(Object.fromEntries((dataRegras.marcas || []).map((m) => [m.marca, String(Number(m.percentual))])));
         }
-        if (dataMarcas.success) setMarcas((dataMarcas.marcas || []).filter((m) => !m.nome.toLowerCase().startsWith("provador")));
+        if (marcasDeVenda) setMarcas(marcasDeVenda);
       } catch (erro) {
         toast.error("Erro ao carregar as regras.");
       } finally {
@@ -531,7 +533,9 @@ export default function TabComissoes({ vendedor, competencia }) {
   return (
     <div className="space-y-6 pb-10">
       <Segmentado opcoes={SECOES} valor={secao} onChange={setSecao} />
-      {secao === "apuracao" ? <Apuracao vendedor={vendedor} competencia={competencia} /> : <Regras vendedor={vendedor} />}
+      {secao === "apuracao" && <Apuracao vendedor={vendedor} competencia={competencia} />}
+      {secao === "extrato" && <ExtratoComissao vendedor={vendedor} competencia={competencia} />}
+      {secao === "regras" && <Regras vendedor={vendedor} />}
     </div>
   );
 }

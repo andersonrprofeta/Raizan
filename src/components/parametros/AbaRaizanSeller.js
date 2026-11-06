@@ -137,15 +137,15 @@ export default function AbaRaizanSeller({ parametros, opcoes, alterarApp, altera
         />
       </Grupo>
 
-      <Grupo titulo="Provadores" texto="Produtos bonificados, identificados pelo começo do nome da marca.">
+      <Grupo titulo="Produtos bonificados" texto="Identificados pelo começo do nome da marca. Ficam fora da comissão e valem para o app e o portal.">
         <LinhaSwitch
-          titulo="Não misturar provador com produto normal"
+          titulo="Não misturar bonificado com produto normal"
           texto="O app não deixa colocar os dois no mesmo pedido."
           ligado={app.separar_provadores}
           onChange={(valor) => alterarApp({ separar_provadores: valor })}
         />
-        <LinhaCampo titulo="A marca começa com" texto="Exemplo: provador pega Provador Nuev e todas as outras.">
-          <input value={provadores.prefixo} onChange={(e) => alterarProvadores({ prefixo: e.target.value })} aria-label="Começo do nome da marca" className={CAMPO} />
+        <LinhaCampo titulo="A marca começa com" texto="Exemplo: brinde pega Brinde Perfumes e Brinde Maquiagem. Vazio: a empresa não trabalha com bonificados.">
+          <input value={provadores.prefixo} onChange={(e) => alterarProvadores({ prefixo: e.target.value })} aria-label="Começo do nome da marca" placeholder="Nenhum" className={CAMPO} />
         </LinhaCampo>
         <ExcecoesDeProvador excecoes={provadores.excecoes} onChange={(excecoes) => alterarProvadores({ excecoes })} />
       </Grupo>

@@ -68,7 +68,7 @@ export default function FormFrenet({ onCancel, onSuccess }) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
               <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300">Chave (E-mail)</label>
-              <input type="text" required value={formFrenet.chave_frenet} onChange={e => setFormFrenet({...formFrenet, chave_frenet: e.target.value})} placeholder="mkt@rafany.com.br" className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 p-3.5 rounded-xl text-sm outline-none focus:border-orange-500 transition-all" />
+              <input type="text" required value={formFrenet.chave_frenet} onChange={e => setFormFrenet({...formFrenet, chave_frenet: e.target.value})} placeholder="contato@suaempresa.com.br" className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 p-3.5 rounded-xl text-sm outline-none focus:border-orange-500 transition-all" />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300">Senha</label>

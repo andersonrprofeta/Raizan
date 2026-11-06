@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Layers, Percent, Search, UserCog, X } from "lucide-react";
 import toast from "react-hot-toast";
 import {
-  api, BOTAO_PRIMARIO, BOTAO_SECUNDARIO, CAMPO, Carregando, EstadoVazio, Modal, ROTULO, VIDRO
+  api, lerMarcasComissionaveis, BOTAO_PRIMARIO, BOTAO_SECUNDARIO, CAMPO, Carregando, EstadoVazio, Modal, ROTULO, VIDRO
 } from "@/components/vendedores/ui";
 
 const limitarPercentual = (valor) => {
@@ -60,12 +60,12 @@ export default function ComissoesEquipe({ onAtualizar }) {
 
   const carregar = useCallback(async () => {
     try {
-      const [dataMarcas, dataEquipe] = await Promise.all([api("/marcas"), api("/comissoes/equipe")]);
+      const [marcasDeVenda, dataEquipe] = await Promise.all([lerMarcasComissionaveis(), api("/comissoes/equipe")]);
       if (!dataEquipe.success) throw new Error();
       setGeral(dataEquipe.geral === null ? "" : String(Number(dataEquipe.geral)));
       setPercentuais(Object.fromEntries((dataEquipe.marcas || []).map((m) => [m.marca, String(Number(m.percentual))])));
       setExcecoes(dataEquipe.excecoes || []);
-      if (dataMarcas.success) setMarcas((dataMarcas.marcas || []).filter((m) => !m.nome.toLowerCase().startsWith("provador")));
+      if (marcasDeVenda) setMarcas(marcasDeVenda);
     } catch (erro) {
       toast.error("Erro ao carregar as regras da equipe.");
     } finally {

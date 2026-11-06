@@ -412,9 +412,9 @@ export default function AbaOracle() {
                             <label className={`${ROTULO} flex items-center gap-2`}><Server size={14}/> Comunicação com o Motor Local</label>
                             <div className="flex gap-1 p-1 bg-black/[0.05] dark:bg-white/[0.06] rounded-full">
                               <button onClick={() => setCoreUrl("http://localhost:3001")} className={`flex-1 flex items-center justify-center gap-2 h-10 rounded-full text-sm font-semibold transition-all active:scale-95 ${coreUrl.includes("localhost") ? "bg-white dark:bg-white/[0.14] text-blue-600 dark:text-blue-300 shadow-[0_1px_3px_rgba(0,0,0,0.15)]" : "text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"}`}><Laptop size={16} /> Servidor Local</button>
-                              <button onClick={() => setCoreUrl("https://api.rafany.com.br")} className={`flex-1 flex items-center justify-center gap-2 h-10 rounded-full text-sm font-semibold transition-all active:scale-95 ${!coreUrl.includes("localhost") ? "bg-white dark:bg-white/[0.14] text-blue-600 dark:text-blue-300 shadow-[0_1px_3px_rgba(0,0,0,0.15)]" : "text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"}`}><Globe size={16} /> Acesso Remoto</button>
+                              <button onClick={() => setCoreUrl("")} className={`flex-1 flex items-center justify-center gap-2 h-10 rounded-full text-sm font-semibold transition-all active:scale-95 ${!coreUrl.includes("localhost") ? "bg-white dark:bg-white/[0.14] text-blue-600 dark:text-blue-300 shadow-[0_1px_3px_rgba(0,0,0,0.15)]" : "text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"}`}><Globe size={16} /> Acesso Remoto</button>
                             </div>
-                            <input type="text" value={coreUrl} onChange={(e) => setCoreUrl(e.target.value)} className={`${CAMPO} font-mono mt-1`} />
+                            <input type="text" value={coreUrl} onChange={(e) => setCoreUrl(e.target.value)} placeholder="https://motor.suaempresa.com.br" className={`${CAMPO} font-mono mt-1`} />
                           </div>
 
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">

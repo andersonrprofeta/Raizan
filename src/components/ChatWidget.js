@@ -32,7 +32,7 @@ export default function ChatWidget() {
                 <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-zinc-900 rounded-full"></span>
               </div>
               <div>
-                <p className="text-sm font-bold text-zinc-100">Suporte Rafany</p>
+                <p className="text-sm font-bold text-zinc-100">Suporte</p>
                 <p className="text-xs text-zinc-400">Respondemos em até 1h</p>
               </div>
             </div>
@@ -48,7 +48,7 @@ export default function ChatWidget() {
             <div className="flex gap-2 w-3/4">
               <div className="w-6 h-6 rounded-full bg-purple-600 shrink-0 mt-1"></div>
               <div className="bg-zinc-800 p-3 rounded-2xl rounded-tl-none text-sm text-zinc-200">
-                Olá! Sou o assistente da Rafany Distribuidora. Como posso ajudar com seu pedido B2B hoje?
+                Olá! Como posso ajudar com seu pedido B2B hoje?
               </div>
             </div>
 

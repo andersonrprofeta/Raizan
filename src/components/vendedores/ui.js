@@ -5,6 +5,7 @@ import { RefreshCw, User, X } from "lucide-react";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import { getHubUrl, getHeaders, getTenantId } from "@/components/utils/api";
+import { marcaBonificada } from "@/components/utils/marcaBonificada";
 
 // Mesma superfície de vidro das telas de Pedidos e Resumo
 export const VIDRO =
@@ -49,6 +50,14 @@ export const mascaraMoeda = (valor) => {
 export const lerMoeda = (texto) => Number(String(texto || "0").replace(/\./g, "").replace(",", ".")) || 0;
 
 export const valorParaMascara = (numero) => mascaraMoeda(Math.round(Number(numero || 0) * 100));
+
+// Marca bonificada não recebe regra de comissão. O começo do nome vem de Parâmetros de sistema.
+export async function lerMarcasComissionaveis() {
+  const [dataMarcas, dataRegras] = await Promise.all([api("/marcas"), api("/parametros/app")]);
+  if (!dataMarcas.success) return null;
+  const prefixo = dataRegras.regras?.provadores?.prefixo;
+  return (dataMarcas.marcas || []).filter((marca) => !marcaBonificada(marca.nome, prefixo));
+}
 
 export async function api(caminho, { metodo = "GET", corpo } = {}) {
   const separador = caminho.includes("?") ? "&" : "?";

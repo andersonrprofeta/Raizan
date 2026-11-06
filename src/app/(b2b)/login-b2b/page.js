@@ -46,13 +46,12 @@ export default function LoginB2B() {
           // 🟢 1ª LINHA NOVA: Salva o acréscimo que vem do banco de dados na nuvem!
           localStorage.setItem("@raizan:acrescimo_cpf", data.acrescimo_cpf || 0);
 
-          const urlCorreta = data.url_api_local?.includes("rafany") ? "https://api.raizan.com.br" : data.url_api_local;
-          localStorage.setItem("@raizan:b2b_api_url", urlCorreta || "https://api.raizan.com.br");
+          localStorage.setItem("@raizan:b2b_api_url", "https://api.raizan.com.br");
           console.log(`🔥 Identidade confirmada: ${data.tenant_id} | Nuvem Ativada!`);
           setConfiguracaoPronta(true);
         } else {
           if (host === 'localhost' || host === '127.0.0.1') {
-            localStorage.setItem("@raizan:b2b_tenant_id", process.env.NEXT_PUBLIC_TENANT_ID || "28389424000109");
+            localStorage.setItem("@raizan:b2b_tenant_id", process.env.NEXT_PUBLIC_TENANT_ID || "");
             localStorage.setItem("@raizan:b2b_api_url", process.env.NEXT_PUBLIC_HUB_URL || "https://api.raizan.com.br");
 
             // 🟢 2ª LINHA NOVA: Força os 30% no seu computador para testar!
@@ -66,7 +65,7 @@ export default function LoginB2B() {
       } catch (e) {
         console.error("Falha ao comunicar com o Hub Central.", e);
         if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-          localStorage.setItem("@raizan:b2b_tenant_id", process.env.NEXT_PUBLIC_TENANT_ID || "28389424000109");
+          localStorage.setItem("@raizan:b2b_tenant_id", process.env.NEXT_PUBLIC_TENANT_ID || "");
           localStorage.setItem("@raizan:b2b_api_url", process.env.NEXT_PUBLIC_HUB_URL || "https://api.raizan.com.br");
 
           // 🟢 3ª LINHA NOVA: Força os 30% no seu computador se der erro de conexão!

@@ -8,6 +8,7 @@ import { Search, ShoppingCart, CheckCircle2, AlertCircle, Package, Barcode, Load
 import { getApiUrl, getHubUrl, getHeaders } from "@/components/utils/api";
 import toast from 'react-hot-toast';
 import FiltroMarcas from "@/components/b2b/FiltroMarcas";
+import { marcaBonificada } from "@/components/utils/marcaBonificada";
 import { initMercadoPago, Payment } from '@mercadopago/sdk-react';
 
 // Fica no próprio arquivo: a imagem de reserva não pode depender de um site de fora
@@ -569,6 +570,7 @@ export default function CatalogoB2B() {
   const [rotasFrete, setRotasFrete] = useState([]);
   const [condicoesOmie, setCondicoesOmie] = useState([]);
   const [prazosGerais, setPrazosGerais] = useState([]);
+  const [prefixoBonificados, setPrefixoBonificados] = useState('');
 
   useEffect(() => {
     const carregarCarrinhoEListners = () => {
@@ -678,7 +680,10 @@ export default function CatalogoB2B() {
           setRotasFrete(dataRotas.rotas);
         }
 
-        if (dataRegras?.success) setPrazosGerais(dataRegras.regras.prazos_gerais || []);
+        if (dataRegras?.success) {
+          setPrazosGerais(dataRegras.regras.prazos_gerais || []);
+          setPrefixoBonificados(dataRegras.regras.provadores?.prefixo || '');
+        }
 
         if (dataCond && dataCond.success) {
           setCondicoesOmie(dataCond.condicoes);
@@ -698,9 +703,9 @@ export default function CatalogoB2B() {
     setPage(1);
   };
 
-  // 🟢 AS MARCAS VOLTARAM! EXTRAI AS MARCAS ÚNICAS (Ignorando nulos e "Provador")
+  // 🟢 AS MARCAS VOLTARAM! EXTRAI AS MARCAS ÚNICAS (Ignorando nulos e as bonificadas da empresa)
   const marcasUnicas = Array.from(new Set(produtosDb.map(p => p.marca?.trim()).filter(Boolean)))
-    .filter(marca => !marca.toLowerCase().includes('provador'))
+    .filter(marca => !marcaBonificada(marca, prefixoBonificados))
     .sort();
 
   // 🟢 FILTRAGEM LOCAL ATUALIZADA COM MARCA

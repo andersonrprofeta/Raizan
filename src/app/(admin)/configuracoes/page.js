@@ -112,15 +112,15 @@ export default function ParametrosDoSistema() {
             ) : guia === "portal" ? (
               <Grupo titulo="Catálogo do portal" texto="Vale para os lojistas na próxima vez que abrirem o portal.">
                 <LinhaSwitch titulo="Não enviar produtos sem estoque" texto="Produto zerado some do portal." ligado={parametros.portal.ocultar_sem_estoque} onChange={(valor) => alterar("portal")({ ocultar_sem_estoque: valor })} />
-                <LinhaSwitch titulo="Não enviar provadores" texto="Marcas de provador somem do portal. O começo do nome é o definido na guia Raizan Seller." ligado={parametros.portal.ocultar_provadores} onChange={(valor) => alterar("portal")({ ocultar_provadores: valor })} />
-                <LinhaSwitch titulo="Não misturar provador com produto normal" texto="O pedido é recusado ao finalizar, com o motivo na tela." desativado={parametros.portal.ocultar_provadores} ligado={parametros.portal.separar_provadores} onChange={(valor) => alterar("portal")({ separar_provadores: valor })} />
+                <LinhaSwitch titulo="Não enviar produtos bonificados" texto="As marcas bonificadas somem do portal. O começo do nome é o definido na guia Raizan Seller." ligado={parametros.portal.ocultar_provadores} onChange={(valor) => alterar("portal")({ ocultar_provadores: valor })} />
+                <LinhaSwitch titulo="Não misturar bonificado com produto normal" texto="O pedido é recusado ao finalizar, com o motivo na tela." desativado={parametros.portal.ocultar_provadores} ligado={parametros.portal.separar_provadores} onChange={(valor) => alterar("portal")({ separar_provadores: valor })} />
               </Grupo>
             ) : (
               <div className="space-y-5">
                 <Aviso>A loja virtual ainda não está no ar. Estas opções ficam guardadas e passam a valer quando ela for lançada.</Aviso>
                 <Grupo titulo="Catálogo da loja">
                   <LinhaSwitch titulo="Não enviar produtos sem estoque" ligado={parametros.ecommerce.ocultar_sem_estoque} onChange={(valor) => alterar("ecommerce")({ ocultar_sem_estoque: valor })} />
-                  <LinhaSwitch titulo="Não enviar provadores" ligado={parametros.ecommerce.ocultar_provadores} onChange={(valor) => alterar("ecommerce")({ ocultar_provadores: valor })} />
+                  <LinhaSwitch titulo="Não enviar produtos bonificados" ligado={parametros.ecommerce.ocultar_provadores} onChange={(valor) => alterar("ecommerce")({ ocultar_provadores: valor })} />
                 </Grupo>
               </div>
             )}

@@ -149,7 +149,7 @@ function ModalCheckout({ isOpen, onClose, carrinho, produtos, tabelaAtiva, onFin
                   <input type="radio" name="envio" checked={metodoEnvio === 'retirada'} onChange={() => setMetodoEnvio('retirada')} className="hidden" />
                   <div className={`p-2 rounded-lg ${metodoEnvio === 'retirada' ? 'bg-purple-500 text-white' : 'bg-zinc-800 text-zinc-400'}`}><MapPin size={18} /></div>
                   <div>
-                    <p className={`text-sm font-bold ${metodoEnvio === 'retirada' ? 'text-purple-400' : 'text-zinc-300'}`}>Retirada no CD Rafany</p>
+                    <p className={`text-sm font-bold ${metodoEnvio === 'retirada' ? 'text-purple-400' : 'text-zinc-300'}`}>Retirada no CD</p>
                     <p className="text-xs text-zinc-500">Isento de frete. Agendamento necessário.</p>
                   </div>
                 </label>
@@ -199,7 +199,7 @@ function ModalCheckout({ isOpen, onClose, carrinho, produtos, tabelaAtiva, onFin
                 disabled={isProcessando}
                 className="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-emerald-900/20 transition-all flex items-center justify-center gap-2 mt-4"
               >
-                {isProcessando ? <><Loader2 size={18} className="animate-spin" /> Gerando Pedido na Rafany...</> : 'Confirmar e Enviar Pedido'}
+                {isProcessando ? <><Loader2 size={18} className="animate-spin" /> Gerando pedido...</> : 'Confirmar e Enviar Pedido'}
               </button>
             </div>
           </div>
@@ -294,7 +294,7 @@ export default function CatalogoB2B() {
 
   // Função que envia o pedido pro nosso Motor Node.js
   const handleFinalizarPedido = async (dadosDoPedido) => {
-    const toastId = toast.loading("Gerando pedido na Rafany...");
+    const toastId = toast.loading("Gerando pedido...");
     
     try {
       const response = await fetch(`${getApiUrl()}/api/b2b/criar-pedido`, {
@@ -339,9 +339,9 @@ export default function CatalogoB2B() {
             <div className="bg-zinc-900/40 p-6 rounded-2xl border border-zinc-800/60 flex items-center justify-between">
               <div>
                 <h1 className="text-2xl font-bold text-zinc-100 flex items-center gap-3">
-                  <Package className="text-purple-400" /> Catálogo B2B Rafany
+                  <Package className="text-purple-400" /> Catálogo B2B
                 </h1>
-                <p className="text-sm text-zinc-400 mt-1">Reponha o estoque da sua loja com a Rafany Distribuidora.</p>
+                <p className="text-sm text-zinc-400 mt-1">Reponha o estoque da sua loja.</p>
               </div>
 
               <form onSubmit={handleSearch} className="relative w-96">

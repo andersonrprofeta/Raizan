@@ -8,8 +8,8 @@ import { getHubUrl, getHeaders, getTenantId } from '@/components/utils/api';
 
 const MOTIVO_CORTE_PADRAO = 'Estoque insuficiente ou ajuste no ERP';
 const TEMPO_MAXIMO_ATUALIZACAO_MS = 5000;
-// Mesma altura do quadro de observações: a última linha de produtos não pode encostar nos quadros
-const ALTURA_ANTES_DOS_QUADROS = '14mm';
+// Os cortes ficam depois das assinaturas: quem separa não pode ler esse quadro como parte dos produtos
+const ESPACO_ANTES_DOS_CORTES = '10mm';
 
 const moeda = (valor) => Number(valor || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 const nomeDoItem = (item) => String(item.name || item.nome || '');
@@ -213,11 +213,11 @@ export default function MapaSeparacao({ pedido: pedidoRecebido, onFechar }) {
         <div className="flex justify-between items-start border-b-2 border-purple-700 pb-3 mb-4">
           <div>
             <h1 className="text-xl font-black uppercase tracking-tighter text-zinc-900 leading-none">{empresa.nome}</h1>
-            <p className="text-[10px] text-zinc-500 mt-1">
-              <strong className="text-zinc-700">CNPJ:</strong> {empresa.cnpj}
+            <p className="text-sm font-semibold text-zinc-800 mt-1.5">
+              <strong className="text-zinc-900">CNPJ:</strong> {empresa.cnpj}
             </p>
-            <p className="text-xs text-zinc-700 mt-1.5">
-              <strong className="text-zinc-800">Vendedor:</strong> {pedido.vendedor_nome || 'Balcão'}
+            <p className="text-base font-bold text-zinc-900 mt-1">
+              <strong className="font-black">Vendedor:</strong> {pedido.vendedor_nome || 'Balcão'}
             </p>
           </div>
           <div className="text-right flex flex-col items-end">
@@ -238,7 +238,7 @@ export default function MapaSeparacao({ pedido: pedidoRecebido, onFechar }) {
             </div>
             <div className="col-span-12 sm:col-span-4">
               <strong className="text-zinc-800 block mb-0.5">CNPJ/CPF:</strong>
-              <span className="text-zinc-700 uppercase">{pedido.cnpj_cpf || 'Não Informado'}</span>
+              <span className="text-[13px] font-bold text-zinc-900 uppercase">{pedido.cnpj_cpf || 'Não Informado'}</span>
             </div>
             
             <div className="col-span-12 sm:col-span-8">
@@ -266,7 +266,7 @@ export default function MapaSeparacao({ pedido: pedidoRecebido, onFechar }) {
         </div>
 
         <div>
-          <table className="w-full text-left mb-4 border-collapse text-[9px]">
+          <table className="w-full text-left mb-1 border-collapse text-[9px]">
             <thead>
               <tr className="border-b-2 border-zinc-300">
                 <th className="py-1.5 px-1 font-bold text-zinc-700 uppercase w-[8%]">Endereço</th>
@@ -317,10 +317,65 @@ export default function MapaSeparacao({ pedido: pedidoRecebido, onFechar }) {
             </tbody>
           </table>
 
-          {(itensCortados.length > 0 || pedido.observacoes) && <div aria-hidden style={{ height: ALTURA_ANTES_DOS_QUADROS }} />}
+          {/* Em uma linha, colada nos produtos: o quadro alto empurrava os cortes para a página seguinte */}
+          {pedido.observacoes && (
+            <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5 text-[10px] leading-tight text-amber-900 page-break-inside-avoid">
+              <strong className="uppercase tracking-wide">Observações:</strong> <span className="font-medium">{pedido.observacoes.toUpperCase()}</span>
+            </p>
+          )}
+        </div>
 
-          {itensCortados.length > 0 && (
-            <div className="border border-red-300 rounded-lg p-2 mb-4" style={{ breakInside: 'avoid' }}>
+        <div className="mt-3 page-break-inside-avoid border-t border-zinc-300 pt-3">
+          <div className="flex justify-between items-start">
+            
+            <div className="flex gap-8 text-center text-[10px] text-zinc-600 font-medium w-2/3">
+              <div className="flex-1 flex flex-col items-center">
+                <div className="border-b border-zinc-400 w-full mb-1 h-6"></div>
+                <p>Separado por</p>
+                <p className="mt-3 text-[10px] text-zinc-800 font-bold tracking-widest font-mono whitespace-nowrap">___/___/___ &nbsp;&nbsp; ___:___</p>
+              </div>
+              <div className="flex-1 flex flex-col items-center">
+                <div className="border-b border-zinc-400 w-full mb-1 h-6"></div>
+                <p>Conferido por</p>
+                <p className="mt-3 text-[10px] text-zinc-800 font-bold tracking-widest font-mono whitespace-nowrap">___/___/___ &nbsp;&nbsp; ___:___</p>
+              </div>
+              <div className="flex-1 flex flex-col items-center">
+                <div className="border-b border-zinc-400 w-full mb-1 h-6"></div>
+                <p>Embalado por</p>
+                <p className="mt-3 text-[10px] text-zinc-800 font-bold tracking-widest font-mono whitespace-nowrap">___/___/___ &nbsp;&nbsp; ___:___</p>
+              </div>
+            </div>
+
+            <div className="w-1/3 pl-8">
+              <div className="flex justify-between items-end gap-2 text-[10px] text-zinc-600 mb-2">
+                <span className="whitespace-nowrap">Volumes (Caixas):</span>
+                <span className="flex-1 h-7 border-b border-zinc-800" />
+              </div>
+              <div className="flex justify-between text-[10px] text-zinc-600 mb-1">
+                <span>Unidades Totais:</span>
+                <span className="font-bold text-zinc-800">{totalUnidades} UN</span>
+              </div>
+              <div className="flex justify-between text-[11px] font-black text-zinc-900 mt-1 pt-1 border-t border-zinc-200">
+                <span>Total de Itens:</span>
+                <span className="text-purple-700">{totalItens}</span>
+              </div>
+              {itensCortados.length > 0 && (
+                <div className="flex justify-between text-[10px] text-zinc-500 mt-1">
+                  <span>Valor original:</span>
+                  <span className="line-through">{moeda(totalOriginal)}</span>
+                </div>
+              )}
+              <div className="mt-2 pt-2 border-t-2 border-zinc-800">
+                <span className="block text-[11px] font-black uppercase tracking-wide text-zinc-900">Total do Pedido</span>
+                <span className="block text-right text-2xl font-black leading-tight text-purple-700 whitespace-nowrap">{moeda(totalPedido)}</span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        {itensCortados.length > 0 && (
+            <div className="border border-red-300 rounded-lg p-2" style={{ breakInside: 'avoid', marginTop: ESPACO_ANTES_DOS_CORTES }}>
               <strong className="text-red-700 text-[10px] uppercase tracking-widest block mb-1">
                 Itens cortados: não separar as quantidades abaixo
               </strong>
@@ -362,62 +417,6 @@ export default function MapaSeparacao({ pedido: pedidoRecebido, onFechar }) {
             </div>
           )}
 
-          {pedido.observacoes && (
-            <div className="bg-amber-50 border border-amber-200 p-2 rounded-lg mt-4 page-break-inside-avoid mb-4">
-              <strong className="text-amber-900 text-[10px] uppercase tracking-widest block mb-0.5">Observações Adicionais:</strong>
-              <p className="text-amber-800 text-[10px] font-medium leading-tight">{pedido.observacoes.toUpperCase()}</p>
-            </div>
-          )}
-        </div>
-
-        <div className="mt-6 page-break-inside-avoid border-t border-zinc-300 pt-6">
-          <div className="flex justify-between items-start">
-            
-            <div className="flex gap-8 text-center text-[10px] text-zinc-600 font-medium w-2/3">
-              <div className="flex-1 flex flex-col items-center">
-                <div className="border-b border-zinc-400 w-full mb-1 h-6"></div>
-                <p>Separado por</p>
-                <p className="mt-3 text-[10px] text-zinc-800 font-bold tracking-widest font-mono whitespace-nowrap">___/___/___ &nbsp;&nbsp; ___:___</p>
-              </div>
-              <div className="flex-1 flex flex-col items-center">
-                <div className="border-b border-zinc-400 w-full mb-1 h-6"></div>
-                <p>Conferido por</p>
-                <p className="mt-3 text-[10px] text-zinc-800 font-bold tracking-widest font-mono whitespace-nowrap">___/___/___ &nbsp;&nbsp; ___:___</p>
-              </div>
-              <div className="flex-1 flex flex-col items-center">
-                <div className="border-b border-zinc-400 w-full mb-1 h-6"></div>
-                <p>Embalado por</p>
-                <p className="mt-3 text-[10px] text-zinc-800 font-bold tracking-widest font-mono whitespace-nowrap">___/___/___ &nbsp;&nbsp; ___:___</p>
-              </div>
-            </div>
-
-            <div className="w-1/3 pl-8">
-              <div className="flex justify-between items-end gap-2 text-[10px] text-zinc-600 mb-2">
-                <span className="whitespace-nowrap">Volumes (Caixas):</span>
-                <span className="flex-1 h-7 border-b border-zinc-800" />
-              </div>
-              <div className="flex justify-between text-[10px] text-zinc-600 mb-1">
-                <span>Unidades Totais:</span>
-                <span className="font-bold text-zinc-800">{totalUnidades} UN</span>
-              </div>
-              <div className="flex justify-between text-[11px] font-black text-zinc-900 mt-1 pt-1 border-t border-zinc-200">
-                <span>Total de Itens:</span>
-                <span className="text-purple-700">{totalItens}</span>
-              </div>
-              {itensCortados.length > 0 && (
-                <div className="flex justify-between text-[10px] text-zinc-500 mt-1">
-                  <span>Valor original:</span>
-                  <span className="line-through">{moeda(totalOriginal)}</span>
-                </div>
-              )}
-              <div className="flex justify-between text-[11px] font-black text-zinc-900 mt-1 pt-1 border-t border-zinc-200">
-                <span>Total do Pedido:</span>
-                <span className="text-purple-700">{moeda(totalPedido)}</span>
-              </div>
-            </div>
-
-          </div>
-        </div>
 
       </div>
     </div>,

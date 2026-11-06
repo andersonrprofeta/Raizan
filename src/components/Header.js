@@ -1,11 +1,12 @@
 "use client";
 import { useEffect, useState } from "react";
-import { AlertTriangle, ShoppingCart, Tag, ArrowRight, Zap, X, Plus, Minus, Package, Menu, Sun, Moon, Loader2, Grip, Trash2, Maximize2 } from "lucide-react";
+import { AlertTriangle, ShoppingCart, Tag, ArrowRight, Zap, X, Plus, Minus, Package, Menu, Sun, Moon, Loader2, Trash2, Maximize2 } from "lucide-react";
 import Link from "next/link";
 import { useTheme } from "next-themes";
 import { getApiUrl, getHeaders, getHubUrl } from "@/components/utils/api";
 import toast from 'react-hot-toast';
 import SinoNotificacoes from "@/components/SinoNotificacoes";
+import LauncherAplicacoes from "@/components/apps/LauncherAplicacoes";
 
 const formatarMoeda = (valor) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor || 0);
@@ -294,7 +295,6 @@ export default function Header() {
   const [isCarrinhoModalOpen, setIsCarrinhoModalOpen] = useState(false);
 
   // 🟢 ESTADO DO MENU WAFFLE (GOOGLE)
-  const [isWaffleOpen, setIsWaffleOpen] = useState(false);
 
   const gerarIniciais = (nome) => {
     if (!nome) return "R";
@@ -502,43 +502,7 @@ export default function Header() {
               </button>
             )}
 
-            {/* 🟢 WAFFLE MENU DO SUPER APP (Apenas para Admin) */}
-            {userRole === "admin" && (
-              <div className="relative group shrink-0">
-                <button
-                  onClick={() => setIsWaffleOpen(!isWaffleOpen)}
-                  onBlur={() => setTimeout(() => setIsWaffleOpen(false), 200)}
-                  className={`${ICON_BTN} hover:text-purple-600 dark:hover:text-purple-400`}
-                  title="Aplicativos Integrados"
-                >
-                  <Grip size={18} />
-                </button>
-
-                {isWaffleOpen && (
-                  <div className={`${PAINEL} absolute right-0 top-full mt-4 w-72 rounded-[28px] p-5 z-[100] animate-in slide-in-from-top-2`}>
-                    <h4 className={`${ROTULO} mb-4 pb-2 border-b border-black/[0.06] dark:border-white/[0.07]`}>Seus Favoritos</h4>
-
-                    <div className="grid grid-cols-3 gap-2">
-                       <button
-                          onMouseDown={() => window.dispatchEvent(new CustomEvent('abrirAppExterno', { detail: { nome: 'OMIE', url: 'https://app.omie.com.br/gestao/oliveira-hucf57e5/' }}))}
-                          className="flex flex-col items-center justify-center p-3 rounded-2xl hover:bg-black/[0.05] dark:hover:bg-white/[0.07] transition-colors gap-2 active:scale-95"
-                       >
-                          <div className="w-12 h-12 rounded-[15px] bg-[#001D4A] flex items-center justify-center text-white font-extrabold text-xs ring-1 ring-black/5 dark:ring-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_8px_16px_-8px_rgba(0,29,74,0.8)]">OM</div>
-                          <span className="text-[11px] font-semibold text-zinc-700 dark:text-zinc-300">OMIE</span>
-                       </button>
-
-                       <button
-                          onMouseDown={() => window.dispatchEvent(new CustomEvent('abrirAppExterno', { detail: { nome: 'Hostinger', url: 'https://mail.hostinger.com/' }}))}
-                          className="flex flex-col items-center justify-center p-3 rounded-2xl hover:bg-black/[0.05] dark:hover:bg-white/[0.07] transition-colors gap-2 active:scale-95"
-                       >
-                          <div className="w-12 h-12 rounded-[15px] bg-[#673DE6] flex items-center justify-center text-white font-extrabold text-sm ring-1 ring-black/5 dark:ring-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_8px_16px_-8px_rgba(103,61,230,0.8)]">@</div>
-                          <span className="text-[11px] font-semibold text-zinc-700 dark:text-zinc-300">Webmail</span>
-                       </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
+            {userRole === "admin" && <LauncherAplicacoes classeBotao={ICON_BTN} classePainel={PAINEL} classeRotulo={ROTULO} />}
 
             {userRole === "admin" && diasRestantes !== null && diasRestantes <= 15 && diasRestantes > 0 && (
               <div className="hidden md:flex items-center gap-2 bg-orange-500/10 border border-orange-500/20 px-3.5 py-2 rounded-full">

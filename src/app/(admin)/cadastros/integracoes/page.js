@@ -6,7 +6,7 @@ import Header from "@/components/Header";
 import {
   Plug, Plus, Globe, Settings, Pencil, Trash2,
   CheckCircle2, RefreshCw, Loader2, Store, Database,
-  Server, AlertTriangle, CreditCard, Truck, X
+  Server, AlertTriangle, CreditCard, Truck, X, Mail, MessageCircle
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -19,6 +19,10 @@ import FormFrenet from "@/components/integracoes/FormFrenet";
 import FormOmie from "@/components/integracoes/FormOmie";
 import FormTiny from "@/components/integracoes/FormTiny";
 import EditarOmie from "@/components/integracoes/EditarOmie";
+import FormEmailBusiness from "@/components/integracoes/FormEmailBusiness";
+import FormWhatsappWeb from "@/components/integracoes/FormWhatsappWeb";
+import { encerrarAplicacao } from "@/components/apps/aplicacoes";
+import { buscarAppsIntegrados, lerAppsGuardados, salvarAppIntegrado } from "@/components/apps/appsIntegrados";
 
 /* ======================================================================
    🎨 TOKENS DE DESIGN (mesmo padrão das outras telas)
@@ -177,6 +181,31 @@ const TituloSecao = ({ icon: Icon, children, topo = false }) => (
   </h3>
 );
 
+// Cartão de WhatsApp e E-mail: abrem dentro do Core e não têm sincronização
+const CartaoAppConectado = ({ logo, titulo, detalhe, luz, onEditar, onDesconectar }) => (
+  <div className={`${CARD} relative flex min-h-[220px] flex-col justify-between overflow-hidden p-6 transition-shadow hover:shadow-xl`}>
+    <div className={`pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full blur-3xl ${luz}`} />
+    <div className="relative flex items-start justify-between">
+      {logo}
+      <SeloAtivo />
+    </div>
+    <div className="relative mb-5 mt-4">
+      <h3 className="truncate text-lg font-semibold text-zinc-900 dark:text-zinc-100">{titulo}</h3>
+      <p className="mt-1 flex items-center gap-1.5 truncate text-xs font-medium text-zinc-500"><Globe size={12} /> {detalhe}</p>
+    </div>
+    <div className="relative mt-auto flex w-full gap-2">
+      {onEditar && (
+        <button onClick={(e) => { e.stopPropagation(); onEditar(); }} className={`${PILULA_BASE} flex-1 border border-black/[0.06] bg-black/[0.04] py-2.5 text-xs text-zinc-700 hover:bg-black/[0.07] dark:border-white/[0.08] dark:bg-white/[0.07] dark:text-zinc-200 dark:hover:bg-white/[0.12]`}>
+          <Pencil size={14} /> Editar
+        </button>
+      )}
+      <button onClick={(e) => { e.stopPropagation(); onDesconectar(); }} aria-label={`Desconectar ${titulo}`} className={`${PILULA_BASE} ${onEditar ? "px-4" : "w-full"} border border-red-500/20 bg-red-500/10 py-2.5 text-xs text-red-600 hover:bg-red-500/20 dark:text-red-400`}>
+        <Trash2 size={14} /> {!onEditar && "Desconectar"}
+      </button>
+    </div>
+  </div>
+);
+
 const SeloAtivo = () => (
   <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-500/10 dark:text-emerald-400 px-2.5 py-1 rounded-full border border-emerald-500/20">
     <CheckCircle2 size={12} /> Ativo
@@ -194,6 +223,7 @@ export default function IntegracoesPage() {
 
   // 🟢 ESTADO PARA CONTROLAR A EDIÇÃO
   const [editandoInt, setEditandoInt] = useState(null);
+  const [appsConectados, setAppsConectados] = useState({});
 
   const pegarCnpjLogado = () => {
     if (typeof window !== "undefined") {
@@ -220,6 +250,9 @@ export default function IntegracoesPage() {
     if (cacheInt) setIntegracoesAtivas(JSON.parse(cacheInt));
     if (cacheOracle) setOracleConfigurado(JSON.parse(cacheOracle));
     if (cacheInt || cacheOracle) setLoading(false);
+
+    setAppsConectados(lerAppsGuardados());
+    buscarAppsIntegrados().then(setAppsConectados).catch(() => {});
 
     try {
       const [resInt, resConf] = await Promise.all([
@@ -340,6 +373,20 @@ export default function IntegracoesPage() {
 
   const confirmarExclusao = async () => {
     if (!integracaoParaDeletar) return;
+
+    if (integracaoParaDeletar.app) {
+      const { app } = integracaoParaDeletar;
+      try {
+        setAppsConectados(await salvarAppIntegrado(app, null));
+        encerrarAplicacao(app);
+        toast.success("Desconectado. O atalho saiu das Aplicações.");
+      } catch (error) {
+        toast.error("Não foi possível desconectar. Tente de novo.");
+      }
+      setIntegracaoParaDeletar(null);
+      return;
+    }
+
     const cnpj = pegarCnpjLogado();
     const id = integracaoParaDeletar.id;
     const toastId = toast.loading("Excluindo integração...");
@@ -482,6 +529,23 @@ export default function IntegracoesPage() {
                       </div>
                     )}
 
+                    {appsConectados.whatsapp && (
+                      <CartaoAppConectado
+                        logo={<span className="flex h-12 w-12 items-center justify-center rounded-[14px] bg-white p-2 ring-1 ring-black/5"><img src="/whatsapp.svg" alt="" className="h-full w-full object-contain" /></span>}
+                        titulo="WhatsApp Web" detalhe="Disponível nas Aplicações" luz="bg-emerald-500/10"
+                        onDesconectar={() => setIntegracaoParaDeletar({ app: "whatsapp", nome_integracao: "WhatsApp Web" })}
+                      />
+                    )}
+
+                    {appsConectados.email && (
+                      <CartaoAppConectado
+                        logo={<Tile icon={Mail} cor="purple" size={48} />}
+                        titulo="E-mail Business" detalhe={appsConectados.email.nome} luz="bg-purple-500/10"
+                        onEditar={() => setInstalando("email")}
+                        onDesconectar={() => setIntegracaoParaDeletar({ app: "email", nome_integracao: "E-mail Business" })}
+                      />
+                    )}
+
                     {/* Cartões: integrações ativas */}
                     {integracoesAtivas.map(int => {
                       const semSync = int.plataforma === "mercadopago" || int.plataforma === "portal_b2b";
@@ -619,6 +683,29 @@ export default function IntegracoesPage() {
                         </div>
                       </div>
 
+                      {/* COMUNICAÇÃO */}
+                      <div>
+                        <TituloSecao icon={MessageCircle}>Comunicação</TituloSecao>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                          <CartaoCatalogo
+                            cor="purple" selo={appsConectados.email ? "Conectado" : "Novo"}
+                            icone={<Tile icon={Mail} cor="purple" size={44} />}
+                            titulo="E-mail Business" descricao="Seu webmail corporativo dentro do Core."
+                            textoBotao={appsConectados.email ? "Ajustar" : "Conectar"}
+                            suave={Boolean(appsConectados.email)}
+                            onClick={(e) => { e.stopPropagation(); setInstalando("email"); }}
+                          />
+                          <CartaoCatalogo
+                            cor="emerald" selo={appsConectados.whatsapp ? "Conectado" : "Novo"}
+                            icone={<span className="flex h-11 w-11 items-center justify-center rounded-[13px] bg-white p-2 ring-1 ring-black/5"><img src="/whatsapp.svg" alt="WhatsApp" className="h-full w-full object-contain" /></span>}
+                            titulo="WhatsApp Web" descricao="Conversas abertas enquanto você trabalha."
+                            textoBotao={appsConectados.whatsapp ? "Conectado" : "Conectar"}
+                            suave={Boolean(appsConectados.whatsapp)}
+                            onClick={(e) => { e.stopPropagation(); if (appsConectados.whatsapp) toast("O WhatsApp já está nas Aplicações, no topo do sistema."); else setInstalando("whatsapp"); }}
+                          />
+                        </div>
+                      </div>
+
                       {/* PAGAMENTOS */}
                       <div>
                         <TituloSecao icon={CreditCard}>Meios de Pagamento</TituloSecao>
@@ -703,6 +790,8 @@ export default function IntegracoesPage() {
                 {instalando === "frenet" && <FormFrenet onCancel={() => setInstalando("catalogo")} onSuccess={handleSuccess} />}
                 {instalando === "omie" && <FormOmie onCancel={() => setInstalando("catalogo")} onSuccess={handleSuccess} />}
                 {instalando === "tiny" && <FormTiny onCancel={() => setInstalando("catalogo")} onSuccess={handleSuccess} />}
+                {instalando === "email" && <FormEmailBusiness atual={appsConectados.email} onCancel={() => setInstalando(appsConectados.email ? null : "catalogo")} onSuccess={handleSuccess} />}
+                {instalando === "whatsapp" && <FormWhatsappWeb onCancel={() => setInstalando("catalogo")} onSuccess={handleSuccess} />}
 
               </>
             )}

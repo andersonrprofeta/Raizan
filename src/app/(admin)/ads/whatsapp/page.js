@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
+import Link from "next/link";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import { getHubUrl, getHeaders } from "@/components/utils/api";
 import {
-  MessageCircle, Copy, CheckCircle2, RefreshCw, Settings2,
-  Plus, Trash2, Check, Download, Loader2, X, Search, Package, PhoneCall
+  MessageCircle, Copy, RefreshCw, Settings2, Plus, Trash2, Check, Download,
+  Loader2, X, Search, PhoneCall, ArrowRight, Info
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -16,57 +17,68 @@ const FIELD = "w-full h-11 px-4 bg-zinc-100 dark:bg-[#1a1a1d] border border-blac
 const BUTTON_GREEN = "h-11 px-5 rounded-full bg-gradient-to-b from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-600 text-white text-sm font-semibold flex items-center justify-center gap-2 shadow-[inset_0_1px_0_rgba(255,255,255,.3),0_10px_24px_-8px_rgba(16,185,129,.55)] transition-all active:scale-95 disabled:opacity-60";
 const MUTED_BUTTON = "h-11 px-4 rounded-full bg-black/[0.05] hover:bg-black/[0.08] dark:bg-white/[0.07] dark:hover:bg-white/[0.12] text-zinc-700 dark:text-zinc-200 text-sm font-semibold flex items-center justify-center gap-2 transition-all active:scale-95";
 
+const ENDERECO = `${getHubUrl()}/api/hub/catalogo-whatsapp`;
+const LIMITE_DA_LISTA = 200;
+
+const PASSOS_META = [
+  "No Gerenciador de Comércio da Meta, crie um catálogo de e-commerce ou abra o que já existe.",
+  "Em Fontes de dados, adicione uma lista de dados por URL agendada e cole o link acima.",
+  "Escolha a atualização mais frequente disponível e aguarde a primeira leitura.",
+  "No WhatsApp Manager, conecte esse catálogo à conta do WhatsApp Business que tem os números.",
+];
+
 const formatarMoeda = (v) => Number(v || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const formatarInteiro = (v) => Number(v || 0).toLocaleString("pt-BR");
+
+const formatarNumero = (numero) => {
+  const n = String(numero || "");
+  if (n.length === 13 && n.startsWith("55")) return `+55 ${n.slice(2, 4)} ${n.slice(4, 9)}-${n.slice(9)}`;
+  if (n.length === 12 && n.startsWith("55")) return `+55 ${n.slice(2, 4)} ${n.slice(4, 8)}-${n.slice(8)}`;
+  return `+${n}`;
+};
+
+const formatarAcesso = (data) => {
+  if (!data) return "Ainda não lido";
+  return new Date(data).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+};
+
+const Metrica = ({ rotulo, valor, detalhe, tom = "text-zinc-400" }) => (
+  <div>
+    <p className="text-sm text-zinc-500 dark:text-zinc-400">{rotulo}</p>
+    <p className="mt-1.5 text-3xl font-bold tracking-tight tabular-nums">{valor}</p>
+    <p className={`mt-1.5 text-xs font-medium ${tom}`}>{detalhe}</p>
+  </div>
+);
 
 export default function CatalogoWhatsappPage() {
   const [loading, setLoading] = useState(true);
   const [salvando, setSalvando] = useState(false);
   const [dados, setDados] = useState(null);
   const [busca, setBusca] = useState("");
-
-  // Estados da Configuração (Modal da Integração)
   const [modalConfigOpen, setModalConfigOpen] = useState(false);
-  const [ocultarSemEstoque, setOcultarSemEstoque] = useState(false);
-  const [canais, setCanais] = useState([
-    { id: 1, setor: "Televendas", numero: "+55 62 99999-1111", status: "Conectado" },
-    { id: 2, setor: "Representantes", numero: "+55 62 99999-2222", status: "Conectado" },
-    { id: 3, setor: "Atendimento", numero: "+55 11 99999-3333", status: "Conectado" }
-  ]);
+  const [ocultarSemEstoque, setOcultarSemEstoque] = useState(true);
+  const [nomeLoja, setNomeLoja] = useState("");
+  const [site, setSite] = useState("");
+  const [canais, setCanais] = useState([]);
   const [novoSetor, setNovoSetor] = useState("");
   const [novoNumero, setNovoNumero] = useState("");
   const [copiado, setCopiado] = useState(false);
 
-  const obterTenantSeguro = () => {
-    if (typeof window === "undefined") return "";
-    try {
-      const raw = localStorage.getItem("@raizan:user");
-      if (raw) {
-        const u = JSON.parse(raw);
-        if (u.tenant_id) return u.tenant_id;
-        if (u.cnpj) return u.cnpj;
-      }
-    } catch (e) {}
-    return localStorage.getItem("@raizan:tenant") || "";
-  };
-
   const carregarResumo = useCallback(async () => {
     setLoading(true);
     try {
-      const tenantId = obterTenantSeguro();
-      const res = await fetch(`${getHubUrl()}/api/hub/catalogo-whatsapp/resumo`, {
-        headers: { ...getHeaders(), "x-tenant-id": tenantId }
-      });
+      const res = await fetch(`${ENDERECO}/resumo`, { headers: getHeaders() });
       const data = await res.json();
       if (data.success) {
         setDados(data);
         if (data.config) {
           setOcultarSemEstoque(Boolean(data.config.ocultar_sem_estoque));
-          if (Array.isArray(data.config.canais) && data.config.canais.length > 0) {
-            setCanais(data.config.canais);
-          }
+          setNomeLoja(data.config.nome_loja || "");
+          setSite(data.config.site || "");
+          setCanais(Array.isArray(data.config.canais) ? data.config.canais : []);
         }
       } else {
-        toast.error(data.message || "Erro ao carregar catálogo.");
+        toast.error(data.message || "Erro ao carregar o catálogo.");
       }
     } catch (err) {
       toast.error("Erro de conexão com o servidor.");
@@ -79,50 +91,36 @@ export default function CatalogoWhatsappPage() {
     carregarResumo();
   }, [carregarResumo]);
 
-  const linkAtivo = ocultarSemEstoque ? dados?.links?.apenas_em_estoque : dados?.links?.todos;
-
   const copiarLink = () => {
-    if (!linkAtivo) return;
-    navigator.clipboard.writeText(linkAtivo);
+    if (!dados?.link) return;
+    navigator.clipboard.writeText(dados.link);
     setCopiado(true);
-    toast.success("Link do Feed copiado!");
+    toast.success("Link copiado!");
     setTimeout(() => setCopiado(false), 3000);
   };
 
   const adicionarCanal = () => {
-    if (!novoSetor.trim() || !novoNumero.trim()) {
-      return toast.error("Preencha o nome do setor e o número do WhatsApp.");
+    const numero = novoNumero.replace(/\D/g, "");
+    if (!novoSetor.trim() || numero.length < 10) {
+      return toast.error("Preencha o setor e o número com DDI e DDD.");
     }
-    const novo = {
-      id: Date.now(),
-      setor: novoSetor.trim(),
-      numero: novoNumero.trim(),
-      status: "Conectado"
-    };
-    setCanais([...canais, novo]);
+    if (canais.some((c) => c.numero === numero)) return toast.error("Esse número já está na lista.");
+    setCanais([...canais, { setor: novoSetor.trim(), numero }]);
     setNovoSetor("");
     setNovoNumero("");
-  };
-
-  const removerCanal = (id) => {
-    setCanais(canais.filter((c) => c.id !== id));
   };
 
   const salvarConfiguracao = async () => {
     setSalvando(true);
     try {
-      const tenantId = obterTenantSeguro();
-      const res = await fetch(`${getHubUrl()}/api/hub/catalogo-whatsapp/config`, {
+      const res = await fetch(`${ENDERECO}/config`, {
         method: "POST",
-        headers: { ...getHeaders(), "Content-Type": "application/json", "x-tenant-id": tenantId },
-        body: JSON.stringify({
-          ocultar_sem_estoque: ocultarSemEstoque,
-          canais
-        })
+        headers: { ...getHeaders(), "Content-Type": "application/json" },
+        body: JSON.stringify({ nome_loja: nomeLoja, site, ocultar_sem_estoque: ocultarSemEstoque, canais }),
       });
       const data = await res.json();
       if (data.success) {
-        toast.success("Configurações do Catálogo WhatsApp salvas!");
+        toast.success("Catálogo salvo!");
         setModalConfigOpen(false);
         carregarResumo();
       } else {
@@ -135,16 +133,22 @@ export default function CatalogoWhatsappPage() {
     }
   };
 
-  const produtosFiltrados = (dados?.preview || []).filter((p) =>
-    (p.nome || "").toLowerCase().includes(busca.toLowerCase()) ||
-    (p.sku || "").toLowerCase().includes(busca.toLowerCase())
-  );
+  const produtosFiltrados = useMemo(() => {
+    const termo = busca.trim().toLowerCase();
+    return (dados?.preview || []).filter((p) => (
+      (p.nome || "").toLowerCase().includes(termo) || (p.sku || "").toLowerCase().includes(termo)
+    ));
+  }, [dados, busca]);
+
+  const estatisticas = dados?.estatisticas;
+  const noCatalogo = (estatisticas?.em_estoque || 0) + (dados?.config?.ocultar_sem_estoque ? 0 : (estatisticas?.sem_estoque || 0));
+  const foraDoCatalogo = (estatisticas?.sem_foto || 0) + (estatisticas?.sem_preco || 0);
+  const lido = Boolean(dados?.ultimo_acesso);
 
   return (
     <div className="flex h-screen bg-[#f5f5f7] dark:bg-[#09090b] text-zinc-900 dark:text-zinc-100 overflow-hidden antialiased">
       <Sidebar />
       <div className="flex-1 flex flex-col h-screen relative min-w-0">
-        {/* Glow de fundo estilo Apple */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
           <div className="absolute -top-40 left-1/4 w-[560px] h-[560px] rounded-full bg-emerald-500/10 dark:bg-emerald-500/[0.07] blur-[130px]" />
         </div>
@@ -154,149 +158,98 @@ export default function CatalogoWhatsappPage() {
         <main className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-6 lg:p-8 relative">
           <div className="max-w-5xl mx-auto space-y-6">
 
-            {loading ? (
+            {loading && !dados ? (
               <div className={`${CARD} min-h-[420px] flex items-center justify-center`}>
                 <Loader2 size={32} className="animate-spin text-emerald-500" />
               </div>
+            ) : !dados?.instalado ? (
+              <div className={`${CARD} p-10 sm:p-14 text-center`}>
+                <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-[20px] bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-[0_10px_24px_-8px_rgba(16,185,129,.65)]">
+                  <MessageCircle size={30} />
+                </span>
+                <h1 className="mt-5 text-2xl font-bold tracking-tight">Catálogo WhatsApp ainda não conectado</h1>
+                <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-zinc-500 dark:text-zinc-400">
+                  Instale o módulo em Integrações para gerar o link que a Meta usa para manter seu catálogo atualizado.
+                </p>
+                <Link href="/cadastros/integracoes" className={`${BUTTON_GREEN} mx-auto mt-6 w-fit`}>
+                  Ir para Integrações <ArrowRight size={16} />
+                </Link>
+              </div>
             ) : (
               <>
-                {/* ========================================================= */}
-                {/* 🟢 PAINEL CENTRAL DE DISTRIBUIÇÃO COMERCIAL (SEU LAYOUT) */}
-                {/* ========================================================= */}
                 <div className={`${CARD} p-6 sm:p-8 space-y-8`}>
-                  
-                  {/* Topo: Ícone + Título + Botão de Configuração da Integração */}
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="flex items-center gap-4">
                       <div className="w-14 h-14 shrink-0 rounded-[18px] bg-gradient-to-br from-emerald-400 to-emerald-600 text-white flex items-center justify-center shadow-[0_10px_24px_-8px_rgba(16,185,129,.65)]">
                         <MessageCircle size={28} />
                       </div>
                       <div>
-                        <div className="flex items-center gap-2.5">
-                          <h1 className="text-2xl sm:text-[26px] font-bold tracking-tight">Raizan Catálogo</h1>
-                          <span className="px-3 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                            Operacional
+                        <div className="flex flex-wrap items-center gap-2.5">
+                          <h1 className="text-2xl sm:text-[26px] font-bold tracking-tight">Catálogo WhatsApp</h1>
+                          <span className={`px-3 py-0.5 rounded-full text-xs font-semibold border ${lido ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20" : "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/20"}`}>
+                            {lido ? "Link em uso" : "Aguardando a Meta"}
                           </span>
                         </div>
-                        <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
-                          Central de distribuição comercial
-                        </p>
+                        <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">{dados.config?.nome_loja}</p>
                       </div>
                     </div>
 
                     <div className="flex items-center gap-2.5">
-                      <button onClick={carregarResumo} className={MUTED_BUTTON} title="Atualizar dados">
-                        <RefreshCw size={16} />
+                      <button onClick={carregarResumo} className={MUTED_BUTTON} title="Atualizar dados" aria-label="Atualizar dados">
+                        <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
                       </button>
                       <button onClick={() => setModalConfigOpen(true)} className={BUTTON_GREEN}>
-                        <Settings2 size={17} /> Configurar Integração
+                        <Settings2 size={17} /> Configurar
                       </button>
                     </div>
                   </div>
 
-                  {/* Grid 2x2 de Métricas Limpas */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-8 gap-x-12 pt-2">
-                    <div>
-                      <p className="text-sm text-zinc-500 dark:text-zinc-400">Produtos no catálogo</p>
-                      <p className="text-4xl font-bold tracking-tight mt-1.5 tabular-nums">
-                        {Number(dados?.estatisticas?.em_estoque || 0).toLocaleString("pt-BR")}
-                      </p>
-                      <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 mt-2">
-                        Produtos sincronizados
-                      </p>
-                    </div>
-
-                    <div>
-                      <p className="text-sm text-zinc-500 dark:text-zinc-400">Números conectados</p>
-                      <p className="text-4xl font-bold tracking-tight mt-1.5 tabular-nums">
-                        {canais.length}
-                      </p>
-                      <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 mt-2">
-                        {canais.length} {canais.length === 1 ? "canal ativo" : "canais ativos"}
-                      </p>
-                    </div>
-
-                    <div>
-                      <p className="text-sm text-zinc-500 dark:text-zinc-400">Última sincronização</p>
-                      <p className="text-2xl font-bold tracking-tight mt-1.5">
-                        {dados?.estatisticas?.ultima_sync_label || "Tempo real"}
-                      </p>
-                      <p className="text-xs text-zinc-400 mt-1">
-                        Feed automático via ERP
-                      </p>
-                    </div>
-
-                    <div>
-                      <p className="text-sm text-zinc-500 dark:text-zinc-400">Produtos indisponíveis</p>
-                      <p className="text-4xl font-bold tracking-tight mt-1.5 tabular-nums">
-                        {Number(dados?.estatisticas?.sem_estoque || 0).toLocaleString("pt-BR")}
-                      </p>
-                      <p className="text-xs text-zinc-400 mt-2">
-                        Sem estoque
-                      </p>
-                    </div>
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-y-8 gap-x-8">
+                    <Metrica rotulo="No catálogo" valor={formatarInteiro(noCatalogo)} detalhe="Enviados no link" tom="text-emerald-600 dark:text-emerald-400" />
+                    <Metrica rotulo="Sem estoque" valor={formatarInteiro(estatisticas?.sem_estoque)} detalhe={dados.config?.ocultar_sem_estoque ? "Ocultos do catálogo" : "Aparecem como esgotados"} />
+                    <Metrica rotulo="Fora do catálogo" valor={formatarInteiro(foraDoCatalogo)} detalhe={`${formatarInteiro(estatisticas?.sem_foto)} sem foto, ${formatarInteiro(estatisticas?.sem_preco)} sem preço`} tom={foraDoCatalogo > 0 ? "text-amber-600 dark:text-amber-400" : "text-zinc-400"} />
+                    <Metrica rotulo="Último acesso ao link" valor={<span className="text-xl">{formatarAcesso(dados.ultimo_acesso)}</span>} detalhe="Conta qualquer leitura do link" />
                   </div>
 
-                  {/* Seção: Distribuição do Catálogo (Multi-Números) */}
-                  <div className="space-y-3 pt-2">
-                    <h2 className="text-lg font-bold tracking-tight">Distribuição do catálogo</h2>
+                  <div className="space-y-3">
+                    <h2 className="text-lg font-bold tracking-tight">Números de WhatsApp</h2>
 
-                    <div className="rounded-[24px] border border-black/[0.06] dark:border-white/[0.08] bg-black/[0.02] dark:bg-white/[0.02] p-5 sm:p-6 space-y-5">
-                      <div className="flex items-center justify-between">
-                        <span className="text-base font-bold">WhatsApp Business</span>
-                        <span className="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
-                          Ativo
-                        </span>
-                      </div>
-
-                      <div className="divide-y divide-black/[0.05] dark:divide-white/[0.06]">
-                        {canais.map((canal) => (
-                          <div key={canal.id} className="py-3.5 first:pt-1 last:pb-1 flex items-center justify-between gap-4">
-                            <div className="flex items-center gap-3.5">
+                    <div className="rounded-[24px] border border-black/[0.06] dark:border-white/[0.08] bg-black/[0.02] dark:bg-white/[0.02] p-5 sm:p-6">
+                      {canais.length === 0 ? (
+                        <p className="text-sm text-zinc-500 dark:text-zinc-400">Nenhum número cadastrado. Adicione os números da equipe em Configurar.</p>
+                      ) : (
+                        <div className="divide-y divide-black/[0.05] dark:divide-white/[0.06]">
+                          {canais.map((canal) => (
+                            <div key={canal.numero} className="py-3.5 first:pt-0 last:pb-0 flex items-center gap-3.5">
                               <div className="w-9 h-9 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0">
                                 <MessageCircle size={18} />
                               </div>
                               <div>
                                 <p className="font-bold text-sm sm:text-base leading-tight">{canal.setor}</p>
-                                <p className="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 tabular-nums mt-0.5">
-                                  {canal.numero}
-                                </p>
+                                <p className="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 tabular-nums mt-0.5">{formatarNumero(canal.numero)}</p>
                               </div>
                             </div>
+                          ))}
+                        </div>
+                      )}
 
-                            <span className="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
-                              {canal.status || "Conectado"}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-
-                      <div className="pt-4 border-t border-black/[0.06] dark:border-white/[0.07] flex items-center justify-between text-xs sm:text-sm text-zinc-500 dark:text-zinc-400">
-                        <span>Um catálogo compartilhado entre os canais</span>
-                        <CheckCircle2 size={18} className="text-emerald-500 shrink-0" />
-                      </div>
+                      <p className="mt-4 flex items-start gap-2 border-t border-black/[0.06] pt-4 text-xs leading-relaxed text-zinc-500 dark:border-white/[0.07] dark:text-zinc-400">
+                        <Info size={15} className="mt-px shrink-0" aria-hidden />
+                        Esta lista é um cadastro interno. O número passa a mostrar o catálogo quando está na conta do WhatsApp Business ligada a ele na Meta.
+                      </p>
                     </div>
                   </div>
-
                 </div>
 
-                {/* ========================================================= */}
-                {/* 📦 VITRINE DE PRODUTOS ATIVOS NO CATÁLOGO */}
-                {/* ========================================================= */}
                 <div className={`${CARD} overflow-hidden`}>
                   <div className="p-5 sm:p-6 border-b border-black/[0.06] dark:border-white/[0.07] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div>
-                      <h3 className="font-bold text-base">Produtos Transmitidos para os Canais</h3>
-                      <p className="text-xs text-zinc-500 mt-0.5">Itens sincronizados automaticamente com os números conectados</p>
+                      <h3 className="font-bold text-base">Produtos no link</h3>
+                      <p className="text-xs text-zinc-500 mt-0.5">O que a Meta recebe ao ler o catálogo</p>
                     </div>
                     <div className="relative sm:w-64">
                       <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400" />
-                      <input
-                        value={busca}
-                        onChange={(e) => setBusca(e.target.value)}
-                        placeholder="Buscar SKU ou produto..."
-                        className={`${FIELD} pl-10 h-10`}
-                      />
+                      <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar SKU ou produto..." aria-label="Buscar produto" className={`${FIELD} pl-10 h-10`} />
                     </div>
                   </div>
                   <div className="overflow-x-auto">
@@ -306,35 +259,35 @@ export default function CatalogoWhatsappPage() {
                           <th className="px-5 py-3.5">Item</th>
                           <th className="px-5 py-3.5">SKU</th>
                           <th className="px-5 py-3.5">Marca</th>
-                          <th className="px-5 py-3.5 text-right">Preço Catálogo</th>
+                          <th className="px-5 py-3.5 text-right">Preço</th>
                           <th className="px-5 py-3.5 text-center">Disponibilidade</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-black/[0.05] dark:divide-white/[0.05]">
-                        {produtosFiltrados.map((item) => (
+                        {produtosFiltrados.slice(0, LIMITE_DA_LISTA).map((item) => (
                           <tr key={item.id} className="hover:bg-black/[0.02] dark:hover:bg-white/[0.02]">
                             <td className="px-5 py-3 flex items-center gap-3">
-                              <img src={item.imagem} alt={item.nome} className="w-10 h-10 rounded-xl object-cover border border-black/10 bg-white shrink-0" />
+                              <img src={item.imagem} alt="" loading="lazy" className="w-10 h-10 rounded-xl object-cover border border-black/10 bg-white shrink-0" />
                               <span className="font-semibold line-clamp-1">{item.nome}</span>
                             </td>
                             <td className="px-5 py-3 font-mono text-xs text-zinc-500">{item.sku}</td>
                             <td className="px-5 py-3 text-zinc-500">{item.marca}</td>
-                            <td className="px-5 py-3 text-right font-bold tabular-nums text-emerald-600 dark:text-emerald-400">
-                              {formatarMoeda(item.preco)}
-                            </td>
+                            <td className="px-5 py-3 text-right font-bold tabular-nums text-emerald-600 dark:text-emerald-400">{formatarMoeda(item.preco)}</td>
                             <td className="px-5 py-3 text-center">
-                              <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold ${
-                                item.disponivel
-                                  ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
-                                  : "bg-zinc-500/15 text-zinc-500"
-                              }`}>
-                                {item.disponivel ? `${item.estoque} em estoque` : "Sem estoque"}
+                              <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold ${item.disponivel ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" : "bg-zinc-500/15 text-zinc-500"}`}>
+                                {item.disponivel ? `${formatarInteiro(item.estoque)} em estoque` : "Sem estoque"}
                               </span>
                             </td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
+                    {produtosFiltrados.length === 0 && <p className="p-10 text-center text-sm text-zinc-500">Nenhum produto encontrado.</p>}
+                    {produtosFiltrados.length > LIMITE_DA_LISTA && (
+                      <p className="p-4 text-center text-xs text-zinc-500">
+                        Mostrando {LIMITE_DA_LISTA} de {formatarInteiro(produtosFiltrados.length)}. Use a busca para achar um produto.
+                      </p>
+                    )}
                   </div>
                 </div>
               </>
@@ -344,85 +297,62 @@ export default function CatalogoWhatsappPage() {
         </main>
       </div>
 
-      {/* ========================================================= */}
-      {/* ⚙️ MODAL DE CONFIGURAÇÃO DA INTEGRAÇÃO (TODA A PARTE TÉCNICA AQUI) */}
-      {/* ========================================================= */}
       {modalConfigOpen && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
-          <div className={`${PANEL} rounded-[30px] w-full max-w-2xl overflow-hidden max-h-[90vh] flex flex-col`}>
+          <div role="dialog" aria-modal="true" aria-label="Configurar catálogo" className={`${PANEL} rounded-[30px] w-full max-w-2xl overflow-hidden max-h-[90vh] flex flex-col`}>
             <div className="px-7 pt-6 pb-4 border-b border-black/[0.06] dark:border-white/[0.08] flex items-center justify-between">
               <div>
-                <h2 className="text-xl font-bold">Configuração do Módulo WhatsApp Catálogo</h2>
-                <p className="text-xs text-zinc-500 mt-1">
-                  Gerencie o link de sincronização da Meta (WABA) e os números comerciais conectados.
-                </p>
+                <h2 className="text-xl font-bold">Configurar catálogo</h2>
+                <p className="text-xs text-zinc-500 mt-1">Link da Meta, dados da loja e números da equipe.</p>
               </div>
-              <button
-                onClick={() => setModalConfigOpen(false)}
-                className="w-9 h-9 rounded-full bg-black/[0.05] dark:bg-white/[0.08] flex items-center justify-center"
-              >
+              <button onClick={() => setModalConfigOpen(false)} aria-label="Fechar" className="w-9 h-9 rounded-full bg-black/[0.05] dark:bg-white/[0.08] flex items-center justify-center">
                 <X size={17} />
               </button>
             </div>
 
-            <div className="p-7 space-y-6 overflow-y-auto custom-scrollbar">
-              {/* 1. Link do Feed Único */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold uppercase tracking-wider text-zinc-400">
-                    1. Link do Feed Dinâmico (Meta Commerce Manager)
-                  </label>
-                  {linkAtivo && (
-                    <a href={linkAtivo} target="_blank" rel="noreferrer" className="text-xs font-semibold text-emerald-500 hover:underline flex items-center gap-1">
-                      <Download size={13} /> Testar arquivo CSV
-                    </a>
-                  )}
+            <div className="p-7 space-y-7 overflow-y-auto custom-scrollbar">
+              <section className="space-y-3">
+                <div className="flex items-center justify-between gap-4">
+                  <h3 className="text-sm font-bold">Link do catálogo</h3>
+                  <a href={dados?.link} target="_blank" rel="noreferrer" className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1">
+                    <Download size={13} /> Testar arquivo
+                  </a>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-2">
-                  <input
-                    type="text"
-                    readOnly
-                    value={linkAtivo || ""}
-                    className={`${FIELD} flex-1 font-mono text-xs`}
-                  />
+                  <input type="text" readOnly value={dados?.link || ""} aria-label="Link do catálogo" className={`${FIELD} flex-1 font-mono text-xs`} />
                   <button type="button" onClick={copiarLink} className={BUTTON_GREEN}>
                     {copiado ? <Check size={16} /> : <Copy size={16} />}
-                    {copiado ? "Copiado!" : "Copiar URL"}
+                    {copiado ? "Copiado!" : "Copiar"}
                   </button>
                 </div>
-                <label className="flex items-center gap-2.5 text-sm text-zinc-600 dark:text-zinc-300 pt-1 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={ocultarSemEstoque}
-                    onChange={(e) => setOcultarSemEstoque(e.target.checked)}
-                    className="accent-emerald-500 w-4 h-4"
-                  />
-                  Ocultar automaticamente produtos zerados (enviar apenas disponíveis em estoque)
-                </label>
-              </div>
+                <p className="text-xs text-zinc-500">Trate este link como uma senha: quem tiver ele consegue ver os produtos e preços enviados.</p>
+                <ol className="space-y-2 pt-1">
+                  {PASSOS_META.map((passo, indice) => (
+                    <li key={passo} className="flex gap-2.5 text-xs leading-relaxed text-zinc-600 dark:text-zinc-300">
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-[11px] font-bold text-emerald-700 dark:text-emerald-300">{indice + 1}</span>
+                      {passo}
+                    </li>
+                  ))}
+                </ol>
+              </section>
 
-              {/* 2. Cadastro de Múltiplos Números (Canais que compartilham o catálogo) */}
-              <div className="space-y-3 pt-2 border-t border-black/[0.06] dark:border-white/[0.08]">
-                <label className="text-xs font-bold uppercase tracking-wider text-zinc-400 block">
-                  2. Números de WhatsApp Conectados ao Catálogo
+              <section className="space-y-3 border-t border-black/[0.06] pt-6 dark:border-white/[0.08]">
+                <h3 className="text-sm font-bold">Dados da loja</h3>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <input value={nomeLoja} onChange={(e) => setNomeLoja(e.target.value)} placeholder="Nome da loja" aria-label="Nome da loja" className={FIELD} />
+                  <input value={site} onChange={(e) => setSite(e.target.value)} placeholder="www.sualoja.com.br" aria-label="Site da loja" className={FIELD} />
+                </div>
+                <label className="flex items-center gap-2.5 text-sm text-zinc-600 dark:text-zinc-300 cursor-pointer">
+                  <input type="checkbox" checked={ocultarSemEstoque} onChange={(e) => setOcultarSemEstoque(e.target.checked)} className="accent-emerald-500 w-4 h-4" />
+                  Tirar do catálogo os produtos sem estoque
                 </label>
-                <p className="text-xs text-zinc-500">
-                  No Gerenciador de Negócios da Meta (WhatsApp Manager), todos os números da mesma conta empresarial podem compartilhar este único catálogo simultaneamente.
-                </p>
+              </section>
 
+              <section className="space-y-3 border-t border-black/[0.06] pt-6 dark:border-white/[0.08]">
+                <h3 className="text-sm font-bold">Números da equipe</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-5 gap-2">
-                  <input
-                    value={novoSetor}
-                    onChange={(e) => setNovoSetor(e.target.value)}
-                    placeholder="Setor (Ex: Televendas)"
-                    className={`${FIELD} sm:col-span-2`}
-                  />
-                  <input
-                    value={novoNumero}
-                    onChange={(e) => setNovoNumero(e.target.value)}
-                    placeholder="+55 62 99999-0000"
-                    className={`${FIELD} sm:col-span-2`}
-                  />
+                  <input value={novoSetor} onChange={(e) => setNovoSetor(e.target.value)} placeholder="Setor (ex: Televendas)" aria-label="Setor" className={`${FIELD} sm:col-span-2`} />
+                  <input value={novoNumero} onChange={(e) => setNovoNumero(e.target.value)} placeholder="+55 62 99999-0000" aria-label="Número" className={`${FIELD} sm:col-span-2`} />
                   <button type="button" onClick={adicionarCanal} className={MUTED_BUTTON}>
                     <Plus size={16} /> Adicionar
                   </button>
@@ -430,37 +360,28 @@ export default function CatalogoWhatsappPage() {
 
                 <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
                   {canais.map((c) => (
-                    <div
-                      key={c.id}
-                      className="flex items-center justify-between p-3 rounded-2xl bg-black/[0.03] dark:bg-white/[0.04] border border-black/[0.05] dark:border-white/[0.06]"
-                    >
+                    <div key={c.numero} className="flex items-center justify-between p-3 rounded-2xl bg-black/[0.03] dark:bg-white/[0.04] border border-black/[0.05] dark:border-white/[0.06]">
                       <div className="flex items-center gap-3">
                         <PhoneCall size={15} className="text-emerald-500" />
                         <div>
                           <p className="text-sm font-bold">{c.setor}</p>
-                          <p className="text-xs text-zinc-500 tabular-nums">{c.numero}</p>
+                          <p className="text-xs text-zinc-500 tabular-nums">{formatarNumero(c.numero)}</p>
                         </div>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => removerCanal(c.id)}
-                        className="text-zinc-400 hover:text-rose-500 p-1.5"
-                      >
+                      <button type="button" onClick={() => setCanais(canais.filter((item) => item.numero !== c.numero))} aria-label={`Remover ${c.setor}`} className="text-zinc-400 hover:text-rose-500 p-1.5">
                         <Trash2 size={16} />
                       </button>
                     </div>
                   ))}
                 </div>
-              </div>
+              </section>
             </div>
 
             <div className="px-7 py-4 border-t border-black/[0.06] dark:border-white/[0.08] flex justify-end gap-3">
-              <button type="button" onClick={() => setModalConfigOpen(false)} className={MUTED_BUTTON}>
-                Fechar
-              </button>
+              <button type="button" onClick={() => setModalConfigOpen(false)} className={MUTED_BUTTON}>Fechar</button>
               <button type="button" onClick={salvarConfiguracao} disabled={salvando} className={BUTTON_GREEN}>
-                {salvando ? <Loader2 size={16} className="animate-spin" /> : null}
-                Salvar Configuração
+                {salvando && <Loader2 size={16} className="animate-spin" />}
+                Salvar
               </button>
             </div>
           </div>

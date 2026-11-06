@@ -6,7 +6,7 @@ import Header from "@/components/Header";
 import {
   Plug, Plus, Globe, Settings, Pencil, Trash2,
   CheckCircle2, RefreshCw, Loader2, Store, Database,
-  Server, AlertTriangle, CreditCard, Truck, X, Mail, MessageCircle
+  Server, AlertTriangle, CreditCard, Truck, X, Mail, MessageCircle, ShoppingBag
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -21,6 +21,8 @@ import FormTiny from "@/components/integracoes/FormTiny";
 import EditarOmie from "@/components/integracoes/EditarOmie";
 import FormEmailBusiness from "@/components/integracoes/FormEmailBusiness";
 import FormWhatsappWeb from "@/components/integracoes/FormWhatsappWeb";
+import FormCatalogoWhatsapp from "@/components/integracoes/FormCatalogoWhatsapp";
+import { getHeaders, getHubUrl } from "@/components/utils/api";
 import { encerrarAplicacao } from "@/components/apps/aplicacoes";
 import { buscarAppsIntegrados, lerAppsGuardados, salvarAppIntegrado } from "@/components/apps/appsIntegrados";
 
@@ -182,7 +184,7 @@ const TituloSecao = ({ icon: Icon, children, topo = false }) => (
 );
 
 // Cartão de WhatsApp e E-mail: abrem dentro do Core e não têm sincronização
-const CartaoAppConectado = ({ logo, titulo, detalhe, luz, onEditar, onDesconectar }) => (
+const CartaoAppConectado = ({ logo, titulo, detalhe, luz, rotuloEditar = "Editar", onEditar, onDesconectar }) => (
   <div className={`${CARD} relative flex min-h-[220px] flex-col justify-between overflow-hidden p-6 transition-shadow hover:shadow-xl`}>
     <div className={`pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full blur-3xl ${luz}`} />
     <div className="relative flex items-start justify-between">
@@ -196,7 +198,7 @@ const CartaoAppConectado = ({ logo, titulo, detalhe, luz, onEditar, onDesconecta
     <div className="relative mt-auto flex w-full gap-2">
       {onEditar && (
         <button onClick={(e) => { e.stopPropagation(); onEditar(); }} className={`${PILULA_BASE} flex-1 border border-black/[0.06] bg-black/[0.04] py-2.5 text-xs text-zinc-700 hover:bg-black/[0.07] dark:border-white/[0.08] dark:bg-white/[0.07] dark:text-zinc-200 dark:hover:bg-white/[0.12]`}>
-          <Pencil size={14} /> Editar
+          <Pencil size={14} /> {rotuloEditar}
         </button>
       )}
       <button onClick={(e) => { e.stopPropagation(); onDesconectar(); }} aria-label={`Desconectar ${titulo}`} className={`${PILULA_BASE} ${onEditar ? "px-4" : "w-full"} border border-red-500/20 bg-red-500/10 py-2.5 text-xs text-red-600 hover:bg-red-500/20 dark:text-red-400`}>
@@ -224,6 +226,7 @@ export default function IntegracoesPage() {
   // 🟢 ESTADO PARA CONTROLAR A EDIÇÃO
   const [editandoInt, setEditandoInt] = useState(null);
   const [appsConectados, setAppsConectados] = useState({});
+  const [catalogoWhatsapp, setCatalogoWhatsapp] = useState(null);
 
   const pegarCnpjLogado = () => {
     if (typeof window !== "undefined") {
@@ -253,6 +256,11 @@ export default function IntegracoesPage() {
 
     setAppsConectados(lerAppsGuardados());
     buscarAppsIntegrados().then(setAppsConectados).catch(() => {});
+
+    fetch(`${getHubUrl()}/api/hub/catalogo-whatsapp/config`, { headers: getHeaders() })
+      .then((resposta) => resposta.json())
+      .then((dados) => { if (dados.success) setCatalogoWhatsapp(dados.config); })
+      .catch(() => {});
 
     try {
       const [resInt, resConf] = await Promise.all([
@@ -373,6 +381,20 @@ export default function IntegracoesPage() {
 
   const confirmarExclusao = async () => {
     if (!integracaoParaDeletar) return;
+
+    if (integracaoParaDeletar.catalogo) {
+      try {
+        const resposta = await fetch(`${getHubUrl()}/api/hub/catalogo-whatsapp/config`, { method: "DELETE", headers: getHeaders() });
+        const dados = await resposta.json();
+        if (!dados.success) throw new Error(dados.message);
+        setCatalogoWhatsapp(null);
+        toast.success("Catálogo desconectado. O link antigo parou de funcionar.");
+      } catch (error) {
+        toast.error("Não foi possível desconectar. Tente de novo.");
+      }
+      setIntegracaoParaDeletar(null);
+      return;
+    }
 
     if (integracaoParaDeletar.app) {
       const { app } = integracaoParaDeletar;
@@ -546,6 +568,16 @@ export default function IntegracoesPage() {
                       />
                     )}
 
+                    {catalogoWhatsapp && (
+                      <CartaoAppConectado
+                        logo={<Tile icon={ShoppingBag} cor="emerald" size={48} />}
+                        titulo="Catálogo WhatsApp" detalhe={catalogoWhatsapp.nome_loja} luz="bg-emerald-500/10"
+                        rotuloEditar="Abrir painel"
+                        onEditar={() => { window.location.href = "/ads/whatsapp"; }}
+                        onDesconectar={() => setIntegracaoParaDeletar({ catalogo: true, nome_integracao: "Catálogo WhatsApp" })}
+                      />
+                    )}
+
                     {/* Cartões: integrações ativas */}
                     {integracoesAtivas.map(int => {
                       const semSync = int.plataforma === "mercadopago" || int.plataforma === "portal_b2b";
@@ -696,6 +728,14 @@ export default function IntegracoesPage() {
                             onClick={(e) => { e.stopPropagation(); setInstalando("email"); }}
                           />
                           <CartaoCatalogo
+                            cor="emerald" selo={catalogoWhatsapp ? "Conectado" : "Novo"}
+                            icone={<Tile icon={ShoppingBag} cor="emerald" size={44} />}
+                            titulo="Catálogo WhatsApp" descricao="Seus produtos na Meta, atualizados por link."
+                            textoBotao={catalogoWhatsapp ? "Abrir painel" : "Instalar"}
+                            suave={Boolean(catalogoWhatsapp)}
+                            onClick={(e) => { e.stopPropagation(); if (catalogoWhatsapp) window.location.href = "/ads/whatsapp"; else setInstalando("catalogo_whatsapp"); }}
+                          />
+                          <CartaoCatalogo
                             cor="emerald" selo={appsConectados.whatsapp ? "Conectado" : "Novo"}
                             icone={<span className="flex h-11 w-11 items-center justify-center rounded-[13px] bg-white p-2 ring-1 ring-black/5"><img src="/whatsapp.svg" alt="WhatsApp" className="h-full w-full object-contain" /></span>}
                             titulo="WhatsApp Web" descricao="Conversas abertas enquanto você trabalha."
@@ -792,6 +832,13 @@ export default function IntegracoesPage() {
                 {instalando === "tiny" && <FormTiny onCancel={() => setInstalando("catalogo")} onSuccess={handleSuccess} />}
                 {instalando === "email" && <FormEmailBusiness atual={appsConectados.email} onCancel={() => setInstalando(appsConectados.email ? null : "catalogo")} onSuccess={handleSuccess} />}
                 {instalando === "whatsapp" && <FormWhatsappWeb onCancel={() => setInstalando("catalogo")} onSuccess={handleSuccess} />}
+                {instalando === "catalogo_whatsapp" && (
+                  <FormCatalogoWhatsapp
+                    siteInicial={integracoesAtivas.find((int) => int.plataforma === "portal_b2b")?.url_loja || ""}
+                    onCancel={() => setInstalando("catalogo")}
+                    onSuccess={() => { window.location.href = "/ads/whatsapp"; }}
+                  />
+                )}
 
               </>
             )}

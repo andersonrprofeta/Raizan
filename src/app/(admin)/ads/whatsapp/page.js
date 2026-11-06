@@ -1,13 +1,13 @@
 "use client";
 
-import React, { useEffect, useMemo, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import { getHubUrl, getHeaders } from "@/components/utils/api";
 import {
   MessageCircle, Copy, RefreshCw, Settings2, Plus, Trash2, Check, Download,
-  Loader2, X, Search, PhoneCall, ArrowRight, Info
+  Loader2, X, Search, PhoneCall, ArrowRight, Info, ChevronLeft, ChevronRight, ExternalLink
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -18,13 +18,19 @@ const BUTTON_GREEN = "h-11 px-5 rounded-full bg-gradient-to-b from-emerald-500 t
 const MUTED_BUTTON = "h-11 px-4 rounded-full bg-black/[0.05] hover:bg-black/[0.08] dark:bg-white/[0.07] dark:hover:bg-white/[0.12] text-zinc-700 dark:text-zinc-200 text-sm font-semibold flex items-center justify-center gap-2 transition-all active:scale-95";
 
 const ENDERECO = `${getHubUrl()}/api/hub/catalogo-whatsapp`;
-const LIMITE_DA_LISTA = 200;
+const ESPERA_DA_BUSCA_MS = 350;
 
 const PASSOS_META = [
-  "No Gerenciador de Comércio da Meta, crie um catálogo de e-commerce ou abra o que já existe.",
-  "Em Fontes de dados, adicione uma lista de dados por URL agendada e cole o link acima.",
-  "Escolha a atualização mais frequente disponível e aguarde a primeira leitura.",
-  "No WhatsApp Manager, conecte esse catálogo à conta do WhatsApp Business que tem os números.",
+  {
+    texto: "Abra o Gerenciador de Comércio, entre com a conta que administra a empresa e crie um catálogo de e-commerce. Se já tiver um, é só abrir.",
+    link: { rotulo: "Abrir Gerenciador de Comércio", url: "https://business.facebook.com/commerce/" },
+  },
+  { texto: "No catálogo, vá em Fontes de dados, escolha adicionar por link agendado e cole o link que está acima." },
+  { texto: "Escolha a atualização mais frequente disponível e aguarde a primeira leitura. O status no topo desta tela muda quando o link for acessado." },
+  {
+    texto: "Abra o WhatsApp Manager, entre na área de Catálogo e conecte esse catálogo à conta que tem os números da equipe.",
+    link: { rotulo: "Abrir WhatsApp Manager", url: "https://business.facebook.com/wa/manage/home/" },
+  },
 ];
 
 const formatarMoeda = (v) => Number(v || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -55,6 +61,10 @@ export default function CatalogoWhatsappPage() {
   const [salvando, setSalvando] = useState(false);
   const [dados, setDados] = useState(null);
   const [busca, setBusca] = useState("");
+  const [buscaAplicada, setBuscaAplicada] = useState("");
+  const [pagina, setPagina] = useState(1);
+  const [lista, setLista] = useState({ produtos: [], pagina: 1, paginas: 1, total: 0 });
+  const [carregandoLista, setCarregandoLista] = useState(false);
   const [modalConfigOpen, setModalConfigOpen] = useState(false);
   const [ocultarSemEstoque, setOcultarSemEstoque] = useState(true);
   const [nomeLoja, setNomeLoja] = useState("");
@@ -90,6 +100,37 @@ export default function CatalogoWhatsappPage() {
   useEffect(() => {
     carregarResumo();
   }, [carregarResumo]);
+
+  useEffect(() => {
+    const espera = setTimeout(() => {
+      setBuscaAplicada(busca.trim());
+      setPagina(1);
+    }, ESPERA_DA_BUSCA_MS);
+    return () => clearTimeout(espera);
+  }, [busca]);
+
+  const instalado = Boolean(dados?.instalado);
+
+  useEffect(() => {
+    if (!instalado) return undefined;
+    let cancelado = false;
+
+    (async () => {
+      setCarregandoLista(true);
+      try {
+        const parametros = new URLSearchParams({ pagina: String(pagina), busca: buscaAplicada });
+        const res = await fetch(`${ENDERECO}/produtos?${parametros}`, { headers: getHeaders() });
+        const data = await res.json();
+        if (!cancelado && data.success) setLista(data);
+      } catch (err) {
+        if (!cancelado) toast.error("Erro ao carregar os produtos.");
+      } finally {
+        if (!cancelado) setCarregandoLista(false);
+      }
+    })();
+
+    return () => { cancelado = true; };
+  }, [instalado, pagina, buscaAplicada, dados]);
 
   const copiarLink = () => {
     if (!dados?.link) return;
@@ -132,13 +173,6 @@ export default function CatalogoWhatsappPage() {
       setSalvando(false);
     }
   };
-
-  const produtosFiltrados = useMemo(() => {
-    const termo = busca.trim().toLowerCase();
-    return (dados?.preview || []).filter((p) => (
-      (p.nome || "").toLowerCase().includes(termo) || (p.sku || "").toLowerCase().includes(termo)
-    ));
-  }, [dados, busca]);
 
   const estatisticas = dados?.estatisticas;
   const noCatalogo = (estatisticas?.em_estoque || 0) + (dados?.config?.ocultar_sem_estoque ? 0 : (estatisticas?.sem_estoque || 0));
@@ -245,14 +279,14 @@ export default function CatalogoWhatsappPage() {
                   <div className="p-5 sm:p-6 border-b border-black/[0.06] dark:border-white/[0.07] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div>
                       <h3 className="font-bold text-base">Produtos no link</h3>
-                      <p className="text-xs text-zinc-500 mt-0.5">O que a Meta recebe ao ler o catálogo</p>
+                      <p className="text-xs text-zinc-500 mt-0.5">{formatarInteiro(lista.total)} {lista.total === 1 ? "produto" : "produtos"} que a Meta recebe ao ler o catálogo</p>
                     </div>
                     <div className="relative sm:w-64">
                       <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400" />
                       <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar SKU ou produto..." aria-label="Buscar produto" className={`${FIELD} pl-10 h-10`} />
                     </div>
                   </div>
-                  <div className="overflow-x-auto">
+                  <div className={`overflow-x-auto transition-opacity ${carregandoLista ? "opacity-60" : ""}`}>
                     <table className="w-full text-sm text-left">
                       <thead className="text-xs font-semibold text-zinc-500 border-b border-black/[0.06] dark:border-white/[0.07]">
                         <tr>
@@ -264,7 +298,7 @@ export default function CatalogoWhatsappPage() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-black/[0.05] dark:divide-white/[0.05]">
-                        {produtosFiltrados.slice(0, LIMITE_DA_LISTA).map((item) => (
+                        {lista.produtos.map((item) => (
                           <tr key={item.id} className="hover:bg-black/[0.02] dark:hover:bg-white/[0.02]">
                             <td className="px-5 py-3 flex items-center gap-3">
                               <img src={item.imagem} alt="" loading="lazy" className="w-10 h-10 rounded-xl object-cover border border-black/10 bg-white shrink-0" />
@@ -282,13 +316,19 @@ export default function CatalogoWhatsappPage() {
                         ))}
                       </tbody>
                     </table>
-                    {produtosFiltrados.length === 0 && <p className="p-10 text-center text-sm text-zinc-500">Nenhum produto encontrado.</p>}
-                    {produtosFiltrados.length > LIMITE_DA_LISTA && (
-                      <p className="p-4 text-center text-xs text-zinc-500">
-                        Mostrando {LIMITE_DA_LISTA} de {formatarInteiro(produtosFiltrados.length)}. Use a busca para achar um produto.
-                      </p>
-                    )}
+                    {!carregandoLista && lista.produtos.length === 0 && <p className="p-10 text-center text-sm text-zinc-500">Nenhum produto encontrado.</p>}
                   </div>
+                  {lista.paginas > 1 && (
+                    <div className="flex items-center justify-between gap-3 border-t border-black/[0.06] p-4 dark:border-white/[0.07]">
+                      <button type="button" onClick={() => setPagina(lista.pagina - 1)} disabled={lista.pagina <= 1 || carregandoLista} className={`${MUTED_BUTTON} h-10 disabled:opacity-40`}>
+                        <ChevronLeft size={16} /> Anterior
+                      </button>
+                      <span className="text-sm text-zinc-500 tabular-nums">Página {lista.pagina} de {lista.paginas}</span>
+                      <button type="button" onClick={() => setPagina(lista.pagina + 1)} disabled={lista.pagina >= lista.paginas || carregandoLista} className={`${MUTED_BUTTON} h-10 disabled:opacity-40`}>
+                        Próxima <ChevronRight size={16} />
+                      </button>
+                    </div>
+                  )}
                 </div>
               </>
             )}
@@ -326,11 +366,18 @@ export default function CatalogoWhatsappPage() {
                   </button>
                 </div>
                 <p className="text-xs text-zinc-500">Trate este link como uma senha: quem tiver ele consegue ver os produtos e preços enviados.</p>
-                <ol className="space-y-2 pt-1">
-                  {PASSOS_META.map((passo, indice) => (
-                    <li key={passo} className="flex gap-2.5 text-xs leading-relaxed text-zinc-600 dark:text-zinc-300">
+                <ol className="space-y-3 pt-1">
+                  {PASSOS_META.map(({ texto, link }, indice) => (
+                    <li key={texto} className="flex gap-2.5 text-xs leading-relaxed text-zinc-600 dark:text-zinc-300">
                       <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-[11px] font-bold text-emerald-700 dark:text-emerald-300">{indice + 1}</span>
-                      {passo}
+                      <div>
+                        {texto}
+                        {link && (
+                          <a href={link.url} target="_blank" rel="noreferrer" className="mt-2 flex h-9 w-fit items-center gap-1.5 rounded-full bg-emerald-500/15 px-3.5 text-xs font-semibold text-emerald-700 transition-colors hover:bg-emerald-500/25 dark:text-emerald-300">
+                            {link.rotulo} <ExternalLink size={13} aria-hidden />
+                          </a>
+                        )}
+                      </div>
                     </li>
                   ))}
                 </ol>

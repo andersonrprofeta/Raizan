@@ -4,21 +4,28 @@ import { useEffect, useState, useRef } from "react";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import { getApiUrl, getTenantId } from "@/components/utils/api";
-import { lerUsuario, renovarSessao } from "@/components/utils/sessaoCore";
+import { lerUsuario, renovarSessao, temPermissao } from "@/components/utils/sessaoCore";
+import GestaoUsuarios from "@/components/usuarios/GestaoUsuarios";
+import { Segmentado } from "@/components/vendedores/ui";
 import {
   ShieldCheck, LogOut, CheckCircle2, Store,
   Eye, EyeOff, Lock, RefreshCw, AlertTriangle,
-  ImagePlus, Loader2
+  ImagePlus, Loader2, Building2, Users
 } from "lucide-react";
 import toast from 'react-hot-toast';
 import { VIDRO, BOTAO_VIDRO, SELO, LuzesDeFundo } from "@/components/checkout/estilos";
 
 const TAMANHO_MAXIMO_LOGO_MB = 10;
 const TIPOS_DE_LOGO = ['image/png', 'image/jpeg', 'image/webp'];
-const SELO_BASE = "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border";
+const ABAS_DA_CONTA = [
+  { id: "empresa", rotulo: "Empresa", icone: Building2 },
+  { id: "usuarios", rotulo: "Usuários e Permissões", icone: Users },
+];
+const SELO_BASE =  "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border";
 
 export default function MinhaConta() {
   const [isClient, setIsClient] = useState(false); // 🟢 TRAVA CONTRA "PISCAR"
+  const [aba, setAba] = useState("empresa");
 
   const [dadosLicenca, setDadosLicenca] = useState({
     nome: "Carregando...",
@@ -234,6 +241,7 @@ export default function MinhaConta() {
   }
 
   const logoExibida = previa || dadosLicenca.logoUrl;
+  const podeGerirUsuarios = temPermissao("usuarios");
 
   const expirada = diasRestantes === "Expirada";
   const temPrazo = typeof diasRestantes === "number";
@@ -254,6 +262,11 @@ export default function MinhaConta() {
               <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">Identidade da empresa, licença e módulos do Raizan Core.</p>
             </div>
 
+            {podeGerirUsuarios && <Segmentado opcoes={ABAS_DA_CONTA} valor={aba} onChange={setAba} />}
+
+            {aba === "usuarios" && podeGerirUsuarios && <GestaoUsuarios />}
+
+            {aba === "empresa" && (<>
             {/* IDENTIDADE */}
             <section className={`${VIDRO} p-6 sm:p-8`}>
               <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6">
@@ -447,6 +460,7 @@ export default function MinhaConta() {
                 </div>
               </div>
             )}
+            </>)}
 
           </div>
         </main>

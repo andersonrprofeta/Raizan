@@ -466,7 +466,6 @@ export default function Sidebar() {
             <>
               <div className="space-y-1 pb-4">
                 <DashboardNavLink href="/" icon={LayoutDashboard} label={temPermissao("dashboard_executivo") ? "Dashboard Admin" : "Início"} />
-                {temPermissao("usuarios") && <DashboardNavLink href="/usuarios" icon={Users} label="Usuários e Permissões" />}
               </div>
 
               {!carregandoMenu && Object.keys(menuDinamico).map(categoriaNome => {

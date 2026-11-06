@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Ban, CheckCircle, Copy, KeyRound, MonitorX, Pencil, Plus, ShieldCheck, Users, X } from "lucide-react";
 import toast from "react-hot-toast";
-import { api, Avatar, BOTAO_PRIMARIO, BOTAO_SECUNDARIO, CAMPO, Carregando, CascaPagina, ROTULO, Segmentado, VIDRO } from "@/components/vendedores/ui";
+import { api, Avatar, BOTAO_PRIMARIO, BOTAO_SECUNDARIO, CAMPO, Carregando, ROTULO, Segmentado, VIDRO } from "@/components/vendedores/ui";
 
 const ABAS = [
   { id: "usuarios", rotulo: "Usuários", icone: Users },
@@ -270,7 +270,7 @@ function AbaAtividade() {
   );
 }
 
-export default function UsuariosPermissoes() {
+export default function GestaoUsuarios() {
   const [aba, setAba] = useState("usuarios");
   const [opcoes, setOpcoes] = useState(null);
 
@@ -282,16 +282,13 @@ export default function UsuariosPermissoes() {
   }, []);
 
   return (
-    <CascaPagina>
+    <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Usuários e Permissões</h1>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">Quem acessa o Raizan Core e o que cada pessoa pode ver.</p>
-        </div>
+        <p className="text-sm text-zinc-500 dark:text-zinc-400">Quem acessa o Raizan Core e o que cada pessoa pode ver.</p>
         <Segmentado opcoes={ABAS} valor={aba} onChange={setAba} />
       </div>
 
       {!opcoes ? <Carregando /> : aba === "usuarios" ? <AbaUsuarios opcoes={opcoes} /> : aba === "terminais" ? <AbaTerminais /> : <AbaAtividade />}
-    </CascaPagina>
+    </div>
   );
 }

@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { ScanBarcode, PackageCheck, ArrowLeft, Loader2, CheckCircle2, Package, Search, ClipboardList, OctagonAlert, X } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { getHubUrl, getHeaders } from "@/components/utils/api";
+import { getHubUrl, getHeaders, getTenantId } from "@/components/utils/api";
 import ModalConfirmacaoSair from "@/components/checkout/ModalConfirmacaoSair";
 import ManipulaDados from "@/components/checkout/ManipulaDados";
 import { montarSeparacao } from "@/components/checkout/MapaSeparacao";
@@ -105,7 +105,7 @@ function ScannerMesa() {
     if (noPedido) return noPedido.name;
 
     if (!catalogoRef.current) {
-      const tenantId = localStorage.getItem("@raizan:tenant") || process.env.NEXT_PUBLIC_TENANT_ID;
+      const tenantId = getTenantId();
       const res = await fetch(`${getHubUrl()}/api/hub/produtos/app`, { headers: { ...getHeaders(), 'x-tenant-id': tenantId } });
       const data = await res.json();
       if (data.success) catalogoRef.current = data.produtos;
@@ -125,7 +125,7 @@ function ScannerMesa() {
   };
 
   const buscarPedido = async () => {
-    const tenantId = localStorage.getItem("@raizan:tenant") || process.env.NEXT_PUBLIC_TENANT_ID;
+    const tenantId = getTenantId();
 
     const res = await fetch(`${getHubUrl()}/api/hub/pedidos/omie`, {
       method: 'POST',
@@ -315,7 +315,7 @@ function ScannerMesa() {
 
   const finalizarExpedicao = async (dadosLogisticos) => {
     setModalDadosAberto(false); 
-    const tenantId = localStorage.getItem("@raizan:tenant") || process.env.NEXT_PUBLIC_TENANT_ID;
+    const tenantId = getTenantId();
     const loadingToast = toast.loading("Enviando para o Omie...");
     
     try {

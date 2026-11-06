@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Printer, ArrowLeft, Loader2 } from 'lucide-react';
 import Barcode from 'react-barcode';
-import { getHubUrl, getHeaders } from '@/components/utils/api';
+import { getHubUrl, getHeaders, getTenantId } from '@/components/utils/api';
 
 const MOTIVO_CORTE_PADRAO = 'Estoque insuficiente ou ajuste no ERP';
 const TEMPO_MAXIMO_ATUALIZACAO_MS = 5000;
@@ -78,7 +78,7 @@ export default function MapaSeparacao({ pedido: pedidoRecebido, onFechar }) {
     const preparar = async () => {
       try {
         const nomeCache = localStorage.getItem("@raizan:nome");
-        const tenantCache = localStorage.getItem("@raizan:tenant") || process.env.NEXT_PUBLIC_TENANT_ID;
+        const tenantCache = getTenantId();
 
         setEmpresa({
           nome: nomeCache || 'DISTRIBUIDORA AUTORIZADA',

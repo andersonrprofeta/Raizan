@@ -440,7 +440,7 @@ export default function DashboardAnalitico() {
   const [canaisOcultos, setCanaisOcultos] = useState([]);
 
   const obterTenantSeguro = () => {
-    if (typeof window === 'undefined') return "rafany";
+    if (typeof window === 'undefined') return null;
     try {
       const userRaw = localStorage.getItem("@raizan:user");
       if (userRaw) {
@@ -456,8 +456,7 @@ export default function DashboardAnalitico() {
     } catch(e) {}
     const tenantLegado = localStorage.getItem("@raizan:tenant");
     if (tenantLegado && tenantLegado !== "localhost" && tenantLegado !== "-" && tenantLegado !== "127") return tenantLegado;
-    if (process.env.NEXT_PUBLIC_TENANT_ID) return process.env.NEXT_PUBLIC_TENANT_ID;
-    return "rafany";
+    return null;
   };
 
   useEffect(() => {
@@ -467,7 +466,7 @@ export default function DashboardAnalitico() {
         setMeuTenant(tenantId);
 
         const customHeaders = getHeaders();
-        customHeaders["x-tenant-id"] = tenantId || 'rafany';
+        if (tenantId) customHeaders["x-tenant-id"] = tenantId;
 
         const res = await fetch(`${getHubUrl()}/api/dashboard/resumo`, { method: "GET", headers: customHeaders });
         const json = await res.json();

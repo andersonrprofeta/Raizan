@@ -109,7 +109,7 @@ const obterTenantSeguro = () => {
       if (userObj.cnpj) return userObj.cnpj;
     }
   } catch(e) {}
-  return localStorage.getItem("@raizan:tenant") || process.env.NEXT_PUBLIC_TENANT_ID || null;
+  return null;
 };
 
 // 🟢 TRADUTOR LOCAL (COM REFORÇO DA LISTA OFICIAL)

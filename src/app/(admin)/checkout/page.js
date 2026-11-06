@@ -9,7 +9,7 @@ import {
   LayoutGrid, List, AlertTriangle, Store, Smartphone, Globe, ShoppingCart,
   Home // 🟢 ADD: Ícone da casinha
 } from 'lucide-react';
-import { getHubUrl, getHeaders } from "@/components/utils/api";
+import { getHubUrl, getHeaders, getTenantId } from "@/components/utils/api";
 import toast from 'react-hot-toast';
 import MapaSeparacao, { montarSeparacao } from "@/components/checkout/MapaSeparacao";
 import { VIDRO, BOTAO_ROXO, BOTAO_VIDRO, SELO, LuzesDeFundo, NotificacaoVidro } from "@/components/checkout/estilos";
@@ -62,7 +62,7 @@ export default function CheckoutConferencia() {
     if (silencioso) setIsAutoRefreshing(true);
 
     try {
-      const tenantId = localStorage.getItem("@raizan:tenant") || process.env.NEXT_PUBLIC_TENANT_ID;
+      const tenantId = getTenantId();
 
       const res = await fetch(`${getHubUrl()}/api/hub/pedidos/omie`, {
         method: 'POST',

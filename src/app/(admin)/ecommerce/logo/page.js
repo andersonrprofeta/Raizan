@@ -33,7 +33,7 @@ export default function IdentityEcommercePage() {
       const storedUser = localStorage.getItem("@raizan:user");
       const userLogado = storedUser ? JSON.parse(storedUser) : {};
       const cabecalhosPadrao = getHeaders();
-      return userLogado.tenant_id || cabecalhosPadrao["x-tenant-id"] || process.env.NEXT_PUBLIC_TENANT_ID || "";
+      return userLogado.tenant_id || cabecalhosPadrao["x-tenant-id"] || "";
     }
     return "";
   };

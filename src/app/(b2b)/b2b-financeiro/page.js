@@ -13,7 +13,7 @@ import {
 import toast from "react-hot-toast";
 
 const obterTenantSeguro = () => {
-  if (process.env.NEXT_PUBLIC_TENANT_ID) return process.env.NEXT_PUBLIC_TENANT_ID;
+  if (typeof window !== 'undefined' && localStorage.getItem("@raizan:b2b_tenant_id")) return localStorage.getItem("@raizan:b2b_tenant_id");
 
   if (typeof window !== 'undefined') {
     try {

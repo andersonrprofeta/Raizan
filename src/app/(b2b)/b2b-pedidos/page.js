@@ -591,8 +591,7 @@ export default function CatalogoB2B() {
         const userSalvo = localStorage.getItem("raizan_user");
         const userObj = userSalvo ? JSON.parse(userSalvo) : null;
         
-        const tenantId = process.env.NEXT_PUBLIC_TENANT_ID || 
-                         localStorage.getItem("@raizan:b2b_tenant_id") || 
+        const tenantId = localStorage.getItem("@raizan:b2b_tenant_id") || 
                          userObj?.tenant_id;
 
         if (!tenantId) {
@@ -743,7 +742,7 @@ export default function CatalogoB2B() {
 
     const userLogado = JSON.parse(savedUser);
     const cabecalhosPadrao = getHeaders();
-    const tenant_id = userLogado.tenant_id || cabecalhosPadrao["x-tenant-id"] || process.env.NEXT_PUBLIC_TENANT_ID; 
+    const tenant_id = userLogado.tenant_id || cabecalhosPadrao["x-tenant-id"]; 
 
     // 🟢 ITENS ENVIADOS COM NOMENCLATURA LIMPA
     const itensParaBackend = dadosDoPedido.itens.map(i => ({

@@ -40,7 +40,6 @@ export default function GestaoPromocoes() {
     } catch(e) {}
     const tenantLegado = localStorage.getItem("@raizan:tenant");
     if (tenantLegado && tenantLegado !== "localhost" && tenantLegado !== "-" && tenantLegado !== "127") return tenantLegado;
-    if (process.env.NEXT_PUBLIC_TENANT_ID) return process.env.NEXT_PUBLIC_TENANT_ID;
     return null;
   };
 

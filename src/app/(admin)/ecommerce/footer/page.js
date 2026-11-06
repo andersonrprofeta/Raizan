@@ -98,7 +98,7 @@ export default function FooterEcommercePage() {
       const userLogado = storedUser ? JSON.parse(storedUser) : {};
       const cabecalhosPadrao = getHeaders();
       
-      const tenant_id = userLogado.tenant_id || cabecalhosPadrao["x-tenant-id"] || process.env.NEXT_PUBLIC_TENANT_ID;
+      const tenant_id = userLogado.tenant_id || cabecalhosPadrao["x-tenant-id"];
       return tenant_id || "";
     }
     return "";

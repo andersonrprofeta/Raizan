@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
-import { getApiUrl } from "@/components/utils/api";
+import { getApiUrl, getTenantId } from "@/components/utils/api";
 import {
   ShieldCheck, LogOut, CheckCircle2, Store,
   Eye, EyeOff, Lock, RefreshCw, AlertTriangle,
@@ -134,7 +134,9 @@ export default function MinhaConta() {
       if (json.sucesso || json.success) {
         localStorage.setItem("@raizan:expires_at", json.expires_at || "");
         localStorage.setItem("@raizan:modulos", JSON.stringify(json.modulos || []));
-        if (json.logo_url) localStorage.setItem("@raizan:logo", json.logo_url); 
+        if (json.token) localStorage.setItem("@raizan:token", json.token);
+        if (json.logo_url) localStorage.setItem("@raizan:logo", json.logo_url);
+        else localStorage.removeItem("@raizan:logo");
         
         carregarDadosDaMemoria();
         toast.success("Licença sincronizada com sucesso!");
@@ -165,13 +167,13 @@ export default function MinhaConta() {
     setFazendoUpload(true);
     
     try {
-      const tenantId = localStorage.getItem("@raizan:tenant") || process.env.NEXT_PUBLIC_TENANT_ID;
+      const tenantId = getTenantId();
       const formData = new FormData();
       formData.append("file", file);
 
       const res = await fetch("https://api.raizan.com.br/api/hub/upload/logo", {
         method: "POST",
-        headers: { "x-tenant-id": tenantId },
+        headers: { "x-tenant-id": tenantId, Authorization: `Bearer ${localStorage.getItem("@raizan:token")}` },
         body: formData
       });
 

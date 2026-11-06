@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Database, Lock, Mail, ArrowRight, AlertTriangle, ShieldCheck } from "lucide-react"; 
 // 🟢 MUDANÇA 1: Trocamos getApiUrl por getHubUrl para bater no Node.js
 import { getHubUrl, getHeaders } from "@/components/utils/api";
-import { guardarSessao, identificarTerminal } from "@/components/utils/sessaoCore";
-import { ModalTerminais, TrocarSenha } from "@/components/login/TelasDeAcesso";
+import { esquecerComputadorConfiavel, guardarComputadorConfiavel, guardarSessao, identificarTerminal, lerComputadorConfiavel } from "@/components/utils/sessaoCore";
+import { ModalTerminais, TelaDoCodigo, TrocarSenha } from "@/components/login/TelasDeAcesso";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -18,30 +18,88 @@ export default function Login() {
   const [limite, setLimite] = useState(null);
   const [trocandoSenha, setTrocandoSenha] = useState(false);
   const [aviso, setAviso] = useState("");
+  const [desafio, setDesafio] = useState(null);
+  const [erroDoCodigo, setErroDoCodigo] = useState("");
+  // O limite de terminais aparece depois do código certo: o envio se repete com quem deve sair
+  const codigoConferido = useRef(null);
 
   const abrirSistema = () => { window.location.href = "/resumo"; };
+
+  const concluirLogin = (data) => {
+    setLimite(null);
+    setDesafio(null);
+    if (data.computador_confiavel) guardarComputadorConfiavel(email, data.computador_confiavel);
+    guardarSessao(data);
+    if (data.trocar_senha) setTrocandoSenha(true);
+    else abrirSistema();
+  };
 
   const entrarComSenha = async (derrubarSessao) => {
     const response = await fetch(`${getHubUrl()}/api/auth/core/entrar`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, senha, terminal: identificarTerminal(), derrubar_sessao: derrubarSessao })
+      body: JSON.stringify({
+        email,
+        senha,
+        terminal: identificarTerminal(),
+        derrubar_sessao: derrubarSessao,
+        computador_confiavel: lerComputadorConfiavel(email)
+      })
     });
     const data = await response.json();
 
+    if (data.dois_passos) {
+      esquecerComputadorConfiavel(email);
+      setErroDoCodigo("");
+      setDesafio(data);
+      return;
+    }
     if (data.limite_terminais) {
       setLimite(data);
       return;
     }
     if (!data.success) {
-      setErrorMsg(data.message || "Falha na autenticação.");
+      (desafio ? setErroDoCodigo : setErrorMsg)(data.message || "Falha na autenticação.");
       return;
     }
 
-    setLimite(null);
-    guardarSessao(data);
-    if (data.trocar_senha) setTrocandoSenha(true);
-    else abrirSistema();
+    concluirLogin(data);
+  };
+
+  const confirmarCodigo = async ({ codigo, confiar }, derrubarSessao) => {
+    setIsLoading(true);
+    setErroDoCodigo("");
+    try {
+      const response = await fetch(`${getHubUrl()}/api/auth/core/confirmar-codigo`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ desafio: desafio.desafio, codigo, confiar, terminal: identificarTerminal(), derrubar_sessao: derrubarSessao })
+      });
+      const data = await response.json();
+
+      if (data.limite_terminais) {
+        codigoConferido.current = { codigo, confiar };
+        setLimite(data);
+      } else if (data.success) {
+        concluirLogin(data);
+      } else {
+        setLimite(null);
+        setErroDoCodigo(data.message || "Não foi possível confirmar o código.");
+      }
+    } catch (err) {
+      setErroDoCodigo("Erro de conexão. Tente novamente.");
+    }
+    setIsLoading(false);
+  };
+
+  const reenviarCodigo = async () => {
+    setIsLoading(true);
+    try {
+      await entrarComSenha();
+    } catch (err) {
+      setErroDoCodigo("Erro de conexão. Tente novamente.");
+    }
+    setIsLoading(false);
   };
 
   const esqueciSenha = async () => {
@@ -224,8 +282,20 @@ export default function Login() {
 
           {aviso && <p role="status" className="mb-6 text-sm font-medium text-emerald-700 dark:text-emerald-400">{aviso}</p>}
 
+          {desafio && (
+            <TelaDoCodigo
+              key={desafio.desafio}
+              desafio={desafio}
+              erro={erroDoCodigo}
+              ocupado={isLoading}
+              aoConfirmar={(dados) => confirmarCodigo(dados)}
+              aoReenviar={reenviarCodigo}
+              aoVoltar={() => { setDesafio(null); setErroDoCodigo(""); }}
+            />
+          )}
           {limite && (
             <ModalTerminais limite={limite} ocupado={isLoading} aoFechar={() => setLimite(null)} aoDerrubar={async (id) => {
+              if (desafio) return confirmarCodigo(codigoConferido.current, id);
               setIsLoading(true);
               try { await entrarComSenha(id); } catch (err) { setErrorMsg("Erro de conexão."); }
               setIsLoading(false);

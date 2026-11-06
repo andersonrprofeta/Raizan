@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Ban, CheckCircle, Copy, KeyRound, MonitorX, Pencil, Plus, ShieldCheck, Users, X } from "lucide-react";
+import { Ban, CheckCircle, Copy, KeyRound, LockOpen, MonitorX, Pencil, Plus, ShieldCheck, Users, X } from "lucide-react";
 import toast from "react-hot-toast";
 import { api, Avatar, BOTAO_PRIMARIO, BOTAO_SECUNDARIO, CAMPO, Carregando, ROTULO, Segmentado, VIDRO } from "@/components/vendedores/ui";
 
@@ -17,6 +17,8 @@ const NOME_DA_ACAO = {
   login: "Entrou no sistema", usuario_criado: "Criou usuário", usuario_editado: "Editou usuário",
   usuario_bloqueado: "Bloqueou usuário", usuario_desbloqueado: "Desbloqueou usuário", senha_resetada: "Gerou link de senha",
   senha_trocada: "Trocou a senha", senha_definida: "Criou a senha", sessao_derrubada: "Desconectou um terminal",
+  acesso_liberado: "Liberou o acesso por código", codigo_nao_enviado: "Código por e-mail não enviado",
+  computador_confiavel: "Confiou em um computador", computador_revogado: "Removeu computador confiável",
 };
 
 // A lista do select é desenhada pelo sistema: sem isso, o tema escuro mostra texto claro em fundo branco
@@ -39,6 +41,19 @@ function ModalLink({ link, emailEnviado, aoFechar }) {
           <code className="min-w-0 flex-1 break-all text-xs">{link}</code>
           <button type="button" onClick={copiar} aria-label="Copiar link" className="shrink-0 p-2 rounded-xl hover:bg-black/[0.06] dark:hover:bg-white/[0.08]"><Copy size={16} /></button>
         </div>
+        <button type="button" onClick={aoFechar} className={`${BOTAO_PRIMARIO} w-full mt-5`}>Fechar</button>
+      </div>
+    </div>
+  );
+}
+
+function ModalLiberacao({ liberacao, aoFechar }) {
+  return (
+    <div role="dialog" aria-modal="true" aria-label="Código de liberação" className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-900/50 dark:bg-black/70 backdrop-blur-md">
+      <div className={`${VIDRO} !bg-white dark:!bg-[#121214] w-full max-w-md p-6`}>
+        <h2 className="text-lg font-bold tracking-tight">Código de liberação de {liberacao.nome}</h2>
+        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">Confirme que é a própria pessoa, por telefone ou pessoalmente, e passe este código. Ele vale por {liberacao.minutos} minutos e só funciona no computador em que ela acertou a senha.</p>
+        <p className="mt-4 rounded-2xl bg-black/[0.04] dark:bg-white/[0.05] p-4 text-center text-3xl font-bold tracking-[0.3em] tabular-nums">{liberacao.codigo}</p>
         <button type="button" onClick={aoFechar} className={`${BOTAO_PRIMARIO} w-full mt-5`}>Fechar</button>
       </div>
     </div>
@@ -148,6 +163,7 @@ function AbaUsuarios({ opcoes }) {
   const [usuarios, setUsuarios] = useState(null);
   const [modal, setModal] = useState(null);
   const [linkGerado, setLinkGerado] = useState(null);
+  const [liberacao, setLiberacao] = useState(null);
 
   const carregar = useCallback(async () => {
     const dados = await api("/usuarios");
@@ -175,6 +191,11 @@ function AbaUsuarios({ opcoes }) {
     if (dados.success) setLinkGerado(dados); else toast.error(dados.message);
   };
 
+  const liberarAcesso = async (usuario) => {
+    const dados = await api(`/usuarios/${usuario.id}/liberar-acesso`, { metodo: "POST", corpo: {} });
+    if (dados.success) setLiberacao({ ...dados, nome: usuario.nome }); else toast.error(dados.message);
+  };
+
   if (!usuarios) return <Carregando />;
 
   return (
@@ -198,6 +219,7 @@ function AbaUsuarios({ opcoes }) {
             <div className="flex gap-1">
               <button type="button" onClick={() => setModal({ editando: usuario })} aria-label={`Editar ${usuario.nome}`} title="Editar" className="p-2 rounded-lg text-zinc-500 hover:bg-black/[0.05] dark:hover:bg-white/[0.08]"><Pencil size={16} /></button>
               <button type="button" onClick={() => resetarSenha(usuario)} aria-label={`Resetar a senha de ${usuario.nome}`} title="Resetar senha" className="p-2 rounded-lg text-zinc-500 hover:bg-black/[0.05] dark:hover:bg-white/[0.08]"><KeyRound size={16} /></button>
+              <button type="button" onClick={() => liberarAcesso(usuario)} aria-label={`Gerar código de liberação para ${usuario.nome}`} title="Liberar acesso sem e-mail" className="p-2 rounded-lg text-zinc-500 hover:bg-black/[0.05] dark:hover:bg-white/[0.08]"><LockOpen size={16} /></button>
               {!usuario.principal && (
                 <button type="button" onClick={() => alternarBloqueio(usuario)} aria-label={`${usuario.status === "ativo" ? "Bloquear" : "Desbloquear"} ${usuario.nome}`} title={usuario.status === "ativo" ? "Bloquear" : "Desbloquear"} className="p-2 rounded-lg text-zinc-500 hover:bg-black/[0.05] dark:hover:bg-white/[0.08]">
                   {usuario.status === "ativo" ? <Ban size={16} /> : <CheckCircle size={16} />}
@@ -211,6 +233,7 @@ function AbaUsuarios({ opcoes }) {
 
       {modal && <ModalUsuario editando={modal.editando} opcoes={opcoes} aoFechar={() => setModal(null)} aoSalvar={aoSalvar} />}
       {linkGerado && <ModalLink link={linkGerado.link} emailEnviado={linkGerado.emailEnviado} aoFechar={() => setLinkGerado(null)} />}
+      {liberacao && <ModalLiberacao liberacao={liberacao} aoFechar={() => setLiberacao(null)} />}
     </>
   );
 }

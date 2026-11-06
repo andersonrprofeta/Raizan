@@ -6,6 +6,7 @@ import Header from "@/components/Header";
 import { getApiUrl, getTenantId } from "@/components/utils/api";
 import { lerUsuario, renovarSessao, temPermissao } from "@/components/utils/sessaoCore";
 import GestaoUsuarios from "@/components/usuarios/GestaoUsuarios";
+import ComputadoresConfiaveis from "@/components/login/ComputadoresConfiaveis";
 import { Segmentado } from "@/components/vendedores/ui";
 import {
   ShieldCheck, LogOut, CheckCircle2, Store,
@@ -393,6 +394,8 @@ export default function MinhaConta() {
                 </button>
               </section>
             </div>
+
+            {lerUsuario() && <ComputadoresConfiaveis />}
 
             {/* MÓDULOS */}
             <section className={`${VIDRO} p-6 sm:p-8`}>

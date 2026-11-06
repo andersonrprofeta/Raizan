@@ -2,6 +2,7 @@ import { getHubUrl, getHeaders } from "@/components/utils/api";
 
 const CHAVE_USUARIO = "@raizan:usuario";
 const CHAVE_TERMINAL = "@raizan:terminal";
+const CHAVE_COMPUTADOR_CONFIAVEL = "@raizan:computador-confiavel";
 // Marca a sessão por usuário. As telas antigas só conferem se existe algo nesta chave.
 const SESSAO_POR_USUARIO = "usuario";
 
@@ -27,6 +28,22 @@ export function identificarTerminal() {
     localStorage.setItem(CHAVE_TERMINAL, terminal);
   }
   return terminal;
+}
+
+// Fica fora de CHAVES_DA_SESSAO: sair do sistema não desfaz a confiança neste computador.
+// Cada pessoa tem a sua, e a senha nunca é guardada.
+const chaveDoComputador = (email) => `${CHAVE_COMPUTADOR_CONFIAVEL}:${String(email).trim().toLowerCase()}`;
+
+export function lerComputadorConfiavel(email) {
+  return localStorage.getItem(chaveDoComputador(email)) || undefined;
+}
+
+export function guardarComputadorConfiavel(email, segredo) {
+  localStorage.setItem(chaveDoComputador(email), segredo);
+}
+
+export function esquecerComputadorConfiavel(email) {
+  localStorage.removeItem(chaveDoComputador(email));
 }
 
 // O cargo digitado no cadastro diz mais do que o nome técnico do perfil

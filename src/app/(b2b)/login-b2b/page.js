@@ -6,6 +6,7 @@ import { Mail, Lock, ArrowRight, AlertTriangle, ShieldCheck } from "lucide-react
 import toast from "react-hot-toast";
 import packageJson from "../../../../package.json";
 import { getHubUrl } from "@/components/utils/api";
+import { guardarAcrescimo } from "@/components/utils/acrescimoPortal";
 import EtapaAcesso from "@/components/b2b/EtapaAcesso";
 
 export default function LoginB2B() {
@@ -43,8 +44,7 @@ export default function LoginB2B() {
           localStorage.setItem("@raizan:b2b_tenant_id", data.tenant_id);
           setLogoEmpresa(data.logo_url || null);
 
-          // 🟢 1ª LINHA NOVA: Salva o acréscimo que vem do banco de dados na nuvem!
-          localStorage.setItem("@raizan:acrescimo_cpf", data.acrescimo_cpf || 0);
+          guardarAcrescimo(data.acrescimo_cpf);
 
           localStorage.setItem("@raizan:b2b_api_url", "https://api.raizan.com.br");
           console.log(`🔥 Identidade confirmada: ${data.tenant_id} | Nuvem Ativada!`);
@@ -53,10 +53,6 @@ export default function LoginB2B() {
           if (host === 'localhost' || host === '127.0.0.1') {
             localStorage.setItem("@raizan:b2b_tenant_id", process.env.NEXT_PUBLIC_TENANT_ID || "");
             localStorage.setItem("@raizan:b2b_api_url", process.env.NEXT_PUBLIC_HUB_URL || "https://api.raizan.com.br");
-
-            // 🟢 2ª LINHA NOVA: Força os 30% no seu computador para testar!
-            localStorage.setItem("@raizan:acrescimo_cpf", 30); 
-
             setConfiguracaoPronta(true);
           } else {
             setErrorMsg("Portal não registrado. Verifique a URL no painel administrativo.");
@@ -67,10 +63,6 @@ export default function LoginB2B() {
         if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
           localStorage.setItem("@raizan:b2b_tenant_id", process.env.NEXT_PUBLIC_TENANT_ID || "");
           localStorage.setItem("@raizan:b2b_api_url", process.env.NEXT_PUBLIC_HUB_URL || "https://api.raizan.com.br");
-
-          // 🟢 3ª LINHA NOVA: Força os 30% no seu computador se der erro de conexão!
-          localStorage.setItem("@raizan:acrescimo_cpf", 30);
-
           setConfiguracaoPronta(true);
         } else {
           setErrorMsg("Servidor Central indisponível. Verifique as rotas da Hostinger.");

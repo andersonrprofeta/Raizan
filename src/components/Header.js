@@ -4,6 +4,7 @@ import { AlertTriangle, ShoppingCart, Tag, ArrowRight, Zap, X, Plus, Minus, Pack
 import Link from "next/link";
 import { useTheme } from "next-themes";
 import { getApiUrl, getHeaders, getHubUrl } from "@/components/utils/api";
+import { fatorDoLojista } from "@/components/utils/acrescimoPortal";
 import { lerUsuario, rotuloDoUsuario } from "@/components/utils/sessaoCore";
 import toast from 'react-hot-toast';
 import SinoNotificacoes from "@/components/SinoNotificacoes";
@@ -180,18 +181,7 @@ function ModalResumoCarrinho({ isOpen, onClose }) {
 function ModalOfertasGlobal({ isOpen, onClose, ofertas, onComprar }) {
   const [quantidades, setQuantidades] = useState({});
 
-  // 🟢 DETECTOR DE SACOLEIRO DIRETO NAS OFERTAS GLOBAIS!
-  const percentualCpf = typeof window !== 'undefined' ? Number(localStorage.getItem("@raizan:acrescimo_cpf") || 0) : 0;
-  let fatorAcrescimo = 1;
-
-  if (typeof window !== 'undefined') {
-    const userSalvo = localStorage.getItem("raizan_user");
-    const userObj = userSalvo ? JSON.parse(userSalvo) : null;
-    const documentoOriginal = userObj?.cpf_cnpj || userObj?.cnpj || userObj?.cpf || "";
-    const docLimpo = String(documentoOriginal).replace(/\D/g, '');
-    const isCPF = docLimpo.length === 11;
-    fatorAcrescimo = (isCPF && percentualCpf > 0) ? (1 + (percentualCpf / 100)) : 1;
-  }
+  const fatorAcrescimo = fatorDoLojista();
 
   if (!isOpen) return null;
 

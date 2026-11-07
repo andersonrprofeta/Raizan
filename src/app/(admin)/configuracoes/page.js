@@ -8,7 +8,7 @@ import Header from "@/components/Header";
 import AbaOracle from "@/components/parametros/AbaOracle";
 import AbaPrazos from "@/components/parametros/AbaPrazos";
 import AbaRaizanSeller from "@/components/parametros/AbaRaizanSeller";
-import { Aviso, Grupo, LinhaSwitch } from "@/components/parametros/ui";
+import { Aviso, CAMPO, Grupo, LinhaCampo, LinhaSwitch } from "@/components/parametros/ui";
 import { getHeaders, getHubUrl } from "@/components/utils/api";
 import { Segmentado, VIDRO } from "@/components/vendedores/ui";
 
@@ -110,11 +110,18 @@ export default function ParametrosDoSistema() {
             ) : guia === "prazos" ? (
               <AbaPrazos prazosLiberados={parametros.pagamentos.prazos_liberados} onChange={(prazos_liberados) => alterar("pagamentos")({ prazos_liberados })} />
             ) : guia === "portal" ? (
+              <div className="space-y-6">
               <Grupo titulo="Catálogo do portal" texto="Vale para os lojistas na próxima vez que abrirem o portal.">
                 <LinhaSwitch titulo="Não enviar produtos sem estoque" texto="Produto zerado some do portal." ligado={parametros.portal.ocultar_sem_estoque} onChange={(valor) => alterar("portal")({ ocultar_sem_estoque: valor })} />
                 <LinhaSwitch titulo="Não enviar produtos bonificados" texto="As marcas bonificadas somem do portal. O começo do nome é o definido na guia Raizan Seller." ligado={parametros.portal.ocultar_provadores} onChange={(valor) => alterar("portal")({ ocultar_provadores: valor })} />
                 <LinhaSwitch titulo="Não misturar bonificado com produto normal" texto="O pedido é recusado ao finalizar, com o motivo na tela." desativado={parametros.portal.ocultar_provadores} ligado={parametros.portal.separar_provadores} onChange={(valor) => alterar("portal")({ separar_provadores: valor })} />
               </Grupo>
+              <Grupo titulo="Preço para pessoa física" texto="Exclusivo do portal. App e e-commerce continuam com o preço normal.">
+                <LinhaCampo titulo="Acréscimo para CPF (%)" texto="Somado ao preço de quem entra com CPF, inclusive em promoções. Quem entra com CNPJ paga o preço normal. Use 0 para não aplicar.">
+                  <input inputMode="decimal" value={parametros.portal.acrescimo_cpf ?? ""} onChange={(e) => alterar("portal")({ acrescimo_cpf: e.target.value })} placeholder="0" aria-label="Acréscimo para CPF" className={CAMPO} />
+                </LinhaCampo>
+              </Grupo>
+              </div>
             ) : (
               <div className="space-y-5">
                 <Aviso>A loja virtual ainda não está no ar. Estas opções ficam guardadas e passam a valer quando ela for lançada.</Aviso>

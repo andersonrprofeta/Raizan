@@ -9,6 +9,7 @@ import { getApiUrl, getHubUrl, getHeaders } from "@/components/utils/api";
 import toast from 'react-hot-toast';
 import FiltroMarcas from "@/components/b2b/FiltroMarcas";
 import { marcaBonificada } from "@/components/utils/marcaBonificada";
+import { fatorDoLojista, guardarAcrescimo } from "@/components/utils/acrescimoPortal";
 import { initMercadoPago, Payment } from '@mercadopago/sdk-react';
 
 // Fica no próprio arquivo: a imagem de reserva não pode depender de um site de fora
@@ -639,18 +640,8 @@ export default function CatalogoB2B() {
           console.log("📦 Produtos crus que chegaram:", dataProd.produtos);
 
 
-          // 🟢 DETECTOR DE SACOLEIRO E INFLAÇÃO DE PREÇO (BLINDADO)
-        const documentoOriginal = userObj?.cpf_cnpj || userObj?.cnpj || userObj?.cpf || "";
-        const docLimpo = String(documentoOriginal).replace(/\D/g, '');
-        const isCPF = docLimpo.length === 11;
-        const percentualCpf = Number(localStorage.getItem("@raizan:acrescimo_cpf") || 0);
-        const fatorAcrescimo = (isCPF && percentualCpf > 0) ? (1 + (percentualCpf / 100)) : 1;
-
-        // 🟢 O ESPIÃO: Aperte F12 e veja o que ele vai printar!
-        console.log("🕵️‍♂️ [SACOLEIRO] DOC Original:", documentoOriginal);
-        console.log("🕵️‍♂️ [SACOLEIRO] DOC Limpo:", docLimpo, "| Tamanho:", docLimpo.length);
-        console.log("🕵️‍♂️ [SACOLEIRO] É CPF?", isCPF, "| Percentual na Memória:", percentualCpf, "%");
-        console.log("🕵️‍♂️ [SACOLEIRO] Fator Multiplicador:", fatorAcrescimo);
+        if (dataProd.acrescimo_cpf !== undefined) guardarAcrescimo(dataProd.acrescimo_cpf);
+        const fatorAcrescimo = fatorDoLojista(userObj);
 
           const mapped = dataProd.produtos.map(p => ({
             id: p.id,
@@ -660,7 +651,6 @@ export default function CatalogoB2B() {
             marca: p.marca,
             estoque_inicial: p.estoque_inicial,
             
-            // 🔥 A MÁGICA ACONTECE AQUI: Multiplicando o preço base pelo fator (1.30)
             preco_venda: parseFloat(p.preco_venda || 0) * fatorAcrescimo,
             preco_promocional: parseFloat(p.preco_promocional) > 0 ? (parseFloat(p.preco_promocional) * fatorAcrescimo) : null,
             

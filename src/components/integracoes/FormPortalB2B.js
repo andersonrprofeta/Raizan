@@ -1,13 +1,12 @@
 import { useState, useEffect } from "react";
-import { Globe, LayoutTemplate, Fingerprint, Lock, Percent } from "lucide-react";
+import { Globe, LayoutTemplate, Fingerprint, Lock } from "lucide-react";
 import toast from 'react-hot-toast';
 
 export default function FormPortalB2B({ onCancel, onSuccess }) {
   const [loading, setLoading] = useState(false);
   const [formB2B, setFormB2B] = useState({
     url_loja: "",
-    tenant_id: "",
-    acrescimo_cpf: 0 // 🟢 NOVO CAMPO: Regra de negócio para Pessoa Física
+    tenant_id: ""
   });
 
   useEffect(() => {
@@ -67,8 +66,7 @@ export default function FormPortalB2B({ onCancel, onSuccess }) {
       <div className="p-8 max-w-3xl">
         <form onSubmit={salvarPortalB2B} className="space-y-6">
           
-          {/* 🟢 DIVIDIDO EM DUAS COLUNAS PARA FICAR ELEGANTE */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 gap-6">
             <div className="space-y-2">
               <label className="text-sm font-bold flex items-center gap-2 text-zinc-700 dark:text-zinc-300">
                 <LayoutTemplate size={14} className="text-indigo-500"/> URL do Portal (Lojista)
@@ -77,21 +75,6 @@ export default function FormPortalB2B({ onCancel, onSuccess }) {
               <p className="text-xs font-medium text-zinc-500 mt-1">Endereço de acesso dos clientes.</p>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-bold flex items-center gap-2 text-zinc-700 dark:text-zinc-300">
-                <Percent size={14} className="text-indigo-500"/> Acréscimo para CPF (%)
-              </label>
-              <input 
-                type="number" 
-                min="0" 
-                step="0.1" 
-                value={formB2B.acrescimo_cpf} 
-                onChange={e => setFormB2B({...formB2B, acrescimo_cpf: Number(e.target.value)})} 
-                placeholder="Ex: 15" 
-                className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 p-3.5 rounded-xl font-black text-indigo-600 dark:text-indigo-400 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all" 
-              />
-              <p className="text-xs font-medium text-zinc-500 mt-1">Margem extra aplicada sobre o preço base para sacoleiros/PF.</p>
-            </div>
           </div>
 
           <div className="p-6 bg-indigo-50 dark:bg-indigo-500/5 border border-indigo-100 dark:border-indigo-500/20 rounded-2xl space-y-5 relative overflow-hidden mt-6">

@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { getApiUrl, getHubUrl, getHeaders } from "@/components/utils/api";
+import { fatorDoLojista } from "@/components/utils/acrescimoPortal";
 import toast from 'react-hot-toast'; 
 
 // ==========================================
@@ -47,6 +48,7 @@ const formatarMoedaGlobal = (valor) => {
 // ==========================================
 function ModalOfertasDoDia({ isOpen, onClose, ofertas, onComprar }) {
   if (!isOpen) return null;
+  const fatorAcrescimo = fatorDoLojista();
 
   return (
     <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 dark:bg-black/80 backdrop-blur-sm transition-all animate-in fade-in" onClick={onClose}>
@@ -76,7 +78,7 @@ function ModalOfertasDoDia({ isOpen, onClose, ofertas, onComprar }) {
                     SKU {promo.sku}
                   </span>
                   <p className="font-bold text-zinc-800 dark:text-zinc-200 leading-snug text-sm sm:text-base">{promo.nome_produto}</p>
-                  <p className="text-lg sm:text-xl font-bold text-purple-600 dark:text-purple-400 mt-2">{formatarMoedaGlobal(promo.preco_promocional)}</p>
+                  <p className="text-lg sm:text-xl font-bold text-purple-600 dark:text-purple-400 mt-2">{formatarMoedaGlobal(promo.preco_promocional * fatorAcrescimo)}</p>
                 </div>
                 
                 <button 
@@ -85,9 +87,9 @@ function ModalOfertasDoDia({ isOpen, onClose, ofertas, onComprar }) {
                       id: promo.sku,
                       sku: promo.sku,
                       nome: promo.nome_produto,
-                      preco_venda: promo.preco_promocional, 
+                      preco_venda: promo.preco_promocional * fatorAcrescimo, 
                       em_promocao: true,
-                      preco_promocional: promo.preco_promocional,
+                      preco_promocional: promo.preco_promocional * fatorAcrescimo,
                       qtd_minima_promocao: promo.qtd_minima || 1
                     }, 1);
                     toast.success("Oferta adicionada ao carrinho!");

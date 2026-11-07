@@ -7,6 +7,7 @@ import toast from "react-hot-toast";
 import packageJson from "../../../../package.json";
 import { getHubUrl } from "@/components/utils/api";
 import { guardarAcrescimo } from "@/components/utils/acrescimoPortal";
+import { prepararCarrinhoPara } from "@/components/portal/carrinho";
 import EtapaAcesso from "@/components/b2b/EtapaAcesso";
 
 export default function LoginB2B() {
@@ -130,6 +131,7 @@ export default function LoginB2B() {
   };
 
   const salvarSessao = (data) => {
+    prepararCarrinhoPara(data.user?.email);
     localStorage.setItem("raizan_user", JSON.stringify(data.user));
     localStorage.setItem("@raizan:token", data.token);
 
@@ -143,12 +145,12 @@ export default function LoginB2B() {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-100 dark:bg-[#09090b] flex items-center justify-center p-4 sm:p-6 lg:p-8 relative overflow-hidden transition-colors duration-500">
+    <div className="min-h-dvh bg-white md:bg-[#f6f6f7] flex items-start md:items-center justify-center md:p-8">
 
-      <div className="w-full max-w-5xl flex flex-col md:flex-row bg-white dark:bg-[#121214] rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.3)] overflow-hidden z-10 animate-in fade-in zoom-in-95 duration-500">
+      <div className="w-full max-w-5xl flex bg-white md:rounded-3xl md:border md:border-zinc-200 overflow-hidden">
 
         {/* LADO ESQUERDO - BRANDING (AGORA ROXO/INDIGO) */}
-        <div className="w-full md:w-5/12 bg-[#0c0c0e] p-8 md:p-12 flex flex-col justify-between relative overflow-hidden shrink-0 border-r border-zinc-800/50">
+        <div className="hidden md:flex w-5/12 bg-[#0c0c0e] p-12 flex-col justify-between relative overflow-hidden shrink-0">
           <div className="absolute -top-32 -left-32 w-80 h-80 bg-purple-600/30 rounded-full blur-[100px] pointer-events-none" />
           <div className="absolute -bottom-32 -right-32 w-80 h-80 bg-indigo-600/20 rounded-full blur-[100px] pointer-events-none" />
 
@@ -177,8 +179,13 @@ export default function LoginB2B() {
         </div>
 
         {/* LADO DIREITO - FORMULÁRIO */}
-        <div className="w-full md:w-7/12 bg-white dark:bg-[#121214] p-8 md:p-12 lg:p-16 flex flex-col justify-center relative transition-colors duration-500">
+        <div className="w-full md:w-7/12 bg-white px-6 py-8 md:p-12 lg:p-16 flex flex-col justify-center">
           <div className="max-w-md w-full mx-auto">
+            {logoEmpresa && (
+              <div className="mb-8 flex h-12 items-center md:hidden">
+                <img src={logoEmpresa} alt="Logo da distribuidora" className="max-h-full max-w-[160px] object-contain" />
+              </div>
+            )}
 
             {etapa !== "entrar" ? (
               <EtapaAcesso
@@ -204,9 +211,9 @@ export default function LoginB2B() {
               />
             ) : (
               <>
-            <div className="mb-10">
-              <h2 className="text-[28px] font-bold tracking-tight text-zinc-900 dark:text-zinc-100 mb-2">Bem-vindo(a)</h2>
-              <p className="text-zinc-500 dark:text-zinc-400 text-sm">Identifique-se para acessar o portal de compras.</p>
+            <div className="mb-7">
+              <h2 className="text-[28px] font-bold tracking-tight text-zinc-900 dark:text-zinc-100 mb-2">Entrar</h2>
+              <p className="text-zinc-500 dark:text-zinc-400 text-sm">Acesse o portal para comprar e acompanhar seus pedidos.</p>
             </div>
 
             {errorMsg && (
@@ -229,7 +236,9 @@ export default function LoginB2B() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="seu@email.com.br"
-                    className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 rounded-xl py-3.5 pl-11 pr-4 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600 font-medium disabled:opacity-50"
+                    autoComplete="email"
+                    inputMode="email"
+                    className="w-full text-base bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 rounded-xl py-3.5 pl-11 pr-4 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600 font-medium disabled:opacity-50"
                     required
                     disabled={isConfiguring || !configuracaoPronta}
                   />
@@ -253,7 +262,7 @@ export default function LoginB2B() {
                     onChange={(e) => setSenha(e.target.value)}
                     placeholder="Digite sua senha"
                     autoComplete="current-password"
-                    className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 rounded-xl py-3.5 pl-11 pr-4 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600 font-mono font-medium tracking-widest disabled:opacity-50"
+                    className="w-full text-base bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 rounded-xl py-3.5 pl-11 pr-4 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600 font-medium disabled:opacity-50"
                     required
                     disabled={isConfiguring || !configuracaoPronta}
                   />
@@ -263,13 +272,13 @@ export default function LoginB2B() {
               <button
                 type="submit"
                 disabled={isLoading || isConfiguring || !configuracaoPronta || !email || senha.length < 6}
-                className="mt-4 w-full bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-400 hover:to-purple-600 text-white font-semibold py-3.5 px-4 rounded-full transition-all flex items-center justify-center gap-2 shadow-[0_10px_20px_-10px_rgba(147,51,234,0.5)] hover:shadow-[0_10px_25px_-10px_rgba(147,51,234,0.7)] disabled:opacity-70 disabled:cursor-not-allowed text-sm"
+                className="mt-2 min-h-12 w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold px-4 rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed text-[15px]"
               >
                 {isLoading || isConfiguring ? (
                   <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 ) : (
                   <>
-                    Entrar no Portal <ArrowRight size={18} />
+                    Entrar <ArrowRight size={18} />
                   </>
                 )}
               </button>
@@ -280,7 +289,7 @@ export default function LoginB2B() {
               </>
             )}
 
-            <div className="mt-12 pt-6 border-t border-zinc-100 dark:border-zinc-800/60 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-bold text-zinc-400">
+            <div className="mt-10 pt-6 border-t border-zinc-100 dark:border-zinc-800/60 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-bold text-zinc-400">
               <span>Versão B2B • {packageJson.version}</span>
               <a href="/login" className="hover:text-purple-500 dark:hover:text-purple-400 transition-colors flex items-center gap-1">Acesso Matriz &rarr;</a>
             </div>

@@ -1,360 +1,206 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Sidebar from "@/components/Sidebar";
-import Header from "@/components/Header";
-import {
-  DollarSign, AlertTriangle, TrendingUp, Calendar, Printer, Package
-} from "lucide-react";
-import { getHubUrl, getHeaders } from "@/components/utils/api";
-import { montarPdfFinanceiro } from "@/components/b2b/pdfFinanceiro";
-import { abrirDocumento } from "@/components/utils/documentoPdf";
-import {
-  AreaChart, Area, ResponsiveContainer, Tooltip, XAxis, CartesianGrid
-} from "recharts";
+import { useMemo, useState } from "react";
+import Link from "next/link";
+import { ChevronRight, Printer, Wallet } from "lucide-react";
 import toast from "react-hot-toast";
+import { montarPdfFinanceiro } from "@/components/b2b/pdfFinanceiro";
+import { useCadastro, usePedidos } from "@/components/portal/dados";
+import { situacaoDoPedido } from "@/components/portal/pedidos";
+import { lerUsuario } from "@/components/portal/sessao";
+import { Botao, Cartao, Esqueleto, Etiqueta, Vazio, dataCurta, moeda } from "@/components/portal/ui";
+import { abrirDocumento } from "@/components/utils/documentoPdf";
 
-const obterTenantSeguro = () => {
-  if (typeof window !== 'undefined' && localStorage.getItem("@raizan:b2b_tenant_id")) return localStorage.getItem("@raizan:b2b_tenant_id");
+const PERIODOS = [
+  { dias: 30, rotulo: "30 dias" },
+  { dias: 90, rotulo: "90 dias" },
+  { dias: 365, rotulo: "12 meses" },
+];
+const DIA_MS = 86_400_000;
+const SEMANA_MS = 7 * DIA_MS;
+const SEMANAS_NO_MES = 5;
+const MAIS_COMPRADOS = 5;
+const LINHAS_NO_EXTRATO = 20;
 
-  if (typeof window !== 'undefined') {
-    try {
-      const userRaw = localStorage.getItem("@raizan:user");
-      if (userRaw) {
-        const userObj = JSON.parse(userRaw);
-        if (userObj.tenant_id) return userObj.tenant_id;
-        if (userObj.cnpj) return userObj.cnpj;
-      }
-      
-      const configRaw = localStorage.getItem("raizan_config_geral");
-      if (configRaw) {
-        const configObj = JSON.parse(configRaw);
-        if (configObj.tenantId) return configObj.tenantId;
-      }
-    } catch(e) {}
-  }
+const somar = (pedidos) => pedidos.reduce((total, pedido) => total + Number(pedido.total), 0);
 
-  return null; 
-};
-
-export default function FinanceiroBI() {
-  const [user, setUser] = useState(null);
-  const [pedidos, setPedidos] = useState([]);
-  const [periodo, setPeriodo] = useState(30);
-
-  useEffect(() => {
-    const saved = localStorage.getItem("raizan_user");
-    if (saved) setUser(JSON.parse(saved));
-  }, []);
-
-  useEffect(() => {
-    if (user) carregarPedidos();
-  }, [user, periodo]); // 🟢 Adicionado periodo para recarregar se necessário (opcional)
-
-  const carregarPedidos = async () => {
-    if (!user?.email) return;
-
-    try {
-      const tenantId = obterTenantSeguro();
-      const customHeaders = getHeaders();
-      if (tenantId) customHeaders["x-tenant-id"] = tenantId;
-
-      const res = await fetch(`${getHubUrl()}/api/hub/pedidos/b2b`, {
-        method: "POST",
-        headers: { ...customHeaders, "Content-Type": "application/json" },
-        body: JSON.stringify({ limit: 999, clienteEmail: user.email })
-      });
-
-      const data = await res.json();
-      if (data.success) setPedidos(data.pedidos);
-    } catch {
-      toast.error("Erro ao carregar dados financeiros.");
-    }
-  };
-
-  const format = (v) =>
-    Number(v || 0).toLocaleString("pt-BR", {
-      style: "currency",
-      currency: "BRL"
+function barrasPorSemana(pedidos, agora) {
+  return Array.from({ length: SEMANAS_NO_MES }, (_, indice) => {
+    const fim = agora - (SEMANAS_NO_MES - 1 - indice) * SEMANA_MS;
+    const inicio = fim - SEMANA_MS;
+    const daSemana = pedidos.filter(({ date_created }) => {
+      const data = new Date(date_created).getTime();
+      return data > inicio && data <= fim;
     });
-
-  const agora = new Date();
-
-  // 🟢 AS REGRAS FINANCEIRAS DE STATUS
-  const statusPagos = ['completed', 'pago', 'enviado', 'entregue'];
-  const statusAbertos = ['aguardando-pagamento', 'processing', 'pending', 'on-hold'];
-  const statusCancelados = ['cancelled', 'cancelado'];
-
-  const pedidosFiltrados = pedidos.filter(p => {
-    const data = new Date(p.date_created);
-    const diff = (agora - data) / (1000 * 60 * 60 * 24);
-    return diff <= periodo;
+    return { nome: new Date(inicio + DIA_MS).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }), valor: somar(daSemana) };
   });
+}
 
-  const pagos = pedidosFiltrados.filter(p => statusPagos.includes(p.status));
-  const abertos = pedidosFiltrados.filter(p => statusAbertos.includes(p.status));
-
-  const totalPago = pagos.reduce((a, b) => a + Number(b.total), 0);
-  const totalDevedor = abertos.reduce((a, b) => a + Number(b.total), 0);
-
-  // =============================
-  // 🔥 GRÁFICO POR DIA (REAL BI) COM LINHAS SUAVES
-  // =============================
-  const agrupado = {};
-
-  for (let i = periodo; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    const key = d.toLocaleDateString("pt-BR", { day: '2-digit', month: '2-digit' });
-    agrupado[key] = { name: key, pagos: 0, abertos: 0 };
-  }
-
-  pedidosFiltrados.forEach(p => {
-    if (statusCancelados.includes(p.status)) return;
-
-    const data = new Date(p.date_created);
-    const key = data.toLocaleDateString("pt-BR", { day: '2-digit', month: '2-digit' });
-
-    if (!agrupado[key]) return;
-
-    if (statusPagos.includes(p.status)) {
-      agrupado[key].pagos += Number(p.total);
-    } else if (statusAbertos.includes(p.status)) {
-      agrupado[key].abertos += Number(p.total);
-    }
-  });
-
-  const chartData = Object.values(agrupado);
-
-  // =============================
-  // 📊 RANKING
-  // =============================
-  const ranking = {};
-
-  pedidosFiltrados.forEach(p => {
-    if (statusCancelados.includes(p.status)) return;
-
-    p.line_items?.forEach(item => {
-      if (!ranking[item.name]) ranking[item.name] = 0;
-      ranking[item.name] += item.quantity || item.qtd || 1;
+function barrasPorMes(pedidos, quantidade) {
+  const hoje = new Date();
+  return Array.from({ length: quantidade }, (_, indice) => {
+    const mes = new Date(hoje.getFullYear(), hoje.getMonth() - (quantidade - 1 - indice), 1);
+    const doMes = pedidos.filter(({ date_created }) => {
+      const data = new Date(date_created);
+      return data.getMonth() === mes.getMonth() && data.getFullYear() === mes.getFullYear();
     });
+    return { nome: mes.toLocaleDateString("pt-BR", { month: "short" }).replace(".", ""), valor: somar(doMes) };
   });
+}
 
-  const maxQtd = Math.max(...Object.values(ranking), 1);
-  const rankingLista = Object.entries(ranking)
-    .map(([nome, qtd]) => ({ nome, qtd }))
-    .sort((a, b) => b.qtd - a.qtd)
-    .slice(0, 5);
-
-
-  const situacaoDoPedido = (pedido) => {
-    if (statusPagos.includes(pedido.status)) return 'pago';
-    return statusCancelados.includes(pedido.status) ? 'cancelado' : 'aberto';
-  };
-
-  const gerarPDF = () => {
-    const html = montarPdfFinanceiro({
-      cliente: user?.nome || user?.email || 'Não informado',
-      periodo,
-      pedidos: pedidosFiltrados,
-      totalPago,
-      totalDevedor,
-      pedidosPagos: pagos.length,
-      pedidosEmAberto: abertos.length,
-      situacaoDoPedido,
-      format,
-    });
-    if (!abrirDocumento(html)) toast.error('Libere as janelas do navegador para gerar o PDF.');
-  };
+// O valor aparece no topo do gráfico ao tocar ou passar o mouse: funciona igual no celular
+function GraficoDeCompras({ barras, total, carregando }) {
+  const [ativa, setAtiva] = useState(null);
+  const maior = Math.max(...barras.map((barra) => barra.valor), 1);
+  const selecionada = ativa === null ? null : barras[ativa];
 
   return (
-    <div className="flex h-[100dvh] bg-[#f5f5f7] dark:bg-black text-zinc-900 dark:text-zinc-100 overflow-x-hidden transition-colors duration-300">
-      <Sidebar />
+    <Cartao className="p-4 md:p-5">
+      <p className="text-sm text-zinc-500">{selecionada ? `Compras em ${selecionada.nome}` : "Compras no período"}</p>
+      {carregando ? <Esqueleto className="mt-1 h-8 w-32" /> : <p className="text-2xl font-bold tabular-nums text-zinc-900">{moeda(selecionada ? selecionada.valor : total)}</p>}
 
-      <div className="flex-1 flex flex-col min-h-0 min-w-0 relative">
-        <Header />
-
-        <main className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6 min-w-0 relative z-10">
-          
-          {/* EFEITO GLOW RAIZAN */}
-          <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-purple-600/5 dark:bg-purple-600/10 rounded-full blur-[120px] pointer-events-none -z-10" />
-
-          {/* FILTRO PREMIUM */}
-          <div className="flex flex-wrap gap-2">
-            {[7, 30, 90, 365].map(d => (
-              <button key={d}
-                onClick={() => setPeriodo(d)}
-                className={`flex-1 min-w-[80px] sm:flex-none px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-bold transition-all duration-300 shadow-sm ${
-                  periodo === d ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-purple-500/25" : "bg-white dark:bg-[#121214] border border-black/[0.06] dark:border-white/[0.07] text-zinc-500 dark:text-zinc-400 hover:border-purple-300 dark:hover:border-purple-700 hover:text-purple-600 dark:hover:text-purple-400"
-                }`}>
-                {d} dias
-              </button>
-            ))}
-          </div>
-
-          {/* CARDS */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-            <Card title="Faturado (Pago)" value={format(totalPago)} icon={<DollarSign />} color="purple" />
-            <Card title="A Receber (Devedor)" value={format(totalDevedor)} icon={<AlertTriangle />} color="rose" />
-            <Card title="Pedidos Válidos" value={pagos.length + abertos.length} icon={<TrendingUp />} color="indigo" />
-            <Card title="Abertos" value={abertos.length} icon={<Calendar />} color="amber" />
-          </div>
-
-          {/* GRID PRINCIPAL */}
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 min-w-0">
-
-            {/* GRÁFICO COM LINHAS CURVAS (MONOTONE) E GLASSMORPHISM */}
-            <div className="xl:col-span-2 bg-white/70 dark:bg-[#121214]/70 backdrop-blur-xl border border-black/[0.06] dark:border-white/[0.07]/80 rounded-[28px] p-5 sm:p-7 min-w-0 shadow-lg shadow-zinc-200/20 dark:shadow-none transition-colors duration-300">
-              <h3 className="mb-6 text-zinc-900 dark:text-zinc-100 font-bold text-lg md:text-xl tracking-tight">Fluxo Financeiro</h3>
-
-              <ResponsiveContainer width="100%" height={260}>
-                <AreaChart data={chartData} margin={{ top: 10, right: 0, left: 0, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="corPago" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.4}/>
-                      <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
-                    </linearGradient>
-
-                    <linearGradient id="corAberto" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.4}/>
-                      <stop offset="95%" stopColor="#f43f5e" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-
-                  <CartesianGrid stroke="#27272a" strokeDasharray="3 3" vertical={false} opacity={0.15} />
-
-                  <XAxis
-                      dataKey="name"
-                      axisLine={false} 
-                      tickLine={false}
-                      tick={{ fill: '#a1a1aa', fontSize: 10, fontWeight: 600 }}
-                      dy={10}
-                      minTickGap={20}
-                    />
-
-                  <Tooltip 
-                    formatter={(v) => format(v)} 
-                    contentStyle={{ backgroundColor: 'rgba(24, 24, 27, 0.8)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', padding: '12px' }} 
-                    itemStyle={{ fontWeight: '900', fontSize: '14px', color: '#fff' }}
-                    labelStyle={{ color: '#a1a1aa', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '4px' }}
-                  />
-
-                  {/* 🟢 A MÁGICA DA CURVA: type="monotone" */}
-                  <Area type="monotone" dataKey="pagos" stroke="#8b5cf6" strokeWidth={3} fill="url(#corPago)" activeDot={{ r: 6, fill: '#8b5cf6', stroke: '#fff', strokeWidth: 2 }} />
-                  <Area type="monotone" dataKey="abertos" stroke="#f43f5e" strokeWidth={3} fill="url(#corAberto)" activeDot={{ r: 6, fill: '#f43f5e', stroke: '#fff', strokeWidth: 2 }} />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-
-            {/* RANKING (TOP PRODUTOS) */}
-            <div className="bg-white/70 dark:bg-[#121214]/70 backdrop-blur-xl border border-black/[0.06] dark:border-white/[0.07]/80 rounded-[28px] p-5 sm:p-7 min-w-0 shadow-lg shadow-zinc-200/20 dark:shadow-none transition-colors duration-300">
-              <h3 className="mb-6 text-zinc-900 dark:text-zinc-100 font-bold text-lg md:text-xl tracking-tight">Top Produtos</h3>
-
-              {rankingLista.length === 0 ? (
-                 <div className="flex flex-col items-center justify-center h-48 text-zinc-400">
-                   <Package size={32} className="mb-2 opacity-50" />
-                   <p className="text-xs font-bold">Sem dados no período</p>
-                 </div>
-              ) : (
-                <div className="space-y-5">
-                  {rankingLista.map(p => (
-                    <div key={p.nome} className="min-w-0 group">
-                      <div className="flex items-center justify-between mb-2 gap-2 min-w-0">
-                        <span className="truncate flex-1 min-w-0 text-sm font-bold text-zinc-700 dark:text-zinc-300 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">{p.nome}</span>
-                        <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100 bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded-md">{p.qtd} un</span>
-                      </div>
-
-                      <div className="w-full bg-zinc-100 dark:bg-zinc-800/50 h-2.5 rounded-full overflow-hidden shadow-inner">
-                        <div
-                          className="bg-gradient-to-r from-purple-500 to-indigo-500 h-full rounded-full transition-all duration-1000 ease-out"
-                          style={{ width: `${(p.qtd / maxQtd) * 100}%` }}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-          </div>
-
-          {/* EXTRATO COM BOTÃO DE PDF */}
-          <div className="bg-white/70 dark:bg-[#121214]/70 backdrop-blur-xl border border-black/[0.06] dark:border-white/[0.07]/80 rounded-[28px] p-5 sm:p-7 min-w-0 shadow-lg shadow-zinc-200/20 dark:shadow-none transition-colors duration-300">
-            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
-              <h3 className="text-zinc-900 dark:text-zinc-100 font-bold text-lg md:text-xl tracking-tight">Extrato de Movimentações</h3>
-              
-              <button 
-                onClick={gerarPDF}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 hover:border-purple-300 dark:hover:border-purple-700 hover:text-purple-600 dark:hover:text-purple-400 text-zinc-700 dark:text-zinc-300 px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-sm active:scale-95"
-              >
-                <Printer size={16} /> Exportar (PDF)
-              </button>
-            </div>
-
-            <div className="max-h-[350px] overflow-y-auto overflow-x-hidden space-y-2 custom-scrollbar pr-1 sm:pr-3 min-w-0">
-              {pedidosFiltrados.length === 0 && (
-                <p className="text-zinc-500 text-sm p-4 text-center border border-dashed border-black/[0.06] dark:border-white/[0.07] rounded-2xl">
-                  Nenhuma movimentação financeira neste período.
-                </p>
-              )}
-              
-              {pedidosFiltrados.slice(0, 20).map(p => (
-                <div key={p.id} className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 p-4 rounded-2xl border border-transparent hover:border-zinc-200 dark:hover:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-all group min-w-0">
-                  <div className="min-w-0 flex flex-col items-start">
-                    <p className="text-sm font-bold text-zinc-800 dark:text-zinc-200 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors truncate">
-                      Pedido #{p.id}
-                    </p>
-                    
-                    <span className={`text-[11px] font-bold px-2.5 py-1 rounded-md mt-1.5 inline-block border ${
-                      statusPagos.includes(p.status) ? 'bg-purple-50 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-200 dark:border-purple-500/20' : 
-                      statusCancelados.includes(p.status) ? 'bg-zinc-100 dark:bg-zinc-500/10 text-zinc-500 dark:text-zinc-400 border-zinc-200 dark:border-zinc-500/20' : 
-                      'bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-500/20'
-                    }`}>
-                      {p.status.replace('-', ' ')}
-                    </span>
-                  </div>
-                  <div className="flex flex-col sm:items-end">
-                    <span className={`font-bold text-base sm:text-lg tracking-tight ${statusPagos.includes(p.status) ? "text-purple-600 dark:text-purple-400" : statusCancelados.includes(p.status) ? "text-zinc-400 dark:text-zinc-500 line-through" : "text-rose-600 dark:text-rose-400"}`}>
-                      {format(p.total)}
-                    </span>
-                    <span className="text-[11px] text-zinc-400 font-bold mt-0.5">
-                      {new Date(p.date_created).toLocaleDateString("pt-BR")}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-        </main>
+      <div className="mt-4 flex h-36 items-end" onMouseLeave={() => setAtiva(null)}>
+        {barras.map((barra, indice) => (
+          <button key={barra.nome} type="button" aria-label={`${barra.nome}: ${moeda(barra.valor)}`} onMouseEnter={() => setAtiva(indice)} onFocus={() => setAtiva(indice)} onClick={() => setAtiva(indice)} className="flex h-full min-w-0 flex-1 flex-col justify-end px-0.5 md:px-2">
+            <span className={`block w-full rounded-t ${barra.valor === 0 ? "bg-zinc-200" : ativa === indice ? "bg-violet-700" : "bg-violet-500"}`} style={{ height: barra.valor > 0 ? `${Math.max(3, (barra.valor / maior) * 100)}%` : "2px" }} />
+          </button>
+        ))}
       </div>
-    </div>
+      <div className="mt-1.5 flex border-t border-zinc-200 pt-1.5">
+        {barras.map((barra) => <span key={barra.nome} className="min-w-0 flex-1 truncate text-center text-[11px] text-zinc-500">{barra.nome}</span>)}
+      </div>
+    </Cartao>
   );
 }
 
-// ==========================================
-// COMPONENTE: CARD ESTILO APPLE
-// ==========================================
-function Card({ icon, title, value, color = "emerald" }) {
-  // Mapa de cores para facilitar o design sem poluir o JSX
-  const colorMap = {
-    purple: "text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-500/10 border-purple-100 dark:border-purple-500/20",
-    rose: "text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-500/10 border-rose-100 dark:border-rose-500/20",
-    indigo: "text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 border-indigo-100 dark:border-indigo-500/20",
-    amber: "text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 border-amber-100 dark:border-amber-500/20",
-  };
-
-  const selectedColor = colorMap[color] || colorMap.purple;
+function ContasEmAberto({ pedidos }) {
+  if (pedidos.length === 0) return null;
 
   return (
-    <div className="bg-white/70 dark:bg-[#121214]/70 backdrop-blur-xl border border-black/[0.06] dark:border-white/[0.07]/80 rounded-[28px] p-5 hover:bg-zinc-50 dark:hover:bg-zinc-900/50 shadow-sm dark:shadow-none transition-colors relative overflow-hidden group min-w-0">
-      <div className="relative flex justify-between items-start mb-3">
-        <div className={`w-10 h-10 rounded-2xl border flex items-center justify-center shadow-inner transition-transform group-hover:scale-110 ${selectedColor}`}>
-          {icon}
+    <Cartao className="p-4 md:p-5">
+      <h2 className="text-base font-bold text-zinc-900">Pedidos em aberto</h2>
+      <ul className="mt-2 divide-y divide-zinc-100">
+        {pedidos.map((pedido) => (
+          <li key={pedido.id}>
+            <Link href="/b2b-historico" className="flex min-h-14 items-center gap-3 py-2">
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-semibold text-zinc-900">Pedido #{pedido.id}</span>
+                <span className="text-[13px] text-zinc-500">{situacaoDoPedido(pedido).rotulo}</span>
+              </span>
+              <span className="text-[15px] font-bold tabular-nums text-zinc-900">{moeda(pedido.total)}</span>
+              <ChevronRight size={18} className="text-zinc-400" />
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </Cartao>
+  );
+}
+
+export default function Financeiro() {
+  const { dados, carregando } = usePedidos();
+  const { dados: cadastro } = useCadastro();
+  const [dias, setDias] = useState(30);
+  const [agora] = useState(() => Date.now());
+
+  const periodo = useMemo(() => (dados || []).filter((pedido) => agora - new Date(pedido.date_created).getTime() <= dias * DIA_MS), [dados, dias, agora]);
+  const validos = useMemo(() => periodo.filter((pedido) => situacaoDoPedido(pedido).grupo !== "cancelado"), [periodo]);
+  const abertos = validos.filter((pedido) => situacaoDoPedido(pedido).grupo === "aberto");
+  const pagos = validos.filter((pedido) => situacaoDoPedido(pedido).grupo === "pago");
+
+  const barras = useMemo(() => {
+    if (dias === 30) return barrasPorSemana(validos, agora);
+    return barrasPorMes(validos, dias === 90 ? 3 : 12);
+  }, [validos, dias, agora]);
+
+  const ranking = useMemo(() => {
+    const contagem = new Map();
+    validos.forEach((pedido) => pedido.line_items?.forEach(({ name, quantity }) => contagem.set(name, (contagem.get(name) || 0) + (Number(quantity) || 1))));
+    return [...contagem].sort((a, b) => b[1] - a[1]).slice(0, MAIS_COMPRADOS);
+  }, [validos]);
+  const maiorQuantidade = ranking[0]?.[1] || 1;
+
+  const gerarPdf = () => {
+    const usuario = lerUsuario();
+    const html = montarPdfFinanceiro({
+      cliente: usuario?.nome || usuario?.email || "Não informado",
+      periodo: dias,
+      pedidos: periodo,
+      totalPago: somar(pagos),
+      totalDevedor: somar(abertos),
+      pedidosPagos: pagos.length,
+      pedidosEmAberto: abertos.length,
+      situacaoDoPedido: (pedido) => situacaoDoPedido(pedido).grupo,
+      format: moeda,
+    });
+    if (!abrirDocumento(html)) toast.error("Libere as janelas do navegador para gerar o PDF.");
+  };
+
+  return (
+    <div className="mx-auto max-w-5xl space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold text-zinc-900">Financeiro</h1>
+        <div role="group" aria-label="Período" className="flex rounded-xl bg-zinc-200/70 p-1">
+          {PERIODOS.map(({ dias: valor, rotulo }) => (
+            <button key={valor} type="button" aria-pressed={dias === valor} onClick={() => setDias(valor)} className={`min-h-9 rounded-lg px-3 text-sm font-semibold ${dias === valor ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-600"}`}>{rotulo}</button>
+          ))}
         </div>
       </div>
-      <p className="text-xs font-bold text-zinc-500 dark:text-zinc-400 relative truncate mb-1">{title}</p>
-      <h3 className="text-2xl sm:text-3xl font-bold text-zinc-900 dark:text-zinc-100 relative break-words tracking-tight">{value}</h3>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="min-w-0 space-y-4">
+          <GraficoDeCompras barras={barras} total={somar(validos)} carregando={carregando} />
+          <ContasEmAberto pedidos={abertos} />
+        </div>
+
+        <div className="min-w-0 space-y-4">
+          <Cartao className="divide-y divide-zinc-100">
+            <div className="flex items-center justify-between gap-3 p-4"><span className="text-sm text-zinc-500">Em aberto</span><span className="text-lg font-bold tabular-nums text-zinc-900">{moeda(cadastro?.emAberto)}</span></div>
+            <div className="flex items-center justify-between gap-3 p-4"><span className="text-sm text-zinc-500">Pedidos no período</span><span className="text-lg font-bold tabular-nums text-zinc-900">{validos.length}</span></div>
+          </Cartao>
+
+          {ranking.length > 0 && (
+            <Cartao className="p-4 md:p-5">
+              <h2 className="text-base font-bold text-zinc-900">Mais comprados</h2>
+              <ul className="mt-3 space-y-3">
+                {ranking.map(([nome, quantidade]) => (
+                  <li key={nome}>
+                    <div className="flex justify-between gap-3 text-[13px]"><span className="min-w-0 truncate text-zinc-700">{nome}</span><span className="shrink-0 whitespace-nowrap font-semibold tabular-nums text-zinc-900">{quantidade} un</span></div>
+                    <div className="mt-1 h-1 rounded-full bg-zinc-100"><div className="h-full rounded-full bg-violet-500" style={{ width: `${(quantidade / maiorQuantidade) * 100}%` }} /></div>
+                  </li>
+                ))}
+              </ul>
+            </Cartao>
+          )}
+
+          <Link href="/b2b-xml" className="flex min-h-14 items-center justify-between rounded-2xl border border-zinc-200 bg-white px-4 text-sm font-semibold text-zinc-800">Notas e boletos <ChevronRight size={18} className="text-zinc-400" /></Link>
+        </div>
+      </div>
+
+      <Cartao className="p-4 md:p-5">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-base font-bold text-zinc-900">Extrato</h2>
+          <Botao variante="secundario" className="!min-h-10 !px-3 !text-sm" disabled={periodo.length === 0} onClick={gerarPdf}><Printer size={16} /> PDF</Botao>
+        </div>
+        {!carregando && periodo.length === 0 && <Vazio Icone={Wallet} titulo="Sem movimentação neste período" />}
+        <ul className="mt-2 divide-y divide-zinc-100">
+          {periodo.slice(0, LINHAS_NO_EXTRATO).map((pedido) => {
+            const { rotulo, tom, grupo } = situacaoDoPedido(pedido);
+            return (
+              <li key={pedido.id} className="flex items-center gap-3 py-3">
+                <span className="min-w-0 flex-1">
+                  <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <span className="text-sm font-semibold tabular-nums text-zinc-900">#{pedido.id}</span>
+                    <Etiqueta tom={tom}>{rotulo}</Etiqueta>
+                  </span>
+                  <span className="mt-0.5 block text-[13px] text-zinc-500">{dataCurta(pedido.date_created)}</span>
+                </span>
+                <span className={`shrink-0 whitespace-nowrap text-right text-sm font-bold tabular-nums ${grupo === "cancelado" ? "text-zinc-400 line-through" : "text-zinc-900"}`}>{moeda(pedido.total)}</span>
+              </li>
+            );
+          })}
+        </ul>
+      </Cartao>
     </div>
   );
 }

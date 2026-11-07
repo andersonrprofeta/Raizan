@@ -660,6 +660,7 @@ export default function CatalogoB2B() {
         })).filter(p => p.status !== 'inativo');
         
         setProdutosDb(mapped); 
+        atualizarPrecosDoCarrinho(mapped);
         }
 
         if (dataCli && dataCli.success && userEmail) {
@@ -743,6 +744,23 @@ export default function CatalogoB2B() {
     setTimeout(() => {
       window.dispatchEvent(new Event('storage'));
     }, 0);
+  };
+
+  // O carrinho fica guardado no navegador: sem isto, ele seguiria com o preço de quando o item entrou
+  const atualizarPrecosDoCarrinho = (catalogo) => {
+    let salvo = {};
+    try { salvo = JSON.parse(localStorage.getItem("@raizan:carrinho")) || {}; } catch (e) { return; }
+
+    const produtos = new Map(catalogo.map((p) => [String(p.sku), p]));
+    const atualizado = Object.fromEntries(Object.entries(salvo).map(([sku, item]) => {
+      const produto = produtos.get(String(sku));
+      if (!produto || item.em_promocao) return [sku, item];
+      const { preco_venda, preco_promocional, qtd_minima_promocao } = produto;
+      return [sku, { ...item, preco_venda, preco_promocional, qtd_minima_promocao }];
+    }));
+
+    setCarrinho(atualizado);
+    localStorage.setItem("@raizan:carrinho", JSON.stringify(atualizado));
   };
 
   const handleFinalizarPedido = async (dadosDoPedido) => {

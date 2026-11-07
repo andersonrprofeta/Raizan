@@ -23,6 +23,11 @@ const TILE_CORES = {
   orange: "from-orange-400 to-orange-600",
   blue: "from-sky-400 to-blue-600",
   zinc: "from-zinc-500 to-zinc-700",
+  rose: "from-rose-400 to-rose-600",
+  amber: "from-amber-400 to-amber-600",
+  cyan: "from-cyan-400 to-cyan-600",
+  pink: "from-pink-400 to-pink-600",
+  indigo: "from-indigo-400 to-indigo-600",
 };
 
 // Ícone em "tile" arredondado, igual aos ícones de app da Apple
@@ -59,6 +64,7 @@ export default function Sidebar() {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
   const [menuDinamico, setMenuDinamico] = useState({});
+  const [aparencia, setAparencia] = useState({});
   const [carregandoMenu, setCarregandoMenu] = useState(true);
 
   // 🆕 MODO RECOLHIDO (só no desktop; no celular a gaveta continua sempre completa)
@@ -122,6 +128,7 @@ export default function Sidebar() {
             return acc;
           }, {});
           setMenuDinamico(agrupados);
+          setAparencia(data.aparencia || {});
         }
       } catch (error) {
         console.error("Erro ao carregar menu dinâmico:", error);
@@ -330,6 +337,11 @@ export default function Sidebar() {
     const IconComponent = LucideIcons[iconName] || LucideIcons.Box;
 
     const themes = {
+      rose: { active: "bg-gradient-to-b from-rose-500 to-rose-600 text-white font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_8px_20px_-8px_rgba(244,63,94,0.6)]", hover: "text-zinc-600 dark:text-zinc-400 hover:bg-rose-500/10 hover:text-rose-700 dark:hover:text-rose-400", iconActive: "text-white" },
+      amber: { active: "bg-gradient-to-b from-amber-400 to-amber-500 text-white font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_8px_20px_-8px_rgba(245,158,11,0.6)]", hover: "text-zinc-600 dark:text-zinc-400 hover:bg-amber-500/10 hover:text-amber-700 dark:hover:text-amber-400", iconActive: "text-white" },
+      cyan: { active: "bg-gradient-to-b from-cyan-500 to-cyan-600 text-white font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_8px_20px_-8px_rgba(6,182,212,0.6)]", hover: "text-zinc-600 dark:text-zinc-400 hover:bg-cyan-500/10 hover:text-cyan-700 dark:hover:text-cyan-400", iconActive: "text-white" },
+      pink: { active: "bg-gradient-to-b from-pink-500 to-pink-600 text-white font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_8px_20px_-8px_rgba(236,72,153,0.6)]", hover: "text-zinc-600 dark:text-zinc-400 hover:bg-pink-500/10 hover:text-pink-700 dark:hover:text-pink-400", iconActive: "text-white" },
+      indigo: { active: "bg-gradient-to-b from-indigo-500 to-indigo-600 text-white font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_8px_20px_-8px_rgba(99,102,241,0.6)]", hover: "text-zinc-600 dark:text-zinc-400 hover:bg-indigo-500/10 hover:text-indigo-700 dark:hover:text-indigo-400", iconActive: "text-white" },
       emerald: { active: "bg-gradient-to-b from-emerald-500 to-emerald-600 text-white font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_8px_20px_-8px_rgba(16,185,129,0.6)]", hover: "text-zinc-600 dark:text-zinc-400 hover:bg-emerald-500/10 hover:text-emerald-700 dark:hover:text-emerald-400", iconActive: "text-white" },
       purple: { active: "bg-gradient-to-b from-purple-500 to-purple-600 text-white font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_8px_20px_-8px_rgba(147,51,234,0.6)]", hover: "text-zinc-600 dark:text-zinc-400 hover:bg-purple-500/10 hover:text-purple-700 dark:hover:text-purple-400", iconActive: "text-white" },
       orange: { active: "bg-gradient-to-b from-orange-400 to-orange-500 text-white font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_8px_20px_-8px_rgba(249,115,22,0.6)]", hover: "text-zinc-600 dark:text-zinc-400 hover:bg-orange-500/10 hover:text-orange-700 dark:hover:text-orange-400", iconActive: "text-white" },
@@ -347,7 +359,17 @@ export default function Sidebar() {
     );
   };
 
+  // A cor e o ícone salvos no painel valem primeiro. Seção sem escolha segue o tema pelo nome.
   const getCategoriaTheme = (nomeCategoria) => {
+    const padrao = getTemaPeloNome(nomeCategoria);
+    const salva = aparencia[nomeCategoria.trim().toLowerCase()];
+    return {
+      cor: TILE_CORES[salva?.cor] ? salva.cor : padrao.cor,
+      iconePadrao: salva?.icone || padrao.iconePadrao,
+    };
+  };
+
+  const getTemaPeloNome = (nomeCategoria) => {
     const nomeNormalizado = nomeCategoria.toLowerCase();
     if (nomeNormalizado.includes("comercial") || nomeNormalizado.includes("venda")) return { cor: "emerald", iconePadrao: "TrendingUp" };
     if (nomeNormalizado.includes("gestão") || nomeNormalizado.includes("erp")) return { cor: "purple", iconePadrao: "Package" };
@@ -358,6 +380,11 @@ export default function Sidebar() {
   };
 
   const themeClassesMap = {
+    rose: { open: "bg-rose-500/10 text-rose-700 dark:text-rose-400", iconOpen: "text-rose-600 dark:text-rose-400" },
+    amber: { open: "bg-amber-500/10 text-amber-700 dark:text-amber-400", iconOpen: "text-amber-600 dark:text-amber-400" },
+    cyan: { open: "bg-cyan-500/10 text-cyan-700 dark:text-cyan-400", iconOpen: "text-cyan-600 dark:text-cyan-400" },
+    pink: { open: "bg-pink-500/10 text-pink-700 dark:text-pink-400", iconOpen: "text-pink-600 dark:text-pink-400" },
+    indigo: { open: "bg-indigo-500/10 text-indigo-700 dark:text-indigo-400", iconOpen: "text-indigo-600 dark:text-indigo-400" },
     emerald: { open: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400", iconOpen: "text-emerald-600 dark:text-emerald-400" },
     purple: { open: "bg-purple-500/10 text-purple-700 dark:text-purple-400", iconOpen: "text-purple-600 dark:text-purple-400" },
     orange: { open: "bg-orange-500/10 text-orange-700 dark:text-orange-400", iconOpen: "text-orange-500 dark:text-orange-400" },

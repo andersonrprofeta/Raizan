@@ -22,6 +22,28 @@ const Secao = ({ titulo, children }) => (
   </Cartao>
 );
 
+// A coluna de entrega e pagamento só fica presa na tela quando cabe inteira nela.
+// Se não couber (cartão aberto, tela baixa), ela rola junto com a página e nada fica escondido.
+function useCabeNaTela(folga = 116) {
+  const [elemento, setElemento] = useState(null);
+  const [cabe, setCabe] = useState(true);
+
+  useEffect(() => {
+    if (!elemento) return undefined;
+    const medir = () => setCabe(elemento.offsetHeight <= window.innerHeight - folga);
+    medir();
+    const observador = new ResizeObserver(medir);
+    observador.observe(elemento);
+    window.addEventListener("resize", medir);
+    return () => {
+      observador.disconnect();
+      window.removeEventListener("resize", medir);
+    };
+  }, [elemento, folga]);
+
+  return [setElemento, cabe];
+}
+
 function ItemDoCarrinho({ item }) {
   const { preco, atingiu, temPromocao, faltam, promocional } = precoDoItem(item);
 
@@ -190,6 +212,7 @@ export default function Carrinho() {
   const prazos = useMemo(() => prazosLiberados(cadastro || {}), [cadastro]);
   const prazo = prazoEscolhido || prazos[0]?.codigo || "";
   const frete = avaliarFrete(cadastro?.rota, subtotal);
+  const [colunaLateral, colunaCabe] = useCabeNaTela();
 
   useEffect(() => {
     if (metodos && !metodos.boleto && metodos.online) setForma("pix");
@@ -293,12 +316,12 @@ export default function Carrinho() {
         </div>
 
         {/* Celular: entrega e pagamento logo no começo. Computador: presos ao lado, com o total e o botão sempre à vista */}
-        <div className="flex flex-col gap-4 lg:sticky lg:top-[100px] lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:max-h-[calc(100dvh-116px)]">
-          <div className="space-y-4 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:[scrollbar-width:thin]">
+        <div ref={colunaLateral} className={`flex flex-col gap-4 lg:col-start-2 lg:row-span-2 lg:row-start-1 ${colunaCabe ? "lg:sticky lg:top-[100px]" : ""}`}>
+          <div className="space-y-4">
             <Entrega envio={envio} setEnvio={setEnvio} frete={frete} cadastro={cadastro} />
             <Pagamento forma={forma} setForma={setForma} prazo={prazo} setPrazo={setPrazoEscolhido} prazos={prazos} metodos={metodos} subtotal={subtotal} onCartao={enviarPedido} />
           </div>
-          <div className="hidden shrink-0 lg:block">
+          <div className="hidden lg:block">
             <Resumo subtotal={subtotal} frete={frete} envio={envio} unidades={unidades} botao={forma !== "cartao" && botaoConcluir} />
           </div>
         </div>

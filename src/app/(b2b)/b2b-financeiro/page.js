@@ -7,6 +7,8 @@ import {
   DollarSign, AlertTriangle, TrendingUp, Calendar, Printer, Package
 } from "lucide-react";
 import { getHubUrl, getHeaders } from "@/components/utils/api";
+import { montarPdfFinanceiro } from "@/components/b2b/pdfFinanceiro";
+import { abrirDocumento } from "@/components/utils/documentoPdf";
 import {
   AreaChart, Area, ResponsiveContainer, Tooltip, XAxis, CartesianGrid
 } from "recharts";
@@ -145,103 +147,24 @@ export default function FinanceiroBI() {
     .slice(0, 5);
 
 
-  // ==========================================
-  // 🟢 GERADOR DE PDF/IMPRESSÃO (ESTILO RAIZAN)
-  // ==========================================
+  const situacaoDoPedido = (pedido) => {
+    if (statusPagos.includes(pedido.status)) return 'pago';
+    return statusCancelados.includes(pedido.status) ? 'cancelado' : 'aberto';
+  };
+
   const gerarPDF = () => {
-    const printWindow = window.open('', '_blank');
-    
-    const html = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Relatório Financeiro - Raizan B2B</title>
-          <style>
-            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 40px; color: #18181b; background: #fff; }
-            .header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #e4e4e7; padding-bottom: 20px; margin-bottom: 30px; }
-            .header h1 { margin: 0; font-size: 24px; color: #7c3aed; letter-spacing: -0.5px; }
-            .header p { margin: 5px 0 0 0; color: #71717a; font-size: 14px; }
-            .resumo { display: flex; gap: 20px; margin-bottom: 30px; }
-            .card { border: 1px solid #e4e4e7; background: #fafafa; padding: 20px; border-radius: 16px; flex: 1; }
-            .card h3 { margin: 0 0 10px 0; font-size: 11px; text-transform: uppercase; color: #71717a; letter-spacing: 1px; }
-            .card p { margin: 0; font-size: 24px; font-weight: 900; letter-spacing: -0.5px; }
-            .pago { color: #7c3aed; }
-            .aberto { color: #e11d48; }
-            table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
-            th, td { border-bottom: 1px solid #f4f4f5; padding: 14px 10px; text-align: left; }
-            th { background-color: #fafafa; color: #a1a1aa; font-weight: 700; text-transform: uppercase; font-size: 10px; letter-spacing: 1px; }
-            .status { font-weight: 800; text-transform: uppercase; font-size: 10px; letter-spacing: 0.5px; }
-            .cancelado { color: #a1a1aa; text-decoration: line-through; }
-            .footer { margin-top: 50px; text-align: center; font-size: 11px; color: #a1a1aa; border-top: 1px dashed #e4e4e7; padding-top: 20px; }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <div>
-              <h1>Extrato Financeiro B2B</h1>
-              <p>Cliente: <strong>${user?.nome || user?.email || 'N/A'}</strong></p>
-            </div>
-            <div style="text-align: right;">
-              <p><strong>Período:</strong> Últimos ${periodo} dias</p>
-              <p><strong>Emissão:</strong> ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}</p>
-            </div>
-          </div>
-          
-          <div class="resumo">
-            <div class="card">
-              <h3>Total Faturado</h3>
-              <p class="pago">${format(totalPago)}</p>
-            </div>
-            <div class="card">
-              <h3>Títulos Pendentes</h3>
-              <p class="aberto">${format(totalDevedor)}</p>
-            </div>
-            <div class="card">
-              <h3>Volume de Pedidos</h3>
-              <p style="color: #18181b;">${pagos.length + abertos.length} pedidos</p>
-            </div>
-          </div>
-
-          <h3 style="margin-bottom: 15px; color: #27272a; font-size: 16px;">Histórico de Movimentações</h3>
-          <table>
-            <thead>
-              <tr>
-                <th>Nº Pedido</th>
-                <th>Data</th>
-                <th>Status</th>
-                <th style="text-align: right;">Valor (R$)</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${pedidosFiltrados.map(p => `
-                <tr>
-                  <td><strong>#${p.id}</strong></td>
-                  <td>${new Date(p.date_created).toLocaleDateString('pt-BR')}</td>
-                  <td class="status ${statusPagos.includes(p.status) ? 'pago' : statusCancelados.includes(p.status) ? 'cancelado' : 'aberto'}">
-                    ${p.status.replace('-', ' ')}
-                  </td>
-                  <td style="text-align: right; font-weight: bold;" class="${statusCancelados.includes(p.status) ? 'cancelado' : ''}">
-                    ${format(p.total)}
-                  </td>
-                </tr>
-              `).join('')}
-              ${pedidosFiltrados.length === 0 ? '<tr><td colspan="4" style="text-align: center; color: #a1a1aa;">Nenhuma movimentação encontrada.</td></tr>' : ''}
-            </tbody>
-          </table>
-
-          <div class="footer">
-            Documento gerado de forma segura e auditável pelo Portal Raizan B2B.
-          </div>
-
-          <script>
-            window.onload = () => { window.print(); }
-          </script>
-        </body>
-      </html>
-    `;
-    
-    printWindow.document.write(html);
-    printWindow.document.close();
+    const html = montarPdfFinanceiro({
+      cliente: user?.nome || user?.email || 'Não informado',
+      periodo,
+      pedidos: pedidosFiltrados,
+      totalPago,
+      totalDevedor,
+      pedidosPagos: pagos.length,
+      pedidosEmAberto: abertos.length,
+      situacaoDoPedido,
+      format,
+    });
+    if (!abrirDocumento(html)) toast.error('Libere as janelas do navegador para gerar o PDF.');
   };
 
   return (

@@ -5,6 +5,8 @@ import Link from "next/link";
 import { ChevronLeft, Printer, Search, X } from "lucide-react";
 import toast from "react-hot-toast";
 import { api, BOTAO_PRIMARIO, BOTAO_SECUNDARIO, CAMPO, Carregando, CascaPagina, ROTULO, VIDRO } from "@/components/vendedores/ui";
+import { montarPdfDaConferencia } from "@/components/checkout/pdfConferencia";
+import { abrirDocumento } from "@/components/utils/documentoPdf";
 
 const dataHora = (valor) => (valor ? new Date(valor).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "medium" }) : "Não informado");
 
@@ -18,13 +20,17 @@ function Detalhe({ id, aoFechar }) {
     }).catch(() => toast.error("Erro de conexão."));
   }, [id]);
 
+  const gerarPdf = () => {
+    if (!abrirDocumento(montarPdfDaConferencia(registro))) toast.error("Libere as janelas do navegador para gerar o PDF.");
+  };
+
   return (
     <div role="dialog" aria-modal="true" aria-label="Relatório da conferência" className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-900/50 dark:bg-black/70 backdrop-blur-md print:static print:bg-white print:p-0">
       <div className={`${VIDRO} !bg-white dark:!bg-[#121214] w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden print:max-h-none print:border-0`}>
         <div className="flex items-center justify-between gap-3 p-5 border-b border-black/[0.06] dark:border-white/[0.07]">
           <h2 className="text-lg font-bold tracking-tight">Pedido #{registro?.pedido_id}</h2>
           <div className="flex gap-2 print:hidden">
-            <button type="button" onClick={() => window.print()} className={`${BOTAO_SECUNDARIO} !h-9 !px-4`}><Printer size={15} /> Imprimir</button>
+            <button type="button" onClick={gerarPdf} disabled={!registro} className={`${BOTAO_SECUNDARIO} !h-9 !px-4`}><Printer size={15} /> Gerar PDF</button>
             <button type="button" onClick={aoFechar} aria-label="Fechar" className="w-9 h-9 rounded-full bg-black/[0.05] dark:bg-white/[0.08] flex items-center justify-center"><X size={17} /></button>
           </div>
         </div>

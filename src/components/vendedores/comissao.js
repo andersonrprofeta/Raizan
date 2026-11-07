@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AlertCircle, Calculator, CheckCircle2, Copy, FileSpreadsheet, FileText, Lock, Plus, ReceiptText, Search, Settings2 } from "lucide-react";
 import ExtratoComissao from "@/components/vendedores/extrato";
+import { montarPdfDaApuracao } from "@/components/vendedores/pdfApuracao";
+import { abrirDocumento } from "@/components/utils/documentoPdf";
 import toast from "react-hot-toast";
 import { nomeDoMes } from "@/components/vendedores/SeletorMes";
 import {
@@ -255,16 +257,7 @@ function Apuracao({ vendedor, competencia }) {
   };
 
   const exportarPdf = () => {
-    const janela = window.open("", "", "width=900,height=650");
-    if (!janela) return toast.error("Libere as janelas do navegador para gerar o PDF.");
-    const tabela = document.getElementById(`apuracao-${vendedor.id}`).outerHTML;
-    janela.document.write(`<html><head><title>Comissões</title><style>
-      body{font-family:-apple-system,Segoe UI,sans-serif;padding:32px;color:#18181b}h2{margin:0 0 4px}p{color:#71717a;margin:0 0 24px}
-      table{width:100%;border-collapse:collapse;font-size:13px}th,td{border-bottom:1px solid #e4e4e7;padding:10px;text-align:right}
-      th:first-child,td:first-child{text-align:left}th{color:#71717a;font-weight:500}
-      </style></head><body><h2>Comissão de ${vendedor.nome}</h2><p>${nomeDoMes(competencia)}</p>${tabela}
-      <script>window.onload=function(){window.print();window.close();}</script></body></html>`);
-    janela.document.close();
+    if (!abrirDocumento(montarPdfDaApuracao({ apuracao, totais, resumo, vendedor, competencia }))) toast.error("Libere as janelas do navegador para gerar o PDF.");
   };
 
   return (

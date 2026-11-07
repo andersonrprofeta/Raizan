@@ -5,9 +5,11 @@ import { createPortal } from 'react-dom';
 import { Printer, ArrowLeft, Loader2 } from 'lucide-react';
 import Barcode from 'react-barcode';
 import { getHubUrl, getHeaders, getTenantId } from '@/components/utils/api';
+import { formatarDocumento } from '@/components/utils/documentoPdf';
 
 const MOTIVO_CORTE_PADRAO = 'Estoque insuficiente ou ajuste no ERP';
 const TEMPO_MAXIMO_ATUALIZACAO_MS = 5000;
+const TEMPO_MAXIMO_DA_LOGO_MS = 2000;
 // Os cortes ficam depois das assinaturas: quem separa não pode ler esse quadro como parte dos produtos
 const ESPACO_ANTES_DOS_CORTES = '10mm';
 
@@ -47,9 +49,21 @@ export function montarSeparacao(pedido) {
   };
 }
 
+// A impressão abre sozinha: sem esperar, a logo sairia em branco no papel
+function carregarLogo(endereco) {
+  return new Promise((pronto) => {
+    if (!endereco) return pronto();
+    const imagem = new Image();
+    imagem.onload = pronto;
+    imagem.onerror = pronto;
+    imagem.src = endereco;
+    setTimeout(pronto, TEMPO_MAXIMO_DA_LOGO_MS);
+  });
+}
+
 export default function MapaSeparacao({ pedido: pedidoRecebido, onFechar }) {
   const [pedido, setPedido] = useState(pedidoRecebido);
-  const [empresa, setEmpresa] = useState({ nome: 'CARREGANDO...', cnpj: '...' });
+  const [empresa, setEmpresa] = useState({ nome: 'CARREGANDO...', cnpj: '...', logo: '' });
   const [prontoParaImprimir, setProntoParaImprimir] = useState(false);
 
   useEffect(() => {
@@ -80,12 +94,15 @@ export default function MapaSeparacao({ pedido: pedidoRecebido, onFechar }) {
         const nomeCache = localStorage.getItem("@raizan:nome");
         const tenantCache = getTenantId();
 
+        const logo = localStorage.getItem("@raizan:logo") || '';
         setEmpresa({
           nome: nomeCache || 'DISTRIBUIDORA AUTORIZADA',
-          cnpj: tenantCache || 'CNPJ NÃO INFORMADO'
+          cnpj: formatarDocumento(tenantCache) || 'CNPJ NÃO INFORMADO',
+          logo
         });
+        await carregarLogo(logo);
       } catch (error) {
-        setEmpresa({ nome: 'DISTRIBUIDORA AUTORIZADA', cnpj: 'CNPJ NÃO INFORMADO' });
+        setEmpresa({ nome: 'DISTRIBUIDORA AUTORIZADA', cnpj: 'CNPJ NÃO INFORMADO', logo: '' });
       }
 
       await atualizarPedido();
@@ -210,27 +227,24 @@ export default function MapaSeparacao({ pedido: pedidoRecebido, onFechar }) {
 
       <div className="w-full max-w-[210mm] mx-auto bg-white text-zinc-900 p-6 shadow-2xl print:shadow-none print:p-0 print:m-0 print:w-full print:h-auto">
         
-        <div className="flex justify-between items-start border-b-2 border-purple-700 pb-3 mb-4">
-          <div>
-            <h1 className="text-xl font-black uppercase tracking-tighter text-zinc-900 leading-none">{empresa.nome}</h1>
-            <p className="text-sm font-semibold text-zinc-800 mt-1.5">
-              <strong className="text-zinc-900">CNPJ:</strong> {empresa.cnpj}
-            </p>
-            <p className="text-base font-bold text-zinc-900 mt-1">
-              <strong className="font-black">Vendedor:</strong> {pedido.vendedor_nome || 'Balcão'}
-            </p>
-          </div>
-          <div className="text-right flex flex-col items-end">
-            <div className="bg-purple-700 text-white text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded mb-1.5">
-              Mapa de Separação
+        <div className="flex justify-between items-center gap-6 border-b-[3px] border-[#6d28d9] pb-3 mb-4">
+          <div className="flex items-center gap-4 min-w-0">
+            {empresa.logo && <img src={empresa.logo} alt="" className="block w-auto h-auto max-w-[190px] max-h-[80px] object-contain shrink-0" />}
+            <div className="min-w-0">
+              <h1 className="text-base font-bold text-zinc-900 leading-tight">{empresa.nome}</h1>
+              <p className="text-[11px] text-zinc-500 mt-0.5">CNPJ {empresa.cnpj}</p>
+              <p className="text-sm font-semibold text-zinc-900 mt-1">Vendedor: {pedido.vendedor_nome || 'Balcão'}</p>
             </div>
+          </div>
+          <div className="text-right flex flex-col items-end shrink-0">
+            <h2 className="text-[19px] font-bold tracking-tight text-[#4c1d95] leading-none mb-1.5">Mapa de Separação</h2>
             <Barcode value={String(pedido.pedido_id)} format="CODE128" width={1.4} height={34} displayValue={false} margin={0} background="#ffffff" />
             <p className="text-[10px] font-bold text-zinc-800 mt-1">Nº DO PEDIDO #{pedido.pedido_id}</p>
             <p className="text-[9px] text-zinc-500 mt-0.5">Emitido: {dataAtual}</p>
           </div>
         </div>
 
-        <div className="bg-[#f8f9fa] border border-zinc-200 p-3 rounded-lg mb-5 text-[10px] leading-tight">
+        <div className="bg-[#f8f7fb] p-3 rounded-[10px] mb-5 text-[10px] leading-tight">
           <div className="grid grid-cols-12 gap-y-2 gap-x-4">
             <div className="col-span-12 sm:col-span-8">
               <strong className="text-zinc-800 block mb-0.5">Cliente:</strong>
@@ -268,7 +282,7 @@ export default function MapaSeparacao({ pedido: pedidoRecebido, onFechar }) {
         <div>
           <table className="w-full text-left mb-1 border-collapse text-[9px]">
             <thead>
-              <tr className="border-b-2 border-zinc-300">
+              <tr className="bg-[#f4f4f5]">
                 <th className="py-1.5 px-1 font-bold text-zinc-700 uppercase w-[8%]">Endereço</th>
                 <th className="py-1.5 px-1 font-bold text-zinc-700 uppercase w-[10%] text-center">Lote</th>
                 <th className="py-1.5 px-1 font-bold text-zinc-700 uppercase w-[10%] text-center">Vencimento</th>
@@ -357,7 +371,7 @@ export default function MapaSeparacao({ pedido: pedidoRecebido, onFechar }) {
               </div>
               <div className="flex justify-between text-[11px] font-black text-zinc-900 mt-1 pt-1 border-t border-zinc-200">
                 <span>Total de Itens:</span>
-                <span className="text-purple-700">{totalItens}</span>
+                <span className="text-[#4c1d95]">{totalItens}</span>
               </div>
               {itensCortados.length > 0 && (
                 <div className="flex justify-between text-[10px] text-zinc-500 mt-1">
@@ -367,7 +381,7 @@ export default function MapaSeparacao({ pedido: pedidoRecebido, onFechar }) {
               )}
               <div className="mt-2 pt-2 border-t-2 border-zinc-800">
                 <span className="block text-[11px] font-black uppercase tracking-wide text-zinc-900">Total do Pedido</span>
-                <span className="block text-right text-2xl font-black leading-tight text-purple-700 whitespace-nowrap">{moeda(totalPedido)}</span>
+                <span className="block text-right text-2xl font-black leading-tight text-[#4c1d95] whitespace-nowrap">{moeda(totalPedido)}</span>
               </div>
             </div>
 

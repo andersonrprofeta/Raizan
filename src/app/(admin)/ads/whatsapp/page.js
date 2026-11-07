@@ -25,8 +25,8 @@ const PASSOS_META = [
     texto: "Abra o Gerenciador de Comércio, entre com a conta que administra a empresa e crie um catálogo de e-commerce. Se já tiver um, é só abrir.",
     link: { rotulo: "Abrir Gerenciador de Comércio", url: "https://business.facebook.com/commerce/" },
   },
-  { texto: "No catálogo, vá em Fontes de dados, escolha adicionar por link agendado e cole o link que está acima." },
-  { texto: "Escolha a atualização mais frequente disponível e aguarde a primeira leitura. O status no topo desta tela muda quando o link for acessado." },
+  { texto: "No catálogo, vá em Fontes de dados, escolha adicionar por link agendado e cole o link que está acima. Não envie o arquivo baixado: arquivo enviado à mão não atualiza sozinho." },
+  { texto: "Escolha a atualização mais frequente que a Meta oferecer, normalmente a cada hora. A partir daí ela busca o link sozinha, e o status no topo desta tela muda quando o link for lido." },
   {
     texto: "Abra o WhatsApp Manager, entre na área de Catálogo e conecte esse catálogo à conta que tem os números da equipe.",
     link: { rotulo: "Abrir WhatsApp Manager", url: "https://business.facebook.com/wa/manage/home/" },
@@ -67,6 +67,7 @@ export default function CatalogoWhatsappPage() {
   const [carregandoLista, setCarregandoLista] = useState(false);
   const [modalConfigOpen, setModalConfigOpen] = useState(false);
   const [ocultarSemEstoque, setOcultarSemEstoque] = useState(true);
+  const [ocultarBonificados, setOcultarBonificados] = useState(true);
   const [nomeLoja, setNomeLoja] = useState("");
   const [site, setSite] = useState("");
   const [canais, setCanais] = useState([]);
@@ -83,6 +84,7 @@ export default function CatalogoWhatsappPage() {
         setDados(data);
         if (data.config) {
           setOcultarSemEstoque(Boolean(data.config.ocultar_sem_estoque));
+          setOcultarBonificados(data.config.ocultar_bonificados !== false);
           setNomeLoja(data.config.nome_loja || "");
           setSite(data.config.site || "");
           setCanais(Array.isArray(data.config.canais) ? data.config.canais : []);
@@ -157,7 +159,7 @@ export default function CatalogoWhatsappPage() {
       const res = await fetch(`${ENDERECO}/config`, {
         method: "POST",
         headers: { ...getHeaders(), "Content-Type": "application/json" },
-        body: JSON.stringify({ nome_loja: nomeLoja, site, ocultar_sem_estoque: ocultarSemEstoque, canais }),
+        body: JSON.stringify({ nome_loja: nomeLoja, site, ocultar_sem_estoque: ocultarSemEstoque, ocultar_bonificados: ocultarBonificados, canais }),
       });
       const data = await res.json();
       if (data.success) {
@@ -176,7 +178,8 @@ export default function CatalogoWhatsappPage() {
 
   const estatisticas = dados?.estatisticas;
   const noCatalogo = (estatisticas?.em_estoque || 0) + (dados?.config?.ocultar_sem_estoque ? 0 : (estatisticas?.sem_estoque || 0));
-  const foraDoCatalogo = (estatisticas?.sem_foto || 0) + (estatisticas?.sem_preco || 0);
+  const foraDoCatalogo = (estatisticas?.sem_foto || 0) + (estatisticas?.sem_preco || 0) + (estatisticas?.bonificados || 0);
+  const prefixoBonificados = dados?.prefixo_bonificados;
   const lido = Boolean(dados?.ultimo_acesso);
 
   return (
@@ -241,7 +244,7 @@ export default function CatalogoWhatsappPage() {
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-y-8 gap-x-8">
                     <Metrica rotulo="No catálogo" valor={formatarInteiro(noCatalogo)} detalhe="Enviados no link" tom="text-emerald-600 dark:text-emerald-400" />
                     <Metrica rotulo="Sem estoque" valor={formatarInteiro(estatisticas?.sem_estoque)} detalhe={dados.config?.ocultar_sem_estoque ? "Ocultos do catálogo" : "Aparecem como esgotados"} />
-                    <Metrica rotulo="Fora do catálogo" valor={formatarInteiro(foraDoCatalogo)} detalhe={`${formatarInteiro(estatisticas?.sem_foto)} sem foto, ${formatarInteiro(estatisticas?.sem_preco)} sem preço`} tom={foraDoCatalogo > 0 ? "text-amber-600 dark:text-amber-400" : "text-zinc-400"} />
+                    <Metrica rotulo="Fora do catálogo" valor={formatarInteiro(foraDoCatalogo)} detalhe={`${formatarInteiro(estatisticas?.sem_foto)} sem foto, ${formatarInteiro(estatisticas?.sem_preco)} sem preço, ${formatarInteiro(estatisticas?.bonificados)} bonificados`} tom={foraDoCatalogo > 0 ? "text-amber-600 dark:text-amber-400" : "text-zinc-400"} />
                     <Metrica rotulo="Último acesso ao link" valor={<span className="text-xl">{formatarAcesso(dados.ultimo_acesso)}</span>} detalhe="Conta qualquer leitura do link" />
                   </div>
 
@@ -392,6 +395,16 @@ export default function CatalogoWhatsappPage() {
                 <label className="flex items-center gap-2.5 text-sm text-zinc-600 dark:text-zinc-300 cursor-pointer">
                   <input type="checkbox" checked={ocultarSemEstoque} onChange={(e) => setOcultarSemEstoque(e.target.checked)} className="accent-emerald-500 w-4 h-4" />
                   Tirar do catálogo os produtos sem estoque
+                </label>
+                <label className="flex items-start gap-2.5 text-sm text-zinc-600 dark:text-zinc-300 cursor-pointer">
+                  <input type="checkbox" checked={ocultarBonificados} onChange={(e) => setOcultarBonificados(e.target.checked)} className="accent-emerald-500 w-4 h-4 mt-0.5" />
+                  <span>
+                    Tirar do catálogo os produtos bonificados
+                    <span className="block text-xs text-zinc-500 mt-0.5">
+                      {prefixoBonificados ? `Marcas que começam com "${prefixoBonificados}". ` : "Nenhuma marca definida. "}
+                      <Link href="/configuracoes" className="font-semibold text-emerald-600 dark:text-emerald-400 hover:underline">Mudar em Parâmetros de sistema</Link>
+                    </span>
+                  </span>
                 </label>
               </section>
 

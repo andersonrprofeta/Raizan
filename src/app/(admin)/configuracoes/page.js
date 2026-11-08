@@ -1,11 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CalendarClock, Database, Loader2, Save, ShoppingBag, Smartphone, Store } from "lucide-react";
+import { CalendarClock, Database, Image as Imagem, Loader2, Palette, PanelBottom, PanelTop, Save, ShoppingBag, SlidersHorizontal, Smartphone, Store, Headphones, BadgeCheck } from "lucide-react";
 import toast from "react-hot-toast";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import AbaEcommerce from "@/components/parametros/AbaEcommerce";
+import EditorAtendimento from "@/components/ecommerce/EditorAtendimento";
+import EditorBanners from "@/components/ecommerce/EditorBanners";
+import EditorCabecalho from "@/components/ecommerce/EditorCabecalho";
+import EditorCores from "@/components/ecommerce/EditorCores";
+import EditorIdentidade from "@/components/ecommerce/EditorIdentidade";
+import EditorRodape from "@/components/ecommerce/EditorRodape";
 import AbaOracle from "@/components/parametros/AbaOracle";
 import AbaPrazos from "@/components/parametros/AbaPrazos";
 import AbaRaizanSeller from "@/components/parametros/AbaRaizanSeller";
@@ -23,13 +29,43 @@ const GUIAS = [
   { id: "oracle", rotulo: "Oracle", icone: Database },
 ];
 
+// Tudo da loja fica aqui. "Regras" usa o Salvar da página; as outras abas têm o próprio Salvar.
+const ABAS_ECOMMERCE = [
+  { id: "regras", rotulo: "Regras", icone: SlidersHorizontal },
+  { id: "cores", rotulo: "Cores", icone: Palette },
+  { id: "identidade", rotulo: "Logo", icone: BadgeCheck },
+  { id: "cabecalho", rotulo: "Cabeçalho", icone: PanelTop },
+  { id: "banners", rotulo: "Banners", icone: Imagem },
+  { id: "rodape", rotulo: "Rodapé", icone: PanelBottom },
+  { id: "atendimento", rotulo: "Atendimento", icone: Headphones },
+];
+
+const EDITORES = {
+  cores: EditorCores,
+  identidade: EditorIdentidade,
+  cabecalho: EditorCabecalho,
+  banners: EditorBanners,
+  rodape: EditorRodape,
+  atendimento: EditorAtendimento,
+};
+
 export default function ParametrosDoSistema() {
   const [guia, setGuia] = useState("app");
+  const [abaEcommerce, setAbaEcommerce] = useState("regras");
   const [parametros, setParametros] = useState(null);
   const [opcoes, setOpcoes] = useState({ marcas: [], vendedores: [], ufs: [] });
   const [falhou, setFalhou] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [alterado, setAlterado] = useState(false);
+
+  // Links antigos (/ecommerce/cores etc.) chegam aqui com ?guia=ecommerce&aba=cores
+  useEffect(() => {
+    const busca = new URLSearchParams(window.location.search);
+    const pedida = busca.get("guia");
+    if (GUIAS.some((g) => g.id === pedida)) setGuia(pedida);
+    const aba = busca.get("aba");
+    if (ABAS_ECOMMERCE.some((a) => a.id === aba)) setAbaEcommerce(aba);
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -74,6 +110,10 @@ export default function ParametrosDoSistema() {
     }
   };
 
+  const Editor = guia === "ecommerce" ? EDITORES[abaEcommerce] : null;
+  // Os editores da loja têm o próprio botão Salvar; o da página vale para as regras
+  const usaSalvarDaPagina = guia !== "oracle" && !Editor;
+
   return (
     <div className="flex h-screen overflow-hidden bg-[#f5f5f7] text-zinc-900 antialiased transition-colors duration-300 dark:bg-[#09090b] dark:text-zinc-100">
       <Sidebar />
@@ -85,13 +125,13 @@ export default function ParametrosDoSistema() {
         <Header />
 
         <main className="custom-scrollbar relative flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
-          <div className="mx-auto max-w-3xl space-y-6 pb-20">
+          <div className={`mx-auto space-y-6 pb-20 ${Editor ? "max-w-[1400px]" : "max-w-3xl"}`}>
             <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
               <div>
                 <h1 className="text-2xl font-bold tracking-tight sm:text-[32px] sm:leading-tight">Parâmetros de sistema</h1>
                 <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">Regras comerciais de cada canal de venda.</p>
               </div>
-              {guia !== "oracle" && parametros && (
+              {usaSalvarDaPagina && parametros && (
                 <button type="button" onClick={salvar} disabled={!alterado || salvando} className="flex h-11 shrink-0 items-center justify-center gap-2 rounded-full bg-gradient-to-b from-purple-500 to-purple-700 px-5 text-sm font-semibold text-white shadow-lg shadow-purple-500/25 transition-all hover:brightness-110 active:scale-95 disabled:opacity-40">
                   {salvando ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} Salvar
                 </button>
@@ -100,8 +140,16 @@ export default function ParametrosDoSistema() {
 
             <Segmentado opcoes={GUIAS} valor={guia} onChange={setGuia} />
 
+            {guia === "ecommerce" && (
+              <div className="-mt-2">
+                <Segmentado opcoes={ABAS_ECOMMERCE} valor={abaEcommerce} onChange={setAbaEcommerce} />
+              </div>
+            )}
+
             {guia === "oracle" ? (
               <AbaOracle />
+            ) : Editor ? (
+              <Editor key={abaEcommerce} />
             ) : falhou ? (
               <p className={`${VIDRO} p-8 text-center text-sm text-zinc-500`}>Não foi possível carregar os parâmetros. Entre novamente no Core e tente de novo.</p>
             ) : !parametros ? (

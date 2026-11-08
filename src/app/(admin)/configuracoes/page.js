@@ -5,10 +5,11 @@ import { CalendarClock, Database, Loader2, Save, ShoppingBag, Smartphone, Store 
 import toast from "react-hot-toast";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
+import AbaEcommerce from "@/components/parametros/AbaEcommerce";
 import AbaOracle from "@/components/parametros/AbaOracle";
 import AbaPrazos from "@/components/parametros/AbaPrazos";
 import AbaRaizanSeller from "@/components/parametros/AbaRaizanSeller";
-import { Aviso, CAMPO, Grupo, LinhaCampo, LinhaSwitch } from "@/components/parametros/ui";
+import { CAMPO, Grupo, LinhaCampo, LinhaSwitch } from "@/components/parametros/ui";
 import { getHeaders, getHubUrl } from "@/components/utils/api";
 import { Segmentado, VIDRO } from "@/components/vendedores/ui";
 
@@ -123,13 +124,7 @@ export default function ParametrosDoSistema() {
               </Grupo>
               </div>
             ) : (
-              <div className="space-y-5">
-                <Aviso>A loja virtual ainda não está no ar. Estas opções ficam guardadas e passam a valer quando ela for lançada.</Aviso>
-                <Grupo titulo="Catálogo da loja">
-                  <LinhaSwitch titulo="Não enviar produtos sem estoque" ligado={parametros.ecommerce.ocultar_sem_estoque} onChange={(valor) => alterar("ecommerce")({ ocultar_sem_estoque: valor })} />
-                  <LinhaSwitch titulo="Não enviar produtos bonificados" ligado={parametros.ecommerce.ocultar_provadores} onChange={(valor) => alterar("ecommerce")({ ocultar_provadores: valor })} />
-                </Grupo>
-              </div>
+              <AbaEcommerce ecommerce={parametros.ecommerce} opcoes={opcoes} alterar={alterar("ecommerce")} />
             )}
 
             {alterado && guia !== "oracle" && (

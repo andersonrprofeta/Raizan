@@ -294,6 +294,9 @@ export default function HeaderEcommercePage() {
                       </h2>
 
                       <div className="space-y-5">
+                        <a href="/configuracoes" className="block rounded-2xl border border-purple-500/20 bg-purple-500/10 px-4 py-3 text-sm leading-relaxed text-purple-800 dark:text-purple-300">
+                          Os textos do aviso agora ficam em <strong>Parâmetros de sistema → E-commerce → Aviso no topo da loja</strong>, junto com as outras regras da loja. Aqui você escolhe só os ícones.
+                        </a>
                         <div className="flex flex-col sm:flex-row gap-3">
                           <div className="sm:w-1/3">
                             <label className="block text-xs font-bold text-zinc-500 mb-2 uppercase tracking-wider">Ícone (Esq)</label>
@@ -307,10 +310,6 @@ export default function HeaderEcommercePage() {
                                <option value="ShieldCheck">Escudo</option>
                                <option value="Gift">Presente</option>
                             </select>
-                          </div>
-                          <div className="flex-1">
-                            <label className="block text-xs font-bold text-zinc-500 mb-2 uppercase tracking-wider">Aviso Esquerdo (Ex: Frete)</label>
-                            <input type="text" value={content.topBar.textLeft} onChange={(e) => setContent({...content, topBar: {...content.topBar, textLeft: e.target.value}})} className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 h-12 outline-none text-sm" />
                           </div>
                         </div>
                         
@@ -327,10 +326,6 @@ export default function HeaderEcommercePage() {
                                <option value="Truck">Caminhão</option>
                                <option value="Star">Estrela</option>
                             </select>
-                          </div>
-                          <div className="flex-1">
-                            <label className="block text-xs font-bold text-zinc-500 mb-2 uppercase tracking-wider">Aviso Central (Ex: Segurança)</label>
-                            <input type="text" value={content.topBar.textCenter} onChange={(e) => setContent({...content, topBar: {...content.topBar, textCenter: e.target.value}})} className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 h-12 outline-none text-sm" />
                           </div>
                         </div>
 

@@ -1,11 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CalendarClock, Database, Image as Imagem, Loader2, Palette, PanelBottom, PanelTop, Save, ShoppingBag, SlidersHorizontal, Smartphone, Store, Headphones, BadgeCheck } from "lucide-react";
+import { CalendarClock, Database, Image as Imagem, Loader2, Palette, PanelBottom, PanelTop, Save, ShoppingBag, SlidersHorizontal, Smartphone, Store, Headphones, BadgeCheck, LayoutTemplate, MessageSquareText, SwatchBook } from "lucide-react";
 import toast from "react-hot-toast";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import AbaEcommerce from "@/components/parametros/AbaEcommerce";
+import AbaAvaliacoes from "@/components/parametros/AbaAvaliacoes";
+import AbaVitrine from "@/components/parametros/AbaVitrine";
+import Temas from "@/components/ecommerce/Temas";
 import EditorAtendimento from "@/components/ecommerce/EditorAtendimento";
 import EditorBanners from "@/components/ecommerce/EditorBanners";
 import EditorCabecalho from "@/components/ecommerce/EditorCabecalho";
@@ -32,12 +35,15 @@ const GUIAS = [
 // Tudo da loja fica aqui. "Regras" usa o Salvar da página; as outras abas têm o próprio Salvar.
 const ABAS_ECOMMERCE = [
   { id: "regras", rotulo: "Regras", icone: SlidersHorizontal },
+  { id: "vitrine", rotulo: "Vitrine", icone: LayoutTemplate },
+  { id: "avaliacoes", rotulo: "Avaliações", icone: MessageSquareText },
   { id: "cores", rotulo: "Cores", icone: Palette },
   { id: "identidade", rotulo: "Logo", icone: BadgeCheck },
   { id: "cabecalho", rotulo: "Cabeçalho", icone: PanelTop },
   { id: "banners", rotulo: "Banners", icone: Imagem },
   { id: "rodape", rotulo: "Rodapé", icone: PanelBottom },
   { id: "atendimento", rotulo: "Atendimento", icone: Headphones },
+  { id: "temas", rotulo: "Temas", icone: SwatchBook },
 ];
 
 const EDITORES = {
@@ -47,6 +53,7 @@ const EDITORES = {
   banners: EditorBanners,
   rodape: EditorRodape,
   atendimento: EditorAtendimento,
+  temas: Temas,
 };
 
 export default function ParametrosDoSistema() {
@@ -172,7 +179,9 @@ export default function ParametrosDoSistema() {
               </Grupo>
               </div>
             ) : (
-              <AbaEcommerce ecommerce={parametros.ecommerce} opcoes={opcoes} alterar={alterar("ecommerce")} />
+              abaEcommerce === "vitrine" ? <AbaVitrine ecommerce={parametros.ecommerce} opcoes={opcoes} alterar={alterar("ecommerce")} />
+              : abaEcommerce === "avaliacoes" ? <AbaAvaliacoes ecommerce={parametros.ecommerce} alterar={alterar("ecommerce")} />
+              : <AbaEcommerce ecommerce={parametros.ecommerce} opcoes={opcoes} alterar={alterar("ecommerce")} />
             )}
 
             {alterado && guia !== "oracle" && (

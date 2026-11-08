@@ -12,6 +12,37 @@ const MODOS_DE_COMPRA = [
   { id: "conta_antes", titulo: "Só compra com conta", texto: "Para colocar na sacola, a pessoa precisa entrar ou criar a conta antes." },
 ];
 
+const MODOS_DE_MARCA = [
+  { id: "todas", titulo: "Todas as marcas", texto: "A loja mostra o catálogo inteiro (respeitando as outras regras desta página)." },
+  { id: "somente", titulo: "Só as marcas escolhidas", texto: "Para lojas de uma marca só, usando o mesmo estoque da empresa." },
+  { id: "exceto", titulo: "Todas, menos as escolhidas", texto: "As marcas marcadas não aparecem na loja." },
+];
+
+const ROTULOS_DO_CARRINHO = [
+  { id: "sacola", titulo: "Sacola", texto: "Adicionar à sacola, Sua sacola. Comum em moda e beleza." },
+  { id: "carrinho", titulo: "Carrinho", texto: "Adicionar ao carrinho, Seu carrinho. Comum em mercado e eletrônicos." },
+];
+
+// Lista de opções em que só uma fica marcada, com título e explicação
+export function Escolha({ opcoes, valor, onChange, rotulo }) {
+  return (
+    <div role="radiogroup" aria-label={rotulo} className="grid gap-2 py-3.5 first:pt-0">
+      {opcoes.map((opcao) => {
+        const ligado = valor === opcao.id;
+        return (
+          <button key={opcao.id} type="button" role="radio" aria-checked={ligado} onClick={() => onChange(opcao.id)} className={`flex items-start gap-3 rounded-2xl border p-3.5 text-left transition-colors ${ligado ? "border-purple-500/50 bg-purple-500/10" : "border-black/[0.06] hover:bg-black/[0.03] dark:border-white/[0.08] dark:hover:bg-white/[0.04]"}`}>
+            <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${ligado ? "border-purple-500" : "border-zinc-300 dark:border-zinc-600"}`}>{ligado && <span className="h-2.5 w-2.5 rounded-full bg-purple-500" />}</span>
+            <span>
+              <span className="block text-sm font-semibold text-zinc-900 dark:text-zinc-100">{opcao.titulo}</span>
+              <span className="block text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">{opcao.texto}</span>
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 const Campo = ({ valor, onChange, rotulo, prefixo, sufixo, placeholder = "0" }) => (
   <div className="relative">
     {prefixo && <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm text-zinc-400">{prefixo}</span>}
@@ -91,6 +122,13 @@ export default function AbaEcommerce({ ecommerce, opcoes, alterar }) {
 
       <Grupo titulo="Página do produto">
         <LinhaSwitch titulo="Mostrar o botão Comprar agora" texto="Leva direto para a finalização, além do Adicionar à sacola." ligado={ecommerce.comprar_agora} onChange={(valor) => alterar({ comprar_agora: valor })} />
+        <p className="pt-3.5 text-sm font-semibold text-zinc-900 dark:text-zinc-100">Nome do carrinho na loja</p>
+        <Escolha opcoes={ROTULOS_DO_CARRINHO} valor={ecommerce.rotulo_carrinho || "sacola"} onChange={(rotulo_carrinho) => alterar({ rotulo_carrinho })} rotulo="Nome do carrinho" />
+      </Grupo>
+
+      <Grupo titulo="Estoque na loja">
+        <LinhaSwitch titulo="Mostrar a quantidade em estoque" texto="Ligado: Restam 12 unidades. Desligado: só Em estoque ou Esgotado." ligado={ecommerce.mostrar_estoque} onChange={(valor) => alterar({ mostrar_estoque: valor })} />
+        <LinhaSwitch titulo="Avise-me quando chegar" texto="No produto esgotado, o cliente deixa o e-mail e recebe um aviso quando o estoque voltar." ligado={ecommerce.avise_me} onChange={(valor) => alterar({ avise_me: valor })} />
       </Grupo>
 
       <Grupo titulo="Pagamento" texto="Aparece nos cards de produto e é conferido na hora de cobrar.">
@@ -128,20 +166,7 @@ export default function AbaEcommerce({ ecommerce, opcoes, alterar }) {
       </Grupo>
 
       <Grupo titulo="Contas de clientes">
-        <div role="radiogroup" aria-label="Como o cliente compra" className="grid gap-2 py-3.5 first:pt-0">
-          {MODOS_DE_COMPRA.map((modo) => {
-            const ligado = ecommerce.compra === modo.id;
-            return (
-              <button key={modo.id} type="button" role="radio" aria-checked={ligado} onClick={() => alterar({ compra: modo.id })} className={`flex items-start gap-3 rounded-2xl border p-3.5 text-left transition-colors ${ligado ? "border-purple-500/50 bg-purple-500/10" : "border-black/[0.06] hover:bg-black/[0.03] dark:border-white/[0.08] dark:hover:bg-white/[0.04]"}`}>
-                <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${ligado ? "border-purple-500" : "border-zinc-300 dark:border-zinc-600"}`}>{ligado && <span className="h-2.5 w-2.5 rounded-full bg-purple-500" />}</span>
-                <span>
-                  <span className="block text-sm font-semibold text-zinc-900 dark:text-zinc-100">{modo.titulo}</span>
-                  <span className="block text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">{modo.texto}</span>
-                </span>
-              </button>
-            );
-          })}
-        </div>
+        <Escolha opcoes={MODOS_DE_COMPRA} valor={ecommerce.compra} onChange={(compra) => alterar({ compra })} rotulo="Como o cliente compra" />
         <LinhaCampo titulo="Excluir contas sem pedido depois de" texto="Apaga cadastros que nunca compraram. Vazio desliga; o mínimo é 7 dias.">
           <Campo valor={ecommerce.excluir_contas_sem_pedido_dias} onChange={(valor) => alterar({ excluir_contas_sem_pedido_dias: valor })} rotulo="Dias para excluir contas sem pedido" sufixo="dias" placeholder="Desligado" />
         </LinhaCampo>
@@ -149,7 +174,15 @@ export default function AbaEcommerce({ ecommerce, opcoes, alterar }) {
 
       <Grupo titulo="Catálogo da loja">
         <LinhaSwitch titulo="Não mostrar produtos sem estoque" ligado={ecommerce.ocultar_sem_estoque} onChange={(valor) => alterar({ ocultar_sem_estoque: valor })} />
-        <LinhaSwitch titulo="Não mostrar produtos bonificados" texto="O começo do nome das marcas bonificadas é o definido na guia Raizan Seller." ligado={ecommerce.ocultar_provadores} onChange={(valor) => alterar({ ocultar_provadores: valor })} />
+        <LinhaSwitch titulo="Não mostrar produtos bonificados" texto="Some também a marca do provador da lista de marcas. O começo do nome é o definido na guia Raizan Seller." ligado={ecommerce.ocultar_provadores} onChange={(valor) => alterar({ ocultar_provadores: valor })} />
+        <p className="pt-3.5 text-sm font-semibold text-zinc-900 dark:text-zinc-100">Marcas que vão para a loja</p>
+        <Escolha opcoes={MODOS_DE_MARCA} valor={ecommerce.marcas_modo || "todas"} onChange={(marcas_modo) => alterar({ marcas_modo })} rotulo="Marcas que vão para a loja" />
+        {ecommerce.marcas_modo && ecommerce.marcas_modo !== "todas" && (
+          <div className="pb-3.5">
+            <p className="mb-1.5 text-xs font-semibold text-zinc-500">{ecommerce.marcas_modo === "somente" ? "Vender só estas marcas" : "Não mostrar estas marcas"}</p>
+            <Etiquetas opcoes={(opcoes.marcas || []).map((marca) => ({ id: marca, rotulo: marca }))} marcadas={ecommerce.marcas_lista || []} onChange={(marcas_lista) => alterar({ marcas_lista })} rotuloVazio="Nenhuma marca cadastrada" />
+          </div>
+        )}
       </Grupo>
 
       <Grupo titulo="Marcas bloqueadas por estado" texto="Para marcas que a empresa não pode vender em certas regiões. A loja avisa no cálculo do frete e não deixa finalizar para esses estados.">

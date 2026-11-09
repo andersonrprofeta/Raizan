@@ -196,7 +196,10 @@ function ScannerMesa() {
     const data = await res.json();
 
     if (!data.success || !data.pedidos) return null;
-    return data.pedidos.find(p => String(p.pedido_id) === String(pedidoId) || String(p.id) === String(pedidoId)) || null;
+    // Número do Omie primeiro: o id interno de outro pedido pode ser igual (ex.: id 303 é o pedido 113 do Omie)
+    return data.pedidos.find(p => String(p.pedido_id) === String(pedidoId))
+      || data.pedidos.find(p => String(p.id) === String(pedidoId))
+      || null;
   };
 
   const carregarPedido = async () => {
@@ -406,6 +409,7 @@ function ScannerMesa() {
         headers: getHeaders(),
         body: JSON.stringify({
           pedido_id: pedido.pedido_id,
+          id_hub: pedido.id,
           cliente: pedido.billing?.first_name,
           separador_id: registro.separador?.id,
           separador_nome: registro.separador?.nome,
@@ -431,7 +435,7 @@ function ScannerMesa() {
       const res = await fetch(`${getHubUrl()}/api/hub/pedidos/finalizar-conferencia`, {
         method: 'POST',
         headers: { ...getHeaders(), 'x-tenant-id': tenantId, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pedido_id: pedido.pedido_id, logistica: dadosLogisticos })
+        body: JSON.stringify({ pedido_id: pedido.pedido_id, id_hub: pedido.id, logistica: dadosLogisticos })
       });
       const data = await res.json();
       

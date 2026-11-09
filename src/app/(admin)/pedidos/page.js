@@ -401,7 +401,7 @@ export default function Pedidos() {
         const tenantId = obterTenantSeguro();
         await fetch(`${getHubUrl()}/api/hub/pedidos/marcar-baixado`, {
           method: 'POST', headers: { ...getHeaders(), "x-tenant-id": tenantId },
-          body: JSON.stringify({ pedido_id: idReal })
+          body: JSON.stringify({ pedido_id: idReal, id_hub: pedido.id })
         });
         carregarPedidos(); 
       }

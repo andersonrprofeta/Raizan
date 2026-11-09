@@ -1,17 +1,45 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ChevronLeft, Printer, Search, X } from "lucide-react";
+import { AlertTriangle, ChevronLeft, Printer, Search, X } from "lucide-react";
 import toast from "react-hot-toast";
 import { api, BOTAO_PRIMARIO, BOTAO_SECUNDARIO, CAMPO, Carregando, CascaPagina, ROTULO, VIDRO } from "@/components/vendedores/ui";
 import { montarPdfDaConferencia } from "@/components/checkout/pdfConferencia";
 import { abrirDocumento } from "@/components/utils/documentoPdf";
+import { motivoDa, resumoPorMotivo } from "@/components/checkout/ocorrencias";
 
 const dataHora = (valor) => (valor ? new Date(valor).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "medium" }) : "Não informado");
 
-function Detalhe({ id, aoFechar }) {
+function Ocorrencia({ ocorrencia }) {
+  const motivo = motivoDa(ocorrencia);
+  return (
+    <li className="rounded-2xl border border-amber-500/20 bg-amber-500/[0.06] p-3.5">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+        <p className="font-semibold text-amber-700 dark:text-amber-400">{motivo.titulo}</p>
+        <span className="text-xs tabular-nums text-zinc-500 dark:text-zinc-400">{dataHora(ocorrencia.hora)}</span>
+      </div>
+      {(ocorrencia.produto || ocorrencia.codigo) && (
+        <p className="mt-1 text-sm">
+          {ocorrencia.produto && <span className="font-medium">{ocorrencia.produto}</span>}
+          {ocorrencia.codigo && <span className="ml-1.5 font-mono text-xs uppercase text-zinc-500 dark:text-zinc-400">Código {ocorrencia.codigo}</span>}
+        </p>
+      )}
+      {ocorrencia.detalhe && <p className="mt-1 text-sm">{ocorrencia.detalhe}</p>}
+      {motivo.explicacao && <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">{motivo.explicacao}</p>}
+      {motivo.oQueFazer && <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300"><span className="font-medium text-zinc-800 dark:text-zinc-100">O que fazer:</span> {motivo.oQueFazer}</p>}
+    </li>
+  );
+}
+
+function Detalhe({ id, focarOcorrencias, aoFechar }) {
   const [registro, setRegistro] = useState(null);
+  const secaoOcorrencias = useRef(null);
+
+  // Aberto pelo número de ocorrências: vai direto para elas
+  useEffect(() => {
+    if (registro && focarOcorrencias) secaoOcorrencias.current?.scrollIntoView({ block: "start" });
+  }, [registro, focarOcorrencias]);
 
   useEffect(() => {
     api(`/conferencia/historico/${id}`).then((dados) => {
@@ -58,14 +86,21 @@ function Detalhe({ id, aoFechar }) {
               </table>
             </section>
 
-            <section>
+            <section ref={secaoOcorrencias} className="scroll-mt-2">
               <h3 className="font-semibold mb-2">Ocorrências durante a bipagem</h3>
               {registro.ocorrencias.length === 0 ? <p className="text-sm text-zinc-500 dark:text-zinc-400">Nenhuma ocorrência.</p> : (
-                <ul className="space-y-1.5 text-sm">
-                  {registro.ocorrencias.map((ocorrencia, indice) => (
-                    <li key={indice}><span className="tabular-nums text-zinc-500 dark:text-zinc-400">{dataHora(ocorrencia.hora)}</span> · {ocorrencia.tipo}{ocorrencia.produto ? `: ${ocorrencia.produto}` : ""}{ocorrencia.codigo ? ` (${ocorrencia.codigo})` : ""}</li>
-                  ))}
-                </ul>
+                <>
+                  <ul className="mb-3 flex flex-wrap gap-2" aria-label="Resumo por motivo">
+                    {resumoPorMotivo(registro.ocorrencias).map((item) => (
+                      <li key={item.chave} className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-700 dark:text-amber-400">
+                        <span className="tabular-nums font-bold">{item.total}×</span> {item.titulo}
+                      </li>
+                    ))}
+                  </ul>
+                  <ul className="space-y-2">
+                    {registro.ocorrencias.map((ocorrencia, indice) => <Ocorrencia key={ocorrencia.id || indice} ocorrencia={ocorrencia} />)}
+                  </ul>
+                </>
               )}
             </section>
           </div>
@@ -78,7 +113,7 @@ function Detalhe({ id, aoFechar }) {
 export default function HistoricoConferencia() {
   const [registros, setRegistros] = useState(null);
   const [filtros, setFiltros] = useState({ de: "", ate: "", pedido: "", pessoa: "" });
-  const [aberto, setAberto] = useState(null);
+  const [aberto, setAberto] = useState(null); // { id, focarOcorrencias }
 
   const buscar = useCallback(async (valores) => {
     const parametros = new URLSearchParams(Object.entries(valores).filter(([, valor]) => valor));
@@ -123,12 +158,18 @@ export default function HistoricoConferencia() {
             <tbody className="divide-y divide-black/[0.06] dark:divide-white/[0.06]">
               {registros.map((registro) => (
                 <tr key={registro.id}>
-                  <td className="p-4"><button type="button" onClick={() => setAberto(registro.id)} className="font-semibold text-purple-600 dark:text-purple-400 hover:underline">#{registro.pedido_id}</button></td>
+                  <td className="p-4"><button type="button" onClick={() => setAberto({ id: registro.id })} className="font-semibold text-purple-600 dark:text-purple-400 hover:underline">#{registro.pedido_id}</button></td>
                   <td className="p-4">{registro.separador_nome}</td>
                   <td className="p-4">{registro.conferente_nome}</td>
                   <td className="p-4 tabular-nums">{dataHora(registro.fim)}</td>
                   <td className="p-4 text-right tabular-nums">{registro.total_unidades}</td>
-                  <td className={`p-4 text-right tabular-nums ${registro.total_ocorrencias > 0 ? "font-semibold text-amber-600 dark:text-amber-400" : ""}`}>{registro.total_ocorrencias}</td>
+                  <td className="p-4 text-right tabular-nums">
+                    {registro.total_ocorrencias > 0 ? (
+                      <button type="button" onClick={() => setAberto({ id: registro.id, focarOcorrencias: true })} aria-label={`Ver as ${registro.total_ocorrencias} ocorrências do pedido ${registro.pedido_id}`} className="inline-flex items-center gap-1 font-semibold text-amber-600 dark:text-amber-400 hover:underline">
+                        <AlertTriangle size={14} /> {registro.total_ocorrencias}
+                      </button>
+                    ) : 0}
+                  </td>
                 </tr>
               ))}
               {registros.length === 0 && <tr><td colSpan={6} className="p-10 text-center text-zinc-500">Nenhuma conferência encontrada.</td></tr>}
@@ -137,7 +178,7 @@ export default function HistoricoConferencia() {
         </div>
       )}
 
-      {aberto && <Detalhe id={aberto} aoFechar={() => setAberto(null)} />}
+      {aberto && <Detalhe id={aberto.id} focarOcorrencias={aberto.focarOcorrencias} aoFechar={() => setAberto(null)} />}
     </CascaPagina>
   );
 }

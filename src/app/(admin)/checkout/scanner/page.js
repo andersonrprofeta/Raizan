@@ -10,6 +10,7 @@ import ModalConfirmacaoSair from "@/components/checkout/ModalConfirmacaoSair";
 import ManipulaDados from "@/components/checkout/ManipulaDados";
 import { montarSeparacao } from "@/components/checkout/MapaSeparacao";
 import EscolherSeparador from "@/components/checkout/EscolherSeparador";
+import { mudancasDoPedido, novaOcorrencia } from "@/components/checkout/ocorrencias";
 import { VIDRO, BOTAO_ROXO, BOTAO_VERDE, BOTAO_VIDRO, LuzesDeFundo } from "@/components/checkout/estilos";
 
 const codigosDoItem = (item) => [
@@ -114,13 +115,18 @@ function ScannerMesa() {
   const tocarSucesso = () => new Audio('/sucesso.mp3').play().catch(()=>{});
   const tocarErro = () => new Audio('/error.mp3').play().catch(()=>{});
 
-  // Trava a contagem até alguém confirmar
+  const anotarOcorrencia = (ocorrencia) => atualizarRegistro(atual => ({ ocorrencias: [...atual.ocorrencias, ocorrencia] }));
+  const corrigirOcorrencia = (id, mudanca) => atualizarRegistro(atual => ({ ocorrencias: atual.ocorrencias.map(o => (o.id === id ? { ...o, ...mudanca } : o)) }));
+
+  // Trava a contagem até alguém confirmar. O motivo vai para o histórico (ver components/checkout/ocorrencias.js).
   const bloquearContagem = (dados) => {
     tocarErro();
     setCodigoBipado('');
     setQuantidadeManual(1);
-    setAviso(dados);
-    atualizarRegistro(atual => ({ ocorrencias: [...atual.ocorrencias, { tipo: dados.titulo, produto: dados.produto || null, codigo: dados.codigo || null, hora: horaLocal() }] }));
+    const ocorrencia = novaOcorrencia(dados.motivo, { produto: dados.produto || null, codigo: dados.codigo || null, detalhe: dados.detalhe || null });
+    setAviso({ ...dados, ocorrenciaId: ocorrencia.id });
+    anotarOcorrencia(ocorrencia);
+    return ocorrencia.id;
   };
 
   const liberarContagem = () => {
@@ -141,14 +147,26 @@ function ScannerMesa() {
     return catalogoRef.current?.find(p => codigosDoItem(p).includes(codigo))?.nome || null;
   };
 
+  // Primeiro avisa; depois descobre se é produto de outro pedido ou código que nem existe no cadastro
   const avisarProdutoForaDoPedido = (codigo) => {
-    bloquearContagem({
+    const id = bloquearContagem({
+      motivo: 'fora_do_pedido',
       titulo: 'Produto não consta no pedido',
       codigo,
       mensagem: 'Retire este produto da caixa antes de continuar.'
     });
     buscarNomeDoProduto(codigo)
-      .then(nome => { if (nome) setAviso(atual => atual?.codigo === codigo ? { ...atual, produto: nome } : atual); })
+      .then(nome => {
+        if (nome) {
+          setAviso(atual => atual?.ocorrenciaId === id ? { ...atual, produto: nome } : atual);
+          corrigirOcorrencia(id, { produto: nome });
+          return;
+        }
+        if (!catalogoRef.current) return;
+        const mudanca = { motivo: 'codigo_desconhecido', tipo: 'Código não cadastrado' };
+        setAviso(atual => atual?.ocorrenciaId === id ? { ...atual, titulo: 'Código não cadastrado', mensagem: 'Nenhum produto tem este código. Retire o produto e confira a etiqueta.' } : atual);
+        corrigirOcorrencia(id, mudanca);
+      })
       .catch(() => {});
   };
 
@@ -245,7 +263,11 @@ function ScannerMesa() {
     const contagemConcluida = itens.length > 0 && itens.every(item => item.qtdBipada === item.qtdPedida);
 
     if (contagemConcluida) {
+      const doPedido = itens.find(item => item.codigosValidos?.includes(codigoBipado.trim().toLowerCase()));
       bloquearContagem({
+        motivo: 'depois_de_concluir',
+        produto: doPedido?.nome,
+        codigo: codigoBipado.trim().toLowerCase(),
         titulo: 'Contagem concluída',
         mensagem: 'Todos os produtos já foram conferidos. Finalize a embalagem, sem colocar mais nada na caixa.'
       });
@@ -268,8 +290,11 @@ function ScannerMesa() {
 
     if (faltam === 0) {
       bloquearContagem({
+        motivo: 'passou_do_pedido',
         titulo: 'Produto já concluído',
         produto: item.nome,
+        codigo: codigoLimpo,
+        detalhe: `O pedido pede ${item.qtdPedida} e todas já estavam bipadas`,
         mensagem: `Este produto já tem ${item.qtdPedida} de ${item.qtdPedida} unidades bipadas. Retire a unidade extra da caixa.`
       });
       return;
@@ -277,8 +302,11 @@ function ScannerMesa() {
 
     if (qtdAdicionar > faltam) {
       bloquearContagem({
+        motivo: 'quantidade_acima',
         titulo: 'Quantidade acima do pedido',
         produto: item.nome,
+        codigo: codigoLimpo,
+        detalhe: `Tentou bipar ${qtdAdicionar}, faltavam ${faltam}`,
         mensagem: `Você tentou bipar ${qtdAdicionar}, mas faltam apenas ${faltam}. Confira as unidades e bipe novamente.`
       });
       return;
@@ -295,6 +323,16 @@ function ScannerMesa() {
     setQuantidadeManual(1);
     setCodigoBipado('');
     inputRef.current.focus();
+  };
+
+  // Grava na hora (sem esperar a tela redesenhar): a janela fecha logo em seguida.
+  // A ocorrência fica guardada no aparelho e entra no histórico quando a conferência for retomada e finalizada.
+  const sairNoMeio = () => {
+    const faltando = Object.values(conferencia).filter(item => item.qtdBipada < item.qtdPedida).length;
+    const novo = { ...registro, ocorrencias: [...registro.ocorrencias, novaOcorrencia('saiu_sem_terminar', { detalhe: `${faltando} ${faltando === 1 ? 'produto faltando' : 'produtos faltando'}` })] };
+    try { localStorage.setItem(chaveDoRegistro, JSON.stringify(novo)); } catch (e) {}
+    setRegistro(novo);
+    window.close();
   };
 
   const handleSair = () => {
@@ -331,8 +369,11 @@ function ScannerMesa() {
       Object.keys(atualizada).forEach(ch => {
         if (conferencia[ch]) atualizada[ch].qtdBipada = Math.min(conferencia[ch].qtdBipada, atualizada[ch].qtdPedida);
       });
+      const mudancas = mudancasDoPedido(conferencia, atualizada);
       setConferencia(atualizada);
       bloquearContagem({
+        motivo: 'pedido_alterado',
+        detalhe: mudancas || null,
         titulo: 'Pedido alterado no ERP',
         mensagem: 'As quantidades deste pedido mudaram. Confira a caixa novamente antes de finalizar.'
       });
@@ -435,12 +476,20 @@ function ScannerMesa() {
       {precisaSeparador && (
         <EscolherSeparador
           equipe={equipe}
-          aoEscolher={(separador) => { atualizarRegistro(() => ({ separador })); setTrocandoSeparador(false); }}
+          aoEscolher={(separador) => {
+            const anterior = registro.separador;
+            const jaBipou = Object.values(conferencia).some(item => item.qtdBipada > 0);
+            if (anterior && jaBipou && (anterior.id ?? anterior.nome) !== (separador?.id ?? separador?.nome)) {
+              anotarOcorrencia(novaOcorrencia('separador_trocado', { detalhe: `De ${anterior.nome || 'não informado'} para ${separador?.nome || 'não informado'}` }));
+            }
+            atualizarRegistro(() => ({ separador }));
+            setTrocandoSeparador(false);
+          }}
           aoFechar={registro.separador ? () => setTrocandoSeparador(false) : null}
         />
       )}
 
-      <ModalConfirmacaoSair isOpen={modalSairAberto} onConfirm={() => window.close()} onCancel={() => { setModalSairAberto(false); setTimeout(() => inputRef.current?.focus(), 100); }} />
+      <ModalConfirmacaoSair isOpen={modalSairAberto} onConfirm={sairNoMeio} onCancel={() => { setModalSairAberto(false); setTimeout(() => inputRef.current?.focus(), 100); }} />
       <ManipulaDados isOpen={modalDadosAberto} onClose={() => { setModalDadosAberto(false); setTimeout(() => inputRef.current?.focus(), 100); }} onConfirm={finalizarExpedicao} pedido={pedido} />
 
       {/* 🟢 MODAL DE AUDITORIA */}

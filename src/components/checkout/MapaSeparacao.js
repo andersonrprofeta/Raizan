@@ -330,7 +330,7 @@ export default function MapaSeparacao({ pedido: pedidoRecebido, onFechar }) {
                     <td className="py-1.5 px-1 text-center font-black text-black text-[10px] uppercase">
                       {item.caracteristica || '___'}
                     </td>
-                    <td className="py-1.5 px-1 text-center font-bold text-zinc-600 truncate max-w-[50px] uppercase">
+                    <td className="py-1.5 px-1 text-center font-bold text-zinc-600 uppercase break-words leading-tight">
                       {item.marca || '_______'}
                     </td>
                     <td className="py-1.5 px-1 text-right font-mono text-zinc-900 font-black text-xs">

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CalendarClock, Database, Image as Imagem, Loader2, Palette, PanelBottom, PanelTop, Save, ShoppingBag, SlidersHorizontal, Smartphone, Store, Headphones, BadgeCheck, LayoutTemplate, MessageSquareText, SwatchBook } from "lucide-react";
+import { CalendarClock, Database, Image as Imagem, Loader2, Palette, PanelBottom, PanelTop, Save, ShoppingBag, SlidersHorizontal, Smartphone, Store, Headphones, BadgeCheck, LayoutTemplate, MessageSquareText, SwatchBook, Settings2 } from "lucide-react";
 import toast from "react-hot-toast";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
@@ -25,6 +25,7 @@ import { Segmentado, VIDRO } from "@/components/vendedores/ui";
 const ENDERECO = `${getHubUrl()}/api/hub/parametros`;
 
 const GUIAS = [
+  { id: "geral", rotulo: "Geral", icone: Settings2 },
   { id: "app", rotulo: "Raizan Seller", icone: Smartphone },
   { id: "portal", rotulo: "Portal B2B", icone: Store },
   { id: "ecommerce", rotulo: "E-commerce", icone: ShoppingBag },
@@ -45,6 +46,9 @@ const ABAS_ECOMMERCE = [
   { id: "atendimento", rotulo: "Atendimento", icone: Headphones },
   { id: "temas", rotulo: "Temas", icone: SwatchBook },
 ];
+
+// Antes da API nova responder com "pedidos", a tela mostra o padrão
+const PEDIDOS_PADRAO = { ocultar_finalizados: true, minutos_finalizados: 5 };
 
 const EDITORES = {
   cores: EditorCores,
@@ -161,6 +165,26 @@ export default function ParametrosDoSistema() {
               <p className={`${VIDRO} p-8 text-center text-sm text-zinc-500`}>Não foi possível carregar os parâmetros. Entre novamente no Core e tente de novo.</p>
             ) : !parametros ? (
               <div className={`${VIDRO} flex justify-center p-14`}><Loader2 size={28} className="animate-spin text-purple-500" /></div>
+            ) : guia === "geral" ? (
+              <Grupo titulo="Tela de Pedidos" texto="Vale para todos os canais: Omie, lojas, Portal B2B e WooCommerce.">
+                <LinhaSwitch
+                  titulo="Tirar da grade os pedidos finalizados"
+                  texto="Cancelados, com NF-e emitida e entregues saem da lista depois do tempo abaixo. Pela busca ou pelo filtro de status eles continuam aparecendo."
+                  ligado={(parametros.pedidos ?? PEDIDOS_PADRAO).ocultar_finalizados}
+                  onChange={(valor) => alterar("pedidos")({ ...PEDIDOS_PADRAO, ...parametros.pedidos, ocultar_finalizados: valor })}
+                />
+                <LinhaCampo titulo="Depois de quantos minutos" texto="Contados a partir de quando o pedido ficou cancelado, faturado ou entregue. De 1 a 1440 (um dia).">
+                  <input
+                    inputMode="numeric"
+                    value={(parametros.pedidos ?? PEDIDOS_PADRAO).minutos_finalizados ?? ""}
+                    onChange={(e) => alterar("pedidos")({ ...PEDIDOS_PADRAO, ...parametros.pedidos, minutos_finalizados: e.target.value.replace(/\D/g, "") })}
+                    disabled={!(parametros.pedidos ?? PEDIDOS_PADRAO).ocultar_finalizados}
+                    placeholder="5"
+                    aria-label="Minutos até sair da grade"
+                    className={`${CAMPO} disabled:opacity-40`}
+                  />
+                </LinhaCampo>
+              </Grupo>
             ) : guia === "app" ? (
               <AbaRaizanSeller parametros={parametros} opcoes={opcoes} alterarApp={alterar("app")} alterarProvadores={alterar("provadores")} />
             ) : guia === "prazos" ? (

@@ -239,7 +239,9 @@ export default function Pedidos() {
             plataforma: plataformaReal, 
             integracao_id: activeTabObj.id,
             busca: buscaAplicada,
-            status: statusAplicado
+            status: statusAplicado,
+            // Cancelados, faturados e entregues saem da grade depois do tempo de Parâmetros (a busca acha)
+            ocultar_finalizados: true
         }) 
       });
       

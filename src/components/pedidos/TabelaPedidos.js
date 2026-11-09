@@ -298,6 +298,7 @@ export default function TabelaPedidos({
         <span className="text-zinc-500 dark:text-zinc-400">
           Mostrando pág <span className="font-semibold text-zinc-900 dark:text-zinc-100 tabular-nums">{page}</span> de <span className="font-semibold text-zinc-900 dark:text-zinc-100 tabular-nums">{totalPages || 1}</span>
           {totalItems > 0 && <span className="hidden sm:inline"> · <span className="font-semibold text-zinc-900 dark:text-zinc-100 tabular-nums">{totalItems}</span> pedidos</span>}
+          <span className="hidden md:inline text-xs"> · Finalizados saem da lista após alguns minutos; use a busca para achá-los</span>
         </span>
         <div className="flex items-center gap-2">
           <button

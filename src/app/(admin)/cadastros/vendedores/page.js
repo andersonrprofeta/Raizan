@@ -13,6 +13,7 @@ import {
   api, Avatar, BarraProgresso, BOTAO_PRIMARIO, BOTAO_SECUNDARIO, CAMPO, Carregando, CascaPagina, EstadoVazio,
   estadoDeAcesso, Kpi, moeda, moedaCurta, Segmentado, StatusAcesso, VIDRO
 } from "@/components/vendedores/ui";
+import { diaMesBrasilia } from "@/components/utils/horaBrasilia";
 
 const SECOES = [
   { id: "equipe", rotulo: "Equipe", icone: Users },
@@ -30,7 +31,7 @@ const FILTROS = [
 
 const COLUNAS = "lg:grid-cols-[minmax(0,2.2fr)_minmax(0,1fr)_minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)_20px]";
 
-const dataCurta = (data) => (data ? new Date(data).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" }).replace(".", "") : "Sem pedidos");
+const dataCurta = (data) => diaMesBrasilia(data, "Sem pedidos");
 
 function LinhaVendedor({ vendedor, resumo, onAbrir }) {
   const faturado = resumo?.faturado || 0;

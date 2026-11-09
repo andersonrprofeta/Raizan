@@ -7,7 +7,7 @@ import TabDesempenho from "@/components/vendedores/relatorio";
 import { mesDeHoje } from "@/components/vendedores/SeletorMes";
 import { api, Carregando, CascaPagina, EstadoVazio, VIDRO } from "@/components/vendedores/ui";
 import { lerUsuario, temPermissao } from "@/components/utils/sessaoCore";
-import { horaBrasilia } from "@/components/utils/horaBrasilia";
+import { horaBrasilia, instanteDe } from "@/components/utils/horaBrasilia";
 
 const UM_DIA_MS = 24 * 60 * 60 * 1000;
 
@@ -25,7 +25,7 @@ const ETAPAS = [
 ];
 
 const tempoDeEspera = (data) => {
-  const dias = Math.floor((Date.now() - new Date(data).getTime()) / UM_DIA_MS);
+  const dias = Math.floor((Date.now() - instanteDe(data)) / UM_DIA_MS);
   if (dias <= 0) return "Hoje";
   return dias === 1 ? "Há 1 dia" : `Há ${dias} dias`;
 };

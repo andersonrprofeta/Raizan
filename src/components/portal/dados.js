@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { fatorDoLojista, guardarAcrescimo } from "@/components/utils/acrescimoPortal";
 import { atualizarPrecos } from "./carrinho";
 import { chamarApi, lerUsuario } from "./sessao";
+import { valeHoje } from "@/components/utils/horaBrasilia";
 
 const VALIDADE_MS = 60_000;
 const LIMITE_DE_PEDIDOS = 200;
@@ -97,10 +98,9 @@ export function acharRota(rotas, cliente, endereco) {
     || null;
 }
 
-function ofertaDeHoje(oferta, agora = new Date()) {
-  const fim = new Date(oferta.data_fim);
-  fim.setHours(23, 59, 59);
-  return oferta.ativo && (!oferta.data_inicio || agora >= new Date(oferta.data_inicio)) && agora <= fim;
+// Vale do primeiro ao último dia inteiros, no dia de Brasília (antes sumia no último dia)
+function ofertaDeHoje(oferta) {
+  return Boolean(oferta.ativo) && valeHoje(oferta.data_inicio, oferta.data_fim);
 }
 
 // A oferta do dia vira a promoção do produto, para valer igual em qualquer tela

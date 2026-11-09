@@ -9,6 +9,7 @@ import { lerUsuario, rotuloDoUsuario } from "@/components/utils/sessaoCore";
 import toast from 'react-hot-toast';
 import SinoNotificacoes from "@/components/SinoNotificacoes";
 import LauncherAplicacoes from "@/components/apps/LauncherAplicacoes";
+import { valeHoje } from "@/components/utils/horaBrasilia";
 
 const formatarMoeda = (valor) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor || 0);
@@ -425,13 +426,8 @@ export default function Header() {
       const res = await fetch(`${getApiUrl()}/api/admin/promocoes`, { headers: getHeaders() });
       const data = await res.json();
       if(data.success) {
-        const hoje = new Date();
-        const ofertasAtivas = data.promocoes.filter(promo => {
-          const inicio = new Date(promo.data_inicio);
-          const fim = new Date(promo.data_fim);
-          fim.setHours(23, 59, 59);
-          return promo.ativo && hoje >= inicio && hoje <= fim;
-        });
+        // Vale do primeiro ao último dia inteiros, no dia de Brasília
+        const ofertasAtivas = data.promocoes.filter(promo => promo.ativo && valeHoje(promo.data_inicio, promo.data_fim));
 
         sessionStorage.setItem("@raizan:cache_ofertas", JSON.stringify(ofertasAtivas));
         setListaOfertas(ofertasAtivas);

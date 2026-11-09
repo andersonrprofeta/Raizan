@@ -11,6 +11,7 @@ import {
   Avatar, BOTAO_SECUNDARIO, Carregando, CascaPagina, EstadoVazio, Kpi, moeda, moedaCurta, Modal, Segmentado, VIDRO
 } from "@/components/vendedores/ui";
 import { getHeaders, getHubUrl } from "@/components/utils/api";
+import { dataBrasilia, dataHoraCurtaBrasilia, instanteDe } from "@/components/utils/horaBrasilia";
 
 const PEDIDOS_POR_PAGINA = 8;
 
@@ -44,12 +45,13 @@ function nomeDoCanal(origem) {
   return "Manual";
 }
 
-const formatarData = (data) => (data ? new Date(data).toLocaleDateString("pt-BR") : "Sem data");
-const formatarDataHora = (data) => (data ? new Date(data).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "Sem data");
+// Sempre na hora de Brasília
+const formatarData = (data) => dataBrasilia(data, "Sem data");
+const formatarDataHora = (data) => dataHoraCurtaBrasilia(data, "Sem data");
 
 function textoDaUltimaCompra(data) {
   if (!data) return { valor: "Sem compras", detalhe: "Nenhum pedido registrado" };
-  const dias = Math.floor((Date.now() - new Date(data).getTime()) / 86400000);
+  const dias = Math.floor((Date.now() - instanteDe(data)) / 86400000);
   if (dias <= 0) return { valor: "Hoje", detalhe: formatarData(data) };
   return { valor: dias === 1 ? "1 dia" : `${dias} dias`, detalhe: `Em ${formatarData(data)}` };
 }

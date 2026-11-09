@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Ban, CheckCircle, Copy, KeyRound, LockOpen, MonitorX, Pencil, Plus, ShieldCheck, Users, X } from "lucide-react";
 import toast from "react-hot-toast";
 import { api, Avatar, BOTAO_PRIMARIO, BOTAO_SECUNDARIO, CAMPO, Carregando, ROTULO, Segmentado, VIDRO } from "@/components/vendedores/ui";
+import { dataHoraCurtaBrasilia } from "@/components/utils/horaBrasilia";
 
 const ABAS = [
   { id: "usuarios", rotulo: "Usuários", icone: Users },
@@ -24,7 +25,7 @@ const NOME_DA_ACAO = {
 // A lista do select é desenhada pelo sistema: sem isso, o tema escuro mostra texto claro em fundo branco
 const SELETOR = `${CAMPO} dark:[color-scheme:dark] [&>option]:bg-white [&>option]:text-zinc-900 dark:[&>option]:bg-[#1c1c1f] dark:[&>option]:text-zinc-100`;
 
-const dataHora = (valor) => (valor ? new Date(valor).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "Nunca");
+const dataHora = (valor) => dataHoraCurtaBrasilia(valor, "Nunca");
 
 function ModalLink({ link, emailEnviado, aoFechar }) {
   const copiar = () => {

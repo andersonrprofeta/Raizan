@@ -6,6 +6,7 @@ import Header from "@/components/Header";
 import { Tag, Calendar, DollarSign, Package, Plus, Trash2, Loader2, Percent, Layers } from "lucide-react";
 import { getApiUrl, getHubUrl, getHeaders } from "@/components/utils/api";
 import toast from 'react-hot-toast';
+import { dataBrasilia } from "@/components/utils/horaBrasilia";
 
 export default function GestaoPromocoes() {
   const [promocoes, setPromocoes] = useState([]);
@@ -128,7 +129,8 @@ export default function GestaoPromocoes() {
   };
 
   const formatarMoeda = (valor) => Number(valor).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-  const formatarData = (dataStr) => new Date(dataStr).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  // Início e fim são dias: mostrados como estão, sem conta de fuso (antes o fim aparecia um dia antes)
+  const formatarData = (dataStr) => dataBrasilia(dataStr, '—');
 
   return (
     <div className="flex h-screen bg-zinc-50 dark:bg-[#09090b] text-zinc-900 dark:text-zinc-100 overflow-hidden transition-colors duration-300">

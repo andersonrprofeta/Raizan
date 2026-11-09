@@ -80,7 +80,7 @@ export default function AbaComplementar({ produto, atualizarCampo, setProduto, i
       
       {/* SESSÃO 1: CATEGORIZAÇÃO */}
       <section className="space-y-5">
-        <h2 className="text-lg font-black text-zinc-900 dark:text-zinc-100 flex items-center gap-2 border-b border-zinc-200 dark:border-zinc-800 pb-3 transition-colors">
+        <h2 className="text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-100 flex items-center gap-2 border-b border-black/[0.06] dark:border-white/[0.06] pb-3 transition-colors">
           <FolderTree className="text-purple-600 dark:text-purple-500 transition-colors" size={20} /> Categorização
         </h2>
         
@@ -100,7 +100,7 @@ export default function AbaComplementar({ produto, atualizarCampo, setProduto, i
                 value={produto.complementares.categoria}
                 onChange={(e) => atualizarCampo('complementares', 'categoria', e.target.value)}
                 disabled={carregandoCategorias}
-                className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3.5 pl-10 pr-12 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all cursor-pointer appearance-none shadow-sm dark:shadow-none disabled:opacity-50"
+                className="w-full bg-black/[0.04] dark:bg-white/[0.05] border border-transparent rounded-2xl focus:bg-white dark:focus:bg-white/[0.07] p-3.5 pl-10 pr-12 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all cursor-pointer appearance-none disabled:opacity-50"
               >
                 <option value="">
                   {carregandoCategorias ? "Carregando categorias..." : "Selecione uma categoria da sua árvore..."}
@@ -133,7 +133,7 @@ export default function AbaComplementar({ produto, atualizarCampo, setProduto, i
                 value={produto.complementares.marca}
                 onChange={(e) => atualizarCampo('complementares', 'marca', e.target.value)}
                 disabled={carregandoMarcas}
-                className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3.5 pl-10 pr-12 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all cursor-pointer appearance-none shadow-sm dark:shadow-none disabled:opacity-50"
+                className="w-full bg-black/[0.04] dark:bg-white/[0.05] border border-transparent rounded-2xl focus:bg-white dark:focus:bg-white/[0.07] p-3.5 pl-10 pr-12 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all cursor-pointer appearance-none disabled:opacity-50"
               >
                 <option value="">
                   {carregandoMarcas ? "Carregando marcas..." : "Selecione a marca..."}
@@ -154,7 +154,7 @@ export default function AbaComplementar({ produto, atualizarCampo, setProduto, i
               type="text" placeholder="Pesquise pelo nome da tabela"
               value={produto.complementares.tabela_medidas}
               onChange={(e) => atualizarCampo('complementares', 'tabela_medidas', e.target.value)}
-              className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3.5 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600 shadow-sm dark:shadow-none"
+              className="w-full bg-black/[0.04] dark:bg-white/[0.05] border border-transparent rounded-2xl focus:bg-white dark:focus:bg-white/[0.07] p-3.5 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600"
             />
           </div>
         </div>
@@ -162,7 +162,7 @@ export default function AbaComplementar({ produto, atualizarCampo, setProduto, i
 
       {/* SESSÃO 2: DESCRIÇÃO COMPLEMENTAR */}
       <section className="space-y-5 mt-10">
-        <h2 className="text-lg font-black text-zinc-900 dark:text-zinc-100 flex items-center gap-2 border-b border-zinc-200 dark:border-zinc-800 pb-3 transition-colors">
+        <h2 className="text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-100 flex items-center gap-2 border-b border-black/[0.06] dark:border-white/[0.06] pb-3 transition-colors">
           <AlignLeft className="text-purple-600 dark:text-purple-500 transition-colors" size={20} /> Descrição Complementar
         </h2>
         
@@ -184,7 +184,7 @@ export default function AbaComplementar({ produto, atualizarCampo, setProduto, i
 
       {/* SESSÃO 3: IMAGENS E ANEXOS */}
       <section className="space-y-5 mt-10">
-        <h2 className="text-lg font-black text-zinc-900 dark:text-zinc-100 flex items-center gap-2 border-b border-zinc-200 dark:border-zinc-800 pb-3 transition-colors">
+        <h2 className="text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-100 flex items-center gap-2 border-b border-black/[0.06] dark:border-white/[0.06] pb-3 transition-colors">
           <ImageIcon className="text-purple-600 dark:text-purple-500 transition-colors" size={20} /> Imagens e anexos
         </h2>
         <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-4 transition-colors">Facilite o gerenciamento de imagens de seus produtos com nosso gerenciador.</p>
@@ -211,7 +211,7 @@ export default function AbaComplementar({ produto, atualizarCampo, setProduto, i
 
       {/* SESSÃO 4: CAMPOS ADICIONAIS (SEO, TAGS, LINKS) */}
       <section className="space-y-5 mt-10">
-        <h2 className="text-lg font-black text-zinc-900 dark:text-zinc-100 flex items-center gap-2 border-b border-zinc-200 dark:border-zinc-800 pb-3 transition-colors">
+        <h2 className="text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-100 flex items-center gap-2 border-b border-black/[0.06] dark:border-white/[0.06] pb-3 transition-colors">
           <Link2 className="text-purple-600 dark:text-purple-500 transition-colors" size={20} /> Campos Adicionais e SEO
         </h2>
         
@@ -222,7 +222,7 @@ export default function AbaComplementar({ produto, atualizarCampo, setProduto, i
               type="text" placeholder="Ex: https://youtube.com/watch?v=..."
               value={produto.complementares.link_video}
               onChange={(e) => atualizarCampo('complementares', 'link_video', e.target.value)}
-              className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3.5 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600 shadow-sm dark:shadow-none"
+              className="w-full bg-black/[0.04] dark:bg-white/[0.05] border border-transparent rounded-2xl focus:bg-white dark:focus:bg-white/[0.07] p-3.5 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600"
             />
           </div>
 
@@ -232,7 +232,7 @@ export default function AbaComplementar({ produto, atualizarCampo, setProduto, i
               type="text" placeholder="exemplo-de-produto"
               value={produto.complementares.slug}
               onChange={(e) => atualizarCampo('complementares', 'slug', e.target.value)}
-              className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3.5 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600 shadow-sm dark:shadow-none"
+              className="w-full bg-black/[0.04] dark:bg-white/[0.05] border border-transparent rounded-2xl focus:bg-white dark:focus:bg-white/[0.07] p-3.5 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600"
             />
             <p className="text-[11px] font-medium text-zinc-500 dark:text-zinc-500 transition-colors">Utilizado para identificação legível no link do produto no e-commerce</p>
           </div>
@@ -243,7 +243,7 @@ export default function AbaComplementar({ produto, atualizarCampo, setProduto, i
               type="text" placeholder="Título que aparece no Google"
               value={produto.complementares.seo_titulo}
               onChange={(e) => atualizarCampo('complementares', 'seo_titulo', e.target.value)}
-              className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3.5 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600 shadow-sm dark:shadow-none"
+              className="w-full bg-black/[0.04] dark:bg-white/[0.05] border border-transparent rounded-2xl focus:bg-white dark:focus:bg-white/[0.07] p-3.5 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600"
             />
           </div>
 
@@ -253,7 +253,7 @@ export default function AbaComplementar({ produto, atualizarCampo, setProduto, i
               rows="3" placeholder="Resumo atrativo para o Google..."
               value={produto.complementares.seo_descricao}
               onChange={(e) => atualizarCampo('complementares', 'seo_descricao', e.target.value)}
-              className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3.5 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all resize-y placeholder:text-zinc-400 dark:placeholder:text-zinc-600 shadow-sm dark:shadow-none"
+              className="w-full bg-black/[0.04] dark:bg-white/[0.05] border border-transparent rounded-2xl focus:bg-white dark:focus:bg-white/[0.07] p-3.5 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all resize-y placeholder:text-zinc-400 dark:placeholder:text-zinc-600"
             ></textarea>
             <p className="text-[11px] font-medium text-zinc-500 dark:text-zinc-500 transition-colors">Descrição exibida abaixo do título nos resultados da busca no Google</p>
           </div>
@@ -264,7 +264,7 @@ export default function AbaComplementar({ produto, atualizarCampo, setProduto, i
               type="text" placeholder="tenis, maquiagem, rosto"
               value={produto.complementares.keywords}
               onChange={(e) => atualizarCampo('complementares', 'keywords', e.target.value)}
-              className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3.5 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600 shadow-sm dark:shadow-none"
+              className="w-full bg-black/[0.04] dark:bg-white/[0.05] border border-transparent rounded-2xl focus:bg-white dark:focus:bg-white/[0.07] p-3.5 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600"
             />
             <p className="text-[11px] font-medium text-zinc-500 dark:text-zinc-500 transition-colors">Informe os valores separados por vírgula</p>
           </div>
@@ -275,7 +275,7 @@ export default function AbaComplementar({ produto, atualizarCampo, setProduto, i
               type="text" placeholder="Lançamento, Inverno, Promoção"
               value={produto.complementares.tags}
               onChange={(e) => atualizarCampo('complementares', 'tags', e.target.value)}
-              className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3.5 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600 shadow-sm dark:shadow-none"
+              className="w-full bg-black/[0.04] dark:bg-white/[0.05] border border-transparent rounded-2xl focus:bg-white dark:focus:bg-white/[0.07] p-3.5 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600"
             />
             <p className="text-[11px] font-medium text-zinc-500 dark:text-zinc-500 transition-colors">Servem para classificar os produtos internamente</p>
           </div>

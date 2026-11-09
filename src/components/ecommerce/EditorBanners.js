@@ -226,7 +226,7 @@ export default function EditorBanners() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24">
-        <Loader2 className="animate-spin text-blue-600" size={40} />
+        <Loader2 className="animate-spin text-purple-600" size={40} />
       </div>
     );
   }
@@ -234,11 +234,11 @@ export default function EditorBanners() {
   return (
     <div className="space-y-6 text-zinc-900 dark:text-zinc-100">
             
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white dark:bg-[#0c0c0e] p-6 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm relative overflow-hidden">
-               <div className="absolute -left-10 -top-10 w-40 h-40 bg-blue-100 dark:bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white/80 dark:bg-[#121214]/80 backdrop-blur-xl p-6 rounded-[28px] border border-black/[0.06] dark:border-white/[0.07] shadow-[0_1px_2px_rgba(0,0,0,0.04),0_14px_34px_-18px_rgba(0,0,0,0.14)] relative overflow-hidden">
+               <div className="absolute -left-10 -top-10 w-40 h-40 bg-purple-100 dark:bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
                <div className="flex items-center gap-4 relative z-10">
-                <div className="w-14 h-14 rounded-2xl bg-blue-100 dark:bg-blue-500/10 flex items-center justify-center border border-blue-200 dark:border-blue-500/20">
-                  <Layout size={28} className="text-blue-600 dark:text-blue-400" />
+                <div className="w-14 h-14 rounded-[18px] bg-purple-500/10 flex items-center justify-center ring-1 ring-purple-500/20">
+                  <Layout size={28} className="text-purple-600 dark:text-purple-400" />
                 </div>
                 <div>
                   <h2 className="text-2xl font-bold">Gestão de Banners</h2>
@@ -250,7 +250,7 @@ export default function EditorBanners() {
                 <button 
                   onClick={salvarConteudo}
                   disabled={salvando}
-                  className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 transition-all shadow-lg shadow-blue-500/20 disabled:opacity-50"
+                  className="h-11 rounded-full bg-gradient-to-b from-purple-500 to-purple-700 hover:brightness-110 text-white px-6 font-semibold flex items-center gap-2 transition-all shadow-lg shadow-purple-500/20 disabled:opacity-50"
                 >
                   {salvando ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
                   Salvar Alterações
@@ -261,17 +261,17 @@ export default function EditorBanners() {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
               
               <div className="lg:col-span-3">
-                <div className="bg-white dark:bg-[#0c0c0e] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-3 shadow-sm flex flex-col gap-1 sticky top-6">
-                  <button onClick={() => setActiveTab("hero")} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-bold text-sm text-left ${activeTab === "hero" ? "bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400" : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"}`}>
+                <div className="bg-white/80 dark:bg-[#121214]/80 backdrop-blur-xl border border-black/[0.06] dark:border-white/[0.07] rounded-[24px] p-2 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_14px_34px_-18px_rgba(0,0,0,0.14)] flex flex-col gap-1 sticky top-6">
+                  <button onClick={() => setActiveTab("hero")} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-bold text-sm text-left ${activeTab === "hero" ? "bg-purple-50 text-purple-700 dark:bg-purple-500/10 dark:text-purple-400" : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"}`}>
                     <Layers size={18} /> Slides Principais
                   </button>
-                  <button onClick={() => setActiveTab("promos")} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-bold text-sm text-left ${activeTab === "promos" ? "bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400" : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"}`}>
+                  <button onClick={() => setActiveTab("promos")} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-bold text-sm text-left ${activeTab === "promos" ? "bg-purple-50 text-purple-700 dark:bg-purple-500/10 dark:text-purple-400" : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"}`}>
                     <Layout size={18} /> Promocionais
                   </button>
-                  <button onClick={() => setActiveTab("megamenu")} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-bold text-sm text-left ${activeTab === "megamenu" ? "bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400" : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"}`}>
+                  <button onClick={() => setActiveTab("megamenu")} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-bold text-sm text-left ${activeTab === "megamenu" ? "bg-purple-50 text-purple-700 dark:bg-purple-500/10 dark:text-purple-400" : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"}`}>
                     <MousePointerClick size={18} /> Menu Categorias
                   </button>
-                  <button onClick={() => setActiveTab("sections")} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-bold text-sm text-left ${activeTab === "sections" ? "bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400" : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"}`}>
+                  <button onClick={() => setActiveTab("sections")} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-bold text-sm text-left ${activeTab === "sections" ? "bg-purple-50 text-purple-700 dark:bg-purple-500/10 dark:text-purple-400" : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"}`}>
                     <Type size={18} /> Textos Vitrines
                   </button>
                 </div>
@@ -283,9 +283,9 @@ export default function EditorBanners() {
                   <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
                     <div className="flex items-center justify-between">
                       <h2 className="text-xl font-bold flex items-center gap-2">
-                        <div className="w-2 h-6 bg-blue-600 rounded-full" /> Banners do Topo
+                        <div className="w-2 h-6 bg-purple-600 rounded-full" /> Banners do Topo
                       </h2>
-                      <button onClick={addHeroSlide} className="text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-500/10 dark:hover:bg-blue-500/20 px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors">
+                      <button onClick={addHeroSlide} className="text-xs font-bold text-purple-600 bg-purple-50 hover:bg-purple-100 dark:bg-purple-500/10 dark:hover:bg-purple-500/20 px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors">
                         <Plus size={14} /> Novo Slide
                       </button>
                     </div>
@@ -312,7 +312,7 @@ export default function EditorBanners() {
                               {slide.image ? (
                                 <img src={slide.image} alt="Preview" className="h-20 object-contain mb-2 rounded" />
                               ) : (
-                                <UploadCloud size={32} className="text-blue-500 mb-2" />
+                                <UploadCloud size={32} className="text-purple-500 mb-2" />
                               )}
                               <span className="text-sm font-bold text-zinc-700 dark:text-zinc-300">Clique para selecionar ou arraste o arquivo</span>
                               <span className="text-[10px] text-zinc-500 mt-1">Formatos: JPG, PNG, WEBP. Tamanho Recomendado: 1920x600px. Máx: 2MB.</span>
@@ -320,7 +320,7 @@ export default function EditorBanners() {
                           </div>
 
                           <div className="flex items-center gap-3 bg-zinc-50 dark:bg-zinc-900 p-3 rounded-xl border border-zinc-200 dark:border-zinc-800">
-                            <input type="checkbox" checked={slide.showText} onChange={(e) => updateHeroSlide(slide.id, "showText", e.target.checked)} className="w-4 h-4 accent-blue-600 rounded cursor-pointer" />
+                            <input type="checkbox" checked={slide.showText} onChange={(e) => updateHeroSlide(slide.id, "showText", e.target.checked)} className="w-4 h-4 accent-purple-600 rounded cursor-pointer" />
                             <label className="text-xs font-bold cursor-pointer">Adicionar Textos sobre a imagem</label>
                           </div>
 
@@ -485,7 +485,7 @@ export default function EditorBanners() {
               <div className="lg:col-span-4 hidden lg:block">
                 <div className="bg-white dark:bg-[#0c0c0e] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 sticky top-6">
                   <h3 className="text-xs font-black uppercase tracking-widest text-zinc-400 mb-4 flex items-center justify-center gap-2">
-                    <MonitorPlay size={14} className="text-blue-500" />
+                    <MonitorPlay size={14} className="text-purple-500" />
                     Live Preview
                   </h3>
                   
@@ -536,7 +536,7 @@ export default function EditorBanners() {
                               <ImageIcon size={10} className="text-zinc-300" />
                             </div>
                             <div className="w-3/4 h-1.5 bg-zinc-200 dark:bg-zinc-700 rounded" />
-                            <div className="w-1/2 h-1.5 bg-blue-200 dark:bg-blue-900 rounded" />
+                            <div className="w-1/2 h-1.5 bg-purple-200 dark:bg-purple-900 rounded" />
                           </div>
                         ))}
                       </div>

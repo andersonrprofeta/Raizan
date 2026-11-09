@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
+import { Segmentado, VIDRO } from "@/components/vendedores/ui";
 import { ArrowLeft, Save, Package, Layers, Box, FileText, Settings, Loader2, ClipboardList, AlertTriangle, Ban } from "lucide-react";
 import Link from "next/link";
 import toast from 'react-hot-toast';
@@ -151,13 +152,13 @@ function FormularioInterno() {
   const tipo = produto.basico.tipo_produto;
 
   const abas = [
-    { id: "basico", label: "Dados Básicos", icon: <Package size={18} /> },
-    { id: "complementares", label: "Dados Complementares", icon: <FileText size={18} /> },
-    { id: "restricoes", label: "Restrições Comerciais", icon: <Ban size={18} /> },
-    { id: "ficha_tecnica", label: "Ficha Técnica", icon: <ClipboardList size={18} /> },
-    ...(tipo === "variacoes" || tipo === "variavel" ? [{ id: "variacoes", label: "Variações (Grade)", icon: <Layers size={18} /> }] : []),
-    ...(tipo === "kit" ? [{ id: "kit", label: "Composição do Kit", icon: <Box size={18} /> }] : []),
-    ...(tipo === "materia-prima" ? [{ id: "materia", label: "Ficha Técnica", icon: <Settings size={18} /> }] : []),
+    { id: "basico", rotulo: "Dados Básicos", icone: Package },
+    { id: "complementares", rotulo: "Dados Complementares", icone: FileText },
+    { id: "restricoes", rotulo: "Restrições Comerciais", icone: Ban },
+    { id: "ficha_tecnica", rotulo: "Ficha Técnica", icone: ClipboardList },
+    ...(tipo === "variacoes" || tipo === "variavel" ? [{ id: "variacoes", rotulo: "Variações (Grade)", icone: Layers }] : []),
+    ...(tipo === "kit" ? [{ id: "kit", rotulo: "Composição do Kit", icone: Box }] : []),
+    ...(tipo === "materia-prima" ? [{ id: "materia", rotulo: "Ficha Técnica", icone: Settings }] : []),
   ];
 
   if (carregandoDados) {
@@ -179,17 +180,17 @@ function FormularioInterno() {
         <main className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-6 lg:p-8 relative">
           <div className="max-w-6xl mx-auto space-y-6 pb-24"> {/* Adicionado pb-24 para a barra não cobrir conteúdo */}
             
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-white dark:bg-[#0c0c0e] p-5 sm:p-6 rounded-2xl border border-zinc-200 dark:border-zinc-800/60 shadow-sm dark:shadow-xl relative overflow-hidden transition-colors duration-300 gap-4">
-              <div className="absolute -left-10 -top-10 w-40 h-40 bg-purple-100 dark:bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
+            <div className={`${VIDRO} flex flex-col sm:flex-row items-start sm:items-center justify-between p-5 sm:p-6 relative overflow-hidden gap-4`}>
+              <div className="absolute -left-16 -top-16 w-56 h-56 bg-purple-400/20 dark:bg-purple-500/15 rounded-full blur-3xl pointer-events-none" />
               <div className="relative z-10 w-full sm:w-auto">
                 <Link href="/cadastros/produtos" className="text-zinc-500 dark:text-zinc-400 hover:text-purple-600 dark:hover:text-purple-400 flex items-center gap-2 text-sm mb-3 font-medium transition-all w-fit">
                   <ArrowLeft size={16} /> Voltar para o Catálogo
                 </Link>
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 shrink-0 rounded-2xl bg-purple-100 dark:bg-purple-500/10 flex items-center justify-center border border-purple-200 dark:border-purple-500/20 transition-colors">
-                    <Package size={28} className="text-purple-600 dark:text-purple-400" />
+                  <div className="w-12 h-12 shrink-0 rounded-[18px] bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-purple-500/25 ring-1 ring-white/20">
+                    <Package size={24} className="text-white" />
                   </div>
-                  <h1 className="text-xl sm:text-2xl font-bold text-zinc-900 dark:text-zinc-100 truncate">
+                  <h1 className="text-xl sm:text-[26px] font-bold tracking-tight text-zinc-900 dark:text-zinc-100 truncate">
                     {isEditMode ? `Editando: ${produto.basico.nome}` : "Cadastrar Novo Produto"}
                   </h1>
                 </div>
@@ -199,7 +200,7 @@ function FormularioInterno() {
               {!temAlteracoes && (
                 <button 
                   onClick={salvarProduto} disabled={salvando}
-                  className="w-full sm:w-auto relative z-10 bg-purple-600 hover:bg-purple-500 text-white px-8 py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 shadow-md transition-all active:scale-95 disabled:opacity-50"
+                  className="w-full sm:w-auto relative z-10 h-11 rounded-full bg-gradient-to-b from-purple-500 to-purple-700 px-6 text-sm font-semibold text-white flex items-center justify-center gap-2 shadow-lg shadow-purple-500/25 transition-all hover:brightness-110 active:scale-95 disabled:opacity-50"
                 >
                   {salvando ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
                   {isEditMode ? "Atualizar Produto" : "Salvar no Hub"}
@@ -208,15 +209,9 @@ function FormularioInterno() {
             </div>
 
             <div className="flex flex-col gap-6">
-              <div className="w-full bg-zinc-200/50 dark:bg-zinc-900/20 p-2 rounded-2xl border border-zinc-300/50 dark:border-zinc-800/60 flex flex-row gap-2 overflow-x-auto custom-scrollbar">
-                {abas.map((aba) => (
-                  <button key={aba.id} onClick={() => setAbaAtiva(aba.id)} className={`flex-1 min-w-[200px] flex items-center justify-center gap-3 px-6 py-3.5 rounded-xl font-bold text-sm transition-all whitespace-nowrap ${abaAtiva === aba.id ? "bg-white dark:bg-purple-500/10 text-purple-700 dark:text-purple-400 border border-zinc-200 dark:border-purple-500/30 shadow-sm" : "bg-transparent text-zinc-500 border-transparent hover:bg-white/50 dark:hover:bg-zinc-800/50"}`}>
-                    {aba.icon} {aba.label}
-                  </button>
-                ))}
-              </div>
+              <Segmentado grande opcoes={abas} valor={abaAtiva} onChange={setAbaAtiva} />
 
-              <div className="bg-white dark:bg-[#0c0c0e] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-4 sm:p-6 shadow-md dark:shadow-2xl min-h-[500px] relative">
+              <div className={`${VIDRO} p-5 sm:p-8 min-h-[500px] relative`}>
                 {abaAtiva === "basico" && <AbaBasico produto={produto} atualizarCampo={atualizarCampo} />}
                 {abaAtiva === "complementares" && <AbaComplementar produto={produto} atualizarCampo={atualizarCampo} setProduto={setProduto} isEditMode={isEditMode} />}
                 {abaAtiva === "restricoes" && <AbaRestricoes produto={produto} atualizarCampo={atualizarCampo} />}
@@ -232,7 +227,7 @@ function FormularioInterno() {
           ========================================== */}
           {temAlteracoes && (
             <div className="fixed bottom-0 left-0 lg:left-[260px] right-0 z-[100] p-4 sm:p-6 animate-in slide-in-from-bottom-10 fade-in duration-300 pointer-events-none">
-              <div className="max-w-5xl mx-auto bg-zinc-900/95 dark:bg-white/95 backdrop-blur-md shadow-[0_-10px_40px_rgba(0,0,0,0.1)] border border-zinc-800 dark:border-zinc-200 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-4 pointer-events-auto">
+              <div className="max-w-5xl mx-auto bg-zinc-900/85 dark:bg-white/85 backdrop-blur-2xl backdrop-saturate-150 shadow-[0_20px_50px_-12px_rgba(0,0,0,0.35)] ring-1 ring-white/10 dark:ring-black/10 rounded-[28px] p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-4 pointer-events-auto">
                 
                 <div className="flex items-center gap-4 w-full sm:w-auto">
                   <div className="w-12 h-12 rounded-full bg-rose-500/20 dark:bg-rose-500/10 flex items-center justify-center shrink-0 border border-rose-500/30">
@@ -260,7 +255,7 @@ function FormularioInterno() {
                   <button 
                     onClick={salvarProduto} // 🟢 CONECTADO!
                     disabled={salvando}
-                    className="bg-purple-600 hover:bg-purple-500 text-white px-6 md:px-8 py-2.5 rounded-xl font-bold shadow-lg shadow-purple-600/20 transition-all active:scale-95 text-xs sm:text-sm flex items-center gap-2 disabled:opacity-50"
+                    className="bg-gradient-to-b from-purple-500 to-purple-700 hover:brightness-110 text-white px-6 md:px-8 h-11 rounded-full font-semibold shadow-lg shadow-purple-600/25 transition-all active:scale-95 text-xs sm:text-sm flex items-center gap-2 disabled:opacity-50"
                   >
                     {salvando ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
                     Salvar Alterações

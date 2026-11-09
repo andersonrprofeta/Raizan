@@ -157,7 +157,7 @@ export default function EditorAtendimento() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24">
-        <Loader2 className="animate-spin text-blue-600" size={40} />
+        <Loader2 className="animate-spin text-purple-600" size={40} />
       </div>
     );
   }
@@ -166,11 +166,11 @@ export default function EditorAtendimento() {
     <div className="space-y-6 text-zinc-900 dark:text-zinc-100">
             
             {/* CABEÇALHO DA PÁGINA */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white dark:bg-[#0c0c0e] p-6 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm relative overflow-hidden">
-               <div className="absolute -left-10 -top-10 w-40 h-40 bg-blue-100 dark:bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white/80 dark:bg-[#121214]/80 backdrop-blur-xl p-6 rounded-[28px] border border-black/[0.06] dark:border-white/[0.07] shadow-[0_1px_2px_rgba(0,0,0,0.04),0_14px_34px_-18px_rgba(0,0,0,0.14)] relative overflow-hidden">
+               <div className="absolute -left-10 -top-10 w-40 h-40 bg-purple-100 dark:bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
                <div className="flex items-center gap-4 relative z-10">
-                <div className="w-14 h-14 rounded-2xl bg-blue-100 dark:bg-blue-500/10 flex items-center justify-center border border-blue-200 dark:border-blue-500/20">
-                  <Headset size={28} className="text-blue-600 dark:text-blue-400" />
+                <div className="w-14 h-14 rounded-[18px] bg-purple-500/10 flex items-center justify-center ring-1 ring-purple-500/20">
+                  <Headset size={28} className="text-purple-600 dark:text-purple-400" />
                 </div>
                 <div>
                   <h2 className="text-2xl font-bold">SAC & Políticas</h2>
@@ -179,7 +179,7 @@ export default function EditorAtendimento() {
               </div>
 
               <div className="flex gap-2 relative z-10">
-                <button onClick={salvarConteudo} disabled={salvando} className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 transition-all shadow-lg shadow-blue-500/20 disabled:opacity-50">
+                <button onClick={salvarConteudo} disabled={salvando} className="h-11 rounded-full bg-gradient-to-b from-purple-500 to-purple-700 hover:brightness-110 text-white px-6 font-semibold flex items-center gap-2 transition-all shadow-lg shadow-purple-500/20 disabled:opacity-50">
                   {salvando ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />} Salvar
                 </button>
               </div>
@@ -189,17 +189,17 @@ export default function EditorAtendimento() {
               
               {/* MENU LATERAL DE ABAS */}
               <div className="lg:col-span-3">
-                <div className="bg-white dark:bg-[#0c0c0e] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-3 shadow-sm flex flex-col gap-1 sticky top-6">
-                  <button onClick={() => setActiveTab("contacts")} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-bold text-sm ${activeTab === "contacts" ? "bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400" : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"}`}>
+                <div className="bg-white/80 dark:bg-[#121214]/80 backdrop-blur-xl border border-black/[0.06] dark:border-white/[0.07] rounded-[24px] p-2 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_14px_34px_-18px_rgba(0,0,0,0.14)] flex flex-col gap-1 sticky top-6">
+                  <button onClick={() => setActiveTab("contacts")} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-bold text-sm ${activeTab === "contacts" ? "bg-purple-50 text-purple-700 dark:bg-purple-500/10 dark:text-purple-400" : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"}`}>
                     <Headset size={18} /> Canais de Contato
                   </button>
-                  <button onClick={() => setActiveTab("address")} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-bold text-sm ${activeTab === "address" ? "bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400" : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"}`}>
+                  <button onClick={() => setActiveTab("address")} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-bold text-sm ${activeTab === "address" ? "bg-purple-50 text-purple-700 dark:bg-purple-500/10 dark:text-purple-400" : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"}`}>
                     <MapPin size={18} /> Endereço Físico (Retirada)
                   </button>
-                  <button onClick={() => setActiveTab("policies")} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-bold text-sm ${activeTab === "policies" ? "bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400" : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"}`}>
+                  <button onClick={() => setActiveTab("policies")} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-bold text-sm ${activeTab === "policies" ? "bg-purple-50 text-purple-700 dark:bg-purple-500/10 dark:text-purple-400" : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"}`}>
                     <FileText size={18} /> Textos e Políticas
                   </button>
-                  <button onClick={() => setActiveTab("faq")} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-bold text-sm ${activeTab === "faq" ? "bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400" : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"}`}>
+                  <button onClick={() => setActiveTab("faq")} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-bold text-sm ${activeTab === "faq" ? "bg-purple-50 text-purple-700 dark:bg-purple-500/10 dark:text-purple-400" : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"}`}>
                     <HelpCircle size={18} /> Dúvidas Frequentes (FAQ)
                   </button>
                 </div>
@@ -212,33 +212,33 @@ export default function EditorAtendimento() {
                 {activeTab === "contacts" && (
                   <div className="bg-white dark:bg-[#0c0c0e] border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 md:p-8 shadow-sm animate-in fade-in slide-in-from-bottom-2">
                     <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
-                      <div className="w-2 h-6 bg-blue-600 rounded-full" /> Canais de Atendimento
+                      <div className="w-2 h-6 bg-purple-600 rounded-full" /> Canais de Atendimento
                     </h2>
 
                     <div className="grid md:grid-cols-2 gap-6">
                       <div>
                         <label className="block text-[11px] font-bold text-zinc-500 mb-1.5 uppercase tracking-wider flex items-center gap-1.5"><MessageCircle size={14}/> WhatsApp</label>
-                        <input type="text" value={content.contacts.whatsapp} onChange={(e) => setContent({...content, contacts: {...content.contacts, whatsapp: e.target.value}})} className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 h-12 outline-none text-sm focus:border-blue-500 transition-colors" />
+                        <input type="text" value={content.contacts.whatsapp} onChange={(e) => setContent({...content, contacts: {...content.contacts, whatsapp: e.target.value}})} className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 h-12 outline-none text-sm focus:border-purple-500 transition-colors" />
                       </div>
                       <div>
                         <label className="block text-[11px] font-bold text-zinc-500 mb-1.5 uppercase tracking-wider flex items-center gap-1.5"><Phone size={14}/> SAC (Fixo)</label>
-                        <input type="text" value={content.contacts.sac} onChange={(e) => setContent({...content, contacts: {...content.contacts, sac: e.target.value}})} className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 h-12 outline-none text-sm focus:border-blue-500 transition-colors" />
+                        <input type="text" value={content.contacts.sac} onChange={(e) => setContent({...content, contacts: {...content.contacts, sac: e.target.value}})} className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 h-12 outline-none text-sm focus:border-purple-500 transition-colors" />
                       </div>
                       <div>
                         <label className="block text-[11px] font-bold text-zinc-500 mb-1.5 uppercase tracking-wider flex items-center gap-1.5"><Phone size={14}/> Televendas</label>
-                        <input type="text" value={content.contacts.televendas} onChange={(e) => setContent({...content, contacts: {...content.contacts, televendas: e.target.value}})} className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 h-12 outline-none text-sm focus:border-blue-500 transition-colors" />
+                        <input type="text" value={content.contacts.televendas} onChange={(e) => setContent({...content, contacts: {...content.contacts, televendas: e.target.value}})} className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 h-12 outline-none text-sm focus:border-purple-500 transition-colors" />
                       </div>
                       <div className="md:col-span-2 border-t border-zinc-100 dark:border-zinc-800 pt-6 mt-2">
                         <label className="block text-[11px] font-bold text-zinc-500 mb-1.5 uppercase tracking-wider flex items-center gap-1.5"><Mail size={14}/> E-mail de Atendimento</label>
-                        <input type="email" value={content.contacts.emailAtendimento} onChange={(e) => setContent({...content, contacts: {...content.contacts, emailAtendimento: e.target.value}})} className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 h-12 outline-none text-sm focus:border-blue-500 transition-colors" />
+                        <input type="email" value={content.contacts.emailAtendimento} onChange={(e) => setContent({...content, contacts: {...content.contacts, emailAtendimento: e.target.value}})} className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 h-12 outline-none text-sm focus:border-purple-500 transition-colors" />
                       </div>
                       <div>
                         <label className="block text-[11px] font-bold text-zinc-500 mb-1.5 uppercase tracking-wider flex items-center gap-1.5"><Mail size={14}/> E-mail de Suporte Técnico</label>
-                        <input type="email" value={content.contacts.emailSuporte} onChange={(e) => setContent({...content, contacts: {...content.contacts, emailSuporte: e.target.value}})} className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 h-12 outline-none text-sm focus:border-blue-500 transition-colors" />
+                        <input type="email" value={content.contacts.emailSuporte} onChange={(e) => setContent({...content, contacts: {...content.contacts, emailSuporte: e.target.value}})} className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 h-12 outline-none text-sm focus:border-purple-500 transition-colors" />
                       </div>
                       <div className="md:col-span-2">
                         <label className="block text-[11px] font-bold text-zinc-500 mb-1.5 uppercase tracking-wider">Horário de Funcionamento</label>
-                        <input type="text" value={content.contacts.horario} onChange={(e) => setContent({...content, contacts: {...content.contacts, horario: e.target.value}})} className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 h-12 outline-none text-sm focus:border-blue-500 transition-colors" />
+                        <input type="text" value={content.contacts.horario} onChange={(e) => setContent({...content, contacts: {...content.contacts, horario: e.target.value}})} className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 h-12 outline-none text-sm focus:border-purple-500 transition-colors" />
                       </div>
                     </div>
                   </div>
@@ -374,7 +374,7 @@ export default function EditorAtendimento() {
               <div className="hidden xl:block xl:col-span-3">
                 <div className="bg-white dark:bg-[#0c0c0e] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-4 sticky top-6">
                   <h3 className="text-xs font-black uppercase tracking-widest text-zinc-400 mb-4 flex items-center justify-center gap-2">
-                    <MonitorPlay size={14} className="text-blue-500" /> Resumo do SAC
+                    <MonitorPlay size={14} className="text-purple-500" /> Resumo do SAC
                   </h3>
 
                   {/* Mockup visual dos canais */}
@@ -388,8 +388,8 @@ export default function EditorAtendimento() {
                       <p className="text-sm font-black text-zinc-800 dark:text-zinc-200">{content.contacts.whatsapp || "Não informado"}</p>
                     </div>
 
-                    <div className="bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30 rounded-xl p-4">
-                      <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400 mb-2">
+                    <div className="bg-purple-50 dark:bg-purple-900/10 border border-purple-100 dark:border-purple-900/30 rounded-xl p-4">
+                      <div className="flex items-center gap-2 text-purple-600 dark:text-purple-400 mb-2">
                         <Phone size={16} /> <span className="text-xs font-bold uppercase tracking-wider">Televendas</span>
                       </div>
                       <p className="text-sm font-black text-zinc-800 dark:text-zinc-200">{content.contacts.televendas || "Não informado"}</p>

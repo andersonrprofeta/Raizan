@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
-import { RefreshCw, User, X } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { ChevronLeft, ChevronRight, RefreshCw, User, X } from "lucide-react";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import { getHubUrl, getHeaders, getTenantId } from "@/components/utils/api";
@@ -88,24 +88,78 @@ export function CascaPagina({ children }) {
   );
 }
 
-export function Segmentado({ opcoes, valor, onChange }) {
+// Abas em pílula. Quando não cabem, aparecem setinhas e as bordas somem suavemente.
+export function Segmentado({ opcoes, valor, onChange, grande = false }) {
+  const trilho = useRef(null);
+  const [lados, setLados] = useState({ esquerda: false, direita: false });
+
+  const medir = useCallback(() => {
+    const el = trilho.current;
+    if (!el) return;
+    setLados({ esquerda: el.scrollLeft > 4, direita: el.scrollLeft + el.clientWidth < el.scrollWidth - 4 });
+  }, []);
+
+  useEffect(() => {
+    const el = trilho.current;
+    if (!el) return undefined;
+    medir();
+    const observador = new ResizeObserver(medir);
+    observador.observe(el);
+    el.addEventListener("scroll", medir, { passive: true });
+    return () => { observador.disconnect(); el.removeEventListener("scroll", medir); };
+  }, [medir, opcoes.length]);
+
+  // Leva a aba escolhida para dentro da área visível
+  useEffect(() => {
+    const el = trilho.current;
+    const ativo = el?.querySelector("[aria-selected=\"true\"]");
+    if (!el || !ativo) return;
+    const folga = 44;
+    if (ativo.offsetLeft < el.scrollLeft + folga) el.scrollTo({ left: ativo.offsetLeft - folga, behavior: "smooth" });
+    else if (ativo.offsetLeft + ativo.offsetWidth > el.scrollLeft + el.clientWidth - folga) el.scrollTo({ left: ativo.offsetLeft + ativo.offsetWidth - el.clientWidth + folga, behavior: "smooth" });
+  }, [valor]);
+
+  const rolar = (sentido) => {
+    const el = trilho.current;
+    if (el) el.scrollBy({ left: sentido * Math.max(160, el.clientWidth * 0.6), behavior: "smooth" });
+  };
+
+  const mascara = `linear-gradient(to right, ${lados.esquerda ? "transparent 0, #000 56px" : "#000 0"}, ${lados.direita ? "#000 calc(100% - 56px), transparent 100%" : "#000 100%"})`;
+  const seta = "absolute top-1/2 z-10 -translate-y-1/2 flex items-center justify-center rounded-full bg-white/90 dark:bg-zinc-800/90 backdrop-blur-xl text-zinc-700 dark:text-zinc-200 shadow-[0_2px_10px_rgba(0,0,0,0.12)] ring-1 ring-black/[0.06] dark:ring-white/10 transition-all duration-300 hover:scale-105 hover:text-purple-600 active:scale-95";
+  const tamanhoSeta = grande ? "h-9 w-9" : "h-7 w-7";
+
   return (
-    <div className="inline-flex items-center gap-1 p-1 bg-black/[0.05] dark:bg-white/[0.06] rounded-full border border-black/[0.04] dark:border-white/[0.05] max-w-full overflow-x-auto no-scrollbar [scrollbar-width:none]">
-      {opcoes.map(({ id, rotulo, icone: Icone }) => (
-        <button
-          key={id}
-          type="button"
-          onClick={() => onChange(id)}
-          className={`inline-flex items-center gap-2 px-4 h-9 rounded-full text-sm font-semibold whitespace-nowrap transition-all active:scale-95 ${
-            valor === id
-              ? "bg-white dark:bg-white/[0.12] text-zinc-900 dark:text-white shadow-[0_1px_3px_rgba(0,0,0,0.12)] ring-1 ring-black/5 dark:ring-white/10"
-              : "text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
-          }`}
-        >
-          {Icone && <Icone size={15} className={valor === id ? "text-purple-600 dark:text-purple-400" : ""} />}
-          {rotulo}
-        </button>
-      ))}
+    <div className={`relative max-w-full ${grande ? "flex w-full" : "inline-flex"} items-center rounded-full bg-black/[0.05] dark:bg-white/[0.06] border border-black/[0.04] dark:border-white/[0.05]`}>
+      <button type="button" aria-label="Ver abas anteriores" tabIndex={lados.esquerda ? 0 : -1} onClick={() => rolar(-1)} className={`${seta} ${tamanhoSeta} left-1.5 ${lados.esquerda ? "opacity-100" : "pointer-events-none opacity-0 scale-75"}`}>
+        <ChevronLeft size={grande ? 18 : 16} strokeWidth={2.4} />
+      </button>
+      <div
+        ref={trilho}
+        role="tablist"
+        style={{ maskImage: mascara, WebkitMaskImage: mascara }}
+        className={`flex min-w-0 flex-1 items-center gap-1 p-1 overflow-x-auto scroll-smooth no-scrollbar [scrollbar-width:none] [&::-webkit-scrollbar]:hidden`}
+      >
+        {opcoes.map(({ id, rotulo, icone: Icone }) => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={valor === id}
+            onClick={() => onChange(id)}
+            className={`inline-flex shrink-0 items-center justify-center gap-2 rounded-full font-semibold whitespace-nowrap transition-all duration-300 active:scale-95 ${grande ? "h-11 flex-1 px-5 text-[15px]" : "h-9 px-4 text-sm"} ${
+              valor === id
+                ? "bg-white dark:bg-white/[0.12] text-zinc-900 dark:text-white shadow-[0_1px_3px_rgba(0,0,0,0.12)] ring-1 ring-black/5 dark:ring-white/10"
+                : "text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
+            }`}
+          >
+            {Icone && <Icone size={grande ? 17 : 15} className={valor === id ? "text-purple-600 dark:text-purple-400" : ""} />}
+            {rotulo}
+          </button>
+        ))}
+      </div>
+      <button type="button" aria-label="Ver mais abas" tabIndex={lados.direita ? 0 : -1} onClick={() => rolar(1)} className={`${seta} ${tamanhoSeta} right-1.5 ${lados.direita ? "opacity-100" : "pointer-events-none opacity-0 scale-75"}`}>
+        <ChevronRight size={grande ? 18 : 16} strokeWidth={2.4} />
+      </button>
     </div>
   );
 }

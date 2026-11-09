@@ -26,7 +26,7 @@ export default function AbaFichaTecnica({ produto, atualizarCampo }) {
       
       {/* SESSÃO 1: RESUMO WOOCOMMERCE */}
       <section className="space-y-5">
-        <h2 className="text-lg font-black text-zinc-900 dark:text-zinc-100 flex items-center gap-2 border-b border-zinc-200 dark:border-zinc-800 pb-3 transition-colors">
+        <h2 className="text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-100 flex items-center gap-2 border-b border-black/[0.06] dark:border-white/[0.06] pb-3 transition-colors">
           <AlignLeft className="text-purple-600 dark:text-purple-500 transition-colors" size={20} /> Resumo do Produto (WooCommerce)
         </h2>
         
@@ -37,7 +37,7 @@ export default function AbaFichaTecnica({ produto, atualizarCampo }) {
             placeholder="Aquele resumo rápido que aparece logo ao lado da foto do produto no site..."
             value={produto.ficha_tecnica.breve_descricao}
             onChange={(e) => atualizarCampo('ficha_tecnica', 'breve_descricao', e.target.value)}
-            className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all resize-y placeholder:text-zinc-400 dark:placeholder:text-zinc-600 shadow-sm dark:shadow-none"
+            className="w-full bg-black/[0.04] dark:bg-white/[0.05] border border-transparent rounded-2xl focus:bg-white dark:focus:bg-white/[0.07] p-4 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all resize-y placeholder:text-zinc-400 dark:placeholder:text-zinc-600"
           ></textarea>
           <p className="text-[11px] font-medium text-zinc-500 dark:text-zinc-500 transition-colors">No WooCommerce, este é o campo "Short Description".</p>
         </div>
@@ -45,7 +45,7 @@ export default function AbaFichaTecnica({ produto, atualizarCampo }) {
 
       {/* SESSÃO 2: COMPOSIÇÃO E FÓRMULA */}
       <section className="space-y-5 mt-10">
-        <h2 className="text-lg font-black text-zinc-900 dark:text-zinc-100 flex items-center gap-2 border-b border-zinc-200 dark:border-zinc-800 pb-3 transition-colors">
+        <h2 className="text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-100 flex items-center gap-2 border-b border-black/[0.06] dark:border-white/[0.06] pb-3 transition-colors">
           <Beaker className="text-purple-600 dark:text-purple-500 transition-colors" size={20} /> Composição & Fórmula
         </h2>
         
@@ -56,7 +56,7 @@ export default function AbaFichaTecnica({ produto, atualizarCampo }) {
               rows="3" placeholder="Ex: 100% Algodão, ou Plástico ABS Resistente..."
               value={produto.ficha_tecnica.composicao}
               onChange={(e) => atualizarCampo('ficha_tecnica', 'composicao', e.target.value)}
-              className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all resize-y placeholder:text-zinc-400 dark:placeholder:text-zinc-600 shadow-sm dark:shadow-none"
+              className="w-full bg-black/[0.04] dark:bg-white/[0.05] border border-transparent rounded-2xl focus:bg-white dark:focus:bg-white/[0.07] p-4 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all resize-y placeholder:text-zinc-400 dark:placeholder:text-zinc-600"
             ></textarea>
           </div>
 
@@ -66,7 +66,7 @@ export default function AbaFichaTecnica({ produto, atualizarCampo }) {
               rows="3" placeholder="Ex: Ácido Hialurônico, Vitamina C, Sem Parabenos..."
               value={produto.ficha_tecnica.formula}
               onChange={(e) => atualizarCampo('ficha_tecnica', 'formula', e.target.value)}
-              className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all resize-y placeholder:text-zinc-400 dark:placeholder:text-zinc-600 shadow-sm dark:shadow-none"
+              className="w-full bg-black/[0.04] dark:bg-white/[0.05] border border-transparent rounded-2xl focus:bg-white dark:focus:bg-white/[0.07] p-4 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all resize-y placeholder:text-zinc-400 dark:placeholder:text-zinc-600"
             ></textarea>
           </div>
 
@@ -76,7 +76,7 @@ export default function AbaFichaTecnica({ produto, atualizarCampo }) {
               type="text" placeholder="Ex: Lavar à máquina com água fria. Não usar alvejante."
               value={produto.ficha_tecnica.cuidados}
               onChange={(e) => atualizarCampo('ficha_tecnica', 'cuidados', e.target.value)}
-              className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3.5 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600 shadow-sm dark:shadow-none"
+              className="w-full bg-black/[0.04] dark:bg-white/[0.05] border border-transparent rounded-2xl focus:bg-white dark:focus:bg-white/[0.07] p-3.5 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600"
             />
           </div>
         </div>
@@ -84,8 +84,8 @@ export default function AbaFichaTecnica({ produto, atualizarCampo }) {
 
       {/* SESSÃO 3: ATRIBUTOS DINÂMICOS (O Matador do Tiny) */}
       <section className="space-y-5 mt-10">
-        <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-3 transition-colors">
-            <h2 className="text-lg font-black text-zinc-900 dark:text-zinc-100 flex items-center gap-2 transition-colors">
+        <div className="flex items-center justify-between border-b border-black/[0.06] dark:border-white/[0.06] pb-3 transition-colors">
+            <h2 className="text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-100 flex items-center gap-2 transition-colors">
             <List className="text-purple-600 dark:text-purple-500 transition-colors" size={20} /> Atributos Técnicos (Customizável)
             </h2>
             <button 
@@ -151,7 +151,7 @@ export default function AbaFichaTecnica({ produto, atualizarCampo }) {
 
       {/* SESSÃO 4: GARANTIA */}
       <section className="space-y-5 mt-10">
-        <h2 className="text-lg font-black text-zinc-900 dark:text-zinc-100 flex items-center gap-2 border-b border-zinc-200 dark:border-zinc-800 pb-3 transition-colors">
+        <h2 className="text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-100 flex items-center gap-2 border-b border-black/[0.06] dark:border-white/[0.06] pb-3 transition-colors">
           <ShieldAlert className="text-purple-600 dark:text-purple-500 transition-colors" size={20} /> Garantia
         </h2>
         
@@ -160,7 +160,7 @@ export default function AbaFichaTecnica({ produto, atualizarCampo }) {
               type="text" placeholder="Ex: 3 meses contra defeitos de fabricação..."
               value={produto.ficha_tecnica.garantia}
               onChange={(e) => atualizarCampo('ficha_tecnica', 'garantia', e.target.value)}
-              className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3.5 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600 shadow-sm dark:shadow-none"
+              className="w-full bg-black/[0.04] dark:bg-white/[0.05] border border-transparent rounded-2xl focus:bg-white dark:focus:bg-white/[0.07] p-3.5 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600"
             />
         </div>
       </section>

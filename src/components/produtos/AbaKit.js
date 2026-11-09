@@ -92,7 +92,7 @@ export default function AbaKit({ produto, atualizarCampo }) {
       <section className="space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-200 dark:border-zinc-800 pb-4 transition-colors">
           <div>
-            <h2 className="text-lg font-black text-zinc-900 dark:text-zinc-100 flex items-center gap-2 transition-colors">
+            <h2 className="text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-100 flex items-center gap-2 transition-colors">
               <Box className="text-purple-600 dark:text-purple-500 transition-colors" size={20} /> Composição do Kit
             </h2>
             <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mt-1 transition-colors">

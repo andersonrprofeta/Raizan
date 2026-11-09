@@ -214,7 +214,7 @@ export default function AbaVariacoes({ produto, atualizarCampo }) {
         
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6 relative z-10">
           <div>
-            <h2 className="text-lg font-black text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+            <h2 className="text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
               <Layers className="text-purple-600 dark:text-purple-500" size={20} /> Atributos e Termos
             </h2>
             <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1 max-w-xl">
@@ -301,7 +301,7 @@ export default function AbaVariacoes({ produto, atualizarCampo }) {
                     value={termoAtualInput.nome || ""} 
                     onChange={(e) => atualizarInputTermo(attr.id, 'nome', e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && adicionarTermo(attr.id, attr.tipo)}
-                    className="flex-1 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-2.5 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none min-w-[200px]"
+                    className="flex-1 bg-black/[0.04] dark:bg-white/[0.05] border border-transparent rounded-2xl focus:bg-white dark:focus:bg-white/[0.07] p-2.5 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none min-w-[200px]"
                   />
                   <button 
                     onClick={() => adicionarTermo(attr.id, attr.tipo)}
@@ -375,7 +375,7 @@ export default function AbaVariacoes({ produto, atualizarCampo }) {
 
       {/* 🟣 SEÇÃO 2: TABELA DE ESTOQUE E SKUS */}
       <section className="space-y-4">
-        <h2 className="text-lg font-black text-zinc-900 dark:text-zinc-100 flex items-center gap-2 px-1">
+        <h2 className="text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-100 flex items-center gap-2 px-1">
           <Hash className="text-zinc-400" size={20} /> Estoque e SKUs
         </h2>
 
@@ -471,21 +471,21 @@ export default function AbaVariacoes({ produto, atualizarCampo }) {
                     <td className="p-3 align-middle">
                       <input 
                         type="text" placeholder="SKU" value={varItem.sku} onChange={(e) => editarEstoqueVariacao(index, 'sku', e.target.value)}
-                        className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-2.5 text-xs text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all font-mono font-bold shadow-sm" 
+                        className="w-full bg-black/[0.04] dark:bg-white/[0.05] border border-transparent rounded-2xl focus:bg-white dark:focus:bg-white/[0.07] p-2.5 text-xs text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all font-mono font-bold shadow-sm" 
                       />
                     </td>
                     
                     <td className="p-3 align-middle">
                       <input 
                         type="number" step="0.01" placeholder="0.00" value={varItem.preco} onChange={(e) => editarEstoqueVariacao(index, 'preco', e.target.value)}
-                        className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-2.5 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all shadow-sm font-bold" 
+                        className="w-full bg-black/[0.04] dark:bg-white/[0.05] border border-transparent rounded-2xl focus:bg-white dark:focus:bg-white/[0.07] p-2.5 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all shadow-sm font-bold" 
                       />
                     </td>
                     
                     <td className="p-3 align-middle">
                       <input 
                         type="number" placeholder="0" value={varItem.estoque} onChange={(e) => editarEstoqueVariacao(index, 'estoque', e.target.value)}
-                        className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-2.5 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all shadow-sm font-bold text-center" 
+                        className="w-full bg-black/[0.04] dark:bg-white/[0.05] border border-transparent rounded-2xl focus:bg-white dark:focus:bg-white/[0.07] p-2.5 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all shadow-sm font-bold text-center" 
                       />
                     </td>
                   </tr>

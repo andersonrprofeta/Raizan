@@ -26,7 +26,7 @@ function Chave({ ligada, desativada, onChange, titulo }) {
 
 function Informacao({ rotulo, valor }) {
   return (
-    <div className="bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4">
+    <div className="bg-black/[0.04] dark:bg-white/[0.05] border border-transparent rounded-2xl focus:bg-white dark:focus:bg-white/[0.07] p-4">
       <p className="text-xs font-bold text-zinc-500">{rotulo}</p>
       <p className="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-200">{valor}</p>
     </div>
@@ -61,14 +61,14 @@ export default function AbaRestricoes({ produto, atualizarCampo }) {
       )}
 
       <section className="space-y-3">
-        <h2 className="text-lg font-black text-zinc-900 dark:text-zinc-100 flex items-center gap-2 border-b border-zinc-200 dark:border-zinc-800 pb-3 transition-colors">
+        <h2 className="text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-100 flex items-center gap-2 border-b border-black/[0.06] dark:border-white/[0.06] pb-3 transition-colors">
           <Ban className="text-purple-600 dark:text-purple-500" size={20} /> Onde bloquear
         </h2>
 
         {CANAIS.map(({ campo, icone: Icone, titulo, texto }) => {
           const cobertoPeloGeral = campo !== "geral" && geral;
           return (
-            <div key={campo} className="flex items-center gap-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4">
+            <div key={campo} className="flex items-center gap-4 bg-black/[0.04] dark:bg-white/[0.05] border border-transparent rounded-2xl focus:bg-white dark:focus:bg-white/[0.07] p-4">
               <Icone size={20} className="shrink-0 text-zinc-500" />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-bold text-zinc-800 dark:text-zinc-200">{titulo}</p>
@@ -96,7 +96,7 @@ export default function AbaRestricoes({ produto, atualizarCampo }) {
             placeholder="Ex: Produto substituído por novo SKU"
             value={motivo || ""}
             onChange={(e) => atualizarCampo("restricoes", "motivo", e.target.value)}
-            className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3.5 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600 disabled:opacity-50"
+            className="w-full bg-black/[0.04] dark:bg-white/[0.05] border border-transparent rounded-2xl focus:bg-white dark:focus:bg-white/[0.07] p-3.5 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600 disabled:opacity-50"
           />
         </div>
 

@@ -6,7 +6,7 @@ export default function AbaBasico({ produto, atualizarCampo }) {
       
       {/* SESSÃO 1: DADOS GERAIS */}
       <section className="space-y-5">
-        <h2 className="text-lg font-black text-zinc-900 dark:text-zinc-100 flex items-center gap-2 border-b border-zinc-200 dark:border-zinc-800 pb-3 transition-colors">
+        <h2 className="text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-100 flex items-center gap-2 border-b border-black/[0.06] dark:border-white/[0.06] pb-3 transition-colors">
           <Package className="text-purple-600 dark:text-purple-500 transition-colors" size={20} /> Dados Gerais
         </h2>
         
@@ -17,7 +17,7 @@ export default function AbaBasico({ produto, atualizarCampo }) {
             <select 
               value={produto.basico.tipo_produto}
               onChange={(e) => atualizarCampo('basico', 'tipo_produto', e.target.value)}
-              className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3.5 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none transition-all cursor-pointer shadow-sm dark:shadow-none"
+              className="w-full bg-black/[0.04] dark:bg-white/[0.05] border border-transparent rounded-2xl focus:bg-white dark:focus:bg-white/[0.07] p-3.5 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none transition-all cursor-pointer"
             >
               <option value="simples">Simples</option>
               <option value="kit">Kit</option>
@@ -35,7 +35,7 @@ export default function AbaBasico({ produto, atualizarCampo }) {
               type="text" placeholder="Descrição completa do produto" 
               value={produto.basico.nome}
               onChange={(e) => atualizarCampo('basico', 'nome', e.target.value)}
-              className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3.5 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600 shadow-sm dark:shadow-none"
+              className="w-full bg-black/[0.04] dark:bg-white/[0.05] border border-transparent rounded-2xl focus:bg-white dark:focus:bg-white/[0.07] p-3.5 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600"
             />
             <p className="text-[11px] font-medium text-zinc-500 dark:text-zinc-500 transition-colors">Necessário para emissão de Nota Fiscal</p>
           </div>
@@ -47,7 +47,7 @@ export default function AbaBasico({ produto, atualizarCampo }) {
               type="text" placeholder="Ex: 7891234567890"
               value={produto.basico.gtin}
               onChange={(e) => atualizarCampo('basico', 'gtin', e.target.value)}
-              className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3.5 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600 shadow-sm dark:shadow-none"
+              className="w-full bg-black/[0.04] dark:bg-white/[0.05] border border-transparent rounded-2xl focus:bg-white dark:focus:bg-white/[0.07] p-3.5 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600"
             />
             <p className="text-[11px] font-medium text-zinc-500 dark:text-zinc-500 transition-colors">Global Trade Item Number</p>
           </div>
@@ -58,7 +58,7 @@ export default function AbaBasico({ produto, atualizarCampo }) {
             <select 
               value={produto.basico.origem}
               onChange={(e) => atualizarCampo('basico', 'origem', e.target.value)}
-              className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3.5 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all cursor-pointer shadow-sm dark:shadow-none"
+              className="w-full bg-black/[0.04] dark:bg-white/[0.05] border border-transparent rounded-2xl focus:bg-white dark:focus:bg-white/[0.07] p-3.5 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all cursor-pointer"
             >
               <option value="0">0 – Nacional, exceto as indicadas nos códigos 3 a 5</option>
               <option value="1">1 – Estrangeira – Importação direta</option>
@@ -79,7 +79,7 @@ export default function AbaBasico({ produto, atualizarCampo }) {
               type="text" placeholder="UN"
               value={produto.basico.unidade}
               onChange={(e) => atualizarCampo('basico', 'unidade', e.target.value.toUpperCase())}
-              className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3.5 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all uppercase placeholder:text-zinc-400 dark:placeholder:text-zinc-600 shadow-sm dark:shadow-none"
+              className="w-full bg-black/[0.04] dark:bg-white/[0.05] border border-transparent rounded-2xl focus:bg-white dark:focus:bg-white/[0.07] p-3.5 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all uppercase placeholder:text-zinc-400 dark:placeholder:text-zinc-600"
             />
           </div>
 
@@ -90,7 +90,7 @@ export default function AbaBasico({ produto, atualizarCampo }) {
               type="text" placeholder="Ex: 1001.10.10"
               value={produto.basico.ncm}
               onChange={(e) => atualizarCampo('basico', 'ncm', e.target.value)}
-              className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3.5 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600 shadow-sm dark:shadow-none"
+              className="w-full bg-black/[0.04] dark:bg-white/[0.05] border border-transparent rounded-2xl focus:bg-white dark:focus:bg-white/[0.07] p-3.5 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600"
             />
           </div>
 
@@ -101,7 +101,7 @@ export default function AbaBasico({ produto, atualizarCampo }) {
               type="text" placeholder="Índice automático se vazio"
               value={produto.basico.sku}
               onChange={(e) => atualizarCampo('basico', 'sku', e.target.value)}
-              className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3.5 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600 shadow-sm dark:shadow-none"
+              className="w-full bg-black/[0.04] dark:bg-white/[0.05] border border-transparent rounded-2xl focus:bg-white dark:focus:bg-white/[0.07] p-3.5 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600"
             />
             <p className="text-[11px] font-medium text-zinc-500 dark:text-zinc-500 transition-colors">Opcional</p>
           </div>
@@ -113,7 +113,7 @@ export default function AbaBasico({ produto, atualizarCampo }) {
               type="text" placeholder="Ex: 01.003.00"
               value={produto.basico.cest}
               onChange={(e) => atualizarCampo('basico', 'cest', e.target.value)}
-              className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3.5 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600 shadow-sm dark:shadow-none"
+              className="w-full bg-black/[0.04] dark:bg-white/[0.05] border border-transparent rounded-2xl focus:bg-white dark:focus:bg-white/[0.07] p-3.5 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600"
             />
           </div>
 
@@ -134,7 +134,7 @@ export default function AbaBasico({ produto, atualizarCampo }) {
               type="number" step="0.01" placeholder="0,00"
               value={produto.precos.promocional}
               onChange={(e) => atualizarCampo('precos', 'promocional', e.target.value)}
-              className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3.5 text-base text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600 shadow-sm dark:shadow-none font-bold"
+              className="w-full bg-black/[0.04] dark:bg-white/[0.05] border border-transparent rounded-2xl focus:bg-white dark:focus:bg-white/[0.07] p-3.5 text-base text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600 font-bold"
             />
           </div>
 
@@ -144,7 +144,7 @@ export default function AbaBasico({ produto, atualizarCampo }) {
               type="number" placeholder="Ex: 6"
               value={produto.precos.qtd_minima_promocao}
               onChange={(e) => atualizarCampo('precos', 'qtd_minima_promocao', e.target.value)}
-              className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3.5 text-base text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600 shadow-sm dark:shadow-none"
+              className="w-full bg-black/[0.04] dark:bg-white/[0.05] border border-transparent rounded-2xl focus:bg-white dark:focus:bg-white/[0.07] p-3.5 text-base text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600"
             />
             <p className="text-[11px] font-medium text-zinc-500 dark:text-zinc-500 transition-colors">Ativa o desconto</p>
           </div>
@@ -155,7 +155,7 @@ export default function AbaBasico({ produto, atualizarCampo }) {
               type="number" placeholder="Opcional"
               value={produto.precos.qtd_maxima_promocao}
               onChange={(e) => atualizarCampo('precos', 'qtd_maxima_promocao', e.target.value)}
-              className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3.5 text-base text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600 shadow-sm dark:shadow-none"
+              className="w-full bg-black/[0.04] dark:bg-white/[0.05] border border-transparent rounded-2xl focus:bg-white dark:focus:bg-white/[0.07] p-3.5 text-base text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600"
             />
             <p className="text-[11px] font-medium text-zinc-500 dark:text-zinc-500 transition-colors">Limite por pedido</p>
           </div>
@@ -165,7 +165,7 @@ export default function AbaBasico({ produto, atualizarCampo }) {
 
       {/* SESSÃO 2: DIMENSÕES E PESO */}
       <section className="space-y-5 mt-10">
-        <h2 className="text-lg font-black text-zinc-900 dark:text-zinc-100 flex items-center gap-2 border-b border-zinc-200 dark:border-zinc-800 pb-3 transition-colors">
+        <h2 className="text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-100 flex items-center gap-2 border-b border-black/[0.06] dark:border-white/[0.06] pb-3 transition-colors">
           <Box className="text-purple-600 dark:text-purple-500 transition-colors" size={20} /> Dimensões e peso
         </h2>
         <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 -mt-2 transition-colors">Indispensável para cálculo de frete em vendas online.</p>
@@ -179,7 +179,7 @@ export default function AbaBasico({ produto, atualizarCampo }) {
                   type="number" step="0.01" placeholder="0,00"
                   value={produto.dimensoes.peso_liquido}
                   onChange={(e) => atualizarCampo('dimensoes', 'peso_liquido', e.target.value)}
-                  className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3.5 pr-12 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600 shadow-sm dark:shadow-none"
+                  className="w-full bg-black/[0.04] dark:bg-white/[0.05] border border-transparent rounded-2xl focus:bg-white dark:focus:bg-white/[0.07] p-3.5 pr-12 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600"
                 />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-black text-zinc-600 dark:text-zinc-400 bg-zinc-200 dark:bg-zinc-900 px-2 py-1 rounded transition-colors">kg</span>
               </div>
@@ -192,7 +192,7 @@ export default function AbaBasico({ produto, atualizarCampo }) {
                   type="number" step="0.01" placeholder="0,00"
                   value={produto.dimensoes.peso_bruto}
                   onChange={(e) => atualizarCampo('dimensoes', 'peso_bruto', e.target.value)}
-                  className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3.5 pr-12 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600 shadow-sm dark:shadow-none"
+                  className="w-full bg-black/[0.04] dark:bg-white/[0.05] border border-transparent rounded-2xl focus:bg-white dark:focus:bg-white/[0.07] p-3.5 pr-12 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600"
                 />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-black text-zinc-600 dark:text-zinc-400 bg-zinc-200 dark:bg-zinc-900 px-2 py-1 rounded transition-colors">kg</span>
               </div>
@@ -204,7 +204,7 @@ export default function AbaBasico({ produto, atualizarCampo }) {
               <select 
                 value={produto.dimensoes.tipo_embalagem}
                 onChange={(e) => atualizarCampo('dimensoes', 'tipo_embalagem', e.target.value)}
-                className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3.5 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all cursor-pointer shadow-sm dark:shadow-none"
+                className="w-full bg-black/[0.04] dark:bg-white/[0.05] border border-transparent rounded-2xl focus:bg-white dark:focus:bg-white/[0.07] p-3.5 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all cursor-pointer"
               >
                 <option value="pacote">Pacote / Caixa</option>
                 <option value="rolo">Rolo / Cilindro</option>
@@ -217,7 +217,7 @@ export default function AbaBasico({ produto, atualizarCampo }) {
               <select 
                 value={produto.dimensoes.embalagem}
                 onChange={(e) => atualizarCampo('dimensoes', 'embalagem', e.target.value)}
-                className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3.5 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all cursor-pointer shadow-sm dark:shadow-none"
+                className="w-full bg-black/[0.04] dark:bg-white/[0.05] border border-transparent rounded-2xl focus:bg-white dark:focus:bg-white/[0.07] p-3.5 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all cursor-pointer"
               >
                 <option value="customizada">Embalagem customizada</option>
                 <option value="correios">Padrão Correios</option>
@@ -232,7 +232,7 @@ export default function AbaBasico({ produto, atualizarCampo }) {
                   type="number" step="0.1" placeholder="0,0"
                   value={produto.dimensoes.largura}
                   onChange={(e) => atualizarCampo('dimensoes', 'largura', e.target.value)}
-                  className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3.5 pr-12 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600 shadow-sm dark:shadow-none"
+                  className="w-full bg-black/[0.04] dark:bg-white/[0.05] border border-transparent rounded-2xl focus:bg-white dark:focus:bg-white/[0.07] p-3.5 pr-12 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600"
                 />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-black text-zinc-600 dark:text-zinc-400 bg-zinc-200 dark:bg-zinc-900 px-2 py-1 rounded transition-colors">cm</span>
               </div>
@@ -245,7 +245,7 @@ export default function AbaBasico({ produto, atualizarCampo }) {
                   type="number" step="0.1" placeholder="0,0"
                   value={produto.dimensoes.altura}
                   onChange={(e) => atualizarCampo('dimensoes', 'altura', e.target.value)}
-                  className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3.5 pr-12 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600 shadow-sm dark:shadow-none"
+                  className="w-full bg-black/[0.04] dark:bg-white/[0.05] border border-transparent rounded-2xl focus:bg-white dark:focus:bg-white/[0.07] p-3.5 pr-12 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600"
                 />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-black text-zinc-600 dark:text-zinc-400 bg-zinc-200 dark:bg-zinc-900 px-2 py-1 rounded transition-colors">cm</span>
               </div>
@@ -258,7 +258,7 @@ export default function AbaBasico({ produto, atualizarCampo }) {
                   type="number" step="0.1" placeholder="0,0"
                   value={produto.dimensoes.comprimento}
                   onChange={(e) => atualizarCampo('dimensoes', 'comprimento', e.target.value)}
-                  className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3.5 pr-12 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600 shadow-sm dark:shadow-none"
+                  className="w-full bg-black/[0.04] dark:bg-white/[0.05] border border-transparent rounded-2xl focus:bg-white dark:focus:bg-white/[0.07] p-3.5 pr-12 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600"
                 />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-black text-zinc-600 dark:text-zinc-400 bg-zinc-200 dark:bg-zinc-900 px-2 py-1 rounded transition-colors">cm</span>
               </div>
@@ -268,7 +268,7 @@ export default function AbaBasico({ produto, atualizarCampo }) {
 
       {/* SESSÃO 3: ESTOQUE (🟢 ATUALIZADA E INTELIGENTE) */}
       <section className="space-y-5 mt-10">
-        <h2 className="text-lg font-black text-zinc-900 dark:text-zinc-100 flex items-center gap-2 border-b border-zinc-200 dark:border-zinc-800 pb-3 transition-colors">
+        <h2 className="text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-100 flex items-center gap-2 border-b border-black/[0.06] dark:border-white/[0.06] pb-3 transition-colors">
           <Archive className="text-purple-600 dark:text-purple-500 transition-colors" size={20} /> Estoque
         </h2>
         
@@ -280,7 +280,7 @@ export default function AbaBasico({ produto, atualizarCampo }) {
               <select 
                 value={produto.estoque.controlar}
                 onChange={(e) => atualizarCampo('estoque', 'controlar', e.target.value)}
-                className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3.5 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all cursor-pointer shadow-sm dark:shadow-none h-[50px]"
+                className="w-full bg-black/[0.04] dark:bg-white/[0.05] border border-transparent rounded-2xl focus:bg-white dark:focus:bg-white/[0.07] p-3.5 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all cursor-pointer h-[50px]"
               >
                 <option value="sim">Sim</option>
                 <option value="nao">Não</option>
@@ -295,7 +295,7 @@ export default function AbaBasico({ produto, atualizarCampo }) {
                   type="number" placeholder="0"
                   value={produto.estoque.inicial}
                   onChange={(e) => atualizarCampo('estoque', 'inicial', e.target.value)}
-                  className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3.5 pr-12 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600 shadow-sm dark:shadow-none font-bold h-[50px]"
+                  className="w-full bg-black/[0.04] dark:bg-white/[0.05] border border-transparent rounded-2xl focus:bg-white dark:focus:bg-white/[0.07] p-3.5 pr-12 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600 font-bold h-[50px]"
                 />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-black text-zinc-600 dark:text-zinc-400 bg-zinc-200 dark:bg-zinc-900 px-2 py-1 rounded transition-colors">un</span>
               </div>
@@ -329,7 +329,7 @@ export default function AbaBasico({ produto, atualizarCampo }) {
                   type="number" placeholder="0"
                   value={produto.estoque.minimo}
                   onChange={(e) => atualizarCampo('estoque', 'minimo', e.target.value)}
-                  className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3.5 pr-12 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600 shadow-sm dark:shadow-none font-bold"
+                  className="w-full bg-black/[0.04] dark:bg-white/[0.05] border border-transparent rounded-2xl focus:bg-white dark:focus:bg-white/[0.07] p-3.5 pr-12 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600 font-bold"
                 />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-black text-zinc-600 dark:text-zinc-400 bg-zinc-200 dark:bg-zinc-900 px-2 py-1 rounded transition-colors">un</span>
               </div>
@@ -342,7 +342,7 @@ export default function AbaBasico({ produto, atualizarCampo }) {
                   type="number" placeholder="0"
                   value={produto.estoque.maximo}
                   onChange={(e) => atualizarCampo('estoque', 'maximo', e.target.value)}
-                  className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3.5 pr-12 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600 shadow-sm dark:shadow-none font-bold"
+                  className="w-full bg-black/[0.04] dark:bg-white/[0.05] border border-transparent rounded-2xl focus:bg-white dark:focus:bg-white/[0.07] p-3.5 pr-12 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600 font-bold"
                 />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-black text-zinc-600 dark:text-zinc-400 bg-zinc-200 dark:bg-zinc-900 px-2 py-1 rounded transition-colors">un</span>
               </div>
@@ -354,7 +354,7 @@ export default function AbaBasico({ produto, atualizarCampo }) {
                 type="text" placeholder="Ex: Corredor A, Prateleira 3"
                 value={produto.estoque.localizacao}
                 onChange={(e) => atualizarCampo('estoque', 'localizacao', e.target.value)}
-                className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3.5 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600 shadow-sm dark:shadow-none"
+                className="w-full bg-black/[0.04] dark:bg-white/[0.05] border border-transparent rounded-2xl focus:bg-white dark:focus:bg-white/[0.07] p-3.5 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600"
               />
               <p className="text-[11px] font-medium text-zinc-500 dark:text-zinc-500 transition-colors">Localização física no armazém</p>
             </div>
@@ -366,7 +366,7 @@ export default function AbaBasico({ produto, atualizarCampo }) {
                 type="number" placeholder="0"
                 value={produto.estoque.dias_preparacao}
                 onChange={(e) => atualizarCampo('estoque', 'dias_preparacao', e.target.value)}
-                className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3.5 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600 shadow-sm dark:shadow-none"
+                className="w-full bg-black/[0.04] dark:bg-white/[0.05] border border-transparent rounded-2xl focus:bg-white dark:focus:bg-white/[0.07] p-3.5 text-sm text-zinc-900 dark:text-zinc-200 focus:border-purple-500 outline-none transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600"
               />
               <p className="text-[11px] font-medium text-zinc-500 dark:text-zinc-500 transition-colors">Tempo adicional somado ao prazo de frete</p>
             </div>

@@ -7,9 +7,11 @@ import toast from "react-hot-toast";
 import { api, BOTAO_PRIMARIO, BOTAO_SECUNDARIO, CAMPO, Carregando, CascaPagina, ROTULO, VIDRO } from "@/components/vendedores/ui";
 import { montarPdfDaConferencia } from "@/components/checkout/pdfConferencia";
 import { abrirDocumento } from "@/components/utils/documentoPdf";
+import { dataHoraBrasilia } from "@/components/utils/horaBrasilia";
 import { motivoDa, resumoPorMotivo } from "@/components/checkout/ocorrencias";
 
-const dataHora = (valor) => (valor ? new Date(valor).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "medium" }) : "Não informado");
+// Sempre na hora de Brasília: é ela que bate com as câmeras
+const dataHora = (valor) => dataHoraBrasilia(valor);
 
 function Ocorrencia({ ocorrencia, conferente }) {
   const motivo = motivoDa(ocorrencia);

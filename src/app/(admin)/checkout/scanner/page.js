@@ -11,6 +11,7 @@ import ManipulaDados from "@/components/checkout/ManipulaDados";
 import { montarSeparacao } from "@/components/checkout/MapaSeparacao";
 import EscolherSeparador from "@/components/checkout/EscolherSeparador";
 import { mudancasDoPedido, novaOcorrencia } from "@/components/checkout/ocorrencias";
+import { agoraEmBrasilia } from "@/components/utils/horaBrasilia";
 import { VIDRO, BOTAO_ROXO, BOTAO_VERDE, BOTAO_VIDRO, LuzesDeFundo } from "@/components/checkout/estilos";
 
 const codigosDoItem = (item) => [
@@ -108,7 +109,8 @@ function ScannerMesa() {
     return novo;
   });
 
-  const horaLocal = () => new Date().toLocaleString('sv-SE');
+  // Hora de Brasília mesmo que o computador do checkout esteja com outro fuso
+  const horaLocal = () => agoraEmBrasilia();
   const [trocandoSeparador, setTrocandoSeparador] = useState(false);
   const precisaSeparador = Boolean(registro) && (!registro.separador || trocandoSeparador);
 

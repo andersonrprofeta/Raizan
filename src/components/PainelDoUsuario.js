@@ -7,6 +7,7 @@ import TabDesempenho from "@/components/vendedores/relatorio";
 import { mesDeHoje } from "@/components/vendedores/SeletorMes";
 import { api, Carregando, CascaPagina, EstadoVazio, VIDRO } from "@/components/vendedores/ui";
 import { lerUsuario, temPermissao } from "@/components/utils/sessaoCore";
+import { horaBrasilia } from "@/components/utils/horaBrasilia";
 
 const UM_DIA_MS = 24 * 60 * 60 * 1000;
 
@@ -29,7 +30,7 @@ const tempoDeEspera = (data) => {
   return dias === 1 ? "Há 1 dia" : `Há ${dias} dias`;
 };
 
-const horario = (data) => new Date(data).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+const horario = (data) => horaBrasilia(data);
 
 function Esteira({ painel, perfil }) {
   return (

@@ -1,3 +1,5 @@
+import { agoraEmBrasilia } from "@/components/utils/horaBrasilia";
+
 // Todos os motivos de ocorrência da bipagem no checkout, num lugar só.
 // A tela de bipagem grava o motivo; o histórico e o PDF mostram o título, o que aconteceu e o que fazer.
 
@@ -66,7 +68,7 @@ export const novaOcorrencia = (motivo, { produto = null, codigo = null, detalhe 
   codigo,
   detalhe,
   responsavel,
-  hora: new Date().toLocaleString("sv-SE"),
+  hora: agoraEmBrasilia(),
 });
 
 // Quantas vezes cada motivo aconteceu, do mais frequente ao menos

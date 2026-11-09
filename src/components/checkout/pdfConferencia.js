@@ -1,7 +1,8 @@
 import { escapar, lerEmpresa, montarDocumento } from "@/components/utils/documentoPdf";
 import { motivoDa } from "./ocorrencias";
+import { dataHoraBrasilia } from "@/components/utils/horaBrasilia";
 
-const dataHora = (valor) => (valor ? new Date(valor).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "medium" }) : "Não informado");
+const dataHora = (valor) => dataHoraBrasilia(valor);
 
 export function montarPdfDaConferencia(registro) {
   const contagem = registro.itens.map((item) => `<tr>

@@ -27,7 +27,19 @@ export const SELO = {
   orange: 'bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-500/20',
   rose: 'bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/20',
   amber: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20',
+  // Pedido de bonificação: lilás forte, para não passar batido
+  lilas: 'bg-violet-500 text-white border-violet-500 shadow-[0_4px_12px_-4px_rgba(139,92,246,0.7)]',
 };
+
+// Fundo lilás do card do pedido de bonificação. Fica atrás do conteúdo (o vidro já isola as camadas).
+export function FundoBonificado() {
+  return (
+    <div
+      aria-hidden="true"
+      className="absolute inset-0 -z-10 rounded-[inherit] pointer-events-none bg-gradient-to-br from-violet-200/70 via-violet-100/50 to-teal-100/50 dark:from-violet-500/20 dark:via-violet-500/10 dark:to-teal-500/10"
+    />
+  );
+}
 
 export function LuzesDeFundo() {
   return (

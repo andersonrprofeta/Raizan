@@ -9,13 +9,14 @@ import {
   PackageSearch, Loader2, ScanBarcode, ArrowRight, PackageCheck,
   User, MoreHorizontal, Printer, MonitorPlay, PackagePlus,
   LayoutGrid, List, AlertTriangle, Store, Smartphone, Globe, ShoppingCart,
-  Home // 🟢 ADD: Ícone da casinha
+  Home, // 🟢 ADD: Ícone da casinha
+  Gift
 } from 'lucide-react';
 import { getHubUrl, getHeaders, getTenantId } from "@/components/utils/api";
 import { limparSessao } from "@/components/utils/sessaoCore";
 import toast from 'react-hot-toast';
 import MapaSeparacao, { montarSeparacao } from "@/components/checkout/MapaSeparacao";
-import { VIDRO, BOTAO_ROXO, BOTAO_VIDRO, SELO, LuzesDeFundo, NotificacaoVidro } from "@/components/checkout/estilos";
+import { VIDRO, BOTAO_ROXO, BOTAO_VIDRO, SELO, FundoBonificado, LuzesDeFundo, NotificacaoVidro } from "@/components/checkout/estilos";
 
 const BOTAO_MODO = "w-10 h-9 rounded-full flex items-center justify-center transition-all duration-300";
 const BOTAO_MODO_ATIVO = "bg-white dark:bg-white/[0.12] text-zinc-900 dark:text-white shadow-[0_1px_3px_rgba(0,0,0,0.12)]";
@@ -244,6 +245,7 @@ export default function CheckoutConferencia() {
                 const canal = getCanalVenda(pedido);
                 const { itensParaSeparar } = montarSeparacao(pedido);
                 const unidades = itensParaSeparar.reduce((acc, item) => acc + item.qtdSeparar, 0);
+                const bonificado = pedido.bonificado === true;
 
                 return (
                   <div
@@ -251,14 +253,20 @@ export default function CheckoutConferencia() {
                     onClick={() => abrirConferencia(pedido.pedido_id)}
                     className={`${VIDRO} group cursor-pointer transition-all duration-300 hover:-translate-y-0.5 active:scale-[0.99] ${menuAberto === pedido.id ? 'z-30' : ''}
                       ${emLista ? 'flex items-center gap-5 px-5 py-4 flex-wrap' : 'flex flex-col p-5'}
-                      ${isUrgente ? 'ring-1 ring-rose-500/40' : 'hover:ring-1 hover:ring-purple-500/30'}`}
+                      ${isUrgente ? 'ring-1 ring-rose-500/40' : bonificado ? 'ring-2 ring-violet-400/70' : 'hover:ring-1 hover:ring-purple-500/30'}`}
                   >
+                    {bonificado && <FundoBonificado />}
                     <div className={`flex items-start justify-between gap-3 ${emLista ? 'min-w-[170px]' : 'mb-4'}`}>
                       <div>
                         <span className={`inline-flex items-center gap-1 h-6 px-2.5 rounded-full border text-[11px] font-semibold ${isUrgente ? SELO.rose : SELO.blue}`}>
                           {isUrgente ? <AlertTriangle size={12} /> : <PackageSearch size={12} />}
                           {isUrgente ? 'Urgente' : 'Separação'}
                         </span>
+                        {bonificado && (
+                          <span title="Pedido de bonificação" className={`ml-1.5 inline-flex items-center gap-1 h-6 px-2.5 rounded-full border text-[11px] font-bold ${SELO.lilas}`}>
+                            <Gift size={12} /> Bonificação
+                          </span>
+                        )}
                         <h3 className="text-[28px] leading-tight font-bold tracking-tight mt-2 tabular-nums">#{pedido.pedido_id}</h3>
                       </div>
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Printer, ArrowLeft, Loader2 } from 'lucide-react';
+import { Printer, ArrowLeft, Loader2, Gift } from 'lucide-react';
 import Barcode from 'react-barcode';
 import { getHubUrl, getHeaders, getTenantId } from '@/components/utils/api';
 import { formatarDocumento } from '@/components/utils/documentoPdf';
@@ -243,6 +243,17 @@ export default function MapaSeparacao({ pedido: pedidoRecebido, onFechar }) {
             <p className="text-[9px] text-zinc-500 mt-0.5">Emitido: {dataAtual}</p>
           </div>
         </div>
+
+        {/* Faixa logo abaixo do cabeçalho: quem fatura vê antes de tudo que o pedido é de bonificação */}
+        {pedido.bonificado === true && (
+          <div className="page-break-inside-avoid flex items-center gap-3 mb-4 px-4 py-2.5 rounded-[10px] border-2 border-[#7c3aed] bg-[#ede9fe] text-[#4c1d95]">
+            <Gift size={22} className="shrink-0" />
+            <div className="leading-tight">
+              <p className="text-[15px] font-black uppercase tracking-wide">Pedido de bonificação</p>
+              <p className="text-[10px] font-semibold">Faturar como bonificação, não como venda.</p>
+            </div>
+          </div>
+        )}
 
         <div className="bg-[#f8f7fb] p-3 rounded-[10px] mb-5 text-[10px] leading-tight">
           <div className="grid grid-cols-12 gap-y-2 gap-x-4">

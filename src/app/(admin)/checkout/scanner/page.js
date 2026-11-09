@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { ScanBarcode, PackageCheck, ArrowLeft, Loader2, CheckCircle2, Package, Search, ClipboardList, OctagonAlert, X } from 'lucide-react';
+import { ScanBarcode, PackageCheck, ArrowLeft, Loader2, CheckCircle2, Package, Search, ClipboardList, OctagonAlert, X, Gift } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { getHubUrl, getHeaders, getTenantId } from "@/components/utils/api";
 import { lerUsuario } from "@/components/utils/sessaoCore";
@@ -12,7 +12,7 @@ import { montarSeparacao } from "@/components/checkout/MapaSeparacao";
 import EscolherSeparador from "@/components/checkout/EscolherSeparador";
 import { mudancasDoPedido, novaOcorrencia } from "@/components/checkout/ocorrencias";
 import { agoraEmBrasilia } from "@/components/utils/horaBrasilia";
-import { VIDRO, BOTAO_ROXO, BOTAO_VERDE, BOTAO_VIDRO, LuzesDeFundo } from "@/components/checkout/estilos";
+import { VIDRO, BOTAO_ROXO, BOTAO_VERDE, BOTAO_VIDRO, SELO, FundoBonificado, LuzesDeFundo } from "@/components/checkout/estilos";
 
 const codigosDoItem = (item) => [
   item.sku, item.ean, item.gtin, item.codigo_barras, item.barcode, item.product_id, item.codigo
@@ -578,6 +578,11 @@ function ScannerMesa() {
                 {progressoRecuperado && (
                   <span className="h-6 px-2.5 rounded-full bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/20 text-[11px] font-semibold inline-flex items-center">Recuperado</span>
                 )}
+                {pedido.bonificado === true && (
+                  <span title="Pedido de bonificação" className={`h-6 px-2.5 rounded-full border text-[11px] font-bold inline-flex items-center gap-1 ${SELO.lilas}`}>
+                    <Gift size={12} /> Bonificação
+                  </span>
+                )}
               </h1>
               <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5 truncate">{pedido.billing?.first_name}</p>
             </div>
@@ -616,9 +621,13 @@ function ScannerMesa() {
             </form>
           </div>
 
-          <div className={`${VIDRO} !rounded-3xl px-5 py-4`}>
+          <div className={`${VIDRO} !rounded-3xl px-5 py-4 ${pedido.bonificado === true ? 'ring-2 ring-violet-400/70' : ''}`}>
+            {pedido.bonificado === true && <FundoBonificado />}
             <div className="flex justify-between items-baseline mb-2.5">
-              <span className="text-sm font-semibold">Progresso da caixa</span>
+              <span className="text-sm font-semibold">
+                Progresso da caixa
+                {pedido.bonificado === true && <span className="ml-2 text-violet-700 dark:text-violet-300 font-bold">· Pedido de bonificação</span>}
+              </span>
               <span className={`text-sm font-bold tabular-nums ${todosBipados ? 'text-emerald-600 dark:text-emerald-400' : 'text-purple-600 dark:text-purple-400'}`}>{totalBipados} de {totalItens} un</span>
             </div>
             <div className="bg-black/[0.06] dark:bg-white/[0.08] rounded-full h-2 w-full overflow-hidden">

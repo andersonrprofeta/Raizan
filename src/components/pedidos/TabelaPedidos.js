@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Loader2, FileDown, CheckCircle2, ChevronLeft, ChevronRight, CloudUpload, Printer, Tags, Scissors, Box, User } from "lucide-react"; 
+import { Loader2, FileDown, CheckCircle2, ChevronLeft, ChevronRight, CloudUpload, Printer, Tags, Scissors, Box, User, Gift } from "lucide-react"; 
 
 const formatarMoeda = (valor) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor || 0);
 
@@ -161,6 +161,7 @@ export default function TabelaPedidos({
 
               const taEnviado = !!foiBaixado || !!codigoOmieReal || (isOmie && statusAtual !== 'pendente' && statusAtual !== 'cancelado');
               const isCortado = pedido.teve_corte === 1 || pedido.teve_corte === true;
+              const bonificado = pedido.bonificado === true;
 
               const isEmSeparacao = ['20', 'processando', 'separacao', 'separar estoque'].includes(statusAtual);
               const isNfeEmitida = ['60', 'faturado', 'nfe_emitida'].includes(statusAtual);
@@ -171,9 +172,11 @@ export default function TabelaPedidos({
               const mostrarOmie = taEnviado && codigoMostrar && !String(codigoMostrar).startsWith('APP');
 
               return (
-                <tr key={idReal} onClick={() => onRowClick(pedido)} className={`transition-colors cursor-pointer group ${isCortado ? 'bg-amber-500/[0.06] hover:bg-amber-500/[0.1]' : 'hover:bg-purple-500/[0.04] dark:hover:bg-white/[0.03]'}`}>
+                <tr key={idReal} onClick={() => onRowClick(pedido)} className={`transition-colors cursor-pointer group ${isCortado ? 'bg-amber-500/[0.06] hover:bg-amber-500/[0.1]' : bonificado ? 'bg-violet-500/[0.09] hover:bg-violet-500/[0.14] dark:bg-violet-500/[0.1] dark:hover:bg-violet-500/[0.15]' : 'hover:bg-purple-500/[0.04] dark:hover:bg-white/[0.03]'}`}>
                   
                   <td className="relative pl-10 pr-4 py-4 font-medium">
+                    {/* Pedido de bonificação: faixa lilás na borda da linha */}
+                    {bonificado && <span aria-hidden="true" className="absolute left-0 top-0 bottom-0 w-1 bg-violet-500" />}
                     {/* ✂️ Linha de corte tracejada na borda do card, com a tesoura em cima dela (só em pedido parcial) */}
                     {isCortado && (
                       <>
@@ -200,6 +203,11 @@ export default function TabelaPedidos({
                         </span>
                       )}
                     </div>
+                    {bonificado && (
+                      <span title="Pedido de bonificação" className="mt-1.5 inline-flex items-center gap-1 h-5 px-2 rounded-full bg-violet-500 text-white text-[10px] font-bold shadow-[0_4px_12px_-4px_rgba(139,92,246,0.7)]">
+                        <Gift size={10} /> Bonificação
+                      </span>
+                    )}
                   </td>
 
                   <td className="px-5 py-4 font-medium text-zinc-900 dark:text-zinc-100">

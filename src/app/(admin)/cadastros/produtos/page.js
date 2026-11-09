@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { buscarProdutos } from "@/lib/buscaInteligente";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import MenuAcoesProduto from "@/components/produtos/MenuAcoesProduto";
@@ -203,9 +204,8 @@ export default function ListaProdutosHub() {
 
   const formatarMoeda = (valor) => Number(valor).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-  const produtosFiltrados = produtos.filter(p => {
-    const termo = busca.toLowerCase();
-    const matchBusca = (p.nome && p.nome.toLowerCase().includes(termo)) || (p.sku && p.sku.toLowerCase().includes(termo)) || (p.gtin && p.gtin.toLowerCase().includes(termo)) || (p.marca && p.marca.toLowerCase().includes(termo));
+  // A busca (busca inteligente) filtra e põe o mais parecido primeiro; os filtros da tela vêm antes
+  const produtosFiltrados = buscarProdutos(produtos.filter(p => {
     const matchStatus = filtros.status === 'bloqueado' ? p.bloqueado : (filtros.status ? p.status === filtros.status : true);
     
     let matchTipo = true;
@@ -236,8 +236,8 @@ export default function ListaProdutosHub() {
       matchVariacao = strVar.includes(termoVar) || strAttr.includes(termoVar);
     }
 
-    return matchBusca && matchStatus && matchTipo && matchMarca && matchCategoria && matchEstoque && matchVariacao;
-  });
+    return matchStatus && matchTipo && matchMarca && matchCategoria && matchEstoque && matchVariacao;
+  }), busca);
 
   const indiceUltimoItem = paginaAtual * itensPorPagina;
   const indicePrimeiroItem = indiceUltimoItem - itensPorPagina;

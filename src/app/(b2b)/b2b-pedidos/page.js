@@ -9,7 +9,7 @@ import LinhaProduto, { EVENTO_DA_BUSCA, focarBusca, focarQuantidade } from "@/co
 import PainelDoPedido from "@/components/portal/PainelDoPedido";
 import { useCarrinho } from "@/components/portal/carrinho";
 import { useCadastro, useCatalogo } from "@/components/portal/dados";
-import { codigoExato, combina, pesoNaBusca, semAcento } from "@/components/portal/filtro";
+import { codigoExato, combina, notaNaBusca, pesoNaBusca, semAcento } from "@/components/portal/filtro";
 import { precoDoItem } from "@/components/portal/precos";
 import { Botao, ESTILO, Esqueleto, Vazio } from "@/components/portal/ui";
 import { marcaBonificada } from "@/components/utils/marcaBonificada";
@@ -154,7 +154,8 @@ function Catalogo() {
     const filtrados = (ofertas ? emOferta : produtos).filter((produto) => (!marca || produto.marca === marca) && combina(produto, busca));
     const comparar = ORDENACOES[ordem].comparar;
     const ordenados = comparar ? [...filtrados].sort(comparar) : filtrados;
-    return [...ordenados].sort((a, b) => pesoNaBusca(b, busca) - pesoNaBusca(a, busca));
+    const peso = comparar ? pesoNaBusca : notaNaBusca;
+    return [...ordenados].sort((a, b) => peso(b, busca) - peso(a, busca));
   }, [produtos, emOferta, termo, marca, ofertas, ordem]);
 
   // Para onde vai o cursor depois de uma busca confirmada: código exato (leitor de código de barras),

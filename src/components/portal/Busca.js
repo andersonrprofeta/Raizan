@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { CornerDownLeft, Loader2, Search, X } from "lucide-react";
 import { useCatalogo } from "./dados";
-import { codigoExato, combina, pesoNaBusca, semAcento } from "./filtro";
+import { codigoExato, combina, notaNaBusca, semAcento } from "./filtro";
 import { EVENTO_DA_BUSCA } from "./LinhaProduto";
 import { precoDoItem } from "./precos";
 import { ESTILO, Foto, moeda } from "./ui";
@@ -63,7 +63,7 @@ export default function Busca() {
   const busca = semAcento(buscado);
   const achados = useMemo(() => {
     if (!busca) return [];
-    return (dados?.produtos || []).filter((produto) => combina(produto, busca)).sort((a, b) => pesoNaBusca(b, busca) - pesoNaBusca(a, busca));
+    return (dados?.produtos || []).filter((produto) => combina(produto, busca)).sort((a, b) => notaNaBusca(b, busca) - notaNaBusca(a, busca));
   }, [dados, busca]);
 
   const levarAoCatalogo = (valor, focar) => {

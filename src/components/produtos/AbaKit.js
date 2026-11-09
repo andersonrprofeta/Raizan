@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Box, Plus, Trash2, Search, Package } from "lucide-react";
 import toast from "react-hot-toast";
+import { buscarProdutos } from "@/lib/buscaInteligente";
 
 export default function AbaKit({ produto, atualizarCampo }) {
   
@@ -117,10 +118,7 @@ export default function AbaKit({ produto, atualizarCampo }) {
               {itensKit.map((item, index) => {
                 
                 // 🟢 LÓGICA DE FILTRO AO VIVO
-                const termo = item.nome_sku.toLowerCase();
-                const produtosFiltrados = catalogo.filter(p => 
-                  p.nome?.toLowerCase().includes(termo) || p.sku?.toLowerCase().includes(termo)
-                );
+                const produtosFiltrados = buscarProdutos(catalogo, item.nome_sku);
 
                 return (
                   <tr key={index} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/20 transition-colors group">

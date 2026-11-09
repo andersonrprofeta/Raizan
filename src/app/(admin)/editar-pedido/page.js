@@ -7,6 +7,7 @@ import Header from "@/components/Header";
 import { ArrowLeft, Save, Plus, Minus, Trash2, Package, Loader2, AlertTriangle, MessageSquare, Search, X, Truck, Percent, Receipt, Database, Cloud } from "lucide-react";
 import Link from "next/link";
 import { getApiUrl, getHeaders } from "@/components/utils/api";
+import { buscarProdutos } from "@/lib/buscaInteligente";
 import toast from 'react-hot-toast';
 
 function EditarPedidoConteudo() {
@@ -104,17 +105,14 @@ function EditarPedidoConteudo() {
         }
 
       } else {
-        const res = await fetch(`https://api.raizan.com.br/api/hub/produtos?busca=${termoBusca}&para_venda=1`, { 
+        const res = await fetch(`https://api.raizan.com.br/api/hub/produtos?busca=${encodeURIComponent(termoBusca)}&para_venda=1`, { 
           headers: { "x-tenant-id": tenantId } 
         });
         const data = await res.json();
         
         if (data.success) {
-          const termoLower = termoBusca.toLowerCase();
-          const filtrados = data.produtos.filter(p => 
-            p.nome?.toLowerCase().includes(termoLower) || 
-            p.sku?.toLowerCase().includes(termoLower)
-          );
+          // A API já devolve pela busca inteligente; filtrar de novo aqui mantém a tela certa com a API antiga
+          const filtrados = buscarProdutos(data.produtos, termoBusca);
           
           const produtosNormalizados = filtrados.map(p => ({
             id: String(p.id),

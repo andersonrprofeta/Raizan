@@ -11,7 +11,7 @@ import { motivoDa, resumoPorMotivo } from "@/components/checkout/ocorrencias";
 
 const dataHora = (valor) => (valor ? new Date(valor).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "medium" }) : "Não informado");
 
-function Ocorrencia({ ocorrencia }) {
+function Ocorrencia({ ocorrencia, conferente }) {
   const motivo = motivoDa(ocorrencia);
   return (
     <li className="rounded-2xl border border-amber-500/20 bg-amber-500/[0.06] p-3.5">
@@ -26,6 +26,7 @@ function Ocorrencia({ ocorrencia }) {
         </p>
       )}
       {ocorrencia.detalhe && <p className="mt-1 text-sm">{ocorrencia.detalhe}</p>}
+      <p className="mt-1 text-sm"><span className="text-zinc-500 dark:text-zinc-400">Bipado por:</span> <span className="font-medium">{ocorrencia.responsavel || conferente || "Não informado"}</span></p>
       {motivo.explicacao && <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">{motivo.explicacao}</p>}
       {motivo.oQueFazer && <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300"><span className="font-medium text-zinc-800 dark:text-zinc-100">O que fazer:</span> {motivo.oQueFazer}</p>}
     </li>
@@ -98,7 +99,7 @@ function Detalhe({ id, focarOcorrencias, aoFechar }) {
                     ))}
                   </ul>
                   <ul className="space-y-2">
-                    {registro.ocorrencias.map((ocorrencia, indice) => <Ocorrencia key={ocorrencia.id || indice} ocorrencia={ocorrencia} />)}
+                    {registro.ocorrencias.map((ocorrencia, indice) => <Ocorrencia key={ocorrencia.id || indice} ocorrencia={ocorrencia} conferente={registro.conferente_nome} />)}
                   </ul>
                 </>
               )}

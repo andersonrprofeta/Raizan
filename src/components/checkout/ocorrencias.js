@@ -57,13 +57,15 @@ export const chaveDoMotivo = (ocorrencia) => (MOTIVOS[ocorrencia?.motivo] ? ocor
 
 export const motivoDa = (ocorrencia) => MOTIVOS[chaveDoMotivo(ocorrencia)] || { titulo: ocorrencia?.tipo || "Ocorrência", explicacao: "", oQueFazer: "" };
 
-export const novaOcorrencia = (motivo, { produto = null, codigo = null, detalhe = null } = {}) => ({
+// "responsavel" é quem estava bipando: com o horário, acha o momento certo nas câmeras
+export const novaOcorrencia = (motivo, { produto = null, codigo = null, detalhe = null, responsavel = null } = {}) => ({
   id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
   motivo,
   tipo: MOTIVOS[motivo]?.titulo || motivo,
   produto,
   codigo,
   detalhe,
+  responsavel,
   hora: new Date().toLocaleString("sv-SE"),
 });
 

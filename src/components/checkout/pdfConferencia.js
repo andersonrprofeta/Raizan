@@ -14,7 +14,7 @@ export function montarPdfDaConferencia(registro) {
     : `<table>
         <thead><tr><th>Ocorrência</th><th>Horário</th></tr></thead>
         <tbody>${registro.ocorrencias.map((o) => `<tr>
-          <td>${escapar(motivoDa(o).titulo)}${o.produto ? `: ${escapar(o.produto)}` : ""}${o.codigo ? `<small>Código ${escapar(o.codigo)}</small>` : ""}${o.detalhe ? `<small>${escapar(o.detalhe)}</small>` : ""}${motivoDa(o).oQueFazer ? `<small>O que fazer: ${escapar(motivoDa(o).oQueFazer)}</small>` : ""}</td>
+          <td>${escapar(motivoDa(o).titulo)}${o.produto ? `: ${escapar(o.produto)}` : ""}${o.codigo ? `<small>Código ${escapar(o.codigo)}</small>` : ""}${o.detalhe ? `<small>${escapar(o.detalhe)}</small>` : ""}<small>Bipado por ${escapar(o.responsavel || registro.conferente_nome || "Não informado")}</small>${motivoDa(o).oQueFazer ? `<small>O que fazer: ${escapar(motivoDa(o).oQueFazer)}</small>` : ""}</td>
           <td>${escapar(dataHora(o.hora))}</td>
         </tr>`).join("")}</tbody>
       </table>`;

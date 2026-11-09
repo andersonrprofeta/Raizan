@@ -115,6 +115,8 @@ function ScannerMesa() {
   const tocarSucesso = () => new Audio('/sucesso.mp3').play().catch(()=>{});
   const tocarErro = () => new Audio('/error.mp3').play().catch(()=>{});
 
+  // Toda ocorrência leva quem estava bipando (usuário logado nesta tela)
+  const ocorrenciaNova = (motivo, extras) => novaOcorrencia(motivo, { ...extras, responsavel: lerUsuario()?.nome || 'Acesso por licença' });
   const anotarOcorrencia = (ocorrencia) => atualizarRegistro(atual => ({ ocorrencias: [...atual.ocorrencias, ocorrencia] }));
   const corrigirOcorrencia = (id, mudanca) => atualizarRegistro(atual => ({ ocorrencias: atual.ocorrencias.map(o => (o.id === id ? { ...o, ...mudanca } : o)) }));
 
@@ -123,9 +125,19 @@ function ScannerMesa() {
     tocarErro();
     setCodigoBipado('');
     setQuantidadeManual(1);
-    const ocorrencia = novaOcorrencia(dados.motivo, { produto: dados.produto || null, codigo: dados.codigo || null, detalhe: dados.detalhe || null });
+    const ocorrencia = ocorrenciaNova(dados.motivo, { produto: dados.produto || null, codigo: dados.codigo || null, detalhe: dados.detalhe || null });
     setAviso({ ...dados, ocorrenciaId: ocorrencia.id });
     anotarOcorrencia(ocorrencia);
+    // Veio só o código: descobre o nome do produto bipado (no pedido ou no cadastro) e guarda na ocorrência
+    if (dados.codigo && !dados.produto && dados.motivo !== 'fora_do_pedido') {
+      buscarNomeDoProduto(dados.codigo)
+        .then(nome => {
+          if (!nome) return;
+          setAviso(atual => atual?.ocorrenciaId === ocorrencia.id ? { ...atual, produto: nome } : atual);
+          corrigirOcorrencia(ocorrencia.id, { produto: nome });
+        })
+        .catch(() => {});
+    }
     return ocorrencia.id;
   };
 
@@ -329,7 +341,7 @@ function ScannerMesa() {
   // A ocorrência fica guardada no aparelho e entra no histórico quando a conferência for retomada e finalizada.
   const sairNoMeio = () => {
     const faltando = Object.values(conferencia).filter(item => item.qtdBipada < item.qtdPedida).length;
-    const novo = { ...registro, ocorrencias: [...registro.ocorrencias, novaOcorrencia('saiu_sem_terminar', { detalhe: `${faltando} ${faltando === 1 ? 'produto faltando' : 'produtos faltando'}` })] };
+    const novo = { ...registro, ocorrencias: [...registro.ocorrencias, ocorrenciaNova('saiu_sem_terminar', { detalhe: `${faltando} ${faltando === 1 ? 'produto faltando' : 'produtos faltando'}` })] };
     try { localStorage.setItem(chaveDoRegistro, JSON.stringify(novo)); } catch (e) {}
     setRegistro(novo);
     window.close();
@@ -480,7 +492,7 @@ function ScannerMesa() {
             const anterior = registro.separador;
             const jaBipou = Object.values(conferencia).some(item => item.qtdBipada > 0);
             if (anterior && jaBipou && (anterior.id ?? anterior.nome) !== (separador?.id ?? separador?.nome)) {
-              anotarOcorrencia(novaOcorrencia('separador_trocado', { detalhe: `De ${anterior.nome || 'não informado'} para ${separador?.nome || 'não informado'}` }));
+              anotarOcorrencia(ocorrenciaNova('separador_trocado', { detalhe: `De ${anterior.nome || 'não informado'} para ${separador?.nome || 'não informado'}` }));
             }
             atualizarRegistro(() => ({ separador }));
             setTrocandoSeparador(false);

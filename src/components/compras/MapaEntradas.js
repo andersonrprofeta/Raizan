@@ -22,7 +22,6 @@ const ESTILO_DO_MAPA = `
     .mapa tbody tr:last-child td { border-bottom: 1px solid #ececf0; padding-bottom: 4px; }
     .mapa td.produto { font-weight: 600; }
     .mapa td.codigo { font-family: Consolas, "Courier New", monospace; font-size: 10.5px; white-space: nowrap; }
-    .caixa { display: inline-block; width: 52px; height: 15px; border: 1px solid #a1a1aa; border-radius: 4px; }
     .linha { display: block; height: 15px; border-bottom: 1px solid #a1a1aa; }
     .assinatura { display: flex; justify-content: flex-end; margin-top: 44px; break-inside: avoid; }
     .assinatura div { width: 300px; padding-top: 6px; border-top: 1px solid #18181b; text-align: center; font-size: 10.5px; letter-spacing: .6px; color: #52525b; text-transform: uppercase; }
@@ -33,7 +32,7 @@ function blocoDoProduto(item) {
       ${posicao === 0
         ? `<td class="produto">${escapar(item.descricao)}</td><td>${escapar(item.unidade || "")}</td><td>${escapar(item.fabricante || "")}</td><td class="codigo">${escapar(item.sku || "")}</td>`
         : "<td></td><td></td><td></td><td></td>"}
-      <td class="qtd"><span class="caixa"></span></td>
+      <td class="qtd"><span class="linha"></span></td>
       <td class="preencher"><span class="linha"></span></td>
       <td class="preencher"><span class="linha"></span></td>
     </tr>`).join("");

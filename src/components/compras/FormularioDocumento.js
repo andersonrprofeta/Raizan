@@ -88,13 +88,14 @@ function BuscaDeProduto({ onEscolher }) {
   );
 }
 
-export function FormularioDocumento({ tipo, documento, itensAtuais, fornecedores, onFechar, onSalvo }) {
+// inicial: rascunho vindo de fora (ex.: sugestão de compras) com fornecedor e observação
+export function FormularioDocumento({ tipo, documento, itensAtuais, fornecedores, inicial, onFechar, onSalvo }) {
   const [dados, setDados] = useState(() => ({
-    fornecedor: documento?.fornecedor || "",
+    fornecedor: documento?.fornecedor || inicial?.fornecedor || "",
     fornecedor_documento: documento?.fornecedor_documento || "",
     data_previsao: documento?.data_previsao || "",
     condicoes_comerciais: documento?.condicoes_comerciais || "",
-    observacao: documento?.observacao || "",
+    observacao: documento?.observacao || inicial?.observacao || "",
   }));
   const [itens, setItens] = useState(() => (itensAtuais || []).map((item) => ({
     ...itemVazio(),

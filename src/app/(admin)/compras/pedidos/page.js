@@ -1,659 +1,481 @@
-/*
-MÓDULO: HUB DE COMPRAS / ENTRADA DE MERCADORIAS
-
-Objetivo:
-Centralizar todo o processo de entrada de mercadorias do Raizan Core, independentemente da origem dos dados.
-
-Fontes de integração previstas:
-- Omie
-- Tiny ERP
-- APIs proprietárias
-- Planilhas importadas
-- Futuras integrações externas
-
-Requisitos funcionais:
-
-1. Dashboard de Entrada
-- Exibir todas as entradas de mercadorias em uma única interface centralizada.
-- Permitir filtros por:
-  - fornecedor
-  - pedido de compra
-  - data
-  - status
-  - origem da integração
-  - centro de distribuição
-- Busca rápida com alta performance.
-
-2. Pedidos de Compra
-- Listar todos os pedidos de compra vinculados às entradas.
-- Exibir status completos:
-  - aguardando recebimento
-  - recebido parcialmente
-  - recebido integralmente
-  - divergência encontrada
-  - conferência finalizada
-- Possibilitar rastreabilidade entre:
-  Pedido → Entrada → Conferência → Estoque.
-
-3. Conferência Cega
-- Implementar geração e impressão de mapa de conferência cega.
-- O operador responsável pela conferência não deve visualizar as quantidades esperadas.
-- O layout será baseado no PDF que será enviado posteriormente para análise.
-- A estrutura de impressão deverá ficar preferencialmente em:
-
-  components/compras/MapaEntrada.js
-
-- Caso a complexidade exija, criar componentes auxiliares específicos.
-
-4. UX / Experiência do Usuário
-- Desenvolver a melhor experiência operacional possível para equipes de recebimento.
-- Minimizar quantidade de cliques.
-- Priorizar velocidade de conferência.
-- Suportar operação em desktop, tablet e coletores industriais. (no momento eu renderizo no electron pra rafany)
-- Utilizar feedback visual claro para:
-  - itens pendentes
-  - itens divergentes
-  - itens conferidos
-  - recebimento concluído
-
-5. Banco de Dados
-Criar tabela (ou conjunto de tabelas) denominada:
-
-  hub_compras
-
-A estrutura deve ser preparada para se tornar o repositório central de compras do sistema.
-
-Campos sugeridos:
-- id
-- origem_integracao
-- codigo_externo
-- pedido_compra
-- fornecedor_id
-- fornecedor_nome
-- produto_id
-- sku
-- ean
-- descricao
-- quantidade_pedida
-- quantidade_recebida
-- quantidade_conferida
-- unidade_medida
-- valor_unitario
-- valor_total
-- status_recebimento
-- data_emissao
-- data_prevista
-- data_recebimento
-- usuario_responsavel
-- observacoes
-- metadata_json
-
-6. Visão Estratégica
-Toda a implementação deve seguir uma arquitetura desacoplada e orientada ao Core.
-
-O objetivo de longo prazo é transformar o Raizan Core em um ERP autossuficiente, capaz de operar sem dependência obrigatória de plataformas externas como Omie, Tiny ou qualquer outro ERP.
-
-As integrações devem ser tratadas apenas como provedores de dados, enquanto o Raizan Core se torna a fonte primária e soberana das informações de compras, recebimentos e estoque.
-
-Portanto, toda modelagem de banco, APIs, componentes e regras de negócio deve ser projetada considerando futura independência completa das integrações externas.
-
-/*
-MÓDULO: INTELIGÊNCIA DE COMPRAS E ABASTECIMENTO
-
-Aproveitando que já possuímos todas as regras de estoque mínimo, ponto de corte,
-movimentação de produtos, histórico de vendas e consumo do sistema, criar um
-módulo avançado de Inteligência de Compras dentro do Raizan Core.
-
-O objetivo não é apenas gerar relatórios, mas fornecer recomendações automáticas
-de abastecimento baseadas em comportamento real do estoque.
-
-=================================================================
-VISÃO DE PRODUTO
-=================================================================
-
-O Raizan Core deve ser capaz de identificar riscos operacionais,
-oportunidades de compra e necessidades de reposição antes que o problema aconteça.
-
-A área de Compras deve funcionar como um cockpit inteligente, exibindo
-indicadores, alertas e sugestões acionáveis em tempo real.
-
-=================================================================
-RELATÓRIOS E SUGESTÕES DE COMPRAS
-=================================================================
-
-1. ESTOQUE ABAIXO DO MÍNIMO
-
-Detectar produtos que atingiram ou ultrapassaram o estoque mínimo definido.
-
-Exibir:
-- Estoque atual
-- Estoque mínimo
-- Estoque ideal
-- Sugestão de compra
-- Dias restantes de cobertura
-
-Classificação:
-- Crítico
-- Atenção
-- Saudável
-
-=================================================================
-
-2. PONTO DE CORTE ATINGIDO
-
-Utilizar as informações já cadastradas de corte e reposição.
-
-Gerar automaticamente:
-
-"Produtos que precisam entrar em processo de compra agora"
-
-Exibir:
-- Produto
-- Quantidade recomendada
-- Consumo médio
-- Prazo médio de entrega do fornecedor
-- Risco de ruptura
-
-=================================================================
-
-3. QUEDA ABRUPTA DE ESTOQUE
-
-Detectar variações anormais de saída.
-
-Exemplos:
-- Produto vende normalmente 50 unidades por semana e vendeu 300.
-- Produto teve movimentação muito acima da média histórica.
-- Crescimento repentino de consumo.
-
-Gerar alerta:
-
-"Possível ruptura de estoque em X dias"
-
-=================================================================
-
-4. TENDÊNCIA DE ESGOTAMENTO
-
-Utilizar médias móveis e histórico de movimentação.
-
-Períodos:
-- 7 dias
-- 15 dias
-- 30 dias
-- 60 dias
-- 90 dias
-- 180 dias
-
-Exibir previsão:
-
-- Acaba em 5 dias
-- Acaba em 12 dias
-- Acaba em 25 dias
-
-Baseado no consumo real.
-
-=================================================================
-
-5. REPOSIÇÃO AUTOMÁTICA SUGERIDA
-
-Criar motor de sugestão que recomende quantidade ideal de compra.
-
-Fatores:
-
-- Estoque atual
-- Estoque mínimo
-- Estoque ideal
-- Histórico de vendas
-- Sazonalidade
-- Pedidos pendentes
-- Compras em trânsito
-- Tempo de entrega do fornecedor
-
-Resultado:
-
-"Sugerimos comprar 450 unidades"
-
-com justificativa completa da recomendação.
-
-=================================================================
-
-6. PRODUTOS SEM MOVIMENTAÇÃO
-
-Identificar itens parados.
-
-Períodos:
-- 30 dias
-- 60 dias
-- 90 dias
-- 180 dias
-- 365 dias
-
-Exibir:
-
-- Valor parado em estoque
-- Quantidade parada
-- Última movimentação
-
-=================================================================
-
-7. COMPRAS EM TRÂNSITO
-
-Exibir produtos já comprados e ainda não recebidos.
-
-Objetivo:
-Evitar compras duplicadas.
-
-Indicadores:
-
-- Pedido emitido
-- Quantidade comprada
-- Previsão de chegada
-- Dias de atraso
-
-=================================================================
-
-8. ANÁLISE DE RUPTURA
-
-Identificar produtos que chegaram a estoque zero.
-
-Exibir:
-
-- Quantidade de dias sem estoque
-- Perda estimada de vendas
-- Histórico de ocorrências
-
-=================================================================
-
-9. CURVA ABC DE COMPRAS
-
-Classificar itens por relevância.
-
-Classe A
-- Produtos mais importantes
-
-Classe B
-- Produtos intermediários
-
-Classe C
-- Produtos de baixa relevância
-
-Permitir filtros por:
-
-- Unidade
-- Período
-- Categoria
-- Fornecedor
-
-=================================================================
-
-10. SAZONALIDADE
-
-Analisar comportamento anual.
-
-Exemplos:
-
-- Produtos que crescem no final do ano.
-- Produtos com pico em determinadas épocas.
-- Produtos que possuem demanda recorrente em meses específicos.
-
-Utilizar o histórico para antecipar compras.
-
-=================================================================
-
-11. PAINEL EXECUTIVO
-
-Criar dashboard executivo contendo:
-
-- Valor total em estoque
-- Capital imobilizado
-- Produtos críticos
-- Produtos em ruptura
-- Compras em trânsito
-- Sugestões automáticas
-- Economia potencial
-- Cobertura média do estoque
-
-=================================================================
-EXPERIÊNCIA DO USUÁRIO (UX/UI)
-=================================================================
-
-Manter padrão premium nível Apple.
-
-Princípios obrigatórios:
-
-- Interface limpa
-- Poucos elementos visuais
-- Hierarquia clara de informação
-- Tipografia elegante
-- Espaçamento generoso
-- Animações suaves
-- Feedback visual sofisticado
-- Nada poluído ou com aparência de ERP antigo
-
-Dashboard inspirado em:
-
-- Apple Business Manager
-- Notion
-- Stripe Dashboard
-- Linear
-- Vercel
-
-Priorizar:
-
-- Leitura rápida
-- Visualização executiva
-- Zero excesso de informação
-- Ações importantes destacadas
-- Uso inteligente de cores e indicadores
-
-=================================================================
-VISÃO FUTURA
-=================================================================
-
-Toda a inteligência deve ser construída dentro do Raizan Core.
-
-O objetivo é que, no futuro, o sistema possua motor próprio de previsão
-de compras e abastecimento, eliminando dependência operacional de ERPs externos.
-
-Omie, Tiny e demais integrações devem ser tratados apenas como fontes de dados.
-
-A inteligência, previsão, decisão e gestão devem pertencer exclusivamente ao Raizan Core.
-*/
-
-
 "use client";
 
-// Painel de entradas de mercadorias. O Raizan Core é a fonte da verdade das compras:
-// o Omie (e no futuro Tiny, planilhas, APIs) só entrega os pedidos pelo botão Importar.
+// Central de Compras do Raizan Core: orçamentos, pedidos de compra e NF-es de entrada numa lista só.
+// Toda a operação acontece aqui. Integrações (Omie, Tiny, Bling...) só alimentam os documentos, em segundo plano.
+// Especificação do dono: src/components/compras/ESPECIFICACAO.md
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import toast from "react-hot-toast";
 import {
-  AlertTriangle, CalendarClock, ChevronRight, ClipboardCheck, DownloadCloud, Inbox, PackageSearch, Printer, RotateCcw, Search, SlidersHorizontal, Truck, X,
+  ArrowRight, ChevronDown, FilePlus2, FileText, Loader2, Pencil, Plus, Printer, RefreshCw, Search, SlidersHorizontal, Trash2, X,
 } from "lucide-react";
-import { api, BOTAO_PRIMARIO, BOTAO_SECUNDARIO, CAMPO, Carregando, CascaPagina, EstadoVazio, Kpi, Modal, ROTULO, Segmentado, VIDRO, moeda, moedaCurta, BarraProgresso } from "@/components/vendedores/ui";
-import { ChipStatus, LinhaDoTempo, ORIGEM, diaCurto, diaEHora, diasDeAtraso, quantidade } from "@/components/compras/ui";
-import { montarMapaDeConferencia } from "@/components/compras/MapaEntradas";
+import {
+  api, BOTAO_PRIMARIO, BOTAO_SECUNDARIO, CAMPO, Carregando, CascaPagina, EstadoVazio, Kpi, Modal, ROTULO, Segmentado, VIDRO, moeda, moedaCurta,
+} from "@/components/vendedores/ui";
+import { ACAO_DO_STATUS, SeloStatus, SeloTipo, TIPOS, diaCurto, numeroDoDocumento, quantidade } from "@/components/compras/ui";
+import { montarMapaDeEntrada } from "@/components/compras/MapaEntradas";
 import { abrirDocumento } from "@/components/utils/documentoPdf";
 
 const ABAS = [
-  { id: "", rotulo: "Todas" },
-  { id: "recebido", rotulo: "Para conferir" },
-  { id: "parcial", rotulo: "Em parte" },
-  { id: "aguardando", rotulo: "Aguardando" },
-  { id: "divergencia", rotulo: "Divergência" },
-  { id: "conferido", rotulo: "Conferidas" },
-  { id: "cancelado", rotulo: "Canceladas" },
+  { id: "tudo", rotulo: "Tudo" },
+  { id: "orcamento", rotulo: "Orçamentos" },
+  { id: "pedido", rotulo: "Pedidos" },
+  { id: "nfe", rotulo: "NF-e de entrada" },
+  { id: "aprovacao", rotulo: "Aprovação" },
+  { id: "recebimentos", rotulo: "Recebimentos" },
+  { id: "divergencias", rotulo: "Divergências" },
 ];
-const FILTROS_VAZIOS = { fornecedor: "", origem: "", cd: "", de: "", ate: "" };
+const TIPOS_DAS_ABAS = ["orcamento", "pedido", "nfe"];
+const FILTROS_VAZIOS = { fornecedor: "", de: "", ate: "" };
+const GRADE = "md:grid-cols-[112px_96px_minmax(0,1fr)_96px_120px_190px_20px]";
 
-function imprimirMapa(compra, itens) {
-  if (!abrirDocumento(montarMapaDeConferencia({ compra, itens }))) toast.error("Libere as janelas do navegador para imprimir o mapa.");
-}
+// ==========================================
+// FORMULÁRIO: ORÇAMENTO OU PEDIDO
+// ==========================================
+const itemVazio = (produto) => ({
+  chave: `${Date.now()}-${Math.random()}`,
+  produto_id: produto?.id || null,
+  sku: produto?.sku || "",
+  ean: produto?.gtin || "",
+  descricao: produto?.nome || "",
+  fabricante: produto?.marca || "",
+  unidade: produto?.unidade || "UN",
+  quantidade: "1",
+  valor_unitario: produto?.ultimo_custo ? String(produto.ultimo_custo).replace(".", ",") : "",
+});
+const lerNumero = (texto) => Number(String(texto || "0").replace(/\./g, "").replace(",", ".")) || 0;
 
-function LinhaDaCompra({ compra, onAbrir }) {
-  const atraso = diasDeAtraso(compra);
-  const pedida = Number(compra.quantidade_pedida) || 0;
-  const recebida = Math.min(Number(compra.quantidade_recebida) || 0, pedida);
-  const percentual = pedida > 0 ? (recebida / pedida) * 100 : 0;
+function BuscaDeProduto({ onEscolher }) {
+  const [termo, setTermo] = useState("");
+  const [resultados, setResultados] = useState([]);
+  const [buscando, setBuscando] = useState(false);
+  const ultima = useRef(0);
+
+  useEffect(() => {
+    const busca = termo.trim();
+    if (busca.length < 2) return undefined;
+    const numero = ++ultima.current;
+    const espera = setTimeout(async () => {
+      setBuscando(true);
+      try {
+        const resposta = await api(`/compras/produtos?busca=${encodeURIComponent(busca)}`);
+        if (numero === ultima.current) setResultados(resposta.success ? resposta.produtos : []);
+      } catch (erro) {
+        if (numero === ultima.current) setResultados([]);
+      } finally {
+        if (numero === ultima.current) setBuscando(false);
+      }
+    }, 250);
+    return () => clearTimeout(espera);
+  }, [termo]);
+
+  const escolher = (produto) => { onEscolher(produto); setTermo(""); setResultados([]); };
+  const aberto = termo.trim().length >= 2;
 
   return (
-    <button
-      type="button"
-      onClick={() => onAbrir(compra)}
-      className="group w-full text-left grid grid-cols-[1fr_auto] md:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_150px_auto] items-center gap-x-6 gap-y-3 px-5 sm:px-6 py-4 hover:bg-black/[0.02] dark:hover:bg-white/[0.03] transition-colors"
-    >
-      <div className="min-w-0">
-        <div className="flex items-center gap-2">
-          <span className="font-semibold tracking-tight text-zinc-900 dark:text-white">Pedido {compra.pedido_compra}</span>
-          <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">{ORIGEM[compra.origem_integracao] || compra.origem_integracao}</span>
+    <div className="relative">
+      <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" />
+      <input
+        value={termo}
+        onChange={(e) => setTermo(e.target.value)}
+        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (resultados[0]) escolher(resultados[0]); } }}
+        placeholder="Buscar produto por nome, SKU ou EAN"
+        aria-label="Buscar produto"
+        className={`${CAMPO} pl-11`}
+      />
+      {aberto && (
+        <div className="absolute z-30 left-0 right-0 mt-2 max-h-72 overflow-y-auto custom-scrollbar rounded-2xl bg-white dark:bg-[#1c1c1f] border border-black/[0.06] dark:border-white/[0.08] shadow-[0_20px_50px_-20px_rgba(0,0,0,0.45)]">
+          {buscando && resultados.length === 0 ? (
+            <p className="flex items-center gap-2 px-4 py-3 text-sm text-zinc-500"><Loader2 size={14} className="animate-spin" />Buscando...</p>
+          ) : resultados.length === 0 ? (
+            <button type="button" onClick={() => escolher({ nome: termo.trim() })} className="w-full text-left px-4 py-3 text-sm hover:bg-black/[0.03] dark:hover:bg-white/[0.05]">
+              Nenhum produto encontrado. <span className="font-semibold text-purple-600 dark:text-purple-400">Incluir “{termo.trim()}” como item avulso</span>
+            </button>
+          ) : resultados.map((produto) => (
+            <button key={produto.id} type="button" onClick={() => escolher(produto)} className="w-full text-left flex items-center justify-between gap-3 px-4 py-2.5 hover:bg-purple-500/[0.06] transition-colors">
+              <span className="min-w-0">
+                <span className="block text-sm font-medium truncate">{produto.nome}</span>
+                <span className="block text-[11px] font-mono text-zinc-500 truncate">{[produto.sku, produto.gtin, produto.marca].filter(Boolean).join(" · ")}</span>
+              </span>
+              <span className="text-right shrink-0">
+                <span className="block text-xs text-zinc-500">Estoque {quantidade(produto.estoque_inicial)}</span>
+                {produto.ultimo_custo !== null && <span className="block text-[11px] text-zinc-400">Última compra {moeda(produto.ultimo_custo)}</span>}
+              </span>
+            </button>
+          ))}
         </div>
-        <p className="text-sm text-zinc-500 truncate mt-0.5">{compra.fornecedor_nome || "Fornecedor não informado"}</p>
-      </div>
-
-      <div className="hidden md:block min-w-0">
-        <p className={`text-sm font-medium flex items-center gap-1.5 ${atraso ? "text-rose-600 dark:text-rose-400" : "text-zinc-700 dark:text-zinc-300"}`}>
-          <CalendarClock size={14} className="shrink-0" />
-          {compra.data_prevista ? diaCurto(compra.data_prevista) : "Sem previsão"}
-        </p>
-        <p className="text-xs text-zinc-500 mt-0.5">
-          {atraso ? `${atraso} ${atraso === 1 ? "dia" : "dias"} de atraso` : `${compra.total_itens} ${compra.total_itens === 1 ? "item" : "itens"} · ${moedaCurta(compra.valor_total)}`}
-        </p>
-      </div>
-
-      <div className="hidden md:block">
-        <BarraProgresso percentual={percentual} />
-        <p className="text-[11px] text-zinc-500 mt-1.5 tabular-nums">{quantidade(recebida)} de {quantidade(pedida)} recebidas</p>
-      </div>
-
-      <div className="flex items-center gap-2 justify-end">
-        <ChipStatus status={compra.status_recebimento} />
-        <ChevronRight size={18} className="text-zinc-300 group-hover:text-purple-500 group-hover:translate-x-0.5 transition-all" />
-      </div>
-    </button>
+      )}
+    </div>
   );
 }
 
-function DetalheDaCompra({ id, onFechar, onMudou }) {
-  const [dados, setDados] = useState(null);
-  const [observacoes, setObservacoes] = useState("");
+function FormularioDocumento({ tipo, documento, itensAtuais, fornecedores, onFechar, onSalvo }) {
+  const [dados, setDados] = useState(() => ({
+    fornecedor: documento?.fornecedor || "",
+    fornecedor_documento: documento?.fornecedor_documento || "",
+    data_previsao: documento?.data_previsao || "",
+    condicoes_comerciais: documento?.condicoes_comerciais || "",
+    observacao: documento?.observacao || "",
+  }));
+  const [itens, setItens] = useState(() => (itensAtuais || []).map((item) => ({
+    ...itemVazio(),
+    produto_id: item.produto_id, sku: item.sku || "", ean: item.ean || "", descricao: item.descricao, fabricante: item.fabricante || "", unidade: item.unidade || "UN",
+    quantidade: String(item.quantidade).replace(".", ","), valor_unitario: String(item.valor_unitario ?? "").replace(".", ","),
+  })));
   const [salvando, setSalvando] = useState(false);
 
-  const aplicar = useCallback((resposta) => {
-    if (!resposta.success) { toast.error(resposta.message || "Não foi possível abrir a compra."); onFechar(); return; }
-    setDados(resposta);
-    setObservacoes(resposta.compra.observacoes || "");
-  }, [onFechar]);
-  const carregar = useCallback(() => api(`/compras/${id}`).then(aplicar).catch(() => toast.error("Sem conexão com o servidor.")), [id, aplicar]);
+  const total = itens.reduce((soma, item) => soma + lerNumero(item.quantidade) * lerNumero(item.valor_unitario), 0);
+  const mudarItem = (chave, campo, valor) => setItens((lista) => lista.map((item) => (item.chave === chave ? { ...item, [campo]: valor } : item)));
 
-  useEffect(() => {
-    let vivo = true;
-    api(`/compras/${id}`).then((resposta) => { if (vivo) aplicar(resposta); }).catch(() => toast.error("Sem conexão com o servidor."));
-    return () => { vivo = false; };
-  }, [id, aplicar]);
+  const salvar = async () => {
+    if (!dados.fornecedor.trim()) { toast.error("Informe o fornecedor."); return; }
+    const validos = itens.filter((item) => item.descricao.trim() && lerNumero(item.quantidade) > 0);
+    if (validos.length === 0) { toast.error("Inclua ao menos um produto com quantidade."); return; }
 
-  const salvarObservacao = async () => {
     setSalvando(true);
-    const resposta = await api(`/compras/${id}/observacoes`, { metodo: "PUT", corpo: { observacoes } });
-    setSalvando(false);
-    if (resposta.success) toast.success("Observação salva.");
-    else toast.error(resposta.message || "Não foi possível salvar.");
+    const corpo = {
+      ...dados,
+      tipo_documento: tipo,
+      itens: validos.map((item) => ({
+        produto_id: item.produto_id, sku: item.sku, ean: item.ean, descricao: item.descricao, fabricante: item.fabricante, unidade: item.unidade,
+        quantidade: lerNumero(item.quantidade), valor_unitario: lerNumero(item.valor_unitario),
+      })),
+    };
+    try {
+      const resposta = documento ? await api(`/compras/${documento.id}`, { metodo: "PUT", corpo }) : await api("/compras", { metodo: "POST", corpo });
+      if (!resposta.success) { toast.error(resposta.message || "Não foi possível salvar."); return; }
+      toast.success(documento ? "Alterações salvas." : `${TIPOS[tipo].rotulo} nº ${resposta.numero_documento} criado.`);
+      onSalvo(documento?.id || resposta.id);
+    } catch (erro) {
+      toast.error("Sem conexão com o servidor.");
+    } finally {
+      setSalvando(false);
+    }
   };
 
-  const reabrir = async () => {
-    if (!window.confirm("Reabrir a conferência? A próxima contagem começa do zero. O histórico fica guardado.")) return;
-    const resposta = await api(`/compras/${id}/conferencia/reabrir`, { metodo: "POST" });
-    if (!resposta.success) { toast.error(resposta.message || "Não foi possível reabrir."); return; }
-    toast.success(resposta.message);
-    carregar();
-    onMudou();
-  };
-
-  const compra = dados?.compra;
-  const podeConferir = compra && !["conferido", "cancelado"].includes(compra.status_recebimento);
+  const titulo = documento ? `${TIPOS[tipo].rotulo} nº ${documento.numero_documento}` : tipo === "orcamento" ? "Novo orçamento" : "Novo pedido de compra";
 
   return (
     <Modal
-      titulo={compra ? `Pedido ${compra.pedido_compra}` : "Carregando..."}
-      descricao={compra ? `${compra.fornecedor_nome || "Fornecedor não informado"} · ${ORIGEM[compra.origem_integracao] || compra.origem_integracao}` : ""}
+      titulo={titulo}
+      descricao={tipo === "orcamento" ? "Consulte o fornecedor antes de comprar. Depois de aprovado, vira pedido." : "O pedido passa pela aprovação antes de ser emitido ao fornecedor."}
       onFechar={onFechar}
       largura="max-w-4xl"
-      rodape={compra && (
+      rodape={(
         <>
-          <button type="button" className={BOTAO_SECUNDARIO} onClick={() => imprimirMapa(compra, dados.itens)}><Printer size={16} />Mapa cego</button>
-          {compra.quantidade_conferida !== null && compra.status_recebimento !== "cancelado" && (
-            <button type="button" className={BOTAO_SECUNDARIO} onClick={reabrir}><RotateCcw size={16} />Reabrir conferência</button>
-          )}
-          <span className="flex-1" />
-          {podeConferir && (
-            <Link href={`/compras/conferencia/?id=${compra.id}`} className={BOTAO_PRIMARIO}><ClipboardCheck size={16} />Conferir agora</Link>
-          )}
+          <div className="flex-1 min-w-0">
+            <p className="text-xs text-zinc-500">Total</p>
+            <p className="text-xl font-semibold tracking-tight tabular-nums">{moeda(total)}</p>
+          </div>
+          <button type="button" onClick={onFechar} className={BOTAO_SECUNDARIO}>Cancelar</button>
+          <button type="button" onClick={salvar} disabled={salvando} className={BOTAO_PRIMARIO}>{salvando ? <Loader2 size={16} className="animate-spin" /> : null}Salvar</button>
         </>
       )}
     >
-      {!dados ? <Carregando /> : (
-        <div className="grid lg:grid-cols-[240px_1fr] gap-8 pb-4">
-          <div className="space-y-5">
-            <div className="flex items-center gap-2"><ChipStatus status={compra.status_recebimento} /></div>
-            <LinhaDoTempo eventos={dados.linha_do_tempo} />
-            <dl className="grid grid-cols-2 lg:grid-cols-1 gap-3 text-sm">
-              <div><dt className="text-xs text-zinc-500">Emissão</dt><dd className="font-medium">{diaCurto(compra.data_emissao) || "—"}</dd></div>
-              <div><dt className="text-xs text-zinc-500">Previsão</dt><dd className="font-medium">{diaCurto(compra.data_prevista) || "—"}</dd></div>
-              <div><dt className="text-xs text-zinc-500">Valor</dt><dd className="font-medium">{moeda(compra.valor_total)}</dd></div>
-              <div><dt className="text-xs text-zinc-500">Centro de distribuição</dt><dd className="font-medium">{compra.centro_distribuicao || "Principal"}</dd></div>
-            </dl>
+      <div className="space-y-6 pb-4">
+        <div className="grid sm:grid-cols-[minmax(0,1fr)_200px] gap-4">
+          <div>
+            <label className={ROTULO} htmlFor="doc-fornecedor">Fornecedor</label>
+            <input id="doc-fornecedor" list="lista-fornecedores" value={dados.fornecedor} onChange={(e) => setDados({ ...dados, fornecedor: e.target.value })} className={CAMPO} placeholder="Nome do fornecedor" autoComplete="off" />
+            <datalist id="lista-fornecedores">{fornecedores.map((nome) => <option key={nome} value={nome} />)}</datalist>
           </div>
-
-          <div className="min-w-0 space-y-6">
-            <div className="rounded-2xl border border-black/[0.06] dark:border-white/[0.07] overflow-hidden">
-              <div className="overflow-x-auto custom-scrollbar">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-[11px] uppercase tracking-wide text-zinc-500 bg-black/[0.02] dark:bg-white/[0.03]">
-                      <th className="text-left font-semibold px-4 py-2.5">Produto</th>
-                      <th className="text-right font-semibold px-3 py-2.5">Pedido</th>
-                      <th className="text-right font-semibold px-3 py-2.5">ERP recebeu</th>
-                      <th className="text-right font-semibold px-4 py-2.5">Conferido</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-black/[0.05] dark:divide-white/[0.05]">
-                    {dados.itens.map((item) => {
-                      const conferido = item.quantidade_conferida;
-                      const bate = conferido !== null && conferido === item.quantidade_pedida;
-                      return (
-                        <tr key={item.id}>
-                          <td className="px-4 py-3 min-w-[220px]">
-                            <p className="font-medium text-zinc-900 dark:text-white">{item.descricao}</p>
-                            <p className="text-[11px] font-mono text-zinc-500 mt-0.5">{[item.sku, item.ean].filter(Boolean).join(" · ")}</p>
-                          </td>
-                          <td className="px-3 py-3 text-right tabular-nums">{quantidade(item.quantidade_pedida)}</td>
-                          <td className="px-3 py-3 text-right tabular-nums text-zinc-500">{quantidade(item.quantidade_recebida)}</td>
-                          <td className={`px-4 py-3 text-right tabular-nums font-semibold ${conferido === null ? "text-zinc-400" : bate ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
-                            {quantidade(conferido)}
-                            {conferido !== null && !bate && <span className="block text-[11px] font-medium">{conferido > item.quantidade_pedida ? "+" : ""}{quantidade(conferido - item.quantidade_pedida)}</span>}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {dados.conferencias.length > 0 && (
-              <div>
-                <h3 className="text-sm font-semibold mb-2">Conferências</h3>
-                <ul className="space-y-2">
-                  {dados.conferencias.map((c) => (
-                    <li key={c.id} className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-black/[0.03] dark:bg-white/[0.04] px-4 py-3 text-sm">
-                      <span><b className="font-semibold">{c.conferente_nome}</b> <span className="text-zinc-500">· {diaEHora(c.fim)}</span></span>
-                      <span className={c.resultado === "conferido" ? "text-emerald-600 dark:text-emerald-400 font-semibold" : "text-rose-600 dark:text-rose-400 font-semibold"}>
-                        {c.resultado === "conferido" ? "Sem divergência" : `${c.itens_divergentes} ${c.itens_divergentes === 1 ? "divergência" : "divergências"}`}
-                        {c.extras?.length > 0 && ` · ${c.extras.length} fora do pedido`}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            <div>
-              <label className={ROTULO} htmlFor="obs-compra">Observações</label>
-              <textarea id="obs-compra" value={observacoes} onChange={(e) => setObservacoes(e.target.value)} rows={3} maxLength={2000} className={`${CAMPO} h-auto py-3 resize-none`} placeholder="Avarias, combinados com o fornecedor..." />
-              <div className="flex justify-end mt-2">
-                <button type="button" onClick={salvarObservacao} disabled={salvando || observacoes === (compra.observacoes || "")} className={`${BOTAO_SECUNDARIO} h-9`}>Salvar</button>
-              </div>
-            </div>
+          <div>
+            <label className={ROTULO} htmlFor="doc-cnpj">CNPJ (opcional)</label>
+            <input id="doc-cnpj" inputMode="numeric" value={dados.fornecedor_documento} onChange={(e) => setDados({ ...dados, fornecedor_documento: e.target.value })} className={CAMPO} placeholder="00.000.000/0000-00" />
+          </div>
+          <div>
+            <label className={ROTULO} htmlFor="doc-condicoes">Condições comerciais</label>
+            <input id="doc-condicoes" value={dados.condicoes_comerciais} onChange={(e) => setDados({ ...dados, condicoes_comerciais: e.target.value })} className={CAMPO} placeholder="Ex.: 30/60/90 dias, frete CIF" maxLength={255} />
+          </div>
+          <div>
+            <label className={ROTULO} htmlFor="doc-previsao">Previsão de entrega</label>
+            <input id="doc-previsao" type="date" value={dados.data_previsao} onChange={(e) => setDados({ ...dados, data_previsao: e.target.value })} className={CAMPO} />
           </div>
         </div>
-      )}
+
+        <div>
+          <p className={ROTULO}>Produtos</p>
+          <BuscaDeProduto onEscolher={(produto) => setItens((lista) => [...lista, itemVazio(produto)])} />
+          {itens.length === 0 ? (
+            <p className="mt-3 rounded-2xl border border-dashed border-black/[0.1] dark:border-white/[0.1] px-4 py-6 text-center text-sm text-zinc-500">Busque e inclua os produtos da compra.</p>
+          ) : (
+            <ul className="mt-3 space-y-2">
+              {itens.map((item) => (
+                <li key={item.chave} className="grid grid-cols-[minmax(0,1fr)_auto] sm:grid-cols-[minmax(0,1fr)_96px_128px_110px_36px] items-center gap-2 sm:gap-3 rounded-2xl bg-black/[0.03] dark:bg-white/[0.04] px-3 sm:px-4 py-2.5">
+                  <div className="min-w-0 col-span-2 sm:col-span-1">
+                    <p className="text-sm font-medium truncate">{item.descricao}</p>
+                    <p className="text-[11px] font-mono text-zinc-500 truncate">{[item.sku, item.ean, item.fabricante].filter(Boolean).join(" · ") || "Item avulso"}</p>
+                  </div>
+                  <input aria-label={`Quantidade de ${item.descricao}`} inputMode="decimal" value={item.quantidade} onChange={(e) => mudarItem(item.chave, "quantidade", e.target.value)} className={`${CAMPO} h-10 text-right tabular-nums`} placeholder="Qtd" />
+                  <input aria-label={`Valor unitário de ${item.descricao}`} inputMode="decimal" value={item.valor_unitario} onChange={(e) => mudarItem(item.chave, "valor_unitario", e.target.value)} className={`${CAMPO} h-10 text-right tabular-nums`} placeholder="R$ unitário" />
+                  <p className="hidden sm:block text-right text-sm font-semibold tabular-nums">{moeda(lerNumero(item.quantidade) * lerNumero(item.valor_unitario))}</p>
+                  <button type="button" aria-label={`Tirar ${item.descricao}`} onClick={() => setItens((lista) => lista.filter((x) => x.chave !== item.chave))} className="w-9 h-9 rounded-full flex items-center justify-center text-zinc-400 hover:text-rose-500 hover:bg-rose-500/10 transition-colors"><Trash2 size={15} /></button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <div>
+          <label className={ROTULO} htmlFor="doc-obs">Observações</label>
+          <textarea id="doc-obs" rows={3} maxLength={2000} value={dados.observacao} onChange={(e) => setDados({ ...dados, observacao: e.target.value })} className={`${CAMPO} h-auto py-3 resize-none`} placeholder="Combinados com o fornecedor, prazos, frete..." />
+        </div>
+      </div>
     </Modal>
   );
 }
 
-export default function PedidosDeCompra() {
-  const [compras, setCompras] = useState(null);
-  const [resumo, setResumo] = useState({});
-  const [opcoes, setOpcoes] = useState({ fornecedores: [], centros: [], origens: [] });
-  const [status, setStatus] = useState("");
-  const [atrasados, setAtrasados] = useState(false);
+// ==========================================
+// LINHA DA LISTA, COM EXPANSÃO
+// ==========================================
+function DetalheExpandido({ detalhe, onAcao, onEditar, ocupado }) {
+  const { documento, itens, vinculados, proximos_status: proximos } = detalhe;
+  const ehNota = documento.tipo_documento === "nfe";
+  const mostraRecebido = documento.tipo_documento !== "orcamento";
+  const pedidoGerado = vinculados.find((v) => v.tipo_documento === "pedido" && v.id !== documento.documento_origem_id);
+  const podeGerarPedido = documento.tipo_documento === "orcamento" && documento.status === "aprovado" && !pedidoGerado;
+  const temMapa = documento.tipo_documento !== "orcamento" && !["cancelado", "cancelada"].includes(documento.status);
+
+  const imprimirMapa = () => {
+    if (!abrirDocumento(montarMapaDeEntrada({ documento, itens, vinculados }))) toast.error("Libere as janelas do navegador para imprimir o mapa.");
+  };
+
+  const informacoes = [
+    ehNota && documento.chave_nfe && ["Chave", <span key="c" className="font-mono text-[11px] break-all">{documento.chave_nfe}</span>],
+    ehNota && ["Entrada", documento.data_recebimento ? diaCurto(documento.data_recebimento) : "Não registrada"],
+    !ehNota && ["Previsão de entrega", diaCurto(documento.data_previsao) || "Não informada"],
+    documento.condicoes_comerciais && ["Condições", documento.condicoes_comerciais],
+    documento.fornecedor_documento && ["CNPJ", documento.fornecedor_documento],
+    documento.criado_por && ["Criado por", documento.criado_por],
+    documento.origem_documento !== "core" && ["Origem", "Integração"],
+  ].filter(Boolean);
+
+  return (
+    <div className="px-5 sm:px-6 pb-6 pt-1 space-y-5 animate-in fade-in slide-in-from-top-1 duration-200">
+      <dl className="flex flex-wrap gap-x-8 gap-y-2 text-sm">
+        {informacoes.map(([rotulo, valor]) => (
+          <div key={rotulo}><dt className="text-[11px] text-zinc-500">{rotulo}</dt><dd className="font-medium">{valor}</dd></div>
+        ))}
+      </dl>
+
+      {vinculados.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <span className="text-[11px] text-zinc-500 mr-1">Ciclo</span>
+          {vinculados.map((v) => (
+            <span key={v.id} className="inline-flex items-center gap-2 h-8 pl-1.5 pr-3 rounded-full bg-black/[0.04] dark:bg-white/[0.05]">
+              <SeloTipo tipo={v.tipo_documento} /><span className="font-semibold tabular-nums">{v.numero_documento}</span>
+            </span>
+          ))}
+        </div>
+      )}
+
+      <div className="rounded-2xl border border-black/[0.06] dark:border-white/[0.07] overflow-hidden">
+        <div className="overflow-x-auto custom-scrollbar">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-[11px] uppercase tracking-wide text-zinc-500 bg-black/[0.02] dark:bg-white/[0.03]">
+                <th className="text-left font-semibold px-4 py-2.5">Produto</th>
+                <th className="text-right font-semibold px-3 py-2.5">Qtd</th>
+                {mostraRecebido && <th className="text-right font-semibold px-3 py-2.5">Recebido</th>}
+                <th className="text-right font-semibold px-3 py-2.5">Unitário</th>
+                <th className="text-right font-semibold px-4 py-2.5">Total</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-black/[0.05] dark:divide-white/[0.05]">
+              {itens.map((item) => (
+                <tr key={item.id}>
+                  <td className="px-4 py-2.5 min-w-[220px]">
+                    <p className="font-medium">{item.descricao}</p>
+                    <p className="text-[11px] font-mono text-zinc-500">{[item.sku, item.ean, item.fabricante].filter(Boolean).join(" · ")}</p>
+                  </td>
+                  <td className="px-3 py-2.5 text-right tabular-nums whitespace-nowrap">{quantidade(item.quantidade)} <span className="text-zinc-400 text-xs">{item.unidade}</span></td>
+                  {mostraRecebido && <td className={`px-3 py-2.5 text-right tabular-nums ${item.quantidade_recebida >= item.quantidade ? "text-emerald-600 dark:text-emerald-400" : "text-zinc-500"}`}>{quantidade(item.quantidade_recebida)}</td>}
+                  <td className="px-3 py-2.5 text-right tabular-nums whitespace-nowrap">{moeda(item.valor_unitario)}</td>
+                  <td className="px-4 py-2.5 text-right tabular-nums font-semibold whitespace-nowrap">{moeda(item.valor_total)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {documento.observacao && <p className="text-sm text-zinc-600 dark:text-zinc-300 rounded-2xl bg-black/[0.03] dark:bg-white/[0.04] px-4 py-3">{documento.observacao}</p>}
+
+      <div className="flex flex-wrap items-center gap-2">
+        {temMapa && <button type="button" onClick={imprimirMapa} className={`${BOTAO_SECUNDARIO} h-10`}><Printer size={15} />Mapa de entrada</button>}
+        {documento.editavel && <button type="button" onClick={onEditar} className={`${BOTAO_SECUNDARIO} h-10`}><Pencil size={15} />Editar</button>}
+        <span className="flex-1" />
+        {proximos.filter((s) => s === "cancelado").map((s) => (
+          <button key={s} type="button" disabled={ocupado} onClick={() => onAcao("status", s)} className="h-10 px-4 rounded-full text-sm font-semibold text-rose-600 hover:bg-rose-500/10 transition-colors disabled:opacity-40">{ACAO_DO_STATUS[s]}</button>
+        ))}
+        {proximos.filter((s) => s !== "cancelado").map((s, posicao, lista) => (
+          <button key={s} type="button" disabled={ocupado} onClick={() => onAcao("status", s)} className={`${posicao === lista.length - 1 && !podeGerarPedido ? BOTAO_PRIMARIO : BOTAO_SECUNDARIO} h-10`}>{ACAO_DO_STATUS[s] || s}</button>
+        ))}
+        {podeGerarPedido && <button type="button" disabled={ocupado} onClick={() => onAcao("gerar-pedido")} className={`${BOTAO_PRIMARIO} h-10`}>Gerar pedido de compra<ArrowRight size={15} /></button>}
+      </div>
+    </div>
+  );
+}
+
+function LinhaDoDocumento({ documento, aberto, detalhe, onAlternar, onAcao, onEditar, ocupado }) {
+  return (
+    <li className={aberto ? "bg-black/[0.015] dark:bg-white/[0.02]" : ""}>
+      <button
+        type="button"
+        onClick={onAlternar}
+        aria-expanded={aberto}
+        className={`group w-full text-left grid grid-cols-[auto_minmax(0,1fr)_auto] ${GRADE} items-center gap-x-4 gap-y-1 px-5 sm:px-6 py-3.5 hover:bg-black/[0.02] dark:hover:bg-white/[0.03] transition-colors`}
+      >
+        <span><SeloTipo tipo={documento.tipo_documento} /></span>
+        <span className="hidden md:block font-semibold tabular-nums text-zinc-900 dark:text-white">{numeroDoDocumento(documento)}</span>
+        <span className="min-w-0">
+          <span className="block font-medium truncate text-zinc-900 dark:text-white"><span className="md:hidden tabular-nums">{numeroDoDocumento(documento)} · </span>{documento.fornecedor || "Fornecedor não informado"}</span>
+          <span className="block text-xs text-zinc-500 truncate">{documento.total_itens} {documento.total_itens === 1 ? "produto" : "produtos"}{documento.tipo_documento !== "nfe" && documento.data_previsao ? ` · entrega ${diaCurto(documento.data_previsao)}` : ""}</span>
+        </span>
+        <span className="hidden md:block text-sm text-zinc-500 tabular-nums">{diaCurto(documento.data_emissao)}</span>
+        <span className="text-right text-sm font-semibold tabular-nums whitespace-nowrap">{moeda(documento.valor_total)}</span>
+        <span className="col-span-2 md:col-span-1 md:justify-self-start"><SeloStatus status={documento.status} /></span>
+        <ChevronDown size={18} className={`hidden md:block text-zinc-300 group-hover:text-purple-500 transition-transform duration-300 ${aberto ? "rotate-180 text-purple-500" : ""}`} />
+      </button>
+      {aberto && (detalhe ? <DetalheExpandido detalhe={detalhe} onAcao={onAcao} onEditar={onEditar} ocupado={ocupado} /> : <div className="py-6 flex justify-center text-zinc-400"><Loader2 size={18} className="animate-spin" /></div>)}
+    </li>
+  );
+}
+
+// ==========================================
+// CENTRAL DE COMPRAS
+// ==========================================
+export default function CentralDeCompras() {
+  const [documentos, setDocumentos] = useState(null);
+  const [indicadores, setIndicadores] = useState({});
+  const [fornecedores, setFornecedores] = useState([]);
+  const [limite, setLimite] = useState(null);
+  const [aba, setAba] = useState("tudo");
   const [busca, setBusca] = useState("");
   const [filtros, setFiltros] = useState(FILTROS_VAZIOS);
   const [verFiltros, setVerFiltros] = useState(false);
-  const [aberta, setAberta] = useState(null);
-  const [importando, setImportando] = useState(false);
-  const [limite, setLimite] = useState(null);
+  const [aberto, setAberto] = useState(null);
+  const [detalhes, setDetalhes] = useState({});
+  const [ocupado, setOcupado] = useState(false);
+  const [formulario, setFormulario] = useState(null);
+  const [sincronizando, setSincronizando] = useState(false);
   const pedidoAtual = useRef(0);
-  const fecharDetalhe = useCallback(() => setAberta(null), []);
 
   const carregar = useCallback(async () => {
     const numero = ++pedidoAtual.current;
-    const parametros = new URLSearchParams(Object.entries({ status, busca: busca.trim(), atrasados: atrasados ? "1" : "", ...filtros }).filter(([, valor]) => valor));
+    const parametros = new URLSearchParams(Object.entries({
+      tipo: TIPOS_DAS_ABAS.includes(aba) ? aba : "",
+      visao: TIPOS_DAS_ABAS.includes(aba) || aba === "tudo" ? "" : aba,
+      busca: busca.trim(),
+      ...filtros,
+    }).filter(([, valor]) => valor));
     try {
       const resposta = await api(`/compras?${parametros.toString()}`);
       if (numero !== pedidoAtual.current) return;
-      if (!resposta.success) { toast.error(resposta.message || "Não foi possível carregar as entradas."); setCompras([]); return; }
-      setCompras(resposta.compras);
-      setResumo(resposta.resumo || {});
-      setOpcoes(resposta.filtros || { fornecedores: [], centros: [], origens: [] });
+      if (!resposta.success) { toast.error(resposta.message || "Não foi possível carregar as compras."); setDocumentos([]); return; }
+      setDocumentos(resposta.documentos);
+      setIndicadores(resposta.indicadores || {});
+      setFornecedores(resposta.fornecedores || []);
       setLimite(resposta.limite);
     } catch (erro) {
-      if (numero === pedidoAtual.current) { toast.error("Sem conexão com o servidor."); setCompras([]); }
+      if (numero === pedidoAtual.current) { toast.error("Sem conexão com o servidor."); setDocumentos([]); }
     }
-  }, [status, busca, atrasados, filtros]);
+  }, [aba, busca, filtros]);
 
-  // A busca espera a digitação parar; leitor de código manda tudo de uma vez
   useEffect(() => {
     const espera = setTimeout(carregar, busca ? 280 : 0);
     return () => clearTimeout(espera);
   }, [carregar, busca]);
 
-  const importar = async () => {
-    setImportando(true);
-    const aviso = toast.loading("Buscando pedidos de compra no Omie...");
+  const carregarDetalhe = useCallback(async (id) => {
     try {
-      const resposta = await api("/compras/importar/omie", { metodo: "POST", corpo: { dias: 180 } });
-      if (resposta.success) toast.success(resposta.message, { id: aviso });
-      else toast.error(resposta.message || "Não foi possível importar.", { id: aviso });
-      if (resposta.success) carregar();
+      const resposta = await api(`/compras/${id}`);
+      if (!resposta.success) { toast.error(resposta.message || "Não foi possível abrir o documento."); return null; }
+      setDetalhes((atual) => ({ ...atual, [id]: resposta }));
+      return resposta;
     } catch (erro) {
-      toast.error("Sem conexão com o servidor.", { id: aviso });
+      toast.error("Sem conexão com o servidor.");
+      return null;
+    }
+  }, []);
+
+  const alternar = (id) => {
+    if (aberto === id) { setAberto(null); return; }
+    setAberto(id);
+    carregarDetalhe(id);
+  };
+
+  const agir = async (id, acao, status) => {
+    setOcupado(true);
+    try {
+      const resposta = acao === "status"
+        ? await api(`/compras/${id}/status`, { metodo: "POST", corpo: { status } })
+        : await api(`/compras/${id}/gerar-pedido`, { metodo: "POST" });
+      if (!resposta.success) { toast.error(resposta.message || "Não foi possível concluir."); return; }
+      toast.success(acao === "gerar-pedido" ? `Pedido de compra nº ${resposta.numero_documento} criado.` : "Situação atualizada.");
+      await Promise.all([carregar(), carregarDetalhe(id)]);
+      if (acao === "gerar-pedido") { setAba("pedido"); setAberto(resposta.id); carregarDetalhe(resposta.id); }
+    } catch (erro) {
+      toast.error("Sem conexão com o servidor.");
     } finally {
-      setImportando(false);
+      setOcupado(false);
     }
   };
 
+  const sincronizar = async () => {
+    setSincronizando(true);
+    const aviso = toast.loading("Sincronizando integrações...");
+    try {
+      const resposta = await api("/compras/sincronizar", { metodo: "POST", corpo: { dias: 180 } });
+      if (resposta.success) { toast.success(resposta.message, { id: aviso }); carregar(); }
+      else toast.error(resposta.message || "Não foi possível sincronizar.", { id: aviso });
+    } catch (erro) {
+      toast.error("Sem conexão com o servidor.", { id: aviso });
+    } finally {
+      setSincronizando(false);
+    }
+  };
+
+  const fecharFormulario = useCallback(() => setFormulario(null), []);
+  const salvo = async (id) => {
+    setFormulario(null);
+    await carregar();
+    setAberto(id);
+    carregarDetalhe(id);
+  };
+
   const filtrosAtivos = useMemo(() => Object.values(filtros).filter(Boolean).length, [filtros]);
-  const escolherAba = (id) => { setStatus(id); setAtrasados(false); };
-  const paraConferir = (resumo.recebido || 0) + (resumo.parcial || 0);
 
   return (
     <CascaPagina>
-      <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+      <header className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
         <div>
           <p className="text-sm font-medium text-purple-600 dark:text-purple-400">Compras</p>
-          <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-zinc-900 dark:text-white">Entradas de mercadorias</h1>
-          <p className="text-zinc-500 mt-1">Do pedido de compra ao estoque, num lugar só.</p>
+          <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-zinc-900 dark:text-white">Central de Compras</h1>
+          <p className="text-zinc-500 mt-1">Orçamentos, pedidos e notas de entrada, do pedido ao recebimento.</p>
         </div>
-        <div className="flex gap-3">
-          <button type="button" onClick={importar} disabled={importando} className={BOTAO_SECUNDARIO}><DownloadCloud size={16} />{importando ? "Importando..." : "Importar do Omie"}</button>
-          <Link href="/compras/conferencia/" className={BOTAO_PRIMARIO}><ClipboardCheck size={16} />Conferir</Link>
+        <div className="flex flex-wrap items-center gap-3">
+          <button type="button" onClick={sincronizar} disabled={sincronizando} aria-label="Sincronizar integrações" title="Sincronizar integrações" className={`${BOTAO_SECUNDARIO} w-11 px-0`}>
+            <RefreshCw size={16} className={sincronizando ? "animate-spin" : ""} />
+          </button>
+          <button type="button" onClick={() => setFormulario({ tipo: "orcamento" })} className={BOTAO_SECUNDARIO}><FilePlus2 size={16} />Novo orçamento</button>
+          <button type="button" onClick={() => setFormulario({ tipo: "pedido" })} className={BOTAO_PRIMARIO}><Plus size={16} />Novo pedido de compra</button>
         </div>
       </header>
 
       <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <button type="button" onClick={() => escolherAba("recebido")} className="text-left"><Kpi rotulo="Chegaram para conferir" valor={paraConferir} detalhe="Recebidas no todo ou em parte" /></button>
-        <button type="button" onClick={() => escolherAba("divergencia")} className="text-left"><Kpi rotulo="Divergências" valor={resumo.divergencia || 0} tom={resumo.divergencia ? "text-rose-600 dark:text-rose-400" : ""} detalhe="Contagem diferente do pedido" /></button>
-        <button type="button" onClick={() => { setStatus(""); setAtrasados(true); }} className="text-left"><Kpi rotulo="Atrasadas" valor={resumo.atrasados || 0} tom={resumo.atrasados ? "text-amber-600 dark:text-amber-400" : ""} detalhe="Passaram da previsão" /></button>
-        <Kpi rotulo="Em aberto" valor={moedaCurta(resumo.valor_em_aberto)} detalhe={`${(resumo.aguardando || 0) + (resumo.parcial || 0)} pedidos a receber`} />
+        <Kpi rotulo="Comprado no mês" valor={moedaCurta(indicadores.comprado_no_mes)} detalhe="Pedidos feitos neste mês" />
+        <button type="button" onClick={() => setAba("recebimentos")} className="text-left"><Kpi rotulo="Pedidos a receber" valor={indicadores.pedidos_em_aberto || 0} detalhe={moedaCurta(indicadores.valor_em_aberto)} /></button>
+        <button type="button" onClick={() => setAba("aprovacao")} className="text-left"><Kpi rotulo="Aguardando aprovação" valor={indicadores.aguardando_aprovacao || 0} tom={indicadores.aguardando_aprovacao ? "text-amber-600 dark:text-amber-400" : ""} detalhe={`${indicadores.orcamentos_abertos || 0} ${indicadores.orcamentos_abertos === 1 ? "orçamento" : "orçamentos"} em aberto`} /></button>
+        <button type="button" onClick={() => setAba(indicadores.divergencias ? "divergencias" : "nfe")} className="text-left"><Kpi rotulo="NF-e pendentes" valor={indicadores.notas_pendentes || 0} detalhe={indicadores.divergencias ? `${indicadores.divergencias} com divergência` : "Nenhuma divergência"} tom={indicadores.divergencias ? "text-rose-600 dark:text-rose-400" : ""} /></button>
       </section>
 
-      <section className={`${VIDRO} overflow-hidden`}>
+      <section className={`${VIDRO} overflow-visible`}>
         <div className="p-4 sm:p-5 space-y-4 border-b border-black/[0.05] dark:border-white/[0.06]">
-          <div className="flex flex-col lg:flex-row gap-3 lg:items-center">
+          <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
             <div className="relative flex-1">
               <Search size={17} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" />
-              <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Pedido, fornecedor, produto, SKU ou EAN" className={`${CAMPO} pl-11 pr-10`} aria-label="Buscar entradas" />
+              <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Número, fornecedor, chave da NF-e, produto, SKU ou EAN" className={`${CAMPO} pl-11 pr-10`} aria-label="Buscar documentos" />
               {busca && <button type="button" onClick={() => setBusca("")} aria-label="Limpar busca" className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full flex items-center justify-center text-zinc-400 hover:text-zinc-700"><X size={14} /></button>}
             </div>
             <button type="button" onClick={() => setVerFiltros((v) => !v)} className={`${BOTAO_SECUNDARIO} ${filtrosAtivos ? "text-purple-700 dark:text-purple-300" : ""}`}>
@@ -662,26 +484,12 @@ export default function PedidosDeCompra() {
           </div>
 
           {verFiltros && (
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 animate-in fade-in slide-in-from-top-1 duration-200">
+            <div className="grid grid-cols-2 md:grid-cols-[minmax(0,2fr)_1fr_1fr_auto] gap-3 items-end animate-in fade-in slide-in-from-top-1 duration-200">
               <div className="col-span-2 md:col-span-1">
                 <label className={ROTULO} htmlFor="f-fornecedor">Fornecedor</label>
                 <select id="f-fornecedor" value={filtros.fornecedor} onChange={(e) => setFiltros({ ...filtros, fornecedor: e.target.value })} className={CAMPO}>
                   <option value="">Todos</option>
-                  {opcoes.fornecedores.map((nome) => <option key={nome} value={nome}>{nome}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className={ROTULO} htmlFor="f-origem">Origem</label>
-                <select id="f-origem" value={filtros.origem} onChange={(e) => setFiltros({ ...filtros, origem: e.target.value })} className={CAMPO}>
-                  <option value="">Todas</option>
-                  {opcoes.origens.map((origem) => <option key={origem} value={origem}>{ORIGEM[origem] || origem}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className={ROTULO} htmlFor="f-cd">Centro de distribuição</label>
-                <select id="f-cd" value={filtros.cd} onChange={(e) => setFiltros({ ...filtros, cd: e.target.value })} className={CAMPO}>
-                  <option value="">Todos</option>
-                  {opcoes.centros.map((cd) => <option key={cd} value={cd}>{cd}</option>)}
+                  {fornecedores.map((nome) => <option key={nome} value={nome}>{nome}</option>)}
                 </select>
               </div>
               <div>
@@ -692,38 +500,54 @@ export default function PedidosDeCompra() {
                 <label className={ROTULO} htmlFor="f-ate">Até</label>
                 <input id="f-ate" type="date" value={filtros.ate} onChange={(e) => setFiltros({ ...filtros, ate: e.target.value })} className={CAMPO} />
               </div>
-              {filtrosAtivos > 0 && (
-                <button type="button" onClick={() => setFiltros(FILTROS_VAZIOS)} className="col-span-2 md:col-span-5 justify-self-start text-sm font-semibold text-purple-600 dark:text-purple-400">Limpar filtros</button>
-              )}
+              {filtrosAtivos > 0 && <button type="button" onClick={() => setFiltros(FILTROS_VAZIOS)} className="h-11 px-2 text-sm font-semibold text-purple-600 dark:text-purple-400">Limpar</button>}
             </div>
           )}
 
-          <Segmentado opcoes={ABAS} valor={atrasados ? null : status} onChange={escolherAba} />
-          {atrasados && (
-            <p className="flex items-center gap-2 text-sm text-amber-700 dark:text-amber-400">
-              <AlertTriangle size={15} />Mostrando só as atrasadas.
-              <button type="button" onClick={() => setAtrasados(false)} className="font-semibold underline underline-offset-2">Ver todas</button>
-            </p>
-          )}
+          <Segmentado opcoes={ABAS} valor={aba} onChange={(id) => { setAba(id); setAberto(null); }} />
         </div>
 
-        {compras === null ? <Carregando texto="Carregando entradas..." /> : compras.length === 0 ? (
-          busca || status || filtrosAtivos || atrasados
-            ? <EstadoVazio icone={PackageSearch} titulo="Nada encontrado" texto="Nenhuma entrada com esses filtros." />
+        <div className={`hidden md:grid ${GRADE} gap-x-4 px-6 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-zinc-400 border-b border-black/[0.05] dark:border-white/[0.06]`}>
+          <span>Tipo</span><span>Número</span><span>Fornecedor</span><span>Emissão</span><span className="text-right">Valor</span><span>Situação</span><span />
+        </div>
+
+        {documentos === null ? <Carregando texto="Carregando compras..." /> : documentos.length === 0 ? (
+          busca || filtrosAtivos || aba !== "tudo"
+            ? <EstadoVazio icone={Search} titulo="Nada encontrado" texto="Nenhum documento com esses filtros." />
             : (
-              <EstadoVazio icone={Truck} titulo="Nenhum pedido de compra ainda" texto="Traga os pedidos de compra do Omie para começar a receber e conferir.">
-                <button type="button" onClick={importar} disabled={importando} className={BOTAO_PRIMARIO}><DownloadCloud size={16} />Importar do Omie</button>
+              <EstadoVazio icone={FileText} titulo="Nenhuma compra ainda" texto="Crie um orçamento para consultar fornecedores ou registre direto o pedido de compra.">
+                <button type="button" onClick={() => setFormulario({ tipo: "pedido" })} className={BOTAO_PRIMARIO}><Plus size={16} />Novo pedido de compra</button>
               </EstadoVazio>
             )
         ) : (
-          <div className="divide-y divide-black/[0.05] dark:divide-white/[0.05]">
-            {compras.map((compra) => <LinhaDaCompra key={compra.id} compra={compra} onAbrir={(c) => setAberta(c.id)} />)}
-            {limite && <p className="flex items-center justify-center gap-2 py-4 text-xs text-zinc-500"><Inbox size={14} />Mostrando as {limite} primeiras. Use a busca ou os filtros para achar as demais.</p>}
-          </div>
+          <ul className="divide-y divide-black/[0.05] dark:divide-white/[0.05]">
+            {documentos.map((documento) => (
+              <LinhaDoDocumento
+                key={documento.id}
+                documento={documento}
+                aberto={aberto === documento.id}
+                detalhe={detalhes[documento.id]}
+                ocupado={ocupado}
+                onAlternar={() => alternar(documento.id)}
+                onAcao={(acao, status) => agir(documento.id, acao, status)}
+                onEditar={() => setFormulario({ tipo: documento.tipo_documento, documento: detalhes[documento.id].documento, itens: detalhes[documento.id].itens })}
+              />
+            ))}
+          </ul>
         )}
+        {limite && <p className="py-4 text-center text-xs text-zinc-500">Mostrando os {limite} mais recentes. Use a busca ou os filtros para achar os demais.</p>}
       </section>
 
-      {aberta && <DetalheDaCompra id={aberta} onFechar={fecharDetalhe} onMudou={carregar} />}
+      {formulario && (
+        <FormularioDocumento
+          tipo={formulario.tipo}
+          documento={formulario.documento}
+          itensAtuais={formulario.itens}
+          fornecedores={fornecedores}
+          onFechar={fecharFormulario}
+          onSalvo={salvo}
+        />
+      )}
     </CascaPagina>
   );
 }

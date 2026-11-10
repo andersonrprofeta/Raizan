@@ -1,69 +1,69 @@
-// Mapa de conferência cega de uma entrada de mercadoria.
+// Mapa de entrada de produtos: relação impressa para a conferência física (conferência cega).
 //
-// Cego de propósito: nenhuma quantidade pedida ou valor sai impresso. O conferente conta e escreve.
-// Primeira versão limpa, na base visual de todo PDF do Raizan. O layout final virá do PDF de referência.
+// Cego de propósito: nenhuma quantidade esperada ou valor sai impresso. Para cada produto o conferente
+// preenche à mão até três linhas de quantidade, vencimento e lote, e assina no fim.
+// Base visual: a mesma de todo PDF do Raizan (montarDocumento).
 
 import { escapar, lerEmpresa, montarDocumento } from "@/components/utils/documentoPdf";
 
+const LINHAS_POR_PRODUTO = 3;
+
 const ESTILO_DO_MAPA = `
   <style>
-    .mapa td.escrever { width: 110px; border-bottom: 1px solid #a1a1aa; }
-    .mapa td.codigo { font-family: Consolas, "Courier New", monospace; font-size: 10.5px; text-align: left; white-space: nowrap; }
-    .mapa td.numero { width: 26px; color: #a1a1aa; text-align: left; }
-    .mapa tr { height: 30px; }
-    .assinaturas { display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; margin-top: 36px; }
-    .assinaturas div { padding-top: 6px; border-top: 1px solid #18181b; font-size: 10.5px; color: #52525b; text-align: center; }
-    .aviso { margin: 14px 0 0; padding: 10px 12px; border: 1px dashed #c4b5fd; border-radius: 10px; color: #4c1d95; font-size: 11px; }
-    .linhas-extras td { height: 30px; }
+    .mapa { margin-top: 4px; }
+    .mapa th { text-align: left; }
+    .mapa th.qtd, .mapa td.qtd { width: 70px; text-align: center; }
+    .mapa th.preencher, .mapa td.preencher { width: 110px; }
+    .mapa td { text-align: left; vertical-align: bottom; padding-top: 9px; padding-bottom: 5px; }
+    .mapa tbody { break-inside: avoid; }
+    .mapa tbody tr td { border-bottom: 0; }
+    .mapa tbody tr:last-child td { border-bottom: 1px solid #ececf0; padding-bottom: 9px; }
+    .mapa td.produto { font-weight: 600; }
+    .mapa td.codigo { font-family: Consolas, "Courier New", monospace; font-size: 10.5px; white-space: nowrap; }
+    .caixa { display: inline-block; width: 52px; height: 18px; border: 1px solid #a1a1aa; border-radius: 4px; }
+    .linha { display: block; height: 18px; border-bottom: 1px solid #a1a1aa; }
+    .assinatura { display: flex; justify-content: flex-end; margin-top: 56px; }
+    .assinatura div { width: 300px; padding-top: 6px; border-top: 1px solid #18181b; text-align: center; font-size: 10.5px; letter-spacing: .6px; color: #52525b; text-transform: uppercase; }
   </style>`;
 
-const LINHAS_EM_BRANCO = 5;
+function blocoDoProduto(item) {
+  const linhas = Array.from({ length: LINHAS_POR_PRODUTO }, (_, posicao) => `<tr>
+      ${posicao === 0
+        ? `<td class="produto">${escapar(item.descricao)}</td><td>${escapar(item.unidade || "")}</td><td>${escapar(item.fabricante || "")}</td><td class="codigo">${escapar(item.sku || item.ean || "")}</td>`
+        : "<td></td><td></td><td></td><td></td>"}
+      <td class="qtd"><span class="caixa"></span></td>
+      <td class="preencher"><span class="linha"></span></td>
+      <td class="preencher"><span class="linha"></span></td>
+    </tr>`).join("");
+  return `<tbody>${linhas}</tbody>`;
+}
 
-export function montarMapaDeConferencia({ compra, itens }) {
-  const linhas = itens.map((item, posicao) => `<tr>
-    <td class="numero">${posicao + 1}</td>
-    <td>${escapar(item.descricao)}${item.unidade_medida ? `<small>${escapar(item.unidade_medida)}</small>` : ""}</td>
-    <td class="codigo">${escapar(item.sku || "")}</td>
-    <td class="codigo">${escapar(item.ean || "")}</td>
-    <td class="escrever"></td>
-    <td class="escrever"></td>
-  </tr>`).join("");
-
-  const brancos = Array.from({ length: LINHAS_EM_BRANCO }, () => `<tr><td class="numero"></td><td></td><td></td><td></td><td class="escrever"></td><td class="escrever"></td></tr>`).join("");
+// documento: o pedido ou a NF-e aberta. vinculados: os documentos ligados a ele (pedido da nota, nota do pedido).
+export function montarMapaDeEntrada({ documento, itens, vinculados = [] }) {
+  const pedido = documento.tipo_documento === "pedido" ? documento : vinculados.find((v) => v.tipo_documento === "pedido");
+  const nota = documento.tipo_documento === "nfe" ? documento : vinculados.find((v) => v.tipo_documento === "nfe");
+  const fornecedor = documento.fornecedor || "Não informado";
 
   const corpo = `${ESTILO_DO_MAPA}
     <section class="dados">
-      <div><small>Pedido de compra</small><b>${escapar(compra.pedido_compra)}</b></div>
-      <div><small>Fornecedor</small><b>${escapar(compra.fornecedor_nome || "Não informado")}</b></div>
-      <div><small>Previsão de chegada</small><b>${escapar(compra.data_prevista ? compra.data_prevista.split("-").reverse().join("/") : "Não informada")}</b></div>
-      <div><small>Centro de distribuição</small><b>${escapar(compra.centro_distribuicao || "Principal")}</b></div>
-      <div><small>Nota fiscal</small><b>______________________</b></div>
-      <div><small>Itens</small><b>${itens.length}</b></div>
+      <div><small>Pedido de compra</small><b>${escapar(pedido?.numero_documento || "Não informado")}</b></div>
+      <div><small>Nº NF-e</small><b>${escapar(nota ? `${nota.numero_documento || "s/n"}${nota.serie ? ` série ${nota.serie}` : ""}` : "______________")}</b></div>
+      <div><small>Produtos</small><b>${itens.length}</b></div>
+      <div style="grid-column: span 3"><small>Fornecedor</small><b>${escapar(fornecedor)}</b></div>
     </section>
 
     <table class="mapa">
-      <thead><tr><th>#</th><th>Produto</th><th>SKU</th><th>EAN</th><th>Quantidade contada</th><th>Lote / validade</th></tr></thead>
-      <tbody>${linhas}</tbody>
+      <thead><tr><th>Descrição</th><th>Und</th><th>Fabricante</th><th>Código</th><th class="qtd">Qtd</th><th class="preencher">Vencimento</th><th class="preencher">Lote</th></tr></thead>
+      ${itens.map(blocoDoProduto).join("")}
     </table>
 
-    <h2>Produtos que chegaram e não estão na lista</h2>
-    <table class="mapa linhas-extras">
-      <thead><tr><th>#</th><th>Produto</th><th>SKU</th><th>EAN</th><th>Quantidade contada</th><th>Lote / validade</th></tr></thead>
-      <tbody>${brancos}</tbody>
-    </table>
-
-    <p class="aviso">Conferência cega: conte tudo o que chegou, sem consultar a nota. A comparação com o pedido é feita pelo Raizan.</p>
-
-    <div class="assinaturas">
-      <div>Conferente</div>
-      <div>Data e hora</div>
-      <div>Responsável pelo recebimento</div>
-    </div>`;
+    <div class="assinatura"><div>Conferente</div></div>`;
 
   return montarDocumento({
     empresa: lerEmpresa(),
-    titulo: "Mapa de conferência cega",
-    nomeDoArquivo: `Mapa de conferência ${compra.pedido_compra}`,
+    titulo: "Mapa de entrada de produtos",
+    nomeDoArquivo: `Mapa de entrada ${pedido?.numero_documento || nota?.numero_documento || ""}`.trim(),
     corpo,
+    rodape: "Conferência física: preencha o que chegou, sem consultar a nota.",
   });
 }

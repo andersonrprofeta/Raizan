@@ -1,25 +1,60 @@
 "use client";
 
-import { Check, ClipboardCheck, PackageCheck, ShoppingCart, Warehouse } from "lucide-react";
+// Peças visuais da Central de Compras. Os nomes de tipo e situação são os mesmos que a API grava.
 
-// Mesmos nomes que a API grava em hub_compras.status_recebimento
-export const STATUS_COMPRA = {
-  aguardando: { rotulo: "Aguardando", ponto: "bg-zinc-400", texto: "text-zinc-600 dark:text-zinc-300", fundo: "bg-zinc-500/10" },
-  parcial: { rotulo: "Recebido em parte", ponto: "bg-amber-500", texto: "text-amber-700 dark:text-amber-400", fundo: "bg-amber-500/10" },
-  recebido: { rotulo: "Recebido", ponto: "bg-sky-500", texto: "text-sky-700 dark:text-sky-400", fundo: "bg-sky-500/10" },
-  divergencia: { rotulo: "Divergência", ponto: "bg-rose-500", texto: "text-rose-700 dark:text-rose-400", fundo: "bg-rose-500/10" },
-  conferido: { rotulo: "Conferido", ponto: "bg-emerald-500", texto: "text-emerald-700 dark:text-emerald-400", fundo: "bg-emerald-500/10" },
-  cancelado: { rotulo: "Cancelado", ponto: "bg-zinc-300 dark:bg-zinc-600", texto: "text-zinc-400", fundo: "bg-zinc-500/5" },
+export const TIPOS = {
+  orcamento: { rotulo: "Orçamento", curto: "ORÇAMENTO", cor: "text-indigo-700 dark:text-indigo-300 bg-indigo-500/10 ring-indigo-500/20" },
+  pedido: { rotulo: "Pedido de compra", curto: "PEDIDO", cor: "text-purple-700 dark:text-purple-300 bg-purple-500/10 ring-purple-500/20" },
+  nfe: { rotulo: "NF-e de entrada", curto: "NF-E", cor: "text-teal-700 dark:text-teal-300 bg-teal-500/10 ring-teal-500/20" },
 };
 
-export const ORIGEM = { omie: "Omie", tiny: "Tiny", planilha: "Planilha", api: "API", manual: "Manual" };
+const CINZA = { ponto: "bg-zinc-400", texto: "text-zinc-600 dark:text-zinc-300", fundo: "bg-zinc-500/10" };
+const AMBAR = { ponto: "bg-amber-500", texto: "text-amber-700 dark:text-amber-400", fundo: "bg-amber-500/10" };
+const AZUL = { ponto: "bg-sky-500", texto: "text-sky-700 dark:text-sky-400", fundo: "bg-sky-500/10" };
+const ROXO = { ponto: "bg-purple-500", texto: "text-purple-700 dark:text-purple-300", fundo: "bg-purple-500/10" };
+const VERDE = { ponto: "bg-emerald-500", texto: "text-emerald-700 dark:text-emerald-400", fundo: "bg-emerald-500/10" };
+const VERMELHO = { ponto: "bg-rose-500", texto: "text-rose-700 dark:text-rose-400", fundo: "bg-rose-500/10" };
+const APAGADO = { ponto: "bg-zinc-300 dark:bg-zinc-600", texto: "text-zinc-400", fundo: "bg-zinc-500/5" };
 
-export function ChipStatus({ status }) {
-  const estilo = STATUS_COMPRA[status] || STATUS_COMPRA.aguardando;
+export const STATUS = {
+  orcamento: { rotulo: "Orçamento", ...CINZA },
+  aguardando_aprovacao: { rotulo: "Aguardando aprovação", ...AMBAR },
+  aprovado: { rotulo: "Aprovado", ...AZUL },
+  pedido_emitido: { rotulo: "Pedido emitido", ...ROXO },
+  recebimento_parcial: { rotulo: "Recebimento parcial", ...AMBAR },
+  recebido: { rotulo: "Recebido", ...VERDE },
+  cancelado: { rotulo: "Cancelado", ...APAGADO },
+  pendente: { rotulo: "NF-e Pendente", ...AMBAR },
+  recebida: { rotulo: "NF-e Recebida", ...VERDE },
+  divergente: { rotulo: "NF-e Divergente", ...VERMELHO },
+  integrada: { rotulo: "NF-e Integrada", ...AZUL },
+  cancelada: { rotulo: "NF-e Cancelada", ...APAGADO },
+};
+
+// O texto do botão diz o que acontece, não o nome do status
+export const ACAO_DO_STATUS = {
+  aguardando_aprovacao: "Enviar para aprovação",
+  orcamento: "Voltar para orçamento",
+  aprovado: "Aprovar",
+  pedido_emitido: "Emitir pedido",
+  recebimento_parcial: "Recebido em parte",
+  recebido: "Marcar como recebido",
+  recebida: "Marcar NF-e recebida",
+  divergente: "Marcar divergência",
+  cancelado: "Cancelar",
+};
+
+export function SeloTipo({ tipo }) {
+  const t = TIPOS[tipo] || TIPOS.pedido;
+  return <span className={`inline-flex items-center h-6 px-2.5 rounded-lg text-[10.5px] font-bold tracking-[0.06em] ring-1 ring-inset ${t.cor}`}>{t.curto}</span>;
+}
+
+export function SeloStatus({ status }) {
+  const s = STATUS[status] || CINZA;
   return (
-    <span className={`inline-flex items-center gap-1.5 h-7 px-3 rounded-full text-xs font-semibold whitespace-nowrap ${estilo.fundo} ${estilo.texto}`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${estilo.ponto}`} />
-      {estilo.rotulo}
+    <span className={`inline-flex items-center gap-1.5 h-7 px-3 rounded-full text-xs font-semibold whitespace-nowrap ${s.fundo} ${s.texto}`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${s.ponto}`} />
+      {s.rotulo || status}
     </span>
   );
 }
@@ -29,45 +64,10 @@ export const diaCurto = (valor) => {
   const [ano, mes, dia] = String(valor || "").slice(0, 10).split("-");
   return dia ? `${dia}/${mes}/${ano}` : "";
 };
-export const diaEHora = (valor) => {
-  const texto = String(valor || "");
-  return texto.length >= 16 ? `${diaCurto(texto)}, ${texto.slice(11, 16)}` : diaCurto(texto);
-};
-
-export const hojeIso = () => new Date().toLocaleString("sv-SE", { timeZone: "America/Sao_Paulo" }).slice(0, 10);
-
-export function diasDeAtraso(compra, hoje = hojeIso()) {
-  if (!compra.data_prevista || !["aguardando", "parcial"].includes(compra.status_recebimento)) return 0;
-  const diferenca = (new Date(`${hoje}T12:00:00`) - new Date(`${compra.data_prevista}T12:00:00`)) / 86400000;
-  return diferenca > 0 ? Math.round(diferenca) : 0;
-}
 
 export const quantidade = (valor) => (valor === null || valor === undefined ? "—" : Number(valor).toLocaleString("pt-BR", { maximumFractionDigits: 3 }));
 
-const ICONES_DA_ETAPA = { pedido: ShoppingCart, entrada: PackageCheck, conferencia: ClipboardCheck, estoque: Warehouse };
-
-// Pedido → Entrada → Conferência → Estoque
-export function LinhaDoTempo({ eventos }) {
-  return (
-    <ol className="relative space-y-0">
-      {eventos.map((evento, posicao) => {
-        const Icone = ICONES_DA_ETAPA[evento.etapa] || Check;
-        const ultimo = posicao === eventos.length - 1;
-        return (
-          <li key={`${evento.etapa}-${posicao}`} className="relative flex gap-4 pb-5">
-            {!ultimo && <span className={`absolute left-[17px] top-9 bottom-0 w-px ${evento.feito ? "bg-purple-500/40" : "bg-black/[0.08] dark:bg-white/[0.08]"}`} />}
-            <span className={`relative z-10 w-9 h-9 shrink-0 rounded-full flex items-center justify-center ring-4 ring-white dark:ring-[#161618] ${evento.feito ? "bg-gradient-to-b from-purple-500 to-purple-600 text-white shadow-[0_6px_14px_-6px_rgba(124,58,237,0.7)]" : "bg-black/[0.05] dark:bg-white/[0.07] text-zinc-400"}`}>
-              <Icone size={16} />
-            </span>
-            <div className="min-w-0 pt-1.5">
-              <p className={`text-sm font-semibold ${evento.feito ? "text-zinc-900 dark:text-white" : "text-zinc-400"}`}>{evento.titulo}</p>
-              {(evento.quando || evento.quem) && (
-                <p className="text-xs text-zinc-500 mt-0.5">{[diaEHora(evento.quando), evento.quem].filter(Boolean).join(" · ")}</p>
-              )}
-            </div>
-          </li>
-        );
-      })}
-    </ol>
-  );
-}
+export const numeroDoDocumento = (documento) => {
+  if (documento.tipo_documento === "nfe") return `${documento.numero_documento || "s/n"}${documento.serie ? `-${documento.serie}` : ""}`;
+  return documento.numero_documento || "s/n";
+};

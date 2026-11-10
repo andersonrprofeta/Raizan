@@ -9,7 +9,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import {
-  ArrowRight, ChevronDown, ExternalLink, FilePlus2, FileUp, FileText, Loader2, Pencil, Plus, Printer, RefreshCw, Search, SlidersHorizontal, X,
+  ArrowRight, ChevronDown, ExternalLink, FilePlus2, FileUp, Landmark, FileText, Loader2, Pencil, Plus, Printer, RefreshCw, Search, SlidersHorizontal, X,
 } from "lucide-react";
 import {
   api, BOTAO_PRIMARIO, BOTAO_SECUNDARIO, CAMPO, Carregando, CascaPagina, EstadoVazio, Kpi, ROTULO, Segmentado, VIDRO, moeda, moedaCurta,
@@ -17,6 +17,7 @@ import {
 import { ACAO_DO_STATUS, SeloStatus, SeloTipo, diaCurto, numeroDoDocumento, quantidade } from "@/components/compras/ui";
 import { montarMapaDeEntrada } from "@/components/compras/MapaEntradas";
 import { FormularioDocumento } from "@/components/compras/FormularioDocumento";
+import { SefazDfe } from "@/components/compras/SefazDfe";
 import { abrirDocumento } from "@/components/utils/documentoPdf";
 
 const ABAS = [
@@ -167,6 +168,7 @@ export default function CentralDeCompras() {
   const [ocupado, setOcupado] = useState(false);
   const [formulario, setFormulario] = useState(null);
   const [sincronizando, setSincronizando] = useState(false);
+  const [verSefaz, setVerSefaz] = useState(false);
   const pedidoAtual = useRef(0);
   const router = useRouter();
 
@@ -290,6 +292,7 @@ export default function CentralDeCompras() {
           <button type="button" onClick={sincronizar} disabled={sincronizando} aria-label="Sincronizar integrações" title="Sincronizar integrações" className={`${BOTAO_SECUNDARIO.replace("px-5", "px-0")} w-11 shrink-0`}>
             <RefreshCw size={17} strokeWidth={2.2} className={sincronizando ? "animate-spin" : ""} />
           </button>
+          <button type="button" onClick={() => setVerSefaz(true)} className={BOTAO_SECUNDARIO}><Landmark size={16} />Notas da SEFAZ</button>
           <input ref={entradaDeXml} type="file" accept=".xml,text/xml,application/xml" multiple hidden onChange={importarXml} />
           <button type="button" onClick={() => entradaDeXml.current?.click()} className={BOTAO_SECUNDARIO}><FileUp size={16} />Importar XML</button>
           <button type="button" onClick={() => setFormulario({ tipo: "orcamento" })} className={BOTAO_SECUNDARIO}><FilePlus2 size={16} />Novo orçamento</button>
@@ -390,6 +393,7 @@ export default function CentralDeCompras() {
           onSalvo={salvo}
         />
       )}
+      {verSefaz && <SefazDfe onFechar={() => setVerSefaz(false)} onNotasNovas={carregar} />}
     </CascaPagina>
   );
 }

@@ -329,7 +329,7 @@ function LinhaDoDocumento({ documento, aberto, detalhe, onAlternar, onAcao, onEd
         <span><SeloTipo tipo={documento.tipo_documento} /></span>
         <span className="hidden md:block font-semibold tabular-nums text-zinc-900 dark:text-white">{numeroDoDocumento(documento)}</span>
         <span className="min-w-0">
-          <span className="block font-medium truncate text-zinc-900 dark:text-white"><span className="md:hidden tabular-nums">{numeroDoDocumento(documento)} · </span>{documento.fornecedor || "Fornecedor não informado"}</span>
+          <span className="block font-medium truncate text-zinc-900 dark:text-white"><span className="md:hidden tabular-nums">{numeroDoDocumento(documento)} · </span>{documento.fornecedor || (documento.fornecedor_documento ? `CNPJ ${documento.fornecedor_documento}` : "Fornecedor não informado")}</span>
           <span className="block text-xs text-zinc-500 truncate">{documento.total_itens} {documento.total_itens === 1 ? "produto" : "produtos"}{documento.tipo_documento !== "nfe" && documento.data_previsao ? ` · entrega ${diaCurto(documento.data_previsao)}` : ""}</span>
         </span>
         <span className="hidden md:block text-sm text-zinc-500 tabular-nums">{diaCurto(documento.data_emissao)}</span>
@@ -455,8 +455,8 @@ export default function CentralDeCompras() {
           <p className="text-zinc-500 mt-1">Orçamentos, pedidos e notas de entrada, do pedido ao recebimento.</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <button type="button" onClick={sincronizar} disabled={sincronizando} aria-label="Sincronizar integrações" title="Sincronizar integrações" className={`${BOTAO_SECUNDARIO} w-11 px-0`}>
-            <RefreshCw size={16} className={sincronizando ? "animate-spin" : ""} />
+          <button type="button" onClick={sincronizar} disabled={sincronizando} aria-label="Sincronizar integrações" title="Sincronizar integrações" className={`${BOTAO_SECUNDARIO.replace("px-5", "px-0")} w-11 shrink-0`}>
+            <RefreshCw size={17} strokeWidth={2.2} className={sincronizando ? "animate-spin" : ""} />
           </button>
           <button type="button" onClick={() => setFormulario({ tipo: "orcamento" })} className={BOTAO_SECUNDARIO}><FilePlus2 size={16} />Novo orçamento</button>
           <button type="button" onClick={() => setFormulario({ tipo: "pedido" })} className={BOTAO_PRIMARIO}><Plus size={16} />Novo pedido de compra</button>
@@ -506,6 +506,14 @@ export default function CentralDeCompras() {
 
           <Segmentado opcoes={ABAS} valor={aba} onChange={(id) => { setAba(id); setAberto(null); }} />
         </div>
+
+        {aba === "divergencias" && (
+          <p className="mx-6 mb-3 rounded-xl bg-rose-500/[0.06] px-4 py-3 text-sm text-zinc-600 dark:text-zinc-300">
+            Aqui ficam as notas em que a conferência física não bateu com a NF-e (faltou, sobrou ou veio produto trocado).
+            Para usar: imprima o <b>Mapa de entrada</b>, confira a mercadoria e, se algo não bater, abra a nota e clique em <b>Marcar divergência</b>. Ela fica nesta aba até ser resolvida.
+            Quando o fornecedor resolver, marque a NF-e como recebida.
+          </p>
+        )}
 
         <div className={`hidden md:grid ${GRADE} gap-x-4 px-6 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-zinc-400 border-b border-black/[0.05] dark:border-white/[0.06]`}>
           <span>Tipo</span><span>Número</span><span>Fornecedor</span><span>Emissão</span><span className="text-right">Valor</span><span>Situação</span><span />

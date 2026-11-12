@@ -249,7 +249,7 @@ export default function CentralDeCompras() {
     const aviso = toast.loading("Sincronizando integrações...");
     try {
       const resposta = await api("/compras/sincronizar", { metodo: "POST", corpo: { dias: 180 } });
-      if (resposta.success) { toast.success(resposta.message, { id: aviso }); carregar(); }
+      if (resposta.success) { (resposta.avisos?.length ? toast.error : toast.success)(resposta.message, { id: aviso, duration: 10000 }); carregar(); }
       else toast.error(resposta.message || "Não foi possível sincronizar.", { id: aviso });
     } catch (erro) {
       toast.error("Sem conexão com o servidor.", { id: aviso });

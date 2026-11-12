@@ -7,6 +7,7 @@ import {
   Mail, MessageCircle, MousePointerClick, Pencil, Phone, PlugZap, RefreshCw, ShieldCheck, Target, Users, XCircle,
 } from "lucide-react";
 import { BOTAO_PRIMARIO, BOTAO_SECUNDARIO, CAMPO, Modal, ROTULO } from "@/components/vendedores/ui";
+import { getHubUrl } from "@/components/utils/api";
 import {
   desconectarSite, editarSite, gerarChave, lerAnalytics, lerGestao, lerInteracoes, revogarChave, testarConexao,
 } from "./dados";
@@ -28,19 +29,21 @@ function Linha({ rotulo, children }) {
   );
 }
 
+// O script é servido pela mesma API que o Core usa (sem endereço fixo no código)
 const instrucoesDeInstalacao = (site, chave) => `Raizan Insight: conexão do site ${site.dominio}
 
 1. Cole antes do fechamento da tag </head> de todas as páginas:
 
-<script src="https://api.raizan.com.br/insight/v1/raizan-insight.js"
-        data-site="${site.id}"
-        data-key="${chave || "SUA_CHAVE_PUBLICA"}"
-        defer></script>
+<script async src="${getHubUrl()}/api/v1/site/raizan-insight.js"
+        data-site-id="${site.id}"
+        data-key="${chave || "SUA_CHAVE_PUBLICA"}"></script>
 
 2. Formulários: adicione o atributo data-raizan-form="nome-do-formulario" na tag <form>.
+   Botões importantes (opcional): data-raizan-cta="Pedir orçamento".
 3. Publique o site e use "Testar conexão" no Raizan Core.
 
-A chave acima é pública (só envia eventos). Ela não lê dados e só funciona no domínio cadastrado.`;
+A chave acima é pública (só envia eventos). Ela não lê dados e só funciona no domínio cadastrado.
+Detalhes técnicos: docs/RAIZAN-SITE-INTEGRATION.md na API.`;
 
 // ---------- Cartão do site e ações da integração ----------
 

@@ -10,6 +10,7 @@ import { BarChart3, FileText, Globe, Lock, PlugZap, ShieldCheck, Sparkles } from
 import { BOTAO_PRIMARIO, CAMPO, Carregando, CascaPagina, EstadoVazio, ROTULO, Segmentado, VIDRO } from "@/components/vendedores/ui";
 import { contextoDoPainel, resolverAreasDoSite, resolverBlocosDaVisao } from "@/components/website/capacidades";
 import { instalarSite, sitesDaEmpresa } from "@/components/website/dados";
+import { EVENTO_ABRIR_INTERACAO } from "@/components/website/avisosDoSino";
 import { EstadoDaFonte, Etiqueta, STATUS_CONEXAO, saudacao, tempoRelativo } from "@/components/website/comum";
 import VisaoGeral from "@/components/website/VisaoGeral";
 import Interacoes from "@/components/website/Interacoes";
@@ -90,6 +91,23 @@ function Apresentacao({ resposta, podeInstalar, onInstalado }) {
   );
 }
 
+const ABAS_DO_LINK = ["visao", "interacoes", "analytics", "gestao"];
+
+// Lê a URL no navegador (sem useSearchParams, que exigiria Suspense no build estático)
+function linkDireto() {
+  try {
+    const p = new URLSearchParams(window.location.search);
+    const aba = p.get("aba");
+    return {
+      aba: ABAS_DO_LINK.includes(aba) ? aba : null,
+      site: /^[\w-]{1,40}$/.test(p.get("site") || "") ? p.get("site") : null,
+      id: /^[\w-]{1,40}$/.test(p.get("id") || "") ? p.get("id") : null,
+    };
+  } catch (e) {
+    return {};
+  }
+}
+
 export default function MeuSitePage() {
   const [contexto, setContexto] = useState(null);
   const [resposta, setResposta] = useState(null);
@@ -98,7 +116,23 @@ export default function MeuSitePage() {
   const [abrirInteracao, setAbrirInteracao] = useState(null);
 
   // localStorage só existe no navegador: o contexto nasce depois da montagem
-  useEffect(() => { setContexto(contextoDoPainel()); }, []);
+  useEffect(() => {
+    setContexto(contextoDoPainel());
+    // Link direto vindo de um aviso: /website?aba=interacoes&site=st_...&id=123
+    const pedido = linkDireto();
+    if (pedido.aba) setAba(pedido.aba);
+    if (pedido.site) setSiteId(pedido.site);
+    if (pedido.id) setAbrirInteracao(pedido.id);
+
+    // Aviso clicado com esta tela já aberta (o link não remonta a página)
+    const abrirDoAviso = (e) => {
+      setAba("interacoes");
+      if (e.detail?.site) setSiteId(e.detail.site);
+      if (e.detail?.id) setAbrirInteracao(String(e.detail.id));
+    };
+    window.addEventListener(EVENTO_ABRIR_INTERACAO, abrirDoAviso);
+    return () => window.removeEventListener(EVENTO_ABRIR_INTERACAO, abrirDoAviso);
+  }, []);
 
   const carregarSites = useCallback(async () => {
     const r = await sitesDaEmpresa();

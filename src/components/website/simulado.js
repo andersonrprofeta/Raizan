@@ -284,6 +284,17 @@ export async function responderSimulado(caminho, { metodo, corpo }) {
     return ok({ interacao: item });
   }
 
+  if (rota === "/avisos") {
+    const novos = interacoes.filter((i) => i.status === "novo");
+    return ok({
+      nao_lidas: novos.filter((i) => i.nova).length,
+      itens: novos.slice(0, 10).map((i) => ({
+        chave: `site:${i.id}`, tipo: "site", id: i.id, nome: i.nome || i.empresa || i.email || "Visitante do site",
+        formulario: i.formulario, site_id: i.site_id, site_nome: i.site_nome, recebido_em: i.recebido_em, nova: i.nova,
+      })),
+    });
+  }
+
   if (rota === "/gestao") return ok({ gestao: GESTAO[params.get("site_id")] || null });
   return { estado: "indisponivel" };
 }

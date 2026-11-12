@@ -85,3 +85,4 @@ export const lerInteracao = (id) => chamarSite(`/interacoes/${encodeURIComponent
 export const atualizarInteracao = (id, corpo) => chamarSite(`/interacoes/${encodeURIComponent(id)}`, { metodo: "PATCH", corpo });
 export const anotarInteracao = (id, texto) => chamarSite(`/interacoes/${encodeURIComponent(id)}/observacoes`, { metodo: "POST", corpo: { texto } });
 export const lerGestao = (filtros) => chamarSite(`/gestao${consulta(filtros)}`);
+export const lerAvisos = () => chamarSite("/avisos");

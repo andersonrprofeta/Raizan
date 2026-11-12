@@ -33,6 +33,7 @@ export default function CentralLogistica() {
   const [romaneioAberto, setRomaneioAberto] = useState(null);
   const [versao, setVersao] = useState(0);
   const [sincronizando, setSincronizando] = useState(false);
+  const [erp, setErp] = useState(null); // ERP ligado em Integrações: só então aparecem os botões de sincronizar
   const pedidoAtual = useRef(0);
 
   // Links diretos: /transportadora?aba=expedicao&visao=atrasadas
@@ -68,6 +69,9 @@ export default function CentralLogistica() {
 
   useEffect(() => { carregarPainel(); }, [carregarPainel, versao]);
   useEffect(() => { carregarTransportadoras(); }, [carregarTransportadoras]);
+  useEffect(() => {
+    api("/logistica/integracao").then((r) => setErp(r.success ? r.erp || null : null)).catch(() => setErp(null));
+  }, []);
 
   const irPara = (destino, novaVisao, romaneioId) => {
     if (novaVisao) setVisao(novaVisao);
@@ -76,8 +80,9 @@ export default function CentralLogistica() {
   };
 
   const sincronizar = async () => {
+    if (!erp) return;
     setSincronizando(true);
-    const aviso = toast.loading("Lendo NF-es e transportadoras da integração...");
+    const aviso = toast.loading(`Lendo NF-es e transportadoras do ${erp.nome}...`);
     try {
       const [notas, cadastro] = await Promise.all([
         api("/logistica/expedicoes/sincronizar-nfe", { metodo: "POST", corpo: { dias: 30 } }),
@@ -109,8 +114,9 @@ export default function CentralLogistica() {
             <h1 className="mt-1 text-3xl sm:text-[42px] sm:leading-[1.05] font-semibold tracking-tight text-zinc-900 dark:text-white">Central Logística</h1>
             <p className="mt-3 max-w-lg text-zinc-500">Do pedido faturado à entrega: monte o romaneio, registre a coleta e acompanhe cada carga até o cliente.</p>
             <div className="mt-6 flex flex-wrap items-center gap-2">
-              <button type="button" onClick={() => irPara("expedicao", "aguardando")} className={BOTAO}><Truck size={16} />Montar romaneio</button>
-              <button type="button" onClick={sincronizar} disabled={sincronizando} className={BOTAO_SECUNDARIO}><RefreshCw size={16} className={sincronizando ? "animate-spin" : ""} />Sincronizar</button>
+              <button type="button" onClick={() => setMontagem({ expedicoes: [] })} className={BOTAO}><Truck size={16} />Montar romaneio</button>
+              <button type="button" onClick={() => irPara("expedicao", "aguardando")} className={BOTAO_SECUNDARIO}>Ver pedidos aguardando</button>
+              {erp && <button type="button" onClick={sincronizar} disabled={sincronizando} title={`Ler NF-es e transportadoras do ${erp.nome}`} className={BOTAO_SECUNDARIO}><RefreshCw size={16} className={sincronizando ? "animate-spin" : ""} />Sincronizar {erp.nome}</button>}
             </div>
           </div>
           <div className="relative text-zinc-900 dark:text-white">
@@ -136,7 +142,7 @@ export default function CentralLogistica() {
       <Segmentado opcoes={ABAS} valor={aba} onChange={trocarAba} grande />
 
       {aba === "painel" && (painel ? <Painel dados={painel} periodo={periodo} onPeriodo={setPeriodo} irPara={irPara} /> : <div className={VIDRO}><Carregando texto="Montando o painel..." /></div>)}
-      {aba === "expedicao" && <Expedicao visao={visao} onVisao={setVisao} versao={versao} onMontar={(selecionadas, limpar) => setMontagem({ expedicoes: selecionadas, limpar })} />}
+      {aba === "expedicao" && <Expedicao erp={erp} visao={visao} onVisao={setVisao} versao={versao} onMontar={(selecionadas, limpar) => setMontagem({ expedicoes: selecionadas, limpar })} />}
       {aba === "romaneios" && (
         <Romaneios
           abrirId={romaneioAberto}
@@ -144,7 +150,7 @@ export default function CentralLogistica() {
           onEditar={(detalhe) => setMontagem({ romaneio: detalhe.romaneio, expedicoes: detalhe.expedicoes })}
         />
       )}
-      {aba === "transportadoras" && <Transportadoras versao={versao} onMudou={() => { carregarTransportadoras(); carregarPainel(); }} />}
+      {aba === "transportadoras" && <Transportadoras erp={erp} versao={versao} onMudou={() => { carregarTransportadoras(); carregarPainel(); }} />}
 
       {montagem && (
         <ModalRomaneio

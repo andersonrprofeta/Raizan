@@ -415,6 +415,11 @@ function ScannerMesa() {
           separador_nome: registro.separador?.nome,
           inicio: registro.inicio,
           volumes: dadosLogisticos?.volumes,
+          // Vai para a Central Logística: peso, espécie e transportadora conferidos na mesa
+          logistica: dadosLogisticos ? {
+            especie: dadosLogisticos.especie, peso_liquido: dadosLogisticos.peso_liquido, peso_bruto: dadosLogisticos.peso_bruto,
+            transportadora: dadosLogisticos.transportadora, transportadora_id: dadosLogisticos.transportadora_id
+          } : null,
           itens: Object.values(conferencia).map(({ nome, qtdPedida, qtdBipada, codigosValidos }) => ({ nome, qtdPedida, qtdBipada, codigo: codigosValidos?.[0] || null })),
           ocorrencias: registro.ocorrencias
         })

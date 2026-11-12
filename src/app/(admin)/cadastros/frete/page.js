@@ -68,6 +68,8 @@ const limparMoeda = (v) => {
 
 export default function RegrasFretePage() {
   const [rotas, setRotas] = useState([]);
+  // Transportadoras da Central Logística: a regra aponta quem faz a rota e o checkout já sugere
+  const [transportadoras, setTransportadoras] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busca, setBusca] = useState("");
   
@@ -92,7 +94,8 @@ export default function RegrasFretePage() {
     valor_minimo: '',
     taxa_frete: '',
     tipo_vinculo: 'manual', 
-    parametros: [] 
+    parametros: [],
+    transportadora_id: ''
   });
 
   const pegarCnpjLogado = () => {
@@ -144,6 +147,7 @@ export default function RegrasFretePage() {
       const res = await fetch(`${getHubUrl()}/api/hub/rotas-frete`, { headers: { ...getHeaders(), "x-tenant-id": cnpj } });
       const data = await res.json();
       if (data.success && data.rotas) setRotas(data.rotas);
+      if (Array.isArray(data.transportadoras)) setTransportadoras(data.transportadoras);
       else if (Array.isArray(data)) setRotas(data);
       else setRotas([]);
     } catch (error) { toast.error("Erro de conexão ao buscar rotas."); } 
@@ -152,7 +156,7 @@ export default function RegrasFretePage() {
 
   const abrirModalNovo = () => {
     setEditandoId(null);
-    setFormData({ nome: '', valor_minimo: '', taxa_frete: '', tipo_vinculo: 'manual', parametros: [] });
+    setFormData({ nome: '', valor_minimo: '', taxa_frete: '', tipo_vinculo: 'manual', parametros: [], transportadora_id: '' });
     setBuscaLocalidade("");
     setModalAberto(true);
   };
@@ -167,7 +171,8 @@ export default function RegrasFretePage() {
       valor_minimo: String(rota.valor_minimo ?? '').replace('.', ','),
       taxa_frete: String(rota.taxa_frete ?? '').replace('.', ','),
       tipo_vinculo: rota.tipo_vinculo || 'manual',
-      parametros: arrayParams
+      parametros: arrayParams,
+      transportadora_id: rota.transportadora_id ? String(rota.transportadora_id) : ''
     });
     setBuscaLocalidade("");
     setModalAberto(true);
@@ -202,7 +207,8 @@ export default function RegrasFretePage() {
       valor_minimo: Number(formData.valor_minimo.replace(',', '.')) || 0,
       taxa_frete: Number(formData.taxa_frete.replace(',', '.')) || 0,
       tipo_vinculo: formData.tipo_vinculo,
-      parametros: JSON.stringify(formData.parametros) 
+      parametros: JSON.stringify(formData.parametros),
+      transportadora_id: Number(formData.transportadora_id) || null
     };
 
     try {
@@ -380,7 +386,14 @@ export default function RegrasFretePage() {
                           return (
                             <tr key={rota.id} className="hover:bg-purple-500/[0.04] dark:hover:bg-white/[0.03] transition-colors group">
                               <td className="px-6 py-4 text-zinc-500 dark:text-zinc-400 font-medium tabular-nums">#{rota.id}</td>
-                              <td className="px-6 py-4"><span className="font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">{rota.nome}</span></td>
+                              <td className="px-6 py-4">
+                                <span className="font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">{rota.nome}</span>
+                                {rota.transportadora_id && (
+                                  <span className="mt-0.5 flex items-center gap-1.5 text-[11px] font-medium text-purple-700 dark:text-purple-300">
+                                    <Truck size={12} />{transportadoras.find(t => t.id === rota.transportadora_id)?.nome || 'Transportadora'}
+                                  </span>
+                                )}
+                              </td>
                               <td className="px-6 py-4">{renderBadgeTipo(rota.tipo_vinculo)}</td>
 
                               {/* 🆕 Quais cidades/UFs a regra cobre (antes só dava para ver abrindo a edição) */}
@@ -463,6 +476,23 @@ export default function RegrasFretePage() {
                             <input type="text" inputMode="decimal" required placeholder="50,00" value={formData.taxa_frete} onChange={(e) => setFormData({...formData, taxa_frete: limparMoeda(e.target.value)})} className={`${CAMPO} pl-11 tabular-nums text-amber-700 dark:text-amber-400 font-semibold focus:border-amber-500/50 focus:ring-4 focus:ring-amber-500/15`} />
                           </div>
                         </div>
+                      </div>
+
+                      {/* Transportadora que faz a rota: o checkout já abre com ela escolhida */}
+                      <div className="mb-5">
+                        <label className={ROTULO}>Transportadora que faz essa rota</label>
+                        <div className="relative">
+                          <Truck size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-purple-500 pointer-events-none" />
+                          <select value={formData.transportadora_id} onChange={(e) => setFormData({ ...formData, transportadora_id: e.target.value })} className={`${CAMPO} pl-11 focus:border-purple-500/50 focus:ring-4 focus:ring-purple-500/15`}>
+                            <option value="">Nenhuma (escolher na conferência)</option>
+                            {transportadoras.map(t => (
+                              <option key={t.id} value={t.id}>{t.nome}{t.situacao === 'bloqueada' ? ' (bloqueada)' : ''}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <p className="mt-1.5 text-[11px] text-zinc-500">
+                          {transportadoras.length === 0 ? 'Cadastre as transportadoras na Central Logística.' : 'Os pedidos dos clientes desta regra chegam ao checkout com esta transportadora já escolhida.'}
+                        </p>
                       </div>
 
                       {/* MOTOR DE REGRAS: AUTOCOMPLETE */}

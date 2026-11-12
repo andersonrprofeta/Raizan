@@ -328,7 +328,8 @@ function CartaoTransportadora({ t, onEditar, onSituacao }) {
   );
 }
 
-export function Transportadoras({ versao, onMudou }) {
+// erp: { nome } quando há ERP conectado. Sem ERP, não existe botão de importar (cadastro só no Core).
+export function Transportadoras({ versao, onMudou, erp = null }) {
   const [lista, setLista] = useState(null);
   const [contagem, setContagem] = useState({});
   const [situacao, setSituacao] = useState("ativa");
@@ -357,7 +358,7 @@ export function Transportadoras({ versao, onMudou }) {
 
   const importar = async () => {
     setImportando(true);
-    const aviso = toast.loading("Buscando transportadoras na integração...");
+    const aviso = toast.loading(`Buscando transportadoras no ${erp?.nome || "ERP"}...`);
     try {
       const r = await api("/logistica/transportadoras/sincronizar", { metodo: "POST" });
       if (r.success) { toast.success(r.message, { id: aviso, duration: 8000 }); carregar(); onMudou?.(); } else toast.error(r.message, { id: aviso, duration: 8000 });
@@ -377,14 +378,14 @@ export function Transportadoras({ versao, onMudou }) {
             <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Nome, CNPJ ou cidade" aria-label="Buscar transportadoras" className={`${CAMPO} pl-10 pr-9`} />
             {busca && <button type="button" onClick={() => setBusca("")} aria-label="Limpar busca" className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400"><X size={14} /></button>}
           </div>
-          <button type="button" onClick={importar} disabled={importando} className={BOTAO_SECUNDARIO}>{importando ? <Loader2 size={16} className="animate-spin" /> : <CloudDownload size={16} />}Importar do ERP</button>
+          {erp && <button type="button" onClick={importar} disabled={importando} className={BOTAO_SECUNDARIO}>{importando ? <Loader2 size={16} className="animate-spin" /> : <CloudDownload size={16} />}Importar do {erp.nome}</button>}
           <button type="button" onClick={() => setFormulario({})} className={BOTAO}><Plus size={16} />Nova transportadora</button>
         </div>
       </div>
 
       {lista === null ? <div className={VIDRO}><Carregando texto="Carregando transportadoras..." /></div> : lista.length === 0 ? (
         <div className={VIDRO}>
-          <EstadoVazio icone={Building2} titulo={busca ? "Nada encontrado" : "Nenhuma transportadora aqui"} texto={busca ? "Nenhuma transportadora com essa busca." : "Cadastre direto no Core ou importe do ERP. Do Omie entram só os cadastros com a tag Transportadora."}>
+          <EstadoVazio icone={Building2} titulo={busca ? "Nada encontrado" : "Nenhuma transportadora aqui"} texto={busca ? "Nenhuma transportadora com essa busca." : (erp ? `Cadastre direto no Core ou importe do ${erp.nome}. Do ERP entram só os cadastros com a tag Transportadora.` : "Cadastre a primeira transportadora aqui no Core.")}>
             {!busca && <button type="button" onClick={() => setFormulario({})} className={BOTAO}><Plus size={16} />Nova transportadora</button>}
           </EstadoVazio>
         </div>

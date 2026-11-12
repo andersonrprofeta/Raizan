@@ -1,6 +1,13 @@
 import { useState, useEffect } from 'react';
-import { X, Box, Scale, Truck, CheckCircle2, Minus, Plus } from 'lucide-react';
+import { X, Box, Scale, Truck, CheckCircle2, Minus, Plus, Sparkles } from 'lucide-react';
 import { VIDRO, BOTAO_VERDE, BOTAO_VIDRO } from '@/components/checkout/estilos';
+import { getHubUrl, getHeaders } from '@/components/utils/api';
+
+// Ligado à Central Logística: a transportadora vem da regra de frete do cliente (Gestão de frete)
+// ou da última entrega para ele; o peso estimado vem do cadastro dos produtos. Tudo pode ser trocado.
+// O que for confirmado aqui vira o volume, o peso e a transportadora da expedição (e do romaneio).
+const OUTRA = 'outra';
+const kg = (n) => Number(n).toLocaleString('pt-BR', { maximumFractionDigits: 3 });
 
 const ROTULO = "block text-[13px] font-semibold text-zinc-500 dark:text-zinc-400 mb-1.5 ml-1";
 const CAMPO =
@@ -17,6 +24,8 @@ export default function ManipulaDados({ isOpen, onClose, onConfirm, pedido }) {
   const [pesoLiquido, setPesoLiquido] = useState('');
   const [pesoBruto, setPesoBruto] = useState('');
   const [transportadora, setTransportadora] = useState('');
+  const [transportadoraId, setTransportadoraId] = useState('');
+  const [sugestao, setSugestao] = useState(null);
 
   // Toda vez que o modal abrir, ele reseta os campos para o padrão
   useEffect(() => {
@@ -26,12 +35,38 @@ export default function ManipulaDados({ isOpen, onClose, onConfirm, pedido }) {
       setPesoLiquido('');
       setPesoBruto('');
       setTransportadora('');
+      setTransportadoraId('');
+      setSugestao(null);
     }
   }, [isOpen, pedido]);
+
+  // Pede à Central Logística a transportadora e o peso sugeridos para este pedido
+  useEffect(() => {
+    if (!isOpen || !pedido?.pedido_id) return;
+    let ativo = true;
+    const busca = new URLSearchParams({ pedido_id: pedido.pedido_id, ...(pedido.id ? { id_hub: pedido.id } : {}) });
+    fetch(`${getHubUrl()}/api/hub/conferencia/logistica?${busca}`, { headers: getHeaders() })
+      .then((r) => r.json())
+      .then((r) => {
+        if (!ativo || !r?.success) return;
+        setSugestao(r);
+        if (r.transportadora) { setTransportadoraId(String(r.transportadora.id)); setTransportadora(r.transportadora.nome); }
+        else if ((r.transportadoras || []).length) setTransportadoraId('');
+      })
+      .catch(() => {});
+    return () => { ativo = false; };
+  }, [isOpen, pedido?.pedido_id, pedido?.id]);
 
   if (!isOpen) return null;
 
   const qtdVolumes = Number(volumes) || 0;
+  const lista = sugestao?.transportadoras || [];
+  const temLista = lista.length > 0;
+  const escolherTransportadora = (valor) => {
+    setTransportadoraId(valor);
+    if (valor === OUTRA || valor === '') { setTransportadora(''); return; }
+    setTransportadora(lista.find((t) => String(t.id) === valor)?.nome || '');
+  };
 
   const handleSalvar = () => {
     // Formata os pesos trocando vírgula por ponto (caso o usuário digite 1,5)
@@ -40,7 +75,8 @@ export default function ManipulaDados({ isOpen, onClose, onConfirm, pedido }) {
       especie: especie || 'Caixa(s)',
       peso_liquido: Number(String(pesoLiquido).replace(',', '.')) || 0,
       peso_bruto: Number(String(pesoBruto).replace(',', '.')) || 0,
-      transportadora: transportadora || 'Não informada'
+      transportadora: transportadora || 'Não informada',
+      transportadora_id: transportadoraId && transportadoraId !== OUTRA ? Number(transportadoraId) : null
     });
   };
 
@@ -141,20 +177,49 @@ export default function ManipulaDados({ isOpen, onClose, onConfirm, pedido }) {
               </div>
             </div>
           </div>
+          {(sugestao?.peso_bruto || sugestao?.peso_liquido) && !pesoBruto && !pesoLiquido && (
+            <button
+              type="button"
+              onClick={() => { if (sugestao.peso_liquido) setPesoLiquido(kg(sugestao.peso_liquido)); if (sugestao.peso_bruto) setPesoBruto(kg(sugestao.peso_bruto)); }}
+              className="-mt-1 inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400 transition-colors hover:bg-emerald-500/15"
+            >
+              <Sparkles size={13} /> Usar peso do cadastro: {sugestao.peso_bruto ? `${kg(sugestao.peso_bruto)} kg bruto` : `${kg(sugestao.peso_liquido)} kg líquido`}
+            </button>
+          )}
 
           <div>
             <label htmlFor="logistica-transportadora" className={ROTULO}>Transportadora ou motorista</label>
-            <div className={CAMPO}>
-              <Truck size={16} className="text-zinc-400 shrink-0" />
-              <input
-                id="logistica-transportadora"
-                type="text"
-                value={transportadora}
-                onChange={(e) => setTransportadora(e.target.value)}
-                placeholder="Nome da transportadora ou placa"
-                className={ENTRADA}
-              />
-            </div>
+            {temLista && (
+              <div className={`${CAMPO} mb-2`}>
+                <Truck size={16} className="text-zinc-400 shrink-0" />
+                <select
+                  id="logistica-transportadora"
+                  value={transportadoraId}
+                  onChange={(e) => escolherTransportadora(e.target.value)}
+                  className={`${ENTRADA} cursor-pointer dark:[color-scheme:dark]`}
+                >
+                  <option value="">Escolha a transportadora</option>
+                  {lista.map((t) => <option key={t.id} value={t.id}>{t.nome}</option>)}
+                  <option value={OUTRA}>Outra (digitar nome ou placa)</option>
+                </select>
+              </div>
+            )}
+            {(!temLista || transportadoraId === OUTRA) && (
+              <div className={CAMPO}>
+                <Truck size={16} className="text-zinc-400 shrink-0" />
+                <input
+                  id={temLista ? 'logistica-transportadora-texto' : 'logistica-transportadora'}
+                  type="text"
+                  value={transportadora}
+                  onChange={(e) => setTransportadora(e.target.value)}
+                  placeholder="Nome da transportadora ou placa"
+                  className={ENTRADA}
+                />
+              </div>
+            )}
+            {sugestao?.motivo && String(sugestao.transportadora?.id) === transportadoraId && (
+              <p className="mt-1.5 ml-1 flex items-center gap-1.5 text-xs text-emerald-700 dark:text-emerald-400"><Sparkles size={12} />Sugerida: {sugestao.motivo}</p>
+            )}
           </div>
         </div>
 

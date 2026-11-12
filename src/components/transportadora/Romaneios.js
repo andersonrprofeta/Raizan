@@ -4,7 +4,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
-import { Ban, ChevronDown, FileText, Loader2, Pencil, Printer, RotateCcw, Search, Truck, X } from "lucide-react";
+import { Ban, CheckCircle2, ChevronDown, Circle, FileText, Plug, Loader2, Pencil, Printer, RotateCcw, Search, Truck, X } from "lucide-react";
 import { api, BOTAO_SECUNDARIO, CAMPO, Carregando, EstadoVazio, Modal, ROTULO, Segmentado, VIDRO, moeda } from "@/components/vendedores/ui";
 import { BOTAO, RASTREIO, ROMANEIO, Selo, diaEHora, formatarCnpj, numeroNfe, peso } from "@/components/transportadora/ui";
 import { montarRomaneio } from "@/components/transportadora/romaneioPdf";
@@ -28,6 +28,66 @@ function ModalCancelar({ romaneio, onFechar, onConfirmar }) {
       <label className={ROTULO} htmlFor="c-motivo">Motivo (opcional)</label>
       <input id="c-motivo" value={motivo} onChange={(e) => setMotivo(e.target.value)} maxLength={255} placeholder="Ex.: caminhão não compareceu" className={`${CAMPO} mb-2`} />
     </Modal>
+  );
+}
+
+// Itens que só fazem sentido quando o emissor de MDF-e for ligado (não dependem do operador agora)
+const DO_EMISSOR = new Set(["veiculo_cadastro", "codigo_ibge"]);
+
+// MDF-e e CT-e: quem emite, o que falta e o botão já no lugar (desligado até contratar o emissor)
+function Fiscal({ fiscal }) {
+  if (!fiscal) return null;
+  const { mdfe, cte } = fiscal;
+  const daEmpresa = fiscal.quem_emite === "empresa";
+  const doOperador = mdfe.pendencias.filter((p) => !DO_EMISSOR.has(p.campo));
+  const doEmissor = mdfe.pendencias.filter((p) => DO_EMISSOR.has(p.campo));
+  return (
+    <div className="rounded-2xl border border-black/[0.06] dark:border-white/[0.07] p-4 sm:p-5 space-y-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="font-semibold">Documentos de transporte</p>
+          <p className="text-sm text-zinc-500 mt-0.5">
+            {daEmpresa
+              ? "Frota própria: não tem CT-e. O MDF-e da viagem é emitido pela sua empresa."
+              : "Transportadora contratada: ela emite o CT-e de cada nota e o MDF-e da viagem. Aqui você só registra as chaves."}
+          </p>
+        </div>
+        {mdfe.emitido
+          ? <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-400"><CheckCircle2 size={13} />MDF-e {mdfe.numero || "registrado"}</span>
+          : <span className="inline-flex items-center gap-1.5 rounded-full bg-black/[0.04] dark:bg-white/[0.06] px-3 py-1 text-xs font-semibold text-zinc-600 dark:text-zinc-300">MDF-e não emitido</span>}
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500 mb-2">Para o MDF-e</p>
+          {doOperador.length === 0
+            ? <p className="flex items-center gap-2 text-sm text-emerald-700 dark:text-emerald-400"><CheckCircle2 size={15} />Dados do romaneio completos.</p>
+            : (
+              <ul className="space-y-1.5">
+                {doOperador.map((p) => <li key={p.campo} className="flex items-start gap-2 text-sm"><Circle size={13} className="mt-1 shrink-0 text-amber-500" />{p.texto}</li>)}
+              </ul>
+            )}
+          {doEmissor.length > 0 && (
+            <ul className="mt-3 space-y-1.5">
+              {doEmissor.map((p) => <li key={p.campo} className="flex items-start gap-2 text-xs text-zinc-500"><Plug size={12} className="mt-0.5 shrink-0" />{p.texto}</li>)}
+            </ul>
+          )}
+        </div>
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500 mb-2">CT-e</p>
+          {cte.quem_emite === "nao_se_aplica"
+            ? <p className="text-sm text-zinc-500">Não se aplica (carga própria).</p>
+            : <p className="text-sm"><b className="tabular-nums">{cte.registrados}</b> registrado(s){cte.faltando > 0 && <> · <span className="text-amber-700 dark:text-amber-400"><b className="tabular-nums">{cte.faltando}</b> faltando</span></>}. A transportadora informa a chave ao emitir.</p>}
+        </div>
+      </div>
+
+      {daEmpresa && !mdfe.emitido && (
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <button type="button" disabled aria-disabled="true" title="O emissor de MDF-e ainda não foi contratado" className={`${BOTAO} h-10 opacity-50 cursor-not-allowed`}><FileText size={15} />Emitir MDF-e</button>
+          <p className="text-xs text-zinc-500">Ainda não está ligado. Os dados já ficam prontos para quando o emissor for contratado.</p>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -79,6 +139,7 @@ function Detalhe({ detalhe, onAcao, ocupado }) {
           </table>
         </div>
       </div>
+      {romaneio.status !== "cancelado" && <Fiscal fiscal={detalhe.fiscal} />}
       {romaneio.observacao && <p className="text-sm rounded-2xl bg-black/[0.03] dark:bg-white/[0.04] px-4 py-3">{romaneio.observacao}</p>}
       <div className="flex flex-wrap items-center gap-2">
         <button type="button" onClick={imprimir} className={`${BOTAO_SECUNDARIO} h-10`}><Printer size={15} />Imprimir ou PDF</button>

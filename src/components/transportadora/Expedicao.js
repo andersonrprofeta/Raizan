@@ -296,7 +296,8 @@ function ModalAjustes({ expedicao, onFechar, onSalvo }) {
 // ==========================================
 // EXPEDIÇÃO
 // ==========================================
-export function Expedicao({ visao, onVisao, onMontar, versao }) {
+// erp: { nome } quando há ERP conectado que a Central sabe ler. Sem ERP, o botão só atualiza a lista.
+export function Expedicao({ visao, onVisao, onMontar, versao, erp = null }) {
   const [dados, setDados] = useState(null);
   const [busca, setBusca] = useState("");
   const [marcados, setMarcados] = useState(new Set());
@@ -337,8 +338,9 @@ export function Expedicao({ visao, onVisao, onMontar, versao }) {
   });
 
   const lerNotas = async () => {
+    if (!erp) { setLendo(true); await carregar(); setLendo(false); return; }
     setLendo(true);
-    const aviso = toast.loading("Lendo as NF-es de saída...");
+    const aviso = toast.loading(`Lendo as NF-es de saída do ${erp.nome}...`);
     try {
       const r = await api("/logistica/expedicoes/sincronizar-nfe", { metodo: "POST", corpo: { dias: 30 } });
       if (r.success) { toast.success(r.message, { id: aviso, duration: 6000 }); carregar(); } else toast.error(r.message, { id: aviso });
@@ -359,7 +361,7 @@ export function Expedicao({ visao, onVisao, onMontar, versao }) {
             <input value={busca} onChange={(ev) => setBusca(ev.target.value)} placeholder="Pedido, NF-e, cliente ou cidade" aria-label="Buscar pedidos" className={`${CAMPO} pl-10 pr-9`} />
             {busca && <button type="button" onClick={() => setBusca("")} aria-label="Limpar busca" className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-700"><X size={14} /></button>}
           </div>
-          <button type="button" onClick={lerNotas} disabled={lendo} title="Ler NF-es de saída da integração" aria-label="Ler NF-es de saída da integração" className={`${BOTAO_SECUNDARIO.replace("px-5", "px-0")} w-11 shrink-0`}>
+          <button type="button" onClick={lerNotas} disabled={lendo} title={erp ? `Ler NF-es de saída do ${erp.nome}` : "Atualizar a lista"} aria-label={erp ? `Ler NF-es de saída do ${erp.nome}` : "Atualizar a lista"} className={`${BOTAO_SECUNDARIO.replace("px-5", "px-0")} w-11 shrink-0`}>
             <RefreshCw size={16} className={lendo ? "animate-spin" : ""} />
           </button>
         </div>
@@ -368,7 +370,7 @@ export function Expedicao({ visao, onVisao, onMontar, versao }) {
       {dados === null ? <div className={VIDRO}><Carregando texto="Carregando pedidos..." /></div> : visao === "aguardando" ? (
         dados.grupos.length === 0 ? (
           <div className={VIDRO}>
-            <EstadoVazio icone={PackageOpen} titulo={busca ? "Nada encontrado" : "Nenhum pedido esperando coleta"} texto={busca ? "Nenhum pedido com essa busca." : "Pedidos com NF-e emitida aparecem aqui sozinhos. Use o botão de atualizar para ler as notas da integração."} />
+            <EstadoVazio icone={PackageOpen} titulo={busca ? "Nada encontrado" : "Nenhum pedido esperando coleta"} texto={busca ? "Nenhum pedido com essa busca." : (erp ? `Pedidos com NF-e emitida aparecem aqui sozinhos. Use o botão de atualizar para ler as notas do ${erp.nome}.` : "Pedidos com NF-e emitida aparecem aqui sozinhos.")} />
           </div>
         ) : (
           <div className="space-y-4">

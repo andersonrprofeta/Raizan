@@ -18,6 +18,7 @@ import { ACAO_DO_STATUS, SeloStatus, SeloTipo, diaCurto, numeroDoDocumento, quan
 import { montarMapaDeEntrada } from "@/components/compras/MapaEntradas";
 import { FormularioDocumento } from "@/components/compras/FormularioDocumento";
 import { SefazDfe } from "@/components/compras/SefazDfe";
+import { useErp } from "@/components/utils/erp";
 import { abrirDocumento } from "@/components/utils/documentoPdf";
 
 const ABAS = [
@@ -179,6 +180,7 @@ export default function CentralDeCompras() {
   const [ocupado, setOcupado] = useState(false);
   const [formulario, setFormulario] = useState(null);
   const [sincronizando, setSincronizando] = useState(false);
+  const erpCompras = useErp().com("compras"); // ler compras do ERP só aparece com ERP que tem compras (hoje Omie)
   const [verSefaz, setVerSefaz] = useState(false);
   const pedidoAtual = useRef(0);
   const router = useRouter();
@@ -300,9 +302,11 @@ export default function CentralDeCompras() {
           <p className="text-zinc-500 mt-1">Orçamentos, pedidos e notas de entrada, do pedido ao recebimento.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2 [&>button]:whitespace-nowrap">
-          <button type="button" onClick={sincronizar} disabled={sincronizando} aria-label="Sincronizar integrações" title="Sincronizar integrações" className={`${BOTAO_SECUNDARIO.replace("px-5", "px-0")} w-11 shrink-0`}>
-            <RefreshCw size={17} strokeWidth={2.2} className={sincronizando ? "animate-spin" : ""} />
-          </button>
+          {erpCompras && (
+            <button type="button" onClick={sincronizar} disabled={sincronizando} aria-label={`Ler compras do ${erpCompras.nome}`} title={`Ler compras do ${erpCompras.nome}`} className={`${BOTAO_SECUNDARIO.replace("px-5", "px-0")} w-11 shrink-0`}>
+              <RefreshCw size={17} strokeWidth={2.2} className={sincronizando ? "animate-spin" : ""} />
+            </button>
+          )}
           <button type="button" onClick={() => setVerSefaz(true)} className={BOTAO_SECUNDARIO}><Landmark size={16} />Notas da SEFAZ</button>
           <input ref={entradaDeXml} type="file" accept=".xml,text/xml,application/xml" multiple hidden onChange={importarXml} />
           <button type="button" onClick={() => entradaDeXml.current?.click()} className={BOTAO_SECUNDARIO}><FileUp size={16} />Importar XML</button>

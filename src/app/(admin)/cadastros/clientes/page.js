@@ -11,6 +11,7 @@ import {
 import Link from "next/link";
 import toast from 'react-hot-toast';
 import { getHubUrl, getHeaders } from "@/components/utils/api"; 
+import { useErp } from "@/components/utils/erp";
 
 // ==========================================
 // 🎨 DESIGN TOKENS (estilo Apple: vidro, hairlines, ícones em "tiles")
@@ -89,7 +90,9 @@ export default function ListaClientesHub() {
   const [excluirNoWoo, setExcluirNoWoo] = useState(false);
 
   // 🟢 NOVO: ESTADO PARA CONTROLAR A VISIBILIDADE DO BOTÃO
-  const [temERP, setTemERP] = useState(false);
+  // Botão "Importar do ERP" só com ERP que sabe importar cliente (hoje Omie ou Oracle com o motor local)
+  const erpClientes = useErp().com("clientes");
+  const doOmie = erpClientes?.plataforma === "omie";
   const [modalOracle, setModalOracle] = useState({ open: false, codigo: "", loading: false });
 
   const pegarCnpjLogado = () => {
@@ -116,23 +119,14 @@ export default function ListaClientesHub() {
         return;
       }
 
-      // 🟢 BUSCA OS CLIENTES E AS CONFIGURAÇÕES AO MESMO TEMPO
-      const [resClientes, resConfig] = await Promise.all([
-        fetch(`${getHubUrl()}/api/hub/clientes`, { headers: { ...getHeaders(), "x-tenant-id": cnpj } }),
-        fetch(`${getHubUrl()}/api/hub/configuracoes`, { headers: { ...getHeaders(), "x-tenant-id": cnpj } })
-      ]);
-      
+      // O botão do ERP vem de useErp(): aqui só a lista de clientes
+      const resClientes = await fetch(`${getHubUrl()}/api/hub/clientes`, { headers: { ...getHeaders(), "x-tenant-id": cnpj } });
       const dataClientes = await resClientes.json();
-      const dataConfig = await resConfig.json();
 
       if (dataClientes.success) {
         setClientes(dataClientes.clientes);
       }
 
-      // 🟢 SE O ORACLE HOST EXISTIR, LIBERA O BOTÃO!
-      if (dataConfig.success && dataConfig.configuracoes?.oracle_host) {
-        setTemERP(true);
-      }
 
     } catch (error) { 
       toast.error("Erro de conexão com o Hub."); 
@@ -173,7 +167,7 @@ export default function ListaClientesHub() {
 
     const cnpj = pegarCnpjLogado();
     setModalOracle({ ...modalOracle, loading: true });
-    const toastId = toast.loading("Buscando dados no ERP...");
+    const toastId = toast.loading(`Buscando no ${erpClientes?.nome || "ERP"}...`);
 
     try {
       const res = await fetch(`${getHubUrl()}/api/hub/clientes/importar-erp`, {
@@ -185,7 +179,7 @@ export default function ListaClientesHub() {
       const data = await res.json();
 
       if (data.success) {
-        toast.success("Cliente importado com sucesso!", { id: toastId });
+        toast.success(data.message || "Cliente importado com sucesso!", { id: toastId });
         setModalOracle({ open: false, codigo: "", loading: false });
         carregarClientesEConfiguracoes(); 
       } else {
@@ -358,12 +352,12 @@ export default function ListaClientesHub() {
               
               <div className="flex items-center gap-3 w-full sm:w-auto relative z-10">
                 {/* 🟢 O BOTÃO SÓ APARECE SE TIVER ERP CONFIGURADO */}
-                {temERP && (
+                {erpClientes && (
                   <button 
                     onClick={() => setModalOracle({ open: true, codigo: "", loading: false })}
                     className="w-full sm:w-auto h-11 bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.06] dark:border-white/[0.08] hover:bg-red-500/10 dark:hover:bg-red-500/10 text-zinc-700 dark:text-zinc-300 hover:text-red-600 dark:hover:text-red-400 px-5 rounded-full font-semibold text-sm flex items-center justify-center gap-2 transition-all active:scale-95"
                   >
-                    <Database size={16} /> Importar do ERP
+                    <Database size={16} /> Importar do {erpClientes.nome}
                   </button>
                 )}
 
@@ -594,15 +588,17 @@ export default function ListaClientesHub() {
                     <DownloadCloud size={30} />
                   </div>
                   
-                  <h2 className="relative text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 mb-2">Importar do ERP</h2>
+                  <h2 className="relative text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 mb-2">Importar do {erpClientes?.nome || "ERP"}</h2>
                   <p className="relative text-sm text-zinc-500 dark:text-zinc-400 mb-6 leading-relaxed px-2">
-                    Digite o <strong className="font-semibold text-zinc-800 dark:text-zinc-200">Código do Cliente</strong> para buscar no ERP e autorizar o acesso à plataforma.
+                    {doOmie
+                      ? <>Digite o <strong className="font-semibold text-zinc-800 dark:text-zinc-200">CNPJ, CPF ou código do cliente no Omie</strong>. Se ele já existir no Core, os dados são atualizados.</>
+                      : <>Digite o <strong className="font-semibold text-zinc-800 dark:text-zinc-200">Código do Cliente</strong> para buscar no ERP e autorizar o acesso à plataforma.</>}
                   </p>
 
                   <form onSubmit={handleImportarOracle} className="relative w-full space-y-5">
                     <input 
                       type="text" 
-                      placeholder="Ex: 15482" 
+                      placeholder={doOmie ? "Ex: 11.222.333/0001-81" : "Ex: 15482"} 
                       required
                       value={modalOracle.codigo}
                       onChange={(e) => setModalOracle({...modalOracle, codigo: e.target.value})}

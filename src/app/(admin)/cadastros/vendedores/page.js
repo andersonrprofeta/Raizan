@@ -8,6 +8,7 @@ import Campanhas from "@/components/vendedores/Campanhas";
 import ComissoesEquipe from "@/components/vendedores/ComissoesEquipe";
 import EquipeMetas from "@/components/vendedores/EquipeMetas";
 import { ModalVendedor } from "@/components/vendedores/Modais";
+import { useErp } from "@/components/utils/erp";
 import SeletorMes, { mesDeHoje, nomeDoMes } from "@/components/vendedores/SeletorMes";
 import {
   api, Avatar, BarraProgresso, BOTAO_PRIMARIO, BOTAO_SECUNDARIO, CAMPO, Carregando, CascaPagina, EstadoVazio,
@@ -98,6 +99,7 @@ export default function VendedoresPage() {
   const [carregando, setCarregando] = useState(true);
   const [atualizandoMes, setAtualizandoMes] = useState(true);
   const [sincronizando, setSincronizando] = useState(false);
+  const erpVendedores = useErp().com("vendedores"); // botão só com ERP que tem vendedores (hoje Omie)
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState("todos");
   const [cadastrando, setCadastrando] = useState(false);
@@ -182,9 +184,11 @@ export default function VendedoresPage() {
           <p className="text-sm sm:text-[15px] text-zinc-500 dark:text-zinc-400 mt-1">Equipe, metas, comissões e campanhas em um só lugar.</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <button type="button" onClick={sincronizar} disabled={sincronizando} className={BOTAO_SECUNDARIO}>
-            <RefreshCw size={15} className={sincronizando ? "animate-spin" : ""} /> Sincronizar ERP
-          </button>
+          {erpVendedores && (
+            <button type="button" onClick={sincronizar} disabled={sincronizando} className={BOTAO_SECUNDARIO}>
+              <RefreshCw size={15} className={sincronizando ? "animate-spin" : ""} /> Sincronizar {erpVendedores.nome}
+            </button>
+          )}
           <button type="button" onClick={() => setCadastrando(true)} className={BOTAO_PRIMARIO}><Plus size={16} /> Novo vendedor</button>
         </div>
       </div>

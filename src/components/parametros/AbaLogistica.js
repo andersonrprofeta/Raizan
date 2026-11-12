@@ -8,7 +8,7 @@ import { useState } from "react";
 import { Plus, Trash2, X } from "lucide-react";
 import { Aviso, CAMPO, Grupo, LinhaCampo, LinhaSwitch } from "@/components/parametros/ui";
 
-const PADRAO = { uf_origem: null, entrega_automatica: true, prazos_rota: [], tags_transportadora: ["Transportadora"] };
+const PADRAO = { uf_origem: null, entrega_automatica: true, prazos_rota: [], tags_transportadora: ["Transportadora"], etapa_erp_coleta: "70" };
 
 export default function AbaLogistica({ logistica, ufs, onChange }) {
   const atual = { ...PADRAO, ...logistica };
@@ -82,6 +82,16 @@ export default function AbaLogistica({ logistica, ufs, onChange }) {
             </>
           )}
         </div>
+      </Grupo>
+
+      <Grupo titulo="Etapa do pedido na coleta" texto="Ao gerar o romaneio, cada pedido vai para Enviado na Gestão de pedidos. Reabrir ou cancelar o romaneio devolve o pedido para a etapa de antes.">
+        <LinhaCampo titulo="No ERP (Omie)" texto="Etapa para onde o pedido vai no ERP quando a carga é coletada. Só vale com ERP conectado.">
+          <select value={atual.etapa_erp_coleta ?? "70"} onChange={(e) => alterar({ etapa_erp_coleta: e.target.value })} aria-label="Etapa do ERP na coleta" className={CAMPO}>
+            <option value="70">Etapa 70 (a seguinte ao Faturado)</option>
+            <option value="80">Etapa 80</option>
+            <option value="">Não mudar no ERP</option>
+          </select>
+        </LinhaCampo>
       </Grupo>
 
       <Grupo titulo="Transportadoras do ERP" texto="No Omie, cliente, fornecedor e transportadora ficam no mesmo cadastro. Só entra como transportadora quem tiver uma destas tags.">

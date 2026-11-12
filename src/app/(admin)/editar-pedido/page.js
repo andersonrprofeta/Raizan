@@ -7,6 +7,7 @@ import Header from "@/components/Header";
 import { ArrowLeft, Save, Plus, Minus, Trash2, Package, Loader2, AlertTriangle, MessageSquare, Search, X, Truck, Percent, Receipt, Database, Cloud } from "lucide-react";
 import Link from "next/link";
 import { getApiUrl, getHeaders } from "@/components/utils/api";
+import { useErp } from "@/components/utils/erp";
 import { buscarProdutos } from "@/lib/buscaInteligente";
 import toast from 'react-hot-toast';
 
@@ -30,7 +31,14 @@ function EditarPedidoConteudo() {
   const [catalogo, setCatalogo] = useState([]);
   const [carregandoBusca, setCarregandoBusca] = useState(false);
   const [termoBusca, setTermoBusca] = useState("");
-  const [fonteBusca, setFonteBusca] = useState("oracle"); // 'oracle' ou 'hub'
+  const [fonteBusca, setFonteBusca] = useState("hub"); // 'oracle' ou 'hub'
+  // Banco local (Oracle) só existe com o Oracle ligado; sem ele a busca é sempre na nuvem
+  const erp = useErp();
+  const temOracle = Boolean(erp.com("produtos_busca"));
+  const [fonteEscolhida, setFonteEscolhida] = useState(false);
+  useEffect(() => {
+    if (erp.carregado && temOracle && !fonteEscolhida) setFonteBusca("oracle");
+  }, [erp.carregado, temOracle, fonteEscolhida]);
 
   const pegarCnpjLogado = () => {
     if (typeof window !== 'undefined') {
@@ -408,21 +416,21 @@ function EditarPedidoConteudo() {
 
                 <div className="p-6 space-y-4">
                   
-                  {/* 🟢 O TOGGLE DE SELEÇÃO DE FONTE DE DADOS */}
-                  <div className="flex p-1 bg-zinc-100 dark:bg-zinc-900 rounded-xl mb-4 shadow-inner border border-zinc-200 dark:border-zinc-800">
+                  {/* Fonte da busca: o banco local (Oracle) só aparece com Oracle ligado */}
+                  {temOracle && <div className="flex p-1 bg-zinc-100 dark:bg-zinc-900 rounded-xl mb-4 shadow-inner border border-zinc-200 dark:border-zinc-800">
                     <button 
-                      onClick={() => { setFonteBusca('oracle'); setCatalogo([]); setTermoBusca(''); }}
+                      onClick={() => { setFonteBusca('oracle'); setFonteEscolhida(true); setCatalogo([]); setTermoBusca(''); }}
                       className={`flex-1 py-2.5 text-sm font-bold rounded-lg flex items-center justify-center gap-2 transition-all ${fonteBusca === 'oracle' ? 'bg-white dark:bg-[#18181b] shadow-sm text-red-600 dark:text-red-400 border border-zinc-200 dark:border-zinc-800' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}
                     >
                       <Database size={16} /> Banco Local (Oracle)
                     </button>
                     <button 
-                      onClick={() => { setFonteBusca('hub'); setCatalogo([]); setTermoBusca(''); }}
+                      onClick={() => { setFonteBusca('hub'); setFonteEscolhida(true); setCatalogo([]); setTermoBusca(''); }}
                       className={`flex-1 py-2.5 text-sm font-bold rounded-lg flex items-center justify-center gap-2 transition-all ${fonteBusca === 'hub' ? 'bg-white dark:bg-[#18181b] shadow-sm text-purple-600 dark:text-purple-400 border border-zinc-200 dark:border-zinc-800' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}
                     >
                       <Cloud size={16} /> Nuvem Raizan (Web)
                     </button>
-                  </div>
+                  </div>}
 
                   <form onSubmit={buscarProdutos} className="relative">
                     <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" />

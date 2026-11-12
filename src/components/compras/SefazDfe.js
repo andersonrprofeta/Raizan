@@ -139,10 +139,10 @@ export function SefazDfe({ onFechar, onNotasNovas }) {
                   <button type="button" onClick={remover} aria-label="Remover certificado" className="h-9 w-9 rounded-full flex items-center justify-center text-zinc-400 hover:text-rose-600 hover:bg-rose-500/10"><Trash2 size={15} /></button>
                 </div>
               </div>
-              <dl className="grid sm:grid-cols-3 gap-3 text-sm">
+              <dl className="grid sm:grid-cols-[auto_auto_1fr] gap-x-6 gap-y-3 text-sm">
                 <div><dt className="text-[11px] text-zinc-500">Última consulta</dt><dd className="font-medium">{horaCurta(certificado.ultima_consulta)}</dd></div>
                 <div><dt className="text-[11px] text-zinc-500">Próxima consulta</dt><dd className="font-medium flex items-center gap-1"><Clock size={13} className="text-zinc-400" />{horaCurta(certificado.proxima_consulta)}</dd></div>
-                <div><dt className="text-[11px] text-zinc-500">Resposta da SEFAZ</dt><dd className="font-medium truncate" title={certificado.ultimo_status || ""}>{certificado.ultimo_status || "Ainda não consultado"}</dd></div>
+                <div><dt className="text-[11px] text-zinc-500">Resposta da SEFAZ</dt><dd className="font-medium break-words">{certificado.ultimo_status || "Ainda não consultado"}</dd></div>
               </dl>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-xs text-zinc-500">A SEFAZ libera uma nova consulta 1 hora depois de responder que não há novidade.</p>

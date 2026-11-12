@@ -119,7 +119,7 @@ function DetalheExpandido({ detalhe, onAcao, onEditar, ocupado }) {
       <div className="flex flex-wrap items-center gap-2">
         {aguardaEntrada
           ? <Link href={`/compras/pedidos/documento?id=${documento.id}`} className={`${BOTAO_PRIMARIO} h-10`}><PackageCheck size={15} />Conferir e dar entrada</Link>
-          : <Link href={`/compras/pedidos/documento?id=${documento.id}`} className={`${BOTAO_SECUNDARIO} h-10`}><ExternalLink size={15} />Abrir{temMapa ? " e contar" : ""}</Link>}
+          : <Link href={`/compras/pedidos/documento?id=${documento.id}`} className={`${BOTAO_SECUNDARIO} h-10`}><ExternalLink size={15} />Abrir{temMapa && !ehNota ? " e contar" : ""}</Link>}
         {temMapa && <button type="button" onClick={imprimirMapa} className={`${BOTAO_SECUNDARIO} h-10`}><Printer size={15} />Mapa de entrada</button>}
         {documento.editavel && <button type="button" onClick={onEditar} className={`${BOTAO_SECUNDARIO} h-10`}><Pencil size={15} />Editar</button>}
         <span className="flex-1" />
@@ -291,7 +291,7 @@ export default function CentralDeCompras() {
 
   return (
     <CascaPagina>
-      <header className="flex flex-col 2xl:flex-row 2xl:items-end justify-between gap-4">
+      <header className="flex flex-col gap-4">
         <div className="min-w-0">
           <p className="text-sm font-medium text-purple-600 dark:text-purple-400">Compras</p>
           <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-zinc-900 dark:text-white">Central de Compras</h1>

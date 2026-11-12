@@ -7,11 +7,12 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
-import { AlertTriangle, ArrowLeft, ArrowRight, CheckCircle2, Download, Loader2, PackageCheck, Pencil, Plus, Printer, Save, X } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ArrowRight, CheckCircle2, Download, Link2, Loader2, PackageCheck, Pencil, Plus, Printer, Save, X } from "lucide-react";
 import { api, BOTAO_PRIMARIO, BOTAO_SECUNDARIO, CAMPO, Carregando, CascaPagina, EstadoVazio, Modal, VIDRO, moeda } from "@/components/vendedores/ui";
 import { ACAO_DO_STATUS, SeloStatus, SeloTipo, diaCurto, numeroDoDocumento, quantidade } from "@/components/compras/ui";
 import { montarMapaDeEntrada } from "@/components/compras/MapaEntradas";
 import { FormularioDocumento } from "@/components/compras/FormularioDocumento";
+import { VincularPedido, VincularProduto } from "@/components/compras/Vinculos";
 import { abrirDocumento } from "@/components/utils/documentoPdf";
 import { getHeaders, getHubUrl, getTenantId } from "@/components/utils/api";
 
@@ -53,7 +54,7 @@ function situacaoDaLinha(esperado, linhas) {
 }
 
 function ConfirmarEntrada({ documento, onFechar, onConfirmar, enviando }) {
-  const doErp = documento.origem_documento !== "core" && documento.origem_documento !== "xml" && documento.origem_documento !== "sefaz";
+  const doErp = !["core", "xml", "sefaz"].includes(documento.origem_documento);
   return (
     <Modal
       titulo="Confirmar entrada da mercadoria"
@@ -79,6 +80,35 @@ function ConfirmarEntrada({ documento, onFechar, onConfirmar, enviando }) {
   );
 }
 
+// Passo a passo da entrada da NF-e, com o passo atual em destaque
+function PassosDaEntrada({ semProduto, pendentes, alterado, total, doErp }) {
+  const passos = [
+    { titulo: "Vincule os produtos", texto: semProduto ? `${semProduto} ${semProduto === 1 ? "item sem" : "itens sem"} produto do cadastro` : "Todos ligados ao cadastro", feito: !semProduto, opcional: doErp },
+    { titulo: "Imprima o mapa e confira", texto: "O conferente anota quantidade, lote e validade", feito: pendentes < total },
+    { titulo: "Digite a contagem e salve", texto: pendentes ? `Faltam ${pendentes} de ${total}` : alterado ? "Falta salvar" : "Contagem salva", feito: !pendentes && !alterado },
+    { titulo: "Confirme a entrada", texto: doErp ? "Conclui o recebimento no sistema integrado" : "Os produtos entram no estoque do Core", feito: false },
+  ];
+  const atual = passos.findIndex((p) => !p.feito && !p.opcional);
+  return (
+    <ol className="grid sm:grid-cols-2 xl:grid-cols-4 gap-2">
+      {passos.map((passo, indice) => {
+        const estado = passo.feito ? "feito" : indice === atual ? "atual" : "depois";
+        return (
+          <li key={passo.titulo} className={`flex gap-3 rounded-2xl px-4 py-3 ${estado === "atual" ? "bg-purple-500/10 ring-1 ring-purple-500/30" : "bg-black/[0.03] dark:bg-white/[0.04]"}`}>
+            <span className={`w-6 h-6 shrink-0 rounded-full flex items-center justify-center text-xs font-bold ${estado === "feito" ? "bg-emerald-500 text-white" : estado === "atual" ? "bg-purple-600 text-white" : "bg-black/[0.08] dark:bg-white/[0.1] text-zinc-500"}`}>
+              {estado === "feito" ? <CheckCircle2 size={14} /> : indice + 1}
+            </span>
+            <span className="min-w-0">
+              <span className="block text-sm font-semibold">{passo.titulo}{passo.opcional && !passo.feito ? <span className="font-normal text-zinc-500"> (se precisar)</span> : null}</span>
+              <span className="block text-xs text-zinc-500">{passo.texto}</span>
+            </span>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
 function Documento() {
   const id = useSearchParams().get("id");
   const router = useRouter();
@@ -88,12 +118,14 @@ function Documento() {
   const [ocupado, setOcupado] = useState(false);
   const [modal, setModal] = useState(null);
 
-  const carregar = useCallback(async () => {
+  // manterContagem: recarrega a nota (vínculos) sem apagar a contagem digitada e ainda não salva
+  const carregar = useCallback(async ({ manterContagem = false } = {}) => {
     if (!id) return;
     try {
       const resposta = await api(`/compras/${id}`);
       if (!resposta.success) { toast.error(resposta.message || "Documento não encontrado."); setDetalhe(false); return; }
       setDetalhe(resposta);
+      if (manterContagem) return;
       setLinhas(contagemInicial(resposta.itens, resposta.contagem));
       setAlterado(false);
     } catch (erro) {
@@ -118,6 +150,8 @@ function Documento() {
     return { total: lista.length, pendentes: conta("pendente"), ok: conta("ok"), faltas: conta("falta"), sobras: conta("sobra") };
   }, [situacoes]);
   const podeConfirmar = documento?.tipo_documento === "nfe" && !travada && ["pendente", "recebida", "divergente"].includes(documento.status);
+  const doErp = Boolean(documento) && !["core", "xml", "sefaz"].includes(documento.origem_documento);
+  const semProduto = itens.filter((item) => !item.produto_id).length;
 
   const mudarLinha = (posicao, indice, campo, valor) => {
     setLinhas((atual) => ({ ...atual, [posicao]: atual[posicao].map((l, i) => (i === indice ? { ...l, [campo]: valor } : l)) }));
@@ -226,6 +260,7 @@ function Documento() {
   const pedidoGerado = vinculados.find((v) => v.tipo_documento === "pedido" && v.id !== documento.documento_origem_id);
   const podeGerarPedido = documento.tipo_documento === "orcamento" && documento.status === "aprovado" && !pedidoGerado;
   const temXml = ehNota && detalhe.tem_xml;
+  const pedidoLigado = ehNota ? vinculados.find((v) => v.id === documento.documento_origem_id) : null;
 
   const informacoes = [
     ["Emissão", diaCurto(documento.data_emissao) || "Não informada"],
@@ -261,6 +296,19 @@ function Documento() {
             <div key={rotulo}><dt className="text-[11px] text-zinc-500">{rotulo}</dt><dd className="font-medium">{valor}</dd></div>
           ))}
         </dl>
+        {ehNota && (
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <span className="text-[11px] text-zinc-500 mr-1">Pedido de compra</span>
+            {pedidoLigado
+              ? <Link href={`/compras/pedidos/documento?id=${pedidoLigado.id}`} className="font-semibold tabular-nums hover:text-purple-600">nº {pedidoLigado.numero_documento}</Link>
+              : <span className="text-zinc-500">Nenhum ligado</span>}
+            {!travada && (
+              <button type="button" onClick={() => setModal("pedido")} className="inline-flex items-center gap-1 h-7 px-2.5 rounded-full text-xs font-semibold text-purple-700 dark:text-purple-300 bg-purple-500/10 hover:bg-purple-500/15">
+                <Link2 size={12} />{pedidoLigado ? "Trocar" : "Ligar a um pedido"}
+              </button>
+            )}
+          </div>
+        )}
         {ehNota && documento.chave_nfe && <p className="text-[11px] text-zinc-500">Chave <span className="font-mono text-zinc-700 dark:text-zinc-300 break-all">{documento.chave_nfe}</span></p>}
         {vinculados.length > 0 && (
           <div className="flex flex-wrap items-center gap-2 text-sm">
@@ -288,6 +336,16 @@ function Documento() {
           {podeGerarPedido && <button type="button" disabled={ocupado} onClick={() => mudarStatus("gerar-pedido")} className={`${BOTAO_PRIMARIO} h-10`}>Gerar pedido de compra<ArrowRight size={15} /></button>}
         </div>
       </section>
+
+      {podeConfirmar && (
+        <section className={`${VIDRO} p-5 sm:p-6 space-y-3`}>
+          <div>
+            <h2 className="text-lg font-semibold">Como dar entrada nesta nota</h2>
+            <p className="text-sm text-zinc-500">Siga os passos. O botão <b>Confirmar entrada</b> libera quando todos os itens estiverem contados.</p>
+          </div>
+          <PassosDaEntrada semProduto={semProduto} pendentes={resumo.pendentes} alterado={alterado} total={resumo.total} doErp={doErp} />
+        </section>
+      )}
 
       <section className={`${VIDRO} overflow-hidden`}>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 sm:px-6 pt-5 pb-4">
@@ -338,6 +396,17 @@ function Documento() {
                     <td className="px-5 sm:px-6 py-3 min-w-[220px]">
                       <p className="font-medium">{item.descricao}</p>
                       <p className="text-[11px] font-mono text-zinc-500">{[item.sku, item.fabricante].filter(Boolean).join(" · ")}</p>
+                      {ehNota && (item.produto_id ? (
+                        <p className="mt-1 text-[11px] text-emerald-700 dark:text-emerald-400 flex flex-wrap items-center gap-x-1.5">
+                          <CheckCircle2 size={11} />Cadastro: {item.produto_nome || item.sku}
+                          {item.codigo_fornecedor && item.codigo_fornecedor !== item.sku && <span className="text-zinc-500">· código do fornecedor {item.codigo_fornecedor}</span>}
+                          {!travada && <button type="button" onClick={() => setModal({ produto: item })} className="font-semibold text-purple-600 dark:text-purple-400 hover:underline">trocar</button>}
+                        </p>
+                      ) : (
+                        <button type="button" disabled={travada} onClick={() => setModal({ produto: item })} className="mt-1.5 inline-flex items-center gap-1 h-7 px-2.5 rounded-full text-xs font-semibold text-amber-700 dark:text-amber-400 bg-amber-500/10 hover:bg-amber-500/15 disabled:opacity-60">
+                          <Link2 size={12} />{travada ? "Sem produto do cadastro" : "Vincular produto"}
+                        </button>
+                      ))}
                     </td>
                     <td className="px-3 py-3 text-right tabular-nums whitespace-nowrap">
                       {quantidade(item.quantidade)} <span className="text-zinc-400 text-xs">{item.unidade}</span>
@@ -383,6 +452,16 @@ function Documento() {
       </section>
 
       {modal === "confirmar" && <ConfirmarEntrada documento={documento} onFechar={() => setModal(null)} onConfirmar={confirmar} enviando={ocupado} />}
+      {modal === "pedido" && <VincularPedido compraId={documento.id} pedidoAtual={pedidoLigado} onFechar={() => setModal(null)} onVinculado={() => { setModal(null); carregar({ manterContagem: true }); }} />}
+      {modal?.produto && (
+        <VincularProduto
+          compraId={documento.id}
+          item={modal.produto}
+          fornecedor={documento.fornecedor}
+          onFechar={() => setModal(null)}
+          onVinculado={() => { setModal(null); carregar({ manterContagem: true }); }}
+        />
+      )}
       {modal === "editar" && (
         <FormularioDocumento
           tipo={documento.tipo_documento}

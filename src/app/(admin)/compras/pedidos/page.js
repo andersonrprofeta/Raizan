@@ -9,7 +9,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import {
-  ArrowRight, ChevronDown, ExternalLink, FilePlus2, FileUp, Landmark, FileText, Loader2, Pencil, Plus, Printer, RefreshCw, Search, SlidersHorizontal, X,
+  ArrowRight, ChevronDown, ExternalLink, FilePlus2, FileUp, Landmark, FileText, Loader2, PackageCheck, Pencil, Plus, Printer, RefreshCw, Search, SlidersHorizontal, X,
 } from "lucide-react";
 import {
   api, BOTAO_PRIMARIO, BOTAO_SECUNDARIO, CAMPO, Carregando, CascaPagina, EstadoVazio, Kpi, ROTULO, Segmentado, VIDRO, moeda, moedaCurta,
@@ -43,6 +43,7 @@ function DetalheExpandido({ detalhe, onAcao, onEditar, ocupado }) {
   const pedidoGerado = vinculados.find((v) => v.tipo_documento === "pedido" && v.id !== documento.documento_origem_id);
   const podeGerarPedido = documento.tipo_documento === "orcamento" && documento.status === "aprovado" && !pedidoGerado;
   const temMapa = documento.tipo_documento !== "orcamento" && !["cancelado", "cancelada"].includes(documento.status);
+  const aguardaEntrada = ehNota && !documento.entrada_em && ["pendente", "recebida", "divergente"].includes(documento.status);
 
   const imprimirMapa = () => {
     if (!abrirDocumento(montarMapaDeEntrada({ documento, itens, vinculados }))) toast.error("Libere as janelas do navegador para imprimir o mapa.");
@@ -55,7 +56,7 @@ function DetalheExpandido({ detalhe, onAcao, onEditar, ocupado }) {
     documento.condicoes_comerciais && ["Condições", documento.condicoes_comerciais],
     documento.fornecedor_documento && ["CNPJ", documento.fornecedor_documento],
     documento.criado_por && ["Criado por", documento.criado_por],
-    documento.origem_documento !== "core" && ["Origem", "Integração"],
+    documento.origem_documento !== "core" && ["Origem", { xml: "XML importado", sefaz: "SEFAZ" }[documento.origem_documento] || "Integração"],
   ].filter(Boolean);
 
   return (
@@ -109,8 +110,16 @@ function DetalheExpandido({ detalhe, onAcao, onEditar, ocupado }) {
 
       {documento.observacao && <p className="text-sm text-zinc-600 dark:text-zinc-300 rounded-2xl bg-black/[0.03] dark:bg-white/[0.04] px-4 py-3">{documento.observacao}</p>}
 
+      {aguardaEntrada && (
+        <p className="text-sm text-zinc-600 dark:text-zinc-300 rounded-2xl bg-purple-500/[0.06] px-4 py-3">
+          Para dar entrada: imprima o <b>Mapa de entrada</b>, confira a mercadoria e clique em <b>Conferir e dar entrada</b> para digitar a contagem e confirmar.
+        </p>
+      )}
+
       <div className="flex flex-wrap items-center gap-2">
-        <Link href={`/compras/pedidos/documento?id=${documento.id}`} className={`${BOTAO_SECUNDARIO} h-10`}><ExternalLink size={15} />Abrir{temMapa ? " e contar" : ""}</Link>
+        {aguardaEntrada
+          ? <Link href={`/compras/pedidos/documento?id=${documento.id}`} className={`${BOTAO_PRIMARIO} h-10`}><PackageCheck size={15} />Conferir e dar entrada</Link>
+          : <Link href={`/compras/pedidos/documento?id=${documento.id}`} className={`${BOTAO_SECUNDARIO} h-10`}><ExternalLink size={15} />Abrir{temMapa ? " e contar" : ""}</Link>}
         {temMapa && <button type="button" onClick={imprimirMapa} className={`${BOTAO_SECUNDARIO} h-10`}><Printer size={15} />Mapa de entrada</button>}
         {documento.editavel && <button type="button" onClick={onEditar} className={`${BOTAO_SECUNDARIO} h-10`}><Pencil size={15} />Editar</button>}
         <span className="flex-1" />
@@ -282,19 +291,20 @@ export default function CentralDeCompras() {
 
   return (
     <CascaPagina>
-      <header className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
-        <div>
+      <header className="flex flex-col 2xl:flex-row 2xl:items-end justify-between gap-4">
+        <div className="min-w-0">
           <p className="text-sm font-medium text-purple-600 dark:text-purple-400">Compras</p>
           <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-zinc-900 dark:text-white">Central de Compras</h1>
           <p className="text-zinc-500 mt-1">Orçamentos, pedidos e notas de entrada, do pedido ao recebimento.</p>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 [&>button]:whitespace-nowrap">
           <button type="button" onClick={sincronizar} disabled={sincronizando} aria-label="Sincronizar integrações" title="Sincronizar integrações" className={`${BOTAO_SECUNDARIO.replace("px-5", "px-0")} w-11 shrink-0`}>
             <RefreshCw size={17} strokeWidth={2.2} className={sincronizando ? "animate-spin" : ""} />
           </button>
           <button type="button" onClick={() => setVerSefaz(true)} className={BOTAO_SECUNDARIO}><Landmark size={16} />Notas da SEFAZ</button>
           <input ref={entradaDeXml} type="file" accept=".xml,text/xml,application/xml" multiple hidden onChange={importarXml} />
           <button type="button" onClick={() => entradaDeXml.current?.click()} className={BOTAO_SECUNDARIO}><FileUp size={16} />Importar XML</button>
+          <span className="hidden sm:block w-px h-7 mx-1 bg-black/[0.08] dark:bg-white/[0.1]" aria-hidden="true" />
           <button type="button" onClick={() => setFormulario({ tipo: "orcamento" })} className={BOTAO_SECUNDARIO}><FilePlus2 size={16} />Novo orçamento</button>
           <button type="button" onClick={() => setFormulario({ tipo: "pedido" })} className={BOTAO_PRIMARIO}><Plus size={16} />Novo pedido de compra</button>
         </div>

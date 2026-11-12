@@ -24,10 +24,10 @@ export const STATUS = {
   recebimento_parcial: { rotulo: "Recebimento parcial", ...AMBAR },
   recebido: { rotulo: "Recebido", ...VERDE },
   cancelado: { rotulo: "Cancelado", ...APAGADO },
-  pendente: { rotulo: "NF-e Pendente", ...AMBAR },
+  pendente: { rotulo: "NF-e Faturada", ...AMBAR },
   recebida: { rotulo: "NF-e Recebida", ...VERDE },
   divergente: { rotulo: "NF-e Divergente", ...VERMELHO },
-  integrada: { rotulo: "NF-e Integrada", ...AZUL },
+  integrada: { rotulo: "Entrada confirmada", ...AZUL },
   cancelada: { rotulo: "NF-e Cancelada", ...APAGADO },
 };
 

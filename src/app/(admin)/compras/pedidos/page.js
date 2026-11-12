@@ -26,7 +26,8 @@ const ABAS = [
   { id: "pedido", rotulo: "Pedidos" },
   { id: "nfe", rotulo: "NF-e de entrada" },
   { id: "aprovacao", rotulo: "Aprovação" },
-  { id: "recebimentos", rotulo: "Recebimentos" },
+  { id: "recebimentos", rotulo: "A receber" },
+  { id: "entradas", rotulo: "Entradas confirmadas" },
   { id: "divergencias", rotulo: "Divergências" },
 ];
 const TIPOS_DAS_ABAS = ["orcamento", "pedido", "nfe"];
@@ -51,7 +52,8 @@ function DetalheExpandido({ detalhe, onAcao, onEditar, ocupado }) {
 
   const informacoes = [
     ehNota && documento.chave_nfe && ["Chave", <span key="c" className="font-mono text-[11px] break-all">{documento.chave_nfe}</span>],
-    ehNota && ["Entrada", documento.data_recebimento ? diaCurto(documento.data_recebimento) : "Não registrada"],
+    ehNota && ["Entrada", documento.entrada_em ? `Confirmada em ${diaCurto(documento.entrada_em)}` : "Não confirmada"],
+    ehNota && documento.metadata?.etapa && ["Etapa na integração", documento.metadata.etapa],
     !ehNota && ["Previsão de entrega", diaCurto(documento.data_previsao) || "Não informada"],
     documento.condicoes_comerciais && ["Condições", documento.condicoes_comerciais],
     documento.fornecedor_documento && ["CNPJ", documento.fornecedor_documento],
@@ -314,7 +316,7 @@ export default function CentralDeCompras() {
         <Kpi rotulo="Comprado no mês" valor={moedaCurta(indicadores.comprado_no_mes)} detalhe="Pedidos feitos neste mês" />
         <button type="button" onClick={() => setAba("recebimentos")} className="text-left"><Kpi rotulo="Pedidos a receber" valor={indicadores.pedidos_em_aberto || 0} detalhe={moedaCurta(indicadores.valor_em_aberto)} /></button>
         <button type="button" onClick={() => setAba("aprovacao")} className="text-left"><Kpi rotulo="Aguardando aprovação" valor={indicadores.aguardando_aprovacao || 0} tom={indicadores.aguardando_aprovacao ? "text-amber-600 dark:text-amber-400" : ""} detalhe={`${indicadores.orcamentos_abertos || 0} ${indicadores.orcamentos_abertos === 1 ? "orçamento" : "orçamentos"} em aberto`} /></button>
-        <button type="button" onClick={() => setAba(indicadores.divergencias ? "divergencias" : "nfe")} className="text-left"><Kpi rotulo="NF-e pendentes" valor={indicadores.notas_pendentes || 0} detalhe={indicadores.divergencias ? `${indicadores.divergencias} com divergência` : "Nenhuma divergência"} tom={indicadores.divergencias ? "text-rose-600 dark:text-rose-400" : ""} /></button>
+        <button type="button" onClick={() => setAba(indicadores.divergencias ? "divergencias" : "nfe")} className="text-left"><Kpi rotulo="NF-e a dar entrada" valor={indicadores.notas_pendentes || 0} detalhe={indicadores.divergencias ? `${indicadores.divergencias} com divergência` : "Nenhuma divergência"} tom={indicadores.divergencias ? "text-rose-600 dark:text-rose-400" : ""} /></button>
       </section>
 
       <section className={`${VIDRO} overflow-visible`}>

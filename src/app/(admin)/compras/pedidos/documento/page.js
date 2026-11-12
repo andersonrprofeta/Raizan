@@ -264,11 +264,12 @@ function Documento() {
 
   const informacoes = [
     ["Emissão", diaCurto(documento.data_emissao) || "Não informada"],
-    ehNota ? ["Entrada", documento.data_recebimento ? diaCurto(documento.data_recebimento) : "Não registrada"] : ["Previsão de entrega", diaCurto(documento.data_previsao) || "Não informada"],
+    ehNota ? ["Entrada", documento.entrada_em ? "Confirmada" : "Não confirmada"] : ["Previsão de entrega", diaCurto(documento.data_previsao) || "Não informada"],
     documento.fornecedor_documento && ["CNPJ", documento.fornecedor_documento],
     documento.condicoes_comerciais && ["Condições", documento.condicoes_comerciais],
     documento.criado_por && ["Criado por", documento.criado_por],
     documento.conferido_por && ["Contado por", `${documento.conferido_por} · ${diaCurto(documento.conferido_em)}`],
+    ehNota && documento.metadata?.etapa && ["Etapa na integração", documento.metadata.etapa],
     documento.entrada_em && ["Entrada confirmada", `${documento.entrada_por || ""} · ${diaCurto(documento.entrada_em)}`],
   ].filter(Boolean);
 

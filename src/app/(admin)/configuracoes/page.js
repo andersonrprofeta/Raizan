@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CalendarClock, Database, Image as Imagem, Loader2, Palette, PanelBottom, PanelTop, Save, ShoppingBag, SlidersHorizontal, Smartphone, Store, Headphones, BadgeCheck, LayoutTemplate, MessageSquareText, SwatchBook, Settings2 } from "lucide-react";
+import { CalendarClock, Database, Image as Imagem, Loader2, Palette, PanelBottom, PanelTop, Save, ShoppingBag, SlidersHorizontal, Smartphone, Store, Headphones, BadgeCheck, LayoutTemplate, MessageSquareText, SwatchBook, Settings2, Truck } from "lucide-react";
 import toast from "react-hot-toast";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
@@ -18,6 +18,7 @@ import EditorRodape from "@/components/ecommerce/EditorRodape";
 import AbaOracle from "@/components/parametros/AbaOracle";
 import AbaPrazos from "@/components/parametros/AbaPrazos";
 import AbaRaizanSeller from "@/components/parametros/AbaRaizanSeller";
+import AbaLogistica from "@/components/parametros/AbaLogistica";
 import { CAMPO, Grupo, LinhaCampo, LinhaSwitch } from "@/components/parametros/ui";
 import { getHeaders, getHubUrl } from "@/components/utils/api";
 import { Segmentado, VIDRO } from "@/components/vendedores/ui";
@@ -30,6 +31,7 @@ const GUIAS = [
   { id: "portal", rotulo: "Portal B2B", icone: Store },
   { id: "ecommerce", rotulo: "E-commerce", icone: ShoppingBag },
   { id: "prazos", rotulo: "Prazos", icone: CalendarClock },
+  { id: "logistica", rotulo: "Logística", icone: Truck },
   { id: "oracle", rotulo: "Oracle", icone: Database },
 ];
 
@@ -187,6 +189,8 @@ export default function ParametrosDoSistema() {
               </Grupo>
             ) : guia === "app" ? (
               <AbaRaizanSeller parametros={parametros} opcoes={opcoes} alterarApp={alterar("app")} alterarProvadores={alterar("provadores")} />
+            ) : guia === "logistica" ? (
+              <AbaLogistica logistica={parametros.logistica} ufs={opcoes.ufs_brasil || []} onChange={(logistica) => alterar("logistica")(logistica)} />
             ) : guia === "prazos" ? (
               <AbaPrazos prazosLiberados={parametros.pagamentos.prazos_liberados} onChange={(prazos_liberados) => alterar("pagamentos")({ prazos_liberados })} />
             ) : guia === "portal" ? (

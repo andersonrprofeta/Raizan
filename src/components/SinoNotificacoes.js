@@ -6,6 +6,7 @@ import toast from "react-hot-toast";
 import { AlertTriangle, Bell, FileText, ShoppingCart } from "lucide-react";
 import { getHeaders, getHubUrl } from "@/components/utils/api";
 import { NotificacaoVidro } from "@/components/checkout/estilos";
+import { SecaoAvisosDoSite, useAvisosDoSite } from "@/components/website/avisosDoSino";
 
 const INTERVALO_RADAR_MS = 15000;
 const CHAVE_VISTOS = "@raizan:notificacoes_vistas";
@@ -119,6 +120,7 @@ export default function SinoNotificacoes({ classeBotao, classeBadge, classePaine
   const [novosNaAbertura, setNovosNaAbertura] = useState(new Set());
   const [aberto, setAberto] = useState(false);
   const caixa = useRef(null);
+  const avisosDoSite = useAvisosDoSite();
 
   useEffect(() => {
     if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "default") {
@@ -174,12 +176,13 @@ export default function SinoNotificacoes({ classeBotao, classeBadge, classePaine
     setNovosNaAbertura(new Set(chaves.filter((chave) => !vistos.has(chave))));
     setVistos(new Set(chaves));
     guardarVistos(chaves);
+    avisosDoSite.marcarVistos();
     setAberto(true);
   };
 
   const fechar = () => setAberto(false);
 
-  const total = contarNovos(itens, vistos);
+  const total = contarNovos(itens, vistos) + avisosDoSite.novos;
   const documentos = itens.filter((item) => item.tipo === "documento");
   const pedidos = itens.filter((item) => item.tipo === "pedido").slice(0, PEDIDOS_NO_PAINEL);
   const estoque = itens.filter((item) => item.tipo === "estoque");
@@ -196,7 +199,7 @@ export default function SinoNotificacoes({ classeBotao, classeBadge, classePaine
           <h4 className="text-[15px] font-semibold tracking-tight text-zinc-900 dark:text-white px-2 pt-1 pb-2">Notificações</h4>
 
           <div className="max-h-[65vh] overflow-y-auto custom-scrollbar">
-            {itens.length === 0 && <p className="text-xs text-zinc-400 dark:text-zinc-500 text-center py-6 font-medium">Nenhuma novidade por aqui.</p>}
+            {itens.length === 0 && avisosDoSite.itens.length === 0 && <p className="text-xs text-zinc-400 dark:text-zinc-500 text-center py-6 font-medium">Nenhuma novidade por aqui.</p>}
 
             {documentos.length > 0 && (
               <Secao titulo="Aguardando documento" classeRotulo={classeRotulo}>
@@ -205,6 +208,8 @@ export default function SinoNotificacoes({ classeBotao, classeBadge, classePaine
                 ))}
               </Secao>
             )}
+
+            <SecaoAvisosDoSite avisos={avisosDoSite} Tile={Tile} classeRotulo={classeRotulo} onEscolher={fechar} />
 
             {pedidos.length > 0 && (
               <Secao titulo="Últimos pedidos" classeRotulo={classeRotulo}>

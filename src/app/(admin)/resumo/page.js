@@ -1,6 +1,7 @@
 "use client";
 
 import PainelDoUsuario from "@/components/PainelDoUsuario";
+import BlocoDoSite from "@/components/website/BlocoDoSite";
 import { temPermissao } from "@/components/utils/sessaoCore";
 import { useEffect, useMemo, useState } from "react";
 import Sidebar from "@/components/Sidebar";
@@ -636,6 +637,8 @@ function DashboardAnalitico() {
                 <p className="text-sm md:text-[15px] text-zinc-500 dark:text-zinc-400 mt-1.5">Visão unificada de todos os seus canais de venda.</p>
               </div>
             </div>
+
+            <BlocoDoSite className="rz-rise" />
 
             {loading ? (
               <div className="flex flex-col items-center justify-center h-64 text-zinc-500 dark:text-zinc-400">

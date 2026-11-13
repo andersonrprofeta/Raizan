@@ -284,6 +284,25 @@ export async function responderSimulado(caminho, { metodo, corpo }) {
     return ok({ interacao: item });
   }
 
+  if (rota === "/painel") {
+    const dias = Number(params.get("dias")) === 30 ? 30 : 7;
+    const hoje = new Date();
+    const por_dia = Array.from({ length: dias }, (_, i) => {
+      const d = new Date(hoje.getTime() - (dias - 1 - i) * 86400000);
+      return { data: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`, visitas: 40 + ((i * 37) % 55), formularios: (i * 7) % 4 };
+    });
+    const soma = (campo) => por_dia.reduce((t, d) => t + d[campo], 0);
+    const novos = interacoes.filter((i) => i.status === "novo");
+    return ok({
+      dias,
+      sites: SITES.map((s) => ({ id: s.id, nome: s.nome, dominio: s.dominio, status_conexao: s.status_conexao })),
+      atual: { visitas: soma("visitas"), visitantes: Math.round(soma("visitas") * 0.62), formularios: soma("formularios"), contatos_diretos: Math.round(soma("visitas") * 0.08) },
+      anterior: { visitas: Math.round(soma("visitas") * 0.86), visitantes: Math.round(soma("visitas") * 0.58), formularios: soma("formularios") + 3, contatos_diretos: Math.round(soma("visitas") * 0.07) },
+      por_dia,
+      contatos: { novos: novos.length, nao_lidos: novos.filter((i) => i.nova).length },
+    });
+  }
+
   if (rota === "/avisos") {
     const novos = interacoes.filter((i) => i.status === "novo");
     return ok({

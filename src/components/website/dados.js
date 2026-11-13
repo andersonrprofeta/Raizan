@@ -86,3 +86,4 @@ export const atualizarInteracao = (id, corpo) => chamarSite(`/interacoes/${encod
 export const anotarInteracao = (id, texto) => chamarSite(`/interacoes/${encodeURIComponent(id)}/observacoes`, { metodo: "POST", corpo: { texto } });
 export const lerGestao = (filtros) => chamarSite(`/gestao${consulta(filtros)}`);
 export const lerAvisos = () => chamarSite("/avisos");
+export const lerPainelDoSite = (dias = 7) => chamarSite(`/painel?dias=${Number(dias) === 30 ? 30 : 7}`);

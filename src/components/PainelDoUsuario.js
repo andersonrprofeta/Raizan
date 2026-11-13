@@ -8,6 +8,7 @@ import { mesDeHoje } from "@/components/vendedores/SeletorMes";
 import { api, Carregando, CascaPagina, EstadoVazio, VIDRO } from "@/components/vendedores/ui";
 import { lerUsuario, temPermissao } from "@/components/utils/sessaoCore";
 import { horaBrasilia, instanteDe } from "@/components/utils/horaBrasilia";
+import BlocoDoSite from "@/components/website/BlocoDoSite";
 
 const UM_DIA_MS = 24 * 60 * 60 * 1000;
 
@@ -158,6 +159,8 @@ export default function PainelDoUsuario() {
         <h1 className="text-3xl font-bold tracking-tight">{usuario?.vendedor_id ? "Meu desempenho" : "Operação de hoje"}</h1>
         <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">{empresa}</p>
       </div>
+
+      <BlocoDoSite />
 
       {usuario?.vendedor_id
         ? <TabDesempenho vendedor={{ id: usuario.vendedor_id, nome: usuario.nome }} competencia={competencia} />

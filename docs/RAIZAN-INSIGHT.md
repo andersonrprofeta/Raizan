@@ -10,7 +10,7 @@ As instruções originais do dono estão em [website-instrucoes.md](website-inst
 | Peça central de permissões (`src/components/website/capacidades.js`) | Pronta |
 | Cliente da API (`src/components/website/dados.js`) | Pronto. As rotas ainda não existem na API |
 | Tabelas, chaves, ingestão, script do site | Fase 2 (API) |
-| Bloco do site no dashboard `/resumo` | Fase 4. Os três modelos atuais não foram tocados |
+| Bloco do site no dashboard `/resumo` | Fase 4: `BlocoDoSite` aparece nos três modelos (uma linha em cada), só com o módulo `website` e a permissão `website` |
 | Licença com carência, Mercado Pago, página de suspensão | Fase 5 |
 | Electron: bandeja, iniciar com Windows, avisos de interação | Fase 6 |
 
@@ -58,6 +58,8 @@ Se a rota não existir (404), a tela entende que o módulo não está ativo. Um 
 | `GET /interacoes/:id` | `interacao{…item, pagina_url, campanha{}, campos[{chave, rotulo, valor}]` **ou** `payload{}`, `navegacao[{pagina, quando}], historico[{quando, quem, acao}], observacoes[{quando, quem, texto}]}` |
 | `PATCH /interacoes/:id` `{ status? , responsavel_id? }` | `interacao` atualizada. Registra no histórico |
 | `POST /interacoes/:id/observacoes` `{ texto }` | `interacao` atualizada |
+| `GET /painel?dias=7\|30` | `dias, sites[{id, nome, dominio, status_conexao}], atual{visitas, visitantes, formularios, contatos_diretos}, anterior{...}, por_dia[{data, visitas, formularios}], contatos{novos, nao_lidos}\|null` (todos os sites da empresa somados; usado pelo bloco do `/resumo`) |
+| `GET /avisos` | `nao_lidas, itens[{chave, tipo:'site', id, nome, formulario, site_id, site_nome, recebido_em, nova}]` (sino) |
 | `GET /gestao?site_id` | `gestao{projeto, dominio, dominios_adicionais[], publicado_em, status_site, https\|null, hospedagem, plano, valor, ciclo, status_licenca: active\|payment_pending\|overdue\|grace_period\|suspended\|cancelled, licenca_vence, dominio_vence, hospedagem_vence, proximo_pagamento, situacao_financeira, carencia_dias, link_pagamento?, pagamentos[], alteracoes[]}` ou `gestao: null` |
 
 O valor de um campo do formulário pode ser texto, número, sim/não, lista ou objeto. A tela mostra cada caso de forma legível e não depende de uma lista fixa de campos.

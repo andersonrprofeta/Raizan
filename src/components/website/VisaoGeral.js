@@ -30,6 +30,10 @@ function Linha({ rotulo, children }) {
   );
 }
 
+// As duas variáveis que o site em Next.js lê no build (o layout monta a tag do script com elas)
+const variaveisDoSite = (site, chave) => `NEXT_PUBLIC_RAIZAN_SITE_ID=${site.id}
+NEXT_PUBLIC_RAIZAN_SITE_KEY=${chave || "SUA_CHAVE_PUBLICA"}`;
+
 // O script é servido pela mesma API que o Core usa (sem endereço fixo no código)
 const instrucoesDeInstalacao = (site, chave) => `Raizan Insight: conexão do site ${site.dominio}
 
@@ -42,8 +46,7 @@ const instrucoesDeInstalacao = (site, chave) => `Raizan Insight: conexão do sit
 
    Site feito em Next.js? Prefira variáveis de ambiente no build
    (o layout principal monta a tag acima com elas):
-   NEXT_PUBLIC_RAIZAN_SITE_ID=${site.id}
-   NEXT_PUBLIC_RAIZAN_SITE_KEY=${chave || "SUA_CHAVE_PUBLICA"}
+${variaveisDoSite(site, chave).replace(/^/gm, "   ")}
 
 2. Formulários: adicione o atributo data-raizan-form="nome-do-formulario" na tag <form>.
    Botões importantes (opcional): data-raizan-cta="Pedir orçamento".
@@ -179,10 +182,14 @@ function CartaoDoSite({ site, tenantId, onAtualizar }) {
           onFechar={() => setChaveNova(null)}
           rodape={<>
             <button type="button" onClick={() => copiar(instrucoesDeInstalacao(site, chaveNova), "Instruções com a chave copiadas.")} className={`${BOTAO_SECUNDARIO} flex-1`}>Copiar instruções</button>
-            <button type="button" onClick={() => copiar(chaveNova, "Chave copiada.")} className={`${BOTAO_PRIMARIO} flex-1`}><ClipboardCopy size={16} /> Copiar chave</button>
+            <button type="button" onClick={() => copiar(chaveNova, "Chave copiada.")} className={`${BOTAO_SECUNDARIO} flex-1`}>Copiar chave</button>
           </>}
         >
           <div className="rounded-2xl bg-black/[0.04] dark:bg-white/[0.05] p-4 font-mono text-sm break-all text-zinc-900 dark:text-zinc-100 select-all">{chaveNova}</div>
+          {/* Site em Next.js: as duas linhas prontas para o .env (e para as variáveis da hospedagem) */}
+          <p className="text-[13px] font-medium text-zinc-500 mt-4 mb-1.5">Site em Next.js? Cole estas linhas no .env e nas variáveis da hospedagem:</p>
+          <pre className="rounded-2xl bg-black/[0.04] dark:bg-white/[0.05] p-3 font-mono text-[11px] leading-relaxed whitespace-pre-wrap break-all text-zinc-800 dark:text-zinc-200 select-all">{variaveisDoSite(site, chaveNova)}</pre>
+          <button type="button" onClick={() => copiar(variaveisDoSite(site, chaveNova), "Variáveis copiadas.")} className={`${BOTAO_PRIMARIO} w-full mt-2`}><ClipboardCopy size={16} /> Copiar para o .env</button>
           {foiRotacao && (
             <div className="mt-3 rounded-2xl border border-amber-500/30 bg-amber-500/[0.08] p-3 text-xs text-amber-800 dark:text-amber-300">
               <b>A chave anterior já parou de funcionar.</b> O site fica sem enviar visitas e formulários até você trocar a chave nele

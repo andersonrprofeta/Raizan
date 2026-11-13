@@ -213,28 +213,30 @@ function analytics(params) {
   };
 }
 
-const GESTAO = {
-  site_exemplo_1: {
-    projeto: "Site Institucional Exemplo", dominio: "exemplo.com.br", dominios_adicionais: ["www.exemplo.com.br"], publicado_em: "2026-10-05",
-    status_site: "publicado", https: true, hospedagem: "Vercel", plano: "Site Profissional", valor: 289.9, ciclo: "mensal",
-    status_licenca: "active", licenca_vence: emDias(18), dominio_vence: emDias(142), hospedagem_vence: emDias(48), proximo_pagamento: emDias(18),
-    situacao_financeira: "Em dia", carencia_dias: 20,
-    pagamentos: [
-      { id: "p3", referencia: "Outubro/2026", valor: 289.9, pago_em: "2026-10-09", status: "aprovado", meio: "Pix" },
-      { id: "p2", referencia: "Setembro/2026", valor: 289.9, pago_em: "2026-09-10", status: "aprovado", meio: "Cartão" },
-    ],
-    alteracoes: [
-      { quando: "2026-10-05T10:00:00Z", quem: "Raizan Labs", acao: "Site publicado" },
-      { quando: "2026-10-02T14:10:00Z", quem: "Raizan Labs", acao: "Integração instalada" },
-    ],
-  },
-  site_exemplo_2: {
-    projeto: "Loja Exemplo", dominio: "loja-exemplo.com.br", dominios_adicionais: [], publicado_em: null,
-    status_site: "em_construcao", https: null, hospedagem: null, plano: "Loja Virtual", valor: 459, ciclo: "mensal",
-    status_licenca: "grace_period", licenca_vence: emDias(-6), dominio_vence: emDias(9), hospedagem_vence: null, proximo_pagamento: emDias(-6),
-    situacao_financeira: "Pagamento em atraso", carencia_dias: 20, pagamentos: [], alteracoes: [{ quando: "2026-11-10T09:00:00Z", quem: "Raizan Labs", acao: "Integração instalada" }],
-  },
-};
+// Serviços pagos à Raizan (formato de GET /servicos)
+function servicoSimulado(id, tipo, tipo_rotulo, descricao, site_id, valor, ciclo, dias, situacao, suspende, alerta) {
+  const vence = emDias(dias);
+  const carencia = new Date(Date.parse(`${vence}T12:00:00Z`) + 20 * 86400000).toISOString().slice(0, 10);
+  return {
+    id, tipo, tipo_rotulo, descricao, site_id, site: site_id === "site_exemplo_1" ? "exemplo.com.br" : site_id ? "loja-exemplo.com.br" : null,
+    valor, ciclo, vence_em: vence, dias_para_vencer: dias, carencia_dias: 20, carencia_ate: carencia, suspende_o_site: suspende,
+    situacao, status: "ativo",
+    alerta: alerta ? { ...alerta, chave: `cobranca:${id}:${vence}:${alerta.marco}` } : null,
+    cobranca_aberta: dias <= 30 ? { id: id * 10, valor, vencimento: vence } : null,
+  };
+}
+
+const SERVICOS = [
+  servicoSimulado(1, "licenca_site", "Licença do site", "Licença do site", "site_exemplo_1", 1200, "anual", 18, "active", true, { marco: "30", nivel: "info", texto: "Licença do site vence em 18 dias." }),
+  servicoSimulado(2, "dominio", "Domínio", "Domínio exemplo.com.br", "site_exemplo_1", 40, "anual", 4, "payment_pending", false, { marco: "5", nivel: "atencao", texto: "Domínio exemplo.com.br vence em 4 dias." }),
+  servicoSimulado(3, "hospedagem", "Hospedagem", "Hospedagem", "site_exemplo_2", 600, "anual", -6, "grace_period", true, { marco: "carencia", nivel: "erro", texto: "Hospedagem: venceu. O site pode sair do ar em 14 dias." }),
+  servicoSimulado(4, "email", "E-mail", "E-mail profissional (5 contas)", null, 25, "mensal", 75, "active", false, null),
+];
+
+const PAGAMENTOS = [
+  { id: 31, servico: "Licença do site", referente_a: emDias(-347), valor: 1100, pago_em: `${emDias(-349)} 14:02:00`, forma: "pix" },
+  { id: 30, servico: "E-mail profissional (5 contas)", referente_a: emDias(-15), valor: 25, pago_em: `${emDias(-16)} 09:30:00`, forma: "credit_card" },
+];
 
 const ok = (dados) => ({ estado: "ok", dados: { success: true, ...dados } });
 const espera = () => new Promise((r) => setTimeout(r, 350));
@@ -314,6 +316,11 @@ export async function responderSimulado(caminho, { metodo, corpo }) {
     });
   }
 
-  if (rota === "/gestao") return ok({ gestao: GESTAO[params.get("site_id")] || null });
+  if (rota === "/servicos") return ok({ pagamento_disponivel: true, servicos: SERVICOS, pagamentos: PAGAMENTOS });
+  if (partes[0] === "servicos" && partes[3] === "pagar") {
+    if (corpo?.metodo === "checkout") return ok({ metodo: "checkout", url: "https://www.mercadopago.com.br/" });
+    return ok({ metodo: "pix", pix: { qr_code: "00020126580014br.gov.bcb.pix0136simulado-raizan-0000-0000-000000000000520400005303986540540.005802BR5906RAIZAN6009SAO PAULO62070503***6304ABCD", qr_code_base64: null, expira_em: `${emDias(0)} 23:59:00` } });
+  }
+  if (partes[0] === "servicos" && partes[3] === "verificar") return ok({ pago: false });
   return { estado: "indisponivel" };
 }

@@ -8,12 +8,13 @@ import {
 } from "lucide-react";
 import { BOTAO_PRIMARIO, BOTAO_SECUNDARIO, CAMPO, Modal, ROTULO } from "@/components/vendedores/ui";
 import { getHubUrl } from "@/components/utils/api";
+import { SITUACAO_DO_SERVICO } from "./Servicos";
 import {
-  desconectarSite, editarSite, gerarChave, lerAnalytics, lerGestao, lerInteracoes, revogarChave, testarConexao,
+  desconectarSite, editarSite, gerarChave, lerAnalytics, lerInteracoes, lerServicos, revogarChave, testarConexao,
 } from "./dados";
 import {
-  Bloco, Esqueleto, Etiqueta, IndicadorSite, STATUS_CONEXAO, STATUS_INTERACAO, STATUS_LICENCA,
-  dataHora, dataLonga, diasAte, intervaloDoPeriodo, nomeDoContato, numero, percentual, tempoRelativo,
+  Bloco, Esqueleto, Etiqueta, IndicadorSite, STATUS_CONEXAO, STATUS_INTERACAO,
+  dataHora, dataLonga, intervaloDoPeriodo, nomeDoContato, numero, percentual, tempoRelativo,
 } from "./comum";
 
 const BOTAO_ACAO =
@@ -220,30 +221,33 @@ function CartaoDoSite({ site, tenantId, onAtualizar }) {
   );
 }
 
-// ---------- Licença resumida ----------
+// ---------- Serviços resumidos (licença do site, domínio, hospedagem) ----------
 
-function CartaoLicenca({ gestao, onAbrirGestao }) {
-  if (!gestao) {
+function CartaoServicos({ servicos, siteId, onAbrirServicos }) {
+  const doSite = servicos.filter((s) => !s.site_id || s.site_id === siteId);
+  if (!doSite.length) {
     return (
-      <Bloco titulo="Licença do site" icone={ShieldCheck} cor="emerald">
-        <p className="text-sm text-zinc-500">A gestão de licença deste site ainda não foi cadastrada.</p>
+      <Bloco titulo="Serviços do site" icone={ShieldCheck} cor="emerald">
+        <p className="text-sm text-zinc-500">A Raizan ainda não cadastrou licença, domínio ou hospedagem deste site.</p>
       </Bloco>
     );
   }
-  const status = STATUS_LICENCA[gestao.status_licenca] || STATUS_LICENCA.active;
-  const dias = diasAte(gestao.licenca_vence);
+  const pior = doSite.find((s) => ["suspended", "overdue", "grace_period"].includes(s.situacao)) || doSite.find((s) => s.situacao === "payment_pending");
+  const geral = pior ? SITUACAO_DO_SERVICO[pior.situacao] : SITUACAO_DO_SERVICO.active;
   return (
-    <Bloco titulo="Licença do site" icone={ShieldCheck} cor="emerald" acao={<Etiqueta tom={status.tom} ponto>{status.rotulo}</Etiqueta>}>
-      <Linha rotulo="Site">{gestao.status_site === "publicado" ? "Publicado" : "Em construção"}</Linha>
-      <Linha rotulo="Domínio">{gestao.dominio}</Linha>
-      <Linha rotulo="HTTPS">{gestao.https === null || gestao.https === undefined ? "Não verificado" : gestao.https ? "Ativo" : "Inativo"}</Linha>
-      <Linha rotulo="Hospedagem">{gestao.hospedagem || "Não informada"}</Linha>
-      <Linha rotulo="Próximo vencimento">{dataLonga(gestao.licenca_vence)}</Linha>
-      <Linha rotulo="Dias restantes">
-        {dias === null ? "—" : dias >= 0 ? `${dias} ${dias === 1 ? "dia" : "dias"}` : <span className="text-rose-600 dark:text-rose-400">Venceu há {-dias} {dias === -1 ? "dia" : "dias"}</span>}
-      </Linha>
-      <button type="button" onClick={onAbrirGestao} className="mt-4 w-full inline-flex items-center justify-center gap-1 h-10 rounded-full text-[13px] font-semibold text-purple-700 dark:text-purple-300 bg-purple-500/10 hover:bg-purple-500/15 transition-colors">
-        Ver gestão completa <ChevronRight size={15} />
+    <Bloco titulo="Serviços do site" icone={ShieldCheck} cor="emerald" acao={<Etiqueta tom={geral.tom} ponto>{geral.rotulo}</Etiqueta>}>
+      {doSite.slice(0, 5).map((s) => {
+        const dias = s.dias_para_vencer;
+        return (
+          <Linha key={s.id} rotulo={s.descricao}>
+            {dataLonga(s.vence_em)}
+            {dias !== null && dias !== undefined && dias < 0 && <span className="block text-[11px] text-rose-600 dark:text-rose-400">Venceu há {-dias} {dias === -1 ? "dia" : "dias"}</span>}
+            {dias !== null && dias !== undefined && dias >= 0 && dias <= 30 && <span className="block text-[11px] text-amber-600 dark:text-amber-400">{dias === 0 ? "Vence hoje" : `Faltam ${dias} ${dias === 1 ? "dia" : "dias"}`}</span>}
+          </Linha>
+        );
+      })}
+      <button type="button" onClick={onAbrirServicos} className="mt-4 w-full inline-flex items-center justify-center gap-1 h-10 rounded-full text-[13px] font-semibold text-purple-700 dark:text-purple-300 bg-purple-500/10 hover:bg-purple-500/15 transition-colors">
+        {pior ? "Ver e pagar" : "Ver serviços e pagamentos"} <ChevronRight size={15} />
       </button>
     </Bloco>
   );
@@ -286,7 +290,7 @@ export default function VisaoGeral({ site, tenantId, blocos, onAtualizarSites, o
     const [analytics, interacoes, gestao] = await Promise.all([
       blocos.has("indicadores") ? lerAnalytics({ site_id: site.id, ...intervalo }) : null,
       blocos.has("oportunidades") ? lerInteracoes({ site_id: site.id }) : null,
-      blocos.has("licenca") ? lerGestao({ site_id: site.id }) : null,
+      blocos.has("licenca") ? lerServicos() : null,
     ]);
     setEstado({ carregando: false, analytics, interacoes, gestao });
   }, [site.id, blocos]);
@@ -326,7 +330,7 @@ export default function VisaoGeral({ site, tenantId, blocos, onAtualizarSites, o
         {blocos.has("status") && <CartaoDoSite site={site} tenantId={tenantId} onAtualizar={onAtualizarSites} />}
         {blocos.has("licenca") && (
           estado.carregando ? <Esqueleto altura={340} /> :
-          estado.gestao?.estado === "ok" ? <CartaoLicenca gestao={estado.gestao.dados.gestao} onAbrirGestao={() => onIrPara("gestao")} /> : null
+          estado.gestao?.estado === "ok" ? <CartaoServicos servicos={estado.gestao.dados.servicos || []} siteId={site.id} onAbrirServicos={() => onIrPara("gestao")} /> : null
         )}
       </div>
 

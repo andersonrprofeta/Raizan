@@ -15,7 +15,7 @@ import { EstadoDaFonte, Etiqueta, STATUS_CONEXAO, saudacao, tempoRelativo } from
 import VisaoGeral from "@/components/website/VisaoGeral";
 import Interacoes from "@/components/website/Interacoes";
 import Analytics from "@/components/website/Analytics";
-import Gestao from "@/components/website/Gestao";
+import Servicos from "@/components/website/Servicos";
 
 const RECURSOS = [
   { icone: BarChart3, titulo: "Analytics do site", texto: "Visitas, visitantes, páginas, regiões e origem do tráfego." },
@@ -197,14 +197,18 @@ export default function MeuSitePage() {
       </div>
 
       {!site ? (
-        <Apresentacao resposta={resposta} podeInstalar={contexto.pode("cadastros/integracoes")} onInstalado={carregarSites} />
+        <>
+          <Apresentacao resposta={resposta} podeInstalar={contexto.pode("cadastros/integracoes")} onInstalado={carregarSites} />
+          {/* Domínio ou e-mail contratados antes do site ficar pronto também aparecem */}
+          {areas.some((a) => a.id === "gestao") && <Servicos discreto />}
+        </>
       ) : (
         <>
           <Segmentado opcoes={areas} valor={abaAtual} onChange={setAba} />
           {abaAtual === "visao" && <VisaoGeral key={site.id} site={site} tenantId={contexto.tenantId} blocos={blocos} onAtualizarSites={carregarSites} onIrPara={irPara} />}
           {abaAtual === "interacoes" && <Interacoes key={site.id} siteId={site.id} abrirId={abrirInteracao} onAberto={limparAbertura} />}
           {abaAtual === "analytics" && <Analytics key={site.id} siteId={site.id} />}
-          {abaAtual === "gestao" && <Gestao key={site.id} siteId={site.id} />}
+          {abaAtual === "gestao" && <Servicos />}
         </>
       )}
     </CascaPagina>

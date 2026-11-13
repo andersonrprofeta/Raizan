@@ -84,6 +84,10 @@ export const lerInteracoes = (filtros) => chamarSite(`/interacoes${consulta(filt
 export const lerInteracao = (id) => chamarSite(`/interacoes/${encodeURIComponent(id)}`);
 export const atualizarInteracao = (id, corpo) => chamarSite(`/interacoes/${encodeURIComponent(id)}`, { metodo: "PATCH", corpo });
 export const anotarInteracao = (id, texto) => chamarSite(`/interacoes/${encodeURIComponent(id)}/observacoes`, { metodo: "POST", corpo: { texto } });
-export const lerGestao = (filtros) => chamarSite(`/gestao${consulta(filtros)}`);
 export const lerAvisos = () => chamarSite("/avisos");
 export const lerPainelDoSite = (dias = 7) => chamarSite(`/painel?dias=${Number(dias) === 30 ? 30 : 7}`);
+
+// Serviços que a empresa paga à Raizan (licença do site, domínio, hospedagem, e-mail)
+export const lerServicos = () => chamarSite("/servicos");
+export const pagarCobranca = (id, metodo) => chamarSite(`/servicos/cobrancas/${encodeURIComponent(id)}/pagar`, { metodo: "POST", corpo: { metodo } });
+export const conferirPagamento = (id) => chamarSite(`/servicos/cobrancas/${encodeURIComponent(id)}/verificar`, { metodo: "POST" });

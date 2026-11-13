@@ -6,10 +6,10 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowDownRight, ArrowUpRight, ChevronRight, FileText, Globe, Inbox, MessageCircle, Users } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, ChevronRight, FileText, Globe, Inbox, MessageCircle, Receipt, Users } from "lucide-react";
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis } from "recharts";
 import { temPermissao } from "@/components/utils/sessaoCore";
-import { lerPainelDoSite } from "./dados";
+import { lerPainelDoSite, lerServicos } from "./dados";
 import { Bloco, Esqueleto, Etiqueta, STATUS_CONEXAO, TOOLTIP_GRAFICO, Tile, dataCurta, numero } from "./comum";
 
 const PERIODOS = [{ dias: 7, rotulo: "7 dias" }, { dias: 30, rotulo: "30 dias" }];
@@ -46,6 +46,37 @@ function Numero({ icone, cor, rotulo, valor, anterior }) {
       <p className="mt-3 text-[12px] leading-snug font-medium text-zinc-500 dark:text-zinc-400 line-clamp-2 min-h-[2.1em] sm:min-h-0">{rotulo}</p>
       <p className="text-xl md:text-2xl font-bold tracking-tight tabular-nums text-zinc-900 dark:text-white">{numero(valor)}</p>
     </div>
+  );
+}
+
+// Vencimento mais urgente dos serviços pagos à Raizan (só para quem cuida disso: website/gestao)
+const PESO_DO_AVISO = { erro: 3, atencao: 2, info: 1 };
+function AvisoDeVencimento() {
+  const [alerta, setAlerta] = useState(null);
+  useEffect(() => {
+    if (!temPermissao("website/gestao")) return undefined;
+    let cancelado = false;
+    lerServicos().then((r) => {
+      if (cancelado || r.estado !== "ok") return;
+      const alertas = (r.dados.servicos || []).map((s) => s.alerta).filter(Boolean);
+      alertas.sort((a, b) => (PESO_DO_AVISO[b.nivel] || 0) - (PESO_DO_AVISO[a.nivel] || 0));
+      setAlerta(alertas[0] ? { ...alertas[0], mais: alertas.length - 1 } : null);
+    });
+    return () => { cancelado = true; };
+  }, []);
+  if (!alerta) return null;
+  const cores = alerta.nivel === "erro"
+    ? "bg-rose-500/[0.08] hover:bg-rose-500/[0.12] border-rose-500/20"
+    : alerta.nivel === "atencao" ? "bg-amber-500/[0.08] hover:bg-amber-500/[0.12] border-amber-500/20" : "bg-purple-500/[0.06] hover:bg-purple-500/[0.1] border-purple-500/15";
+  return (
+    <Link href="/website?aba=gestao" className={`mb-5 flex items-center gap-3 rounded-2xl p-3.5 border transition-colors ${cores}`}>
+      <Tile icone={Receipt} cor={alerta.nivel === "erro" ? "rose" : alerta.nivel === "atencao" ? "amber" : "purple"} tamanho={32} />
+      <div className="min-w-0 flex-1">
+        <p className="text-[13px] font-semibold text-zinc-900 dark:text-white line-clamp-2">{alerta.texto}</p>
+        <p className="text-[11px] text-zinc-500 dark:text-zinc-400">{alerta.mais > 0 ? `E mais ${alerta.mais} aviso${alerta.mais > 1 ? "s" : ""} · ` : ""}Serviços e pagamentos</p>
+      </div>
+      <ChevronRight size={16} className="text-zinc-400 shrink-0" />
+    </Link>
   );
 }
 
@@ -100,6 +131,8 @@ export default function BlocoDoSite({ className = "" }) {
           );
         })}
       </div>
+
+      <AvisoDeVencimento />
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
         <div className="lg:col-span-3 grid grid-cols-2 gap-3">

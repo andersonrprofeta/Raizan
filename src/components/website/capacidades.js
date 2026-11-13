@@ -7,10 +7,10 @@
 // Permissões (as chaves da API vêm na fase 2):
 //   website             → visão geral e analytics agregados (sem dados pessoais)
 //   website/interacoes  → formulários e leads (contêm dados pessoais)
-//   website/gestao      → licença, domínio, hospedagem e financeiro do site
+//   website/gestao      → serviços pagos à Raizan (licença do site, domínio, hospedagem, e-mail) e pagamento
 // Sessão por licença (sem usuário) e usuário com "*" continuam vendo tudo, como no resto do Core.
 
-import { BarChart3, Globe, Inbox, ShieldCheck } from "lucide-react";
+import { BarChart3, Globe, Inbox, Receipt } from "lucide-react";
 import { getTenantId } from "@/components/utils/api";
 import { lerUsuario, temPermissao } from "@/components/utils/sessaoCore";
 
@@ -38,7 +38,7 @@ const AREAS = [
   { id: "visao", rotulo: "Visão geral", icone: Globe, permissao: "website" },
   { id: "interacoes", rotulo: "Interações", icone: Inbox, permissao: "website/interacoes" },
   { id: "analytics", rotulo: "Analytics", icone: BarChart3, permissao: "website" },
-  { id: "gestao", rotulo: "Gestão do site", icone: ShieldCheck, permissao: "website/gestao" },
+  { id: "gestao", rotulo: "Serviços e pagamentos", icone: Receipt, permissao: "website/gestao" },
 ];
 
 export function resolverAreasDoSite(contexto) {

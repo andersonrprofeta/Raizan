@@ -1,18 +1,22 @@
 "use client";
 
-// Avisos de novos contatos do site (formulários) para o sino do Core.
-// Peça isolada: o sino só encaixa o resultado. Sem o módulo "website" liberado ou sem a permissão
-// de leads, não faz nenhuma chamada. Se a API ainda não tiver a rota, para de perguntar.
+// Avisos do módulo Meu site para o sino do Core:
+//  - novos contatos do site (formulários), para quem tem a permissão de leads;
+//  - vencimentos dos serviços pagos à Raizan (30, 15 e 5 dias antes e carência), para quem tem website/gestao.
+// Peça isolada: o sino só encaixa o resultado. Sem o módulo "website" liberado ou sem a permissão,
+// não faz nenhuma chamada. Se a API ainda não tiver a rota, para de perguntar.
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import toast from "react-hot-toast";
-import { Bell, Inbox } from "lucide-react";
+import { Bell, Inbox, Receipt } from "lucide-react";
 import { NotificacaoVidro } from "@/components/checkout/estilos";
 import { temPermissao } from "@/components/utils/sessaoCore";
-import { lerAvisos } from "./dados";
+import { lerAvisos, lerServicos } from "./dados";
 
 const INTERVALO_MS = 30000;
+// Vencimento muda no máximo uma vez por dia: confere ao abrir e a cada 30 minutos
+const INTERVALO_COBRANCA_MS = 30 * 60 * 1000;
 const CHAVE_VISTOS = "@raizan:avisos_site_vistos";
 const MAXIMO_GUARDADO = 200;
 const MAXIMO_TOASTS = 2;
@@ -46,7 +50,21 @@ function guardarVistos(chaves) {
   } catch (e) { }
 }
 
+function moduloLiberado() {
+  try {
+    const modulos = JSON.parse(localStorage.getItem("@raizan:modulos") || "[]");
+    return Array.isArray(modulos) && modulos.includes("website");
+  } catch (e) {
+    return false;
+  }
+}
+
+export function podeReceberAvisosDeCobranca() {
+  return moduloLiberado() && temPermissao("website/gestao");
+}
+
 export function linkDoAviso(item) {
+  if (item.tipo === "cobranca") return "/website?aba=gestao";
   const site = item.site_id ? `&site=${encodeURIComponent(item.site_id)}` : "";
   return `/website?aba=interacoes${site}&id=${encodeURIComponent(item.id)}`;
 }
@@ -85,7 +103,8 @@ function avisar(novos) {
 
 /** { itens, novos (número para o contador), destacados (Set), marcarVistos() } */
 export function useAvisosDoSite() {
-  const [itens, setItens] = useState([]);
+  const [contatos, setItens] = useState([]);
+  const [cobrancas, setCobrancas] = useState([]);
   const [vistos, setVistos] = useState(() => new Set());
   const [destacados, setDestacados] = useState(() => new Set());
 
@@ -131,6 +150,40 @@ export function useAvisosDoSite() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!podeReceberAvisosDeCobranca()) return undefined;
+    let parado = false;
+    let timer = null;
+    const checar = async () => {
+      const r = await lerServicos();
+      if (parado) return;
+      if (r.estado === "indisponivel" || r.estado === "sem_permissao") {
+        clearInterval(timer);
+        return;
+      }
+      if (r.estado !== "ok" || !Array.isArray(r.dados?.servicos)) return;
+      // Quem não recebe contatos também precisa lembrar o que já viu
+      setVistos((atual) => (atual.size ? atual : lerVistos() || atual));
+      setCobrancas(r.dados.servicos.filter((s) => s.alerta).map((s) => ({
+        chave: s.alerta.chave,
+        tipo: "cobranca",
+        id: String(s.id),
+        nome: s.alerta.texto,
+        nivel: s.alerta.nivel,
+        detalhe: s.cobranca_aberta ? "Toque para ver e pagar" : "Serviços e pagamentos",
+      })));
+    };
+    checar();
+    timer = setInterval(checar, INTERVALO_COBRANCA_MS);
+    return () => {
+      parado = true;
+      clearInterval(timer);
+    };
+  }, []);
+
+  // Vencimentos primeiro: são poucos e pedem ação
+  const itens = [...cobrancas, ...contatos];
+
   const marcarVistos = useCallback(() => {
     const chaves = itens.map((item) => item.chave);
     setDestacados(new Set(chaves.filter((chave) => !vistos.has(chave))));
@@ -143,13 +196,44 @@ export function useAvisosDoSite() {
   return { itens, novos, destacados, marcarVistos };
 }
 
-/** Seção "Contatos do site" dentro do painel do sino. Usa o mesmo Tile e rótulo do sino. */
+/** Seções "Serviços da Raizan" e "Contatos do site" no painel do sino. Usa o mesmo Tile e rótulo do sino. */
 export function SecaoAvisosDoSite({ avisos, Tile, classeRotulo, onEscolher, limite = 5 }) {
   if (!avisos?.itens?.length) return null;
+  const vencimentos = avisos.itens.filter((item) => item.tipo === "cobranca");
+  const contatos = avisos.itens.filter((item) => item.tipo !== "cobranca");
+  return (
+    <>
+      {vencimentos.length > 0 && (
+        <section className="mb-3 last:mb-0">
+          <h5 className={`${classeRotulo} px-2 mb-1`}>Serviços da Raizan</h5>
+          {vencimentos.map((item) => (
+            <Link
+              key={item.chave}
+              href={linkDoAviso(item)}
+              onClick={() => onEscolher?.()}
+              className="flex items-center gap-3 rounded-2xl px-2 py-2 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors"
+            >
+              <Tile cor={item.nivel === "erro" ? "rose" : item.nivel === "atencao" ? "amber" : "purple"} size={34}><Receipt size={15} /></Tile>
+              <div className="min-w-0 flex-1">
+                <p className="text-[13px] font-semibold tracking-tight text-zinc-900 dark:text-zinc-100 line-clamp-2">{item.nome}</p>
+                <p className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate mt-0.5">{item.detalhe}</p>
+              </div>
+              {avisos.destacados.has(item.chave) && <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0" aria-label="Novo" />}
+            </Link>
+          ))}
+        </section>
+      )}
+      <SecaoContatos avisos={avisos} itens={contatos} Tile={Tile} classeRotulo={classeRotulo} onEscolher={onEscolher} limite={limite} />
+    </>
+  );
+}
+
+function SecaoContatos({ avisos, itens, Tile, classeRotulo, onEscolher, limite }) {
+  if (!itens.length) return null;
   return (
     <section className="mb-3 last:mb-0">
       <h5 className={`${classeRotulo} px-2 mb-1`}>Contatos do site</h5>
-      {avisos.itens.slice(0, limite).map((item) => (
+      {itens.slice(0, limite).map((item) => (
         <Link
           key={item.chave}
           href={linkDoAviso(item)}

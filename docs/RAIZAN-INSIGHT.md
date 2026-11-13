@@ -85,3 +85,16 @@ O valor de um campo do formulário pode ser texto, número, sim/não, lista ou o
   - fechar a janela manda para a bandeja quando a preferência estiver ligada;
   - `setLoginItemSettings`;
   - `requestSingleInstanceLock`.
+
+## Serviços e pagamentos (fase 5)
+
+A aba antiga "Gestão do site" virou "Serviços e pagamentos" (mesma permissão `website/gestao`, mesmo link `?aba=gestao`).
+Mostra os serviços que a empresa paga à Raizan (licença do site, domínio, hospedagem, e-mail), cadastrados pela Raizan no painel `raizan.com.br/admin`.
+
+- `GET /api/hub/site/servicos`: serviços, situação, aviso (`alerta`), cobrança aberta e pagamentos.
+- `POST /api/hub/site/servicos/cobrancas/:id/pagar` com `{ metodo: "pix" | "checkout" }`: QR do Pix na tela ou link do Mercado Pago (cartão/boleto).
+- `POST /api/hub/site/servicos/cobrancas/:id/verificar`: botão "Já paguei". Com o Pix aberto, a tela confere sozinha a cada 15 s.
+- Sino: seção "Serviços da Raizan" com os avisos de 30, 15 e 5 dias e de carência (confere ao abrir e a cada 30 min).
+- Painel inicial: o bloco Meu site mostra o aviso mais urgente.
+- Cadastros > Integrações: cartão "Meu site" (só com o módulo `website` liberado).
+- O Raizan Core nunca é bloqueado. Só o site pode sair do ar, e quem decide é a API.

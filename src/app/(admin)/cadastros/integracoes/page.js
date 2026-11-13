@@ -22,6 +22,7 @@ import EditarOmie from "@/components/integracoes/EditarOmie";
 import FormEmailBusiness from "@/components/integracoes/FormEmailBusiness";
 import FormWhatsappWeb from "@/components/integracoes/FormWhatsappWeb";
 import FormCatalogoWhatsapp from "@/components/integracoes/FormCatalogoWhatsapp";
+import CartaoMeuSite from "@/components/website/CartaoMeuSite";
 import { getHeaders, getHubUrl } from "@/components/utils/api";
 import { encerrarAplicacao } from "@/components/apps/aplicacoes";
 import { buscarAppsIntegrados, lerAppsGuardados, salvarAppIntegrado } from "@/components/apps/appsIntegrados";
@@ -702,6 +703,8 @@ export default function IntegracoesPage() {
                             textoBotao="Conectar"
                             onClick={(e) => { e.stopPropagation(); setInstalando("woocommerce"); }}
                           />
+
+                          <CartaoMeuSite Cartao={CartaoCatalogo} icone={<Tile icon={Globe} cor="emerald" size={44} />} />
 
                           {["shopify", "mercadolivre", "shopee"].map(plataforma => (
                             <CartaoEmBreve

@@ -113,7 +113,8 @@ export default function MeuSitePage() {
   const [contexto, setContexto] = useState(null);
   const [resposta, setResposta] = useState(null);
   const [siteId, setSiteId] = useState("");
-  const [aba, setAba] = useState("visao");
+  // Sem aba pedida, abre na primeira que o usuário pode ver (a Visão geral ficou por último)
+  const [aba, setAba] = useState("");
   const [abrirInteracao, setAbrirInteracao] = useState(null);
 
   // localStorage só existe no navegador: o contexto nasce depois da montagem

@@ -35,10 +35,11 @@ export function contextoDoPainel() {
 
 // Catálogo das áreas do módulo. A ordem aqui é a ordem das abas.
 const AREAS = [
-  { id: "visao", rotulo: "Visão geral", icone: Globe, permissao: "website" },
   { id: "interacoes", rotulo: "Interações", icone: Inbox, permissao: "website/interacoes" },
   { id: "analytics", rotulo: "Analytics", icone: BarChart3, permissao: "website" },
   { id: "gestao", rotulo: "Serviços e pagamentos", icone: Receipt, permissao: "website/gestao" },
+  // Por último: tem a integração (chave, testar, desconectar), que é configuração
+  { id: "visao", rotulo: "Visão geral", icone: Globe, permissao: "website" },
 ];
 
 export function resolverAreasDoSite(contexto) {

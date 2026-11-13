@@ -33,17 +33,25 @@ function Linha({ rotulo, children }) {
 // O script é servido pela mesma API que o Core usa (sem endereço fixo no código)
 const instrucoesDeInstalacao = (site, chave) => `Raizan Insight: conexão do site ${site.dominio}
 
-1. Cole antes do fechamento da tag </head> de todas as páginas:
+1. Instale UMA vez só, no lugar que todas as páginas usam (o cabeçalho do tema, o layout
+   principal ou o campo "scripts no <head>" da plataforma). Não precisa colar página por página:
 
 <script async src="${getHubUrl()}/api/v1/site/raizan-insight.js"
         data-site-id="${site.id}"
         data-key="${chave || "SUA_CHAVE_PUBLICA"}"></script>
+
+   Site feito em Next.js? Prefira variáveis de ambiente no build
+   (o layout principal monta a tag acima com elas):
+   NEXT_PUBLIC_RAIZAN_SITE_ID=${site.id}
+   NEXT_PUBLIC_RAIZAN_SITE_KEY=${chave || "SUA_CHAVE_PUBLICA"}
 
 2. Formulários: adicione o atributo data-raizan-form="nome-do-formulario" na tag <form>.
    Botões importantes (opcional): data-raizan-cta="Pedir orçamento".
 3. Publique o site e use "Testar conexão" no Raizan Core.
 
 A chave acima é pública (só envia eventos). Ela não lê dados e só funciona no domínio cadastrado.
+IMPORTANTE: se a chave for rotacionada no Raizan Core, a antiga para na hora. Troque a chave
+no site (ou na variável de ambiente), gere o build e publique de novo.
 Detalhes técnicos: docs/RAIZAN-SITE-INTEGRATION.md na API.`;
 
 // ---------- Cartão do site e ações da integração ----------
@@ -51,6 +59,7 @@ Detalhes técnicos: docs/RAIZAN-SITE-INTEGRATION.md na API.`;
 function CartaoDoSite({ site, tenantId, onAtualizar }) {
   const [ocupado, setOcupado] = useState("");
   const [chaveNova, setChaveNova] = useState(null);
+  const [foiRotacao, setFoiRotacao] = useState(false);
   const [editando, setEditando] = useState(false);
   const [dominio, setDominio] = useState(site.dominio || "");
   const [confirmar, setConfirmar] = useState(null); // "revogar" | "desconectar"
@@ -70,8 +79,10 @@ function CartaoDoSite({ site, tenantId, onAtualizar }) {
   };
 
   const aoGerarChave = async () => {
+    const rotacao = Boolean(site.tem_chave);
     const dados = await executar("chave", () => gerarChave(site.id));
     if (dados?.chave) {
+      setFoiRotacao(rotacao);
       setChaveNova(dados.chave);
       onAtualizar();
     }
@@ -95,6 +106,7 @@ function CartaoDoSite({ site, tenantId, onAtualizar }) {
   const aoConfirmar = async () => {
     const acao = confirmar;
     setConfirmar(null);
+    if (acao === "rotacionar") return aoGerarChave();
     if (acao === "revogar") await executar("revogar", () => revogarChave(site.id), "Chave revogada. O site parou de enviar dados.");
     if (acao === "desconectar") await executar("desconectar", () => desconectarSite(site.id), "Site desconectado. Os dados já recebidos continuam guardados.");
     onAtualizar();
@@ -142,7 +154,7 @@ function CartaoDoSite({ site, tenantId, onAtualizar }) {
       </div>
 
       <div className="flex flex-wrap gap-2 mt-5">
-        <button type="button" onClick={aoGerarChave} disabled={!!ocupado} className={BOTAO_ACAO}>
+        <button type="button" onClick={() => (site.tem_chave ? setConfirmar("rotacionar") : aoGerarChave())} disabled={!!ocupado} className={BOTAO_ACAO}>
           {ocupado === "chave" ? <RefreshCw size={15} className="animate-spin" /> : <KeyRound size={15} />}
           {site.tem_chave ? "Rotacionar chave" : "Gerar chave"}
         </button>
@@ -171,7 +183,12 @@ function CartaoDoSite({ site, tenantId, onAtualizar }) {
           </>}
         >
           <div className="rounded-2xl bg-black/[0.04] dark:bg-white/[0.05] p-4 font-mono text-sm break-all text-zinc-900 dark:text-zinc-100 select-all">{chaveNova}</div>
-          {site.tem_chave && <p className="text-xs text-amber-600 dark:text-amber-400 mt-3">A chave anterior deixa de funcionar. Atualize o site com a nova.</p>}
+          {foiRotacao && (
+            <div className="mt-3 rounded-2xl border border-amber-500/30 bg-amber-500/[0.08] p-3 text-xs text-amber-800 dark:text-amber-300">
+              <b>A chave anterior já parou de funcionar.</b> O site fica sem enviar visitas e formulários até você trocar a chave nele
+              (no script ou na variável de ambiente NEXT_PUBLIC_RAIZAN_SITE_KEY), gerar o build e publicar de novo.
+            </div>
+          )}
         </Modal>
       )}
 
@@ -192,15 +209,16 @@ function CartaoDoSite({ site, tenantId, onAtualizar }) {
 
       {confirmar && (
         <Modal
-          titulo={confirmar === "revogar" ? "Revogar a chave?" : "Desconectar o site?"}
-          descricao={confirmar === "revogar"
-            ? "O site para de enviar visitas e formulários até uma nova chave ser instalada."
-            : "A coleta para e a chave é revogada. Nada é apagado: os dados recebidos continuam guardados."}
+          titulo={{ rotacionar: "Rotacionar a chave?", revogar: "Revogar a chave?" }[confirmar] || "Desconectar o site?"}
+          descricao={{
+            rotacionar: "A chave atual para de funcionar na hora. O site só volta a enviar visitas e formulários depois que você trocar a chave nele (no script ou na variável de ambiente), gerar o build e publicar de novo. Faça isso só se a chave vazou ou se o site vai ser reinstalado.",
+            revogar: "O site para de enviar visitas e formulários até uma nova chave ser instalada.",
+          }[confirmar] || "A coleta para e a chave é revogada. Nada é apagado: os dados recebidos continuam guardados."}
           onFechar={() => setConfirmar(null)}
           rodape={<>
             <button type="button" onClick={() => setConfirmar(null)} className={`${BOTAO_SECUNDARIO} flex-1`}>Cancelar</button>
             <button type="button" onClick={aoConfirmar} className="flex-1 inline-flex items-center justify-center h-11 rounded-full text-sm font-semibold text-white bg-rose-600 hover:bg-rose-500 transition-all active:scale-95">
-              {confirmar === "revogar" ? "Revogar" : "Desconectar"}
+              {{ rotacionar: "Rotacionar", revogar: "Revogar" }[confirmar] || "Desconectar"}
             </button>
           </>}
         />
@@ -210,7 +228,8 @@ function CartaoDoSite({ site, tenantId, onAtualizar }) {
         <Modal titulo="Como conectar um site" descricao="Funciona com Next.js, React, WordPress, WooCommerce, Shopify, Raizan Commerce ou qualquer sistema que chame uma API." onFechar={() => setDocumentacao(false)} largura="max-w-lg">
           <ol className="space-y-3 text-sm text-zinc-600 dark:text-zinc-300 pb-4">
             <li><b className="text-zinc-900 dark:text-white">1. Gere a chave.</b> Ela é pública: só envia eventos e só vale no domínio cadastrado.</li>
-            <li><b className="text-zinc-900 dark:text-white">2. Instale o script</b> em todas as páginas, ou envie os eventos direto para a API de ingestão.</li>
+            <li><b className="text-zinc-900 dark:text-white">2. Instale o script uma vez só</b>, no cabeçalho ou layout que todas as páginas usam. Em sites Next.js, use as variáveis de ambiente NEXT_PUBLIC_RAIZAN_SITE_ID e NEXT_PUBLIC_RAIZAN_SITE_KEY. Ou envie os eventos direto para a API de ingestão.</li>
+            <li><b className="text-zinc-900 dark:text-white">Rotacionou a chave?</b> A antiga para na hora: troque no site, gere o build e publique de novo.</li>
             <li><b className="text-zinc-900 dark:text-white">3. Marque os formulários.</b> Todos os campos são guardados, sejam 3 ou 30, sem precisar mudar nada no Core.</li>
             <li><b className="text-zinc-900 dark:text-white">4. Teste a conexão</b> aqui mesmo. O primeiro evento muda o status para Conectado.</li>
           </ol>

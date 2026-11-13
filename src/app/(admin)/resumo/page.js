@@ -427,6 +427,26 @@ const somarCanaisVisiveis = (lista, canaisVisiveis) => (lista || [])
   .filter(item => item.pedidos > 0)
   .sort((a, b) => b.valor - a.valor);
 
+// Empresa que só assina o site não precisa ver Receita, Pedidos e gráficos zerados.
+// A parte de vendas aparece se houver QUALQUER módulo de vendas OU qualquer venda de verdade.
+// Lista de módulos vazia ou ilegível (licença antiga): mostra tudo, como sempre foi.
+const MODULOS_DE_VENDAS = ["pedidos", "nfe", "xml", "produtos", "pdv", "portal-b2b", "checkout"];
+
+function temModuloDeVendas() {
+  try {
+    const modulos = JSON.parse(localStorage.getItem("@raizan:modulos") || "[]");
+    if (!Array.isArray(modulos) || modulos.length === 0) return true;
+    return modulos.some((modulo) => MODULOS_DE_VENDAS.includes(String(modulo?.slug ?? modulo)));
+  } catch (e) {
+    return true;
+  }
+}
+
+const temDadosDeVenda = (dados) =>
+  (dados?.canais || []).some((canal) => Number(canal.pedidos) > 0 || Number(canal.valor) > 0) ||
+  Object.values(dados?.canceladosPorCanal || {}).some((qtd) => Number(qtd) > 0) ||
+  (dados?.todosVendedores || []).length > 0;
+
 // ==========================================
 // 🚀 TELA PRINCIPAL (DASHBOARD ANALÍTICO)
 // ==========================================
@@ -450,6 +470,7 @@ function DashboardAnalitico() {
 
   const [meuTenant, setMeuTenant] = useState("");
   const [canaisOcultos, setCanaisOcultos] = useState([]);
+  const [comModuloDeVendas] = useState(temModuloDeVendas);
 
   const obterTenantSeguro = () => {
     if (typeof window === 'undefined') return null;
@@ -577,6 +598,7 @@ function DashboardAnalitico() {
     };
   }, [dados, canaisOcultos]);
 
+  const mostrarVendas = comModuloDeVendas || temDadosDeVenda(dados);
   const filtrado = canaisOcultos.length > 0;
   const totalPedidosGeral = visao.pedidos;
   const ticketMedio = totalPedidosGeral > 0 ? visao.receita / totalPedidosGeral : 0;
@@ -634,18 +656,20 @@ function DashboardAnalitico() {
                     <Database size={11} /> Empresa: {meuTenant || "Desconhecida"}
                   </span>
                 </h1>
-                <p className="text-sm md:text-[15px] text-zinc-500 dark:text-zinc-400 mt-1.5">Visão unificada de todos os seus canais de venda.</p>
+                <p className="text-sm md:text-[15px] text-zinc-500 dark:text-zinc-400 mt-1.5">{mostrarVendas || loading ? "Visão unificada de todos os seus canais de venda." : "Resultados da sua empresa na Raizan."}</p>
               </div>
             </div>
 
             <BlocoDoSite className="rz-rise" />
 
             {loading ? (
-              <div className="flex flex-col items-center justify-center h-64 text-zinc-500 dark:text-zinc-400">
-                <Loader2 size={40} className="animate-spin text-purple-600 dark:text-purple-500 mb-4" />
-                <p className="text-sm">Sincronizando painel de controle...</p>
-              </div>
-            ) : (
+              comModuloDeVendas && (
+                <div className="flex flex-col items-center justify-center h-64 text-zinc-500 dark:text-zinc-400">
+                  <Loader2 size={40} className="animate-spin text-purple-600 dark:text-purple-500 mb-4" />
+                  <p className="text-sm">Sincronizando painel de controle...</p>
+                </div>
+              )
+            ) : !mostrarVendas ? null : (
               <>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5 gap-4">
 

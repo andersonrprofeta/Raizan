@@ -241,6 +241,13 @@ const PAGAMENTOS = [
 const ok = (dados) => ({ estado: "ok", dados: { success: true, ...dados } });
 const espera = () => new Promise((r) => setTimeout(r, 350));
 
+// Caixas de e-mail (formato de GET /emails)
+const CAIXAS_DE_EMAIL = [
+  { id: "mb_1", endereco: "contato@exemplo.com.br", situacao: "ativa", motivo: null, usado_mb: 812, limite_mb: 10240 },
+  { id: "mb_2", endereco: "financeiro.matriz@exemplo.com.br", situacao: "ativa", motivo: null, usado_mb: 9800, limite_mb: 10240 },
+  { id: "mb_3", endereco: "vendas@exemplo.com.br", situacao: "suspensa", motivo: "spam", usado_mb: 40, limite_mb: 10240 },
+];
+
 export async function responderSimulado(caminho, { metodo, corpo }) {
   await espera();
   const [rota, query = ""] = caminho.split("?");
@@ -322,5 +329,13 @@ export async function responderSimulado(caminho, { metodo, corpo }) {
     return ok({ metodo: "pix", pix: { qr_code: "00020126580014br.gov.bcb.pix0136simulado-raizan-0000-0000-000000000000520400005303986540540.005802BR5906RAIZAN6009SAO PAULO62070503***6304ABCD", qr_code_base64: null, expira_em: `${emDias(0)} 23:59:00` } });
   }
   if (partes[0] === "servicos" && partes[3] === "verificar") return ok({ pago: false });
+
+  if (rota === "/emails") return ok({ dominios: [{ dominio: "exemplo.com.br", order_id: "ord_exemplo", erro: null, caixas: CAIXAS_DE_EMAIL }] });
+  if (partes[0] === "emails" && partes[1] === "caixas" && partes[3] === "senha") return ok({});
+  if (partes[0] === "emails" && partes[1] === "caixas" && metodo === "DELETE") {
+    const i = CAIXAS_DE_EMAIL.findIndex((c) => c.id === partes[2]);
+    if (i >= 0) CAIXAS_DE_EMAIL.splice(i, 1);
+    return ok({});
+  }
   return { estado: "indisponivel" };
 }

@@ -16,6 +16,7 @@ import VisaoGeral from "@/components/website/VisaoGeral";
 import Interacoes from "@/components/website/Interacoes";
 import Analytics from "@/components/website/Analytics";
 import Servicos from "@/components/website/Servicos";
+import EmailsDaEmpresa from "@/components/website/EmailsDaEmpresa";
 
 const RECURSOS = [
   { icone: BarChart3, titulo: "Analytics do site", texto: "Visitas, visitantes, páginas, regiões e origem do tráfego." },
@@ -201,6 +202,7 @@ export default function MeuSitePage() {
           <Apresentacao resposta={resposta} podeInstalar={contexto.pode("cadastros/integracoes")} onInstalado={carregarSites} />
           {/* Domínio ou e-mail contratados antes do site ficar pronto também aparecem */}
           {areas.some((a) => a.id === "gestao") && <Servicos discreto />}
+          {areas.some((a) => a.id === "gestao") && <EmailsDaEmpresa />}
         </>
       ) : (
         <>
@@ -208,7 +210,7 @@ export default function MeuSitePage() {
           {abaAtual === "visao" && <VisaoGeral key={site.id} site={site} tenantId={contexto.tenantId} blocos={blocos} onAtualizarSites={carregarSites} onIrPara={irPara} />}
           {abaAtual === "interacoes" && <Interacoes key={site.id} siteId={site.id} abrirId={abrirInteracao} onAberto={limparAbertura} />}
           {abaAtual === "analytics" && <Analytics key={site.id} siteId={site.id} />}
-          {abaAtual === "gestao" && <Servicos />}
+          {abaAtual === "gestao" && <div className="space-y-6"><Servicos /><EmailsDaEmpresa /></div>}
         </>
       )}
     </CascaPagina>

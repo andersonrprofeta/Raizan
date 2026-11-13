@@ -91,3 +91,8 @@ export const lerPainelDoSite = (dias = 7) => chamarSite(`/painel?dias=${Number(d
 export const lerServicos = () => chamarSite("/servicos");
 export const pagarCobranca = (id, metodo) => chamarSite(`/servicos/cobrancas/${encodeURIComponent(id)}/pagar`, { metodo: "POST", corpo: { metodo } });
 export const conferirPagamento = (id) => chamarSite(`/servicos/cobrancas/${encodeURIComponent(id)}/verificar`, { metodo: "POST" });
+
+// E-mails na Hostinger: o cliente lista, troca senha e apaga. Criar caixa é só pela Raizan.
+export const lerEmails = () => chamarSite("/emails");
+export const trocarSenhaEmail = (id, senha) => chamarSite(`/emails/caixas/${encodeURIComponent(id)}/senha`, { metodo: "PATCH", corpo: { senha } });
+export const apagarEmail = (id, confirmacao) => chamarSite(`/emails/caixas/${encodeURIComponent(id)}`, { metodo: "DELETE", corpo: { confirmacao } });

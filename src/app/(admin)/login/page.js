@@ -8,7 +8,6 @@ import { encerrarSessaoDoPortal, esquecerComputadorConfiavel, guardarComputadorC
 import { ModalOutroLocal, ModalTerminais, TelaDoCodigo, TrocarSenha } from "@/components/login/TelasDeAcesso";
 import { ControlesDaJanela, useMostrarLinkDoPortal } from "@/components/login/MolduraLogin";
 import { FundoVivo, LetreiroVivo, VitrineViva } from "@/components/login/VitrineViva";
-import { motion } from "framer-motion";
 import { BOTAO_PRIMARIO, VIDRO } from "@/components/vendedores/ui";
 
 export default function Login() {
@@ -273,13 +272,13 @@ export default function Login() {
 
         {/* Marca e o ecossistema acontecendo */}
         <section className="w-full max-w-[500px] text-center lg:text-left">
-          <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="inline-flex items-center gap-3">
+          <div className="inline-flex items-center gap-3">
             <span className="relative flex h-11 w-11 items-center justify-center rounded-[14px] bg-gradient-to-b from-purple-500 to-indigo-600 text-white shadow-[0_10px_30px_-8px_rgba(124,58,237,0.9)]">
-              <span className="absolute inset-0 rounded-[14px] bg-purple-500/50 blur-md motion-safe:animate-pulse" aria-hidden="true" />
+              <span className="absolute inset-0 rounded-[14px] bg-purple-500/50 blur-md" aria-hidden="true" />
               <Database size={20} className="relative" />
             </span>
             <span className="text-[17px] font-semibold tracking-tight">Raizan Core</span>
-          </motion.div>
+          </div>
 
           <div className="mt-9 hidden lg:block [@media(max-height:820px)]:mt-6">
             <VitrineViva />
@@ -291,10 +290,7 @@ export default function Login() {
         </section>
 
         {/* Formulário */}
-        <motion.section
-          initial={{ opacity: 0, y: 28, scale: 0.98 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{ duration: 0.8, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
+        <section
           className={`${VIDRO} anel-login w-full max-w-[420px] p-7 sm:p-10 backdrop-blur-2xl`}
         >
           <h2 className="text-[26px] font-semibold tracking-[-0.02em]">Entrar</h2>
@@ -376,7 +372,7 @@ export default function Login() {
               </div>
             </div>
 
-            <button type="submit" disabled={isLoading} className={`${BOTAO_PRIMARIO} botao-brilho mt-3 !h-12 w-full text-[15px]`}>
+            <button type="submit" disabled={isLoading} className={`${BOTAO_PRIMARIO} mt-3 !h-12 w-full text-[15px]`}>
               {isLoading ? (
                 <div className="h-5 w-5 rounded-full border-2 border-white/30 border-t-white animate-spin" />
               ) : (
@@ -400,7 +396,7 @@ export default function Login() {
           <p className="mt-7 flex items-center justify-center gap-2 text-[12px] text-zinc-500">
             <ShieldCheck size={14} className="text-emerald-500" /> Ambiente seguro e monitorado
           </p>
-        </motion.section>
+        </section>
 
       </main>
     </div>

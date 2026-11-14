@@ -73,3 +73,89 @@ body {
 .dark ::-webkit-scrollbar-thumb {
   background: #27272a; 
 }
+/* ===== Telas de login: texto com gradiente em movimento, anel de luz do cartão e brilho do botão ===== */
+.texto-vivo {
+  background-image: linear-gradient(100deg, #9333ea 0%, #6366f1 30%, #d946ef 55%, #9333ea 80%, #6366f1 100%);
+  background-size: 220% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: texto-vivo 9s linear infinite;
+}
+.dark .texto-vivo {
+  background-image: linear-gradient(100deg, #c084fc 0%, #818cf8 30%, #f0abfc 55%, #c084fc 80%, #818cf8 100%);
+}
+@keyframes texto-vivo {
+  to { background-position: -220% center; }
+}
+
+@property --giro-login {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+.anel-login {
+  position: relative;
+  isolation: isolate;
+}
+/* Mesmo anel, só a partir do tablet (no celular o portal ocupa a tela inteira, sem cartão) */
+@media (min-width: 768px) {
+  .anel-md { position: relative; isolation: isolate; }
+}
+.anel-login::before,
+.anel-md::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  z-index: -1;
+  border-radius: inherit;
+  padding: 1px;
+  background: conic-gradient(from var(--giro-login), transparent 0deg, rgba(168, 85, 247, 0.9) 60deg, rgba(99, 102, 241, 0.7) 120deg, transparent 180deg, transparent 360deg);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: giro-login 6s linear infinite;
+  opacity: 0.85;
+}
+.anel-login::after,
+.anel-md::after {
+  content: "";
+  position: absolute;
+  inset: 12% 8% -6% 8%;
+  z-index: -2;
+  border-radius: inherit;
+  background: radial-gradient(closest-side, rgba(147, 51, 234, 0.35), transparent);
+  filter: blur(40px);
+}
+@keyframes giro-login {
+  to { --giro-login: 360deg; }
+}
+
+.botao-brilho {
+  position: relative;
+  overflow: hidden;
+}
+.botao-brilho::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -60%;
+  width: 45%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+  transform: skewX(-20deg);
+  animation: botao-brilho 4.5s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes botao-brilho {
+  0%, 55% { left: -60%; }
+  85%, 100% { left: 130%; }
+}
+
+@media (max-width: 767px) {
+  .anel-md::before, .anel-md::after { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .texto-vivo, .anel-login::before, .anel-md::before, .botao-brilho::after { animation: none; }
+}

@@ -6,7 +6,9 @@ import { Database, Lock, Mail, ArrowRight, AlertTriangle, ShieldCheck } from "lu
 import { getHubUrl, getHeaders } from "@/components/utils/api";
 import { esquecerComputadorConfiavel, guardarComputadorConfiavel, guardarSessao, identificarTerminal, lerComputadorConfiavel } from "@/components/utils/sessaoCore";
 import { ModalOutroLocal, ModalTerminais, TelaDoCodigo, TrocarSenha } from "@/components/login/TelasDeAcesso";
-import { ControlesDaJanela, ECOSSISTEMA, useMostrarLinkDoPortal } from "@/components/login/MolduraLogin";
+import { ControlesDaJanela, useMostrarLinkDoPortal } from "@/components/login/MolduraLogin";
+import { FundoVivo, LetreiroVivo, VitrineViva } from "@/components/login/VitrineViva";
+import { motion } from "framer-motion";
 import { BOTAO_PRIMARIO, VIDRO } from "@/components/vendedores/ui";
 
 export default function Login() {
@@ -263,46 +265,37 @@ export default function Login() {
     <div className="relative min-h-dvh w-full overflow-hidden bg-[#f5f5f7] dark:bg-black text-zinc-900 dark:text-zinc-100 antialiased">
       <ControlesDaJanela />
 
-      {/* Luz de fundo, a mesma das telas do painel */}
-      <div className="pointer-events-none absolute inset-0" aria-hidden="true">
-        <div className="absolute -top-48 left-[12%] h-[620px] w-[620px] rounded-full bg-purple-400/25 dark:bg-purple-600/15 blur-[130px]" />
-        <div className="absolute bottom-[-12rem] right-[-6rem] h-[560px] w-[560px] rounded-full bg-indigo-400/20 dark:bg-indigo-600/10 blur-[130px]" />
-      </div>
+      <div className="dark:hidden"><FundoVivo claro /></div>
+      <div className="hidden dark:block"><FundoVivo /></div>
 
-      <main className="relative z-10 mx-auto flex min-h-dvh w-full max-w-[1120px] flex-col items-center justify-center gap-10 px-4 py-14 sm:px-8 lg:flex-row lg:justify-between lg:gap-20">
+      <main className="relative z-10 mx-auto flex min-h-dvh w-full max-w-[1120px] flex-col items-center justify-center gap-10 px-4 py-14 sm:px-8 [@media(max-height:820px)]:lg:py-8 lg:flex-row lg:justify-between lg:gap-20">
 
-        {/* Marca e ecossistema */}
-        <section className="w-full max-w-[460px] text-center lg:text-left">
-          <div className="inline-flex items-center gap-3">
-            <span className="flex h-11 w-11 items-center justify-center rounded-[14px] bg-gradient-to-b from-purple-500 to-indigo-600 text-white shadow-[0_10px_24px_-10px_rgba(124,58,237,0.8)]">
-              <Database size={20} />
+        {/* Marca e o ecossistema acontecendo */}
+        <section className="w-full max-w-[500px] text-center lg:text-left">
+          <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="inline-flex items-center gap-3">
+            <span className="relative flex h-11 w-11 items-center justify-center rounded-[14px] bg-gradient-to-b from-purple-500 to-indigo-600 text-white shadow-[0_10px_30px_-8px_rgba(124,58,237,0.9)]">
+              <span className="absolute inset-0 rounded-[14px] bg-purple-500/50 blur-md motion-safe:animate-pulse" aria-hidden="true" />
+              <Database size={20} className="relative" />
             </span>
             <span className="text-[17px] font-semibold tracking-tight">Raizan Core</span>
+          </motion.div>
+
+          <div className="mt-9 hidden lg:block [@media(max-height:820px)]:mt-6">
+            <VitrineViva />
           </div>
 
-          <h1 className="mt-8 hidden text-[44px] font-semibold leading-[1.05] tracking-[-0.03em] lg:block xl:text-[52px]">
-            Toda a sua operação.
-            <span className="block bg-gradient-to-r from-purple-600 to-indigo-500 bg-clip-text text-transparent dark:from-purple-400 dark:to-indigo-300">Num só lugar.</span>
-          </h1>
-          <p className="mt-5 hidden max-w-[420px] text-[17px] leading-relaxed text-zinc-500 dark:text-zinc-400 lg:block">
-            ERP, loja virtual, portal B2B, compras, logística, sites e app de vendas trabalhando juntos, com os mesmos dados e em tempo real.
-          </p>
-
-          <ul className="mt-8 hidden flex-wrap gap-2 lg:flex" aria-label="O que o Raizan Core reúne">
-            {ECOSSISTEMA.map((item) => (
-              <li key={item} className="rounded-full border border-black/[0.06] dark:border-white/[0.08] bg-white/70 dark:bg-white/[0.04] px-3.5 py-1.5 text-[13px] font-medium text-zinc-600 dark:text-zinc-300 backdrop-blur">
-                {item}
-              </li>
-            ))}
-          </ul>
-
-          <p className="mt-10 hidden items-center gap-2 text-[13px] text-zinc-500 lg:flex">
-            <ShieldCheck size={16} className="text-emerald-500" /> Ambiente seguro e monitorado
-          </p>
+          <div className="mt-5 flex justify-center lg:hidden">
+            <LetreiroVivo />
+          </div>
         </section>
 
         {/* Formulário */}
-        <section className={`${VIDRO} w-full max-w-[420px] p-7 sm:p-10 backdrop-blur-xl`}>
+        <motion.section
+          initial={{ opacity: 0, y: 28, scale: 0.98 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.8, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
+          className={`${VIDRO} anel-login w-full max-w-[420px] p-7 sm:p-10 backdrop-blur-2xl`}
+        >
           <h2 className="text-[26px] font-semibold tracking-[-0.02em]">Entrar</h2>
           <p className="mt-1.5 text-[15px] text-zinc-500 dark:text-zinc-400">
             {entrarComChave ? "Use o e-mail e a chave de licença da empresa." : "Use seu e-mail e senha do Raizan Core."}
@@ -382,7 +375,7 @@ export default function Login() {
               </div>
             </div>
 
-            <button type="submit" disabled={isLoading} className={`${BOTAO_PRIMARIO} mt-3 !h-12 w-full text-[15px]`}>
+            <button type="submit" disabled={isLoading} className={`${BOTAO_PRIMARIO} botao-brilho mt-3 !h-12 w-full text-[15px]`}>
               {isLoading ? (
                 <div className="h-5 w-5 rounded-full border-2 border-white/30 border-t-white animate-spin" />
               ) : (
@@ -402,11 +395,12 @@ export default function Login() {
               </a>
             </div>
           )}
-        </section>
 
-        <p className="flex items-center gap-2 text-[12px] text-zinc-500 lg:hidden">
-          <ShieldCheck size={14} className="text-emerald-500" /> Ambiente seguro e monitorado
-        </p>
+          <p className="mt-7 flex items-center justify-center gap-2 text-[12px] text-zinc-500">
+            <ShieldCheck size={14} className="text-emerald-500" /> Ambiente seguro e monitorado
+          </p>
+        </motion.section>
+
       </main>
     </div>
   );

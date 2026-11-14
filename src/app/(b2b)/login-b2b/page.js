@@ -9,6 +9,8 @@ import { guardarAcrescimo } from "@/components/utils/acrescimoPortal";
 import { prepararCarrinhoPara } from "@/components/portal/carrinho";
 import EtapaAcesso from "@/components/b2b/EtapaAcesso";
 import { BOTAO_PRIMARIO } from "@/components/vendedores/ui";
+import { FundoVivo } from "@/components/login/VitrineViva";
+import { motion } from "framer-motion";
 
 export default function LoginB2B() {
   const [email, setEmail] = useState("");
@@ -155,31 +157,33 @@ export default function LoginB2B() {
 
   return (
     <div className="relative min-h-dvh w-full overflow-hidden bg-white md:bg-[#f5f5f7] text-zinc-900 antialiased">
-      <div className="pointer-events-none absolute inset-0 hidden md:block" aria-hidden="true">
-        <div className="absolute -top-48 left-[10%] h-[600px] w-[600px] rounded-full bg-purple-400/20 blur-[130px]" />
-        <div className="absolute bottom-[-12rem] right-[-6rem] h-[520px] w-[520px] rounded-full bg-indigo-400/20 blur-[130px]" />
-      </div>
+      <div className="hidden md:block"><FundoVivo claro /></div>
 
       <main className="relative z-10 flex min-h-dvh items-start justify-center md:items-center md:p-8">
-        <div className="flex w-full max-w-[980px] overflow-hidden md:rounded-[32px] md:border md:border-black/[0.06] md:bg-white/80 md:shadow-[0_1px_2px_rgba(0,0,0,0.04),0_30px_60px_-30px_rgba(0,0,0,0.25)] md:backdrop-blur-xl">
+        <motion.div
+          initial={{ opacity: 0, y: 24, scale: 0.985 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+          className="anel-md flex w-full max-w-[980px] md:rounded-[32px] md:border md:border-black/[0.06] md:bg-white/80 md:shadow-[0_1px_2px_rgba(0,0,0,0.04),0_30px_60px_-30px_rgba(0,0,0,0.25)] md:backdrop-blur-xl">
 
           {/* Marca da distribuidora */}
-          <div className="relative hidden w-5/12 shrink-0 flex-col justify-between overflow-hidden bg-[#0c0c0e] p-12 md:flex">
-            <div className="pointer-events-none absolute -left-32 -top-32 h-80 w-80 rounded-full bg-purple-600/35 blur-[100px]" />
-            <div className="pointer-events-none absolute -bottom-32 -right-32 h-80 w-80 rounded-full bg-indigo-600/25 blur-[100px]" />
+          <div className="relative hidden w-5/12 shrink-0 flex-col justify-between overflow-hidden rounded-l-[32px] bg-[#0c0c0e] p-12 md:flex">
+            <motion.div animate={{ x: [0, 60, -20, 0], y: [0, 40, 70, 0] }} transition={{ duration: 18, repeat: Infinity, ease: "easeInOut" }} className="pointer-events-none absolute -left-32 -top-32 h-80 w-80 rounded-full bg-purple-600/40 blur-[100px]" />
+            <motion.div animate={{ x: [0, -50, 20, 0], y: [0, -60, -20, 0] }} transition={{ duration: 22, repeat: Infinity, ease: "easeInOut" }} className="pointer-events-none absolute -bottom-32 -right-32 h-80 w-80 rounded-full bg-indigo-600/30 blur-[100px]" />
+            <div className="pointer-events-none absolute inset-0 opacity-40" style={{ backgroundImage: "linear-gradient(to right, rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.05) 1px, transparent 1px)", backgroundSize: "44px 44px", maskImage: "radial-gradient(ellipse at 30% 40%, black 20%, transparent 70%)", WebkitMaskImage: "radial-gradient(ellipse at 30% 40%, black 20%, transparent 70%)" }} />
 
             <div className="relative z-10 flex h-[70px] items-center">
               {logoDoPortal("max-h-[70px] h-full", true)}
             </div>
 
-            <div className="relative z-10 my-12">
+            <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.2 }} className="relative z-10 my-12">
               <h1 className="text-[40px] font-semibold leading-[1.08] tracking-[-0.03em] text-white lg:text-[44px]">
-                Seu estoque<br />atualizado.
+                Seu estoque<br /><span className="texto-vivo">atualizado.</span>
               </h1>
               <p className="mt-4 max-w-sm text-[15px] leading-relaxed text-zinc-400">
                 Reposição de estoque, acompanhamento de pedidos e gestão inteligente em um só lugar.
               </p>
-            </div>
+            </motion.div>
 
             <div className="relative z-10">
               <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.06] px-3.5 py-1.5 text-[13px] font-medium text-zinc-300">
@@ -189,7 +193,7 @@ export default function LoginB2B() {
           </div>
 
           {/* Formulário */}
-          <div className="flex w-full flex-col justify-center px-6 py-10 md:w-7/12 md:p-12 lg:p-16">
+          <div className="flex w-full flex-col justify-center rounded-r-[32px] px-6 py-10 md:w-7/12 md:p-12 lg:p-16">
             <div className="mx-auto w-full max-w-[380px]">
               <div className="mb-10 flex h-12 items-center md:hidden">
                 {logoDoPortal("max-h-full h-full")}
@@ -275,7 +279,7 @@ export default function LoginB2B() {
                     <button
                       type="submit"
                       disabled={isLoading || isConfiguring || !configuracaoPronta || !email || senha.length < 6}
-                      className={`${BOTAO_PRIMARIO} mt-3 !h-12 w-full text-[15px]`}
+                      className={`${BOTAO_PRIMARIO} botao-brilho mt-3 !h-12 w-full text-[15px]`}
                     >
                       {isLoading || isConfiguring ? (
                         <div className="h-5 w-5 rounded-full border-2 border-white/30 border-t-white animate-spin" />
@@ -297,7 +301,7 @@ export default function LoginB2B() {
             </div>
           </div>
 
-        </div>
+        </motion.div>
       </main>
     </div>
   );

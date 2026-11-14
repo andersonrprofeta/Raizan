@@ -1,6 +1,6 @@
 {
   "name": "raizan-core",
-  "version": "0.7.8",
+  "version": "0.9.1",
   "private": true,
   "author": "Raizan",
   "description": "Raizan Core App",
@@ -52,6 +52,23 @@
       "**/*",
       "!**/desktop.ini",
       "!**/.DS_Store",
+      "!.env",
+      "!.env.*",
+      "!**/.env",
+      "!**/.env.*",
+      "!src/**/*",
+      "!docs/**/*",
+      "!dist/**/*",
+      "!.next/**/*",
+      "!public/**/*",
+      "!**/*.rar",
+      "!**/*.zip",
+      "!README.md",
+      "!eslint.config.mjs",
+      "!jsconfig.json",
+      "!next.config.mjs",
+      "!postcss.config.mjs",
+      "!next-env.d.ts",
       "out/**/*",
       "preload.js",
       "main.js",
@@ -66,13 +83,13 @@
     "win": {
       "target": "nsis",
       "icon": "logo.ico"
-    }
-  },
-  "publish": [
-    {
-      "provider": "github",
-      "owner": "andersonrprofeta",
-      "repo": "Raizan"
-    }
-  ]
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "andersonrprofeta",
+        "repo": "raizan-core-releases"
+      }
+    ]
+  }
 }

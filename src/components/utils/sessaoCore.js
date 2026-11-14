@@ -61,8 +61,15 @@ export function temPermissao(chave) {
   return permissoes.includes("*") || permissoes.includes(chave);
 }
 
+// Painel e portal B2B usam o mesmo @raizan:token. No mesmo endereço só pode existir uma sessão:
+// entrar no painel encerra a do lojista (o carrinho guardado fica).
+export function encerrarSessaoDoPortal() {
+  localStorage.removeItem("raizan_user");
+}
+
 // @raizan:nome continua sendo o nome da empresa: etiquetas e mapas imprimem esse valor
 export function guardarSessao(dados) {
+  encerrarSessaoDoPortal();
   localStorage.setItem("@raizan:token", dados.token);
   localStorage.setItem("@raizan:email", dados.email);
   localStorage.setItem("@raizan:license", SESSAO_POR_USUARIO);

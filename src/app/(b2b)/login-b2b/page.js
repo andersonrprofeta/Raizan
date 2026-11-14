@@ -8,6 +8,7 @@ import { getHubUrl } from "@/components/utils/api";
 import { guardarAcrescimo } from "@/components/utils/acrescimoPortal";
 import { prepararCarrinhoPara } from "@/components/portal/carrinho";
 import EtapaAcesso from "@/components/b2b/EtapaAcesso";
+import { limparSessao } from "@/components/utils/sessaoCore";
 import { BOTAO_PRIMARIO } from "@/components/vendedores/ui";
 import { FundoVivo } from "@/components/login/VitrineViva";
 import { motion } from "framer-motion";
@@ -133,6 +134,8 @@ export default function LoginB2B() {
   };
 
   const salvarSessao = (data) => {
+    // Painel e portal usam o mesmo @raizan:token: entrar no portal encerra a sessão do painel neste endereço
+    limparSessao();
     prepararCarrinhoPara(data.user?.email);
     localStorage.setItem("raizan_user", JSON.stringify(data.user));
     localStorage.setItem("@raizan:token", data.token);

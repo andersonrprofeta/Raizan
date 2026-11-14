@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Database, Lock, Mail, ArrowRight, AlertTriangle, ShieldCheck } from "lucide-react"; 
 // 🟢 MUDANÇA 1: Trocamos getApiUrl por getHubUrl para bater no Node.js
 import { getHubUrl, getHeaders } from "@/components/utils/api";
-import { esquecerComputadorConfiavel, guardarComputadorConfiavel, guardarSessao, identificarTerminal, lerComputadorConfiavel } from "@/components/utils/sessaoCore";
+import { encerrarSessaoDoPortal, esquecerComputadorConfiavel, guardarComputadorConfiavel, guardarSessao, identificarTerminal, lerComputadorConfiavel } from "@/components/utils/sessaoCore";
 import { ModalOutroLocal, ModalTerminais, TelaDoCodigo, TrocarSenha } from "@/components/login/TelasDeAcesso";
 import { ControlesDaJanela, useMostrarLinkDoPortal } from "@/components/login/MolduraLogin";
 import { FundoVivo, LetreiroVivo, VitrineViva } from "@/components/login/VitrineViva";
@@ -199,7 +199,8 @@ export default function Login() {
         return;
       }
 
-      // 🟢 Tudo certo, salva os dados básicos
+      // 🟢 Tudo certo, salva os dados básicos (e encerra a sessão de lojista deste endereço, se houver)
+      encerrarSessaoDoPortal();
       localStorage.setItem("@raizan:token", data.token);
       localStorage.setItem("@raizan:email", data.email || email);
       localStorage.setItem("@raizan:license", license);

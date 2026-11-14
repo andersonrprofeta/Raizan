@@ -276,9 +276,13 @@ export default function Sidebar() {
       setTimeout(() => { localStorage.removeItem("raizan_user"); localStorage.removeItem("@raizan:token"); window.location.href = "/login-b2b"; }, 1000);
     } else if (lerUsuario()) {
       sairDoCore();
-    } else {
+    } else if (window.electronAPI) {
       toast.success("Encerrando o sistema...");
       setTimeout(() => window.close(), 1000);
+    } else {
+      // Entrada pela chave de licença no navegador: o navegador não deixa fechar a aba, então encerra a sessão
+      toast.success("Saindo da conta...");
+      setTimeout(() => { limparSessao(); window.location.href = "/login"; }, 800);
     }
   };
 

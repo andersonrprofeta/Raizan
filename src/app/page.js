@@ -12,6 +12,9 @@ export default function RootPage() {
       // Quem já entrou no painel neste computador vai direto para ele
       if (localStorage.getItem("@raizan:license")) return router.replace("/resumo");
 
+      // Lojista que já entrou no portal neste navegador vai direto para o portal
+      if (!window.electronAPI && localStorage.getItem("raizan_user")) return router.replace("/b2b-inicio");
+
       // O app instalado é sempre o painel da empresa
       if (window.electronAPI) return router.replace("/login");
 

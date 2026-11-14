@@ -73,7 +73,8 @@ body {
 .dark ::-webkit-scrollbar-thumb {
   background: #27272a; 
 }
-/* ===== Telas de login: texto com gradiente e anel de luz do cartão (parados de propósito: animação travava) ===== */
+/* ===== Telas de login: texto com gradiente e anel de luz girando no cartão =====
+   Só o contorno de 1px gira (leve). As luzes grandes do fundo ficam paradas: eram elas que travavam. */
 .texto-vivo {
   background-image: linear-gradient(100deg, #9333ea 0%, #6366f1 55%, #d946ef 100%);
   -webkit-background-clip: text;
@@ -84,6 +85,11 @@ body {
   background-image: linear-gradient(100deg, #c084fc 0%, #818cf8 55%, #f0abfc 100%);
 }
 
+@property --giro-login {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
 .anel-login {
   position: relative;
   isolation: isolate;
@@ -100,10 +106,14 @@ body {
   z-index: -1;
   border-radius: inherit;
   padding: 1px;
-  background: linear-gradient(140deg, rgba(168, 85, 247, 0.85), rgba(99, 102, 241, 0.35) 35%, transparent 60%, rgba(217, 70, 239, 0.45));
+  background: conic-gradient(from var(--giro-login), transparent 0deg, rgba(168, 85, 247, 0.95) 60deg, rgba(99, 102, 241, 0.75) 120deg, transparent 180deg, transparent 360deg);
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
+  animation: giro-login 6s linear infinite;
+}
+@keyframes giro-login {
+  to { --giro-login: 360deg; }
 }
 .anel-login::after,
 .anel-md::after {
@@ -117,4 +127,7 @@ body {
 }
 @media (max-width: 767px) {
   .anel-md::before, .anel-md::after { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .anel-login::before, .anel-md::before { animation: none; }
 }

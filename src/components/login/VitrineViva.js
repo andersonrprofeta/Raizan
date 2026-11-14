@@ -5,9 +5,9 @@ import { FileCheck2, ShoppingBag, Store, Truck } from "lucide-react";
 // Visual parado de propósito: as animações pesavam (luzes desfocadas em movimento travavam em alguns computadores).
 // Os cartões são exemplos do dia a dia de quem usa o Raizan Core (ilustração, não são dados reais).
 const ACONTECIMENTOS = [
-  { modulo: "ERP", icone: FileCheck2, cor: "from-violet-500 to-purple-600", titulo: "Pedido 4821 faturado", detalhe: "NF-e autorizada pela SEFAZ" },
-  { modulo: "Portal B2B", icone: Store, cor: "from-indigo-500 to-blue-600", titulo: "Novo pedido no portal", detalhe: "Lojista repôs 38 itens" },
-  { modulo: "Logística", icone: Truck, cor: "from-amber-400 to-orange-500", titulo: "Romaneio 118 saiu", detalhe: "12 entregas na rota Centro" }
+  { modulo: "ERP", icone: FileCheck2, cor: "from-violet-500 to-purple-600", titulo: "Pedido 4821 faturado", detalhe: "NF-e autorizada pela SEFAZ", quando: "agora" },
+  { modulo: "Portal B2B", icone: Store, cor: "from-indigo-500 to-blue-600", titulo: "Novo pedido no portal", detalhe: "Lojista repôs 38 itens", quando: "2 min" },
+  { modulo: "Logística", icone: Truck, cor: "from-amber-400 to-orange-500", titulo: "Romaneio 118 saiu", detalhe: "12 entregas na rota Centro", quando: "5 min" }
 ];
 
 const DESTAQUE_NO_CELULAR = { modulo: "Loja virtual", icone: ShoppingBag, cor: "from-pink-500 to-rose-500", titulo: "Venda aprovada na loja" };
@@ -35,18 +35,10 @@ export function FundoVivo({ claro = false }) {
   );
 }
 
-function CartaoDoAcontecimento({ item, passo }) {
+function CartaoDoAcontecimento({ item }) {
   const Icone = item.icone;
-  const destaque = passo === 0;
   return (
-    <div
-      className={`flex items-center gap-3.5 rounded-2xl border px-4 py-3 ${
-        destaque
-          ? "border-black/[0.06] bg-white/90 shadow-[0_18px_40px_-20px_rgba(76,29,149,0.45)] dark:border-white/[0.1] dark:bg-white/[0.08] dark:shadow-[0_18px_40px_-20px_rgba(0,0,0,0.9)]"
-          : "border-black/[0.04] bg-white/60 dark:border-white/[0.05] dark:bg-white/[0.035]"
-      }`}
-      style={{ opacity: 1 - passo * 0.28, transform: `scale(${1 - passo * 0.035})` }}
-    >
+    <div className="flex items-center gap-3.5 rounded-2xl border border-black/[0.06] bg-white/80 px-4 py-3 shadow-[0_10px_30px_-18px_rgba(76,29,149,0.35)] dark:border-white/[0.08] dark:bg-white/[0.05] dark:shadow-[0_14px_34px_-20px_rgba(0,0,0,0.9)]">
       <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-[13px] bg-gradient-to-br ${item.cor} text-white shadow-[0_8px_18px_-8px_rgba(0,0,0,0.5)]`}>
         <Icone size={18} />
       </span>
@@ -54,7 +46,10 @@ function CartaoDoAcontecimento({ item, passo }) {
         <p className="truncate text-[14px] font-semibold text-zinc-900 dark:text-white">{item.titulo}</p>
         <p className="truncate text-[12.5px] text-zinc-500 dark:text-zinc-400">{item.detalhe}</p>
       </div>
-      <span className="shrink-0 text-[11px] font-medium text-zinc-400">{destaque ? "agora" : item.modulo}</span>
+      <div className="flex shrink-0 flex-col items-end gap-1">
+        <span className="rounded-full bg-purple-500/10 px-2 py-0.5 text-[10.5px] font-semibold text-purple-700 dark:bg-purple-400/10 dark:text-purple-300">{item.modulo}</span>
+        <span className="text-[11px] text-zinc-400">{item.quando}</span>
+      </div>
     </div>
   );
 }
@@ -82,7 +77,7 @@ export function VitrineViva() {
         <div className="flex flex-col gap-2">
           {ACONTECIMENTOS.map((item, passo) => (
             <div key={item.titulo} className={passo === 2 ? "[@media(max-height:740px)]:hidden" : ""}>
-              <CartaoDoAcontecimento item={item} passo={passo} />
+              <CartaoDoAcontecimento item={item} />
             </div>
           ))}
         </div>

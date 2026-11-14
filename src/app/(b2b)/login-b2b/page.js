@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Image from "next/image"; 
 import { Mail, Lock, ArrowRight, AlertTriangle, ShieldCheck } from "lucide-react"; 
 import toast from "react-hot-toast";
 import packageJson from "../../../../package.json";
@@ -9,6 +8,7 @@ import { getHubUrl } from "@/components/utils/api";
 import { guardarAcrescimo } from "@/components/utils/acrescimoPortal";
 import { prepararCarrinhoPara } from "@/components/portal/carrinho";
 import EtapaAcesso from "@/components/b2b/EtapaAcesso";
+import { BOTAO_PRIMARIO } from "@/components/vendedores/ui";
 
 export default function LoginB2B() {
   const [email, setEmail] = useState("");
@@ -144,160 +144,161 @@ export default function LoginB2B() {
       }
   };
 
+  // Sem logo da empresa (ou endereço não reconhecido), entra a marca neutra da Raizan, nunca a de outro cliente
+  const logoDoPortal = (className, fundoEscuro = false) => {
+    if (isConfiguring) return <div className={`${className} w-36 rounded-xl ${fundoEscuro ? "bg-white/10" : "bg-black/[0.05]"} animate-pulse`} aria-hidden="true" />;
+    if (logoEmpresa) return <img src={logoEmpresa} alt="Logo da distribuidora" className={`${className} max-w-[180px] object-contain`} />;
+    return <img src={fundoEscuro ? "/raizan-logo-escura.png" : "/raizan-logo-clara.png"} alt="Raizan" className={`${className} max-w-[170px] object-contain`} />;
+  };
+
+  const campo = "w-full h-12 rounded-2xl bg-black/[0.04] border border-transparent pl-11 pr-4 text-base text-zinc-900 placeholder:text-zinc-400 outline-none transition-all focus:bg-white focus:border-purple-500/50 focus:ring-4 focus:ring-purple-500/10 disabled:opacity-50";
+
   return (
-    <div className="min-h-dvh bg-white md:bg-[#f6f6f7] flex items-start md:items-center justify-center md:p-8">
-
-      <div className="w-full max-w-5xl flex bg-white md:rounded-3xl md:border md:border-zinc-200 overflow-hidden">
-
-        {/* LADO ESQUERDO - BRANDING (AGORA ROXO/INDIGO) */}
-        <div className="hidden md:flex w-5/12 bg-[#0c0c0e] p-12 flex-col justify-between relative overflow-hidden shrink-0">
-          <div className="absolute -top-32 -left-32 w-80 h-80 bg-purple-600/30 rounded-full blur-[100px] pointer-events-none" />
-          <div className="absolute -bottom-32 -right-32 w-80 h-80 bg-indigo-600/20 rounded-full blur-[100px] pointer-events-none" />
-
-          <div className="relative z-10 mb-10 md:mb-0">
-            {logoEmpresa ? (
-              <img src={logoEmpresa} alt="Logo da distribuidora" className="max-h-[70px] max-w-[180px] object-contain" />
-            ) : (
-              <Image src="/logo.png" alt="Logo da Distribuidora" width={180} height={70} priority className="object-contain drop-shadow-2xl" />
-            )}
-          </div>
-
-          <div className="relative z-10 my-auto">
-            <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white tracking-tight mb-4 leading-tight">
-              Seu estoque atualizado.
-            </h1>
-            <p className="text-zinc-400 text-sm md:text-base leading-relaxed max-w-sm">
-              Reposição de estoque, acompanhamento de pedidos e gestão inteligente em um só lugar.
-            </p>
-          </div>
-
-          <div className="relative z-10 mt-10 md:mt-0">
-            <div className="inline-flex items-center gap-2 text-xs md:text-xs font-bold text-purple-400 bg-purple-500/10 border border-purple-500/20 px-3 py-1.5 rounded-full">
-              <ShieldCheck size={16} /> Ambiente seguro
-            </div>
-          </div>
-        </div>
-
-        {/* LADO DIREITO - FORMULÁRIO */}
-        <div className="w-full md:w-7/12 bg-white px-6 py-8 md:p-12 lg:p-16 flex flex-col justify-center">
-          <div className="max-w-md w-full mx-auto">
-            {logoEmpresa && (
-              <div className="mb-8 flex h-12 items-center md:hidden">
-                <img src={logoEmpresa} alt="Logo da distribuidora" className="max-h-full max-w-[160px] object-contain" />
-              </div>
-            )}
-
-            {etapa !== "entrar" ? (
-              <EtapaAcesso
-                etapa={etapa}
-                token={loginPendente?.token}
-                codigo={codigoRecuperacao}
-                emailInicial={email}
-                onConcluir={(resposta) => {
-                  toast.success("Senha salva com sucesso!");
-                  if (etapa === "criar") {
-                    salvarSessao({ ...loginPendente, token: resposta.token });
-                    setTimeout(irParaOPortal, 800);
-                  } else {
-                    window.history.replaceState(null, "", "/login-b2b");
-                    setSenha("");
-                    setEtapa("entrar");
-                  }
-                }}
-                onVoltar={() => {
-                  window.history.replaceState(null, "", "/login-b2b");
-                  setEtapa("entrar");
-                }}
-              />
-            ) : (
-              <>
-            <div className="mb-7">
-              <h2 className="text-[28px] font-bold tracking-tight text-zinc-900 dark:text-zinc-100 mb-2">Entrar</h2>
-              <p className="text-zinc-500 dark:text-zinc-400 text-sm">Acesse o portal para comprar e acompanhar seus pedidos.</p>
-            </div>
-
-            {errorMsg && (
-              <div className="mb-6 flex items-start gap-3 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 px-4 py-3 rounded-xl animate-in slide-in-from-top-2">
-                <AlertTriangle size={20} className="text-rose-500 shrink-0 mt-0.5" />
-                <p className="text-sm font-bold text-rose-600 dark:text-rose-400 leading-snug">{errorMsg}</p>
-              </div>
-            )}
-
-            <form onSubmit={handleLogin} className="flex flex-col gap-5">
-
-              <div className="flex flex-col gap-2">
-                <label className="text-[13px] font-medium text-zinc-700 dark:text-zinc-300">E-mail</label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <Mail size={18} className="text-zinc-400 dark:text-zinc-500" />
-                  </div>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="seu@email.com.br"
-                    autoComplete="email"
-                    inputMode="email"
-                    className="w-full text-base bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 rounded-xl py-3.5 pl-11 pr-4 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600 font-medium disabled:opacity-50"
-                    required
-                    disabled={isConfiguring || !configuracaoPronta}
-                  />
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <div className="flex justify-between items-end">
-                  <label className="text-[13px] font-medium text-zinc-700 dark:text-zinc-300">Senha</label>
-                  <button type="button" onClick={() => setEtapa("esqueci")} className="text-xs font-medium text-purple-600 dark:text-purple-400 hover:text-purple-500 dark:text-rose-400 dark:hover:text-rose-300 transition-colors">
-                    Esqueceu a senha?
-                  </button>
-                </div>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <Lock size={18} className="text-zinc-400 dark:text-zinc-500" />
-                  </div>
-                  <input
-                    type="password"
-                    value={senha}
-                    onChange={(e) => setSenha(e.target.value)}
-                    placeholder="Digite sua senha"
-                    autoComplete="current-password"
-                    className="w-full text-base bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 rounded-xl py-3.5 pl-11 pr-4 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600 font-medium disabled:opacity-50"
-                    required
-                    disabled={isConfiguring || !configuracaoPronta}
-                  />
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={isLoading || isConfiguring || !configuracaoPronta || !email || senha.length < 6}
-                className="mt-2 min-h-12 w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold px-4 rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed text-[15px]"
-              >
-                {isLoading || isConfiguring ? (
-                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                ) : (
-                  <>
-                    Entrar <ArrowRight size={18} />
-                  </>
-                )}
-              </button>
-            </form>
-                <p className="mt-5 text-xs text-zinc-500 dark:text-zinc-400 text-center">
-                  Primeiro acesso? Use os 6 primeiros dígitos do seu CNPJ ou CPF.
-                </p>
-              </>
-            )}
-
-            <div className="mt-10 pt-6 border-t border-zinc-100 dark:border-zinc-800/60 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-bold text-zinc-400">
-              <span>Versão B2B • {packageJson.version}</span>
-              <a href="/login" className="hover:text-purple-500 dark:hover:text-purple-400 transition-colors flex items-center gap-1">Acesso Matriz &rarr;</a>
-            </div>
-
-          </div>
-        </div>
-
+    <div className="relative min-h-dvh w-full overflow-hidden bg-white md:bg-[#f5f5f7] text-zinc-900 antialiased">
+      <div className="pointer-events-none absolute inset-0 hidden md:block" aria-hidden="true">
+        <div className="absolute -top-48 left-[10%] h-[600px] w-[600px] rounded-full bg-purple-400/20 blur-[130px]" />
+        <div className="absolute bottom-[-12rem] right-[-6rem] h-[520px] w-[520px] rounded-full bg-indigo-400/20 blur-[130px]" />
       </div>
+
+      <main className="relative z-10 flex min-h-dvh items-start justify-center md:items-center md:p-8">
+        <div className="flex w-full max-w-[980px] overflow-hidden md:rounded-[32px] md:border md:border-black/[0.06] md:bg-white/80 md:shadow-[0_1px_2px_rgba(0,0,0,0.04),0_30px_60px_-30px_rgba(0,0,0,0.25)] md:backdrop-blur-xl">
+
+          {/* Marca da distribuidora */}
+          <div className="relative hidden w-5/12 shrink-0 flex-col justify-between overflow-hidden bg-[#0c0c0e] p-12 md:flex">
+            <div className="pointer-events-none absolute -left-32 -top-32 h-80 w-80 rounded-full bg-purple-600/35 blur-[100px]" />
+            <div className="pointer-events-none absolute -bottom-32 -right-32 h-80 w-80 rounded-full bg-indigo-600/25 blur-[100px]" />
+
+            <div className="relative z-10 flex h-[70px] items-center">
+              {logoDoPortal("max-h-[70px] h-full", true)}
+            </div>
+
+            <div className="relative z-10 my-12">
+              <h1 className="text-[40px] font-semibold leading-[1.08] tracking-[-0.03em] text-white lg:text-[44px]">
+                Seu estoque<br />atualizado.
+              </h1>
+              <p className="mt-4 max-w-sm text-[15px] leading-relaxed text-zinc-400">
+                Reposição de estoque, acompanhamento de pedidos e gestão inteligente em um só lugar.
+              </p>
+            </div>
+
+            <div className="relative z-10">
+              <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.06] px-3.5 py-1.5 text-[13px] font-medium text-zinc-300">
+                <ShieldCheck size={15} className="text-emerald-400" /> Ambiente seguro
+              </span>
+            </div>
+          </div>
+
+          {/* Formulário */}
+          <div className="flex w-full flex-col justify-center px-6 py-10 md:w-7/12 md:p-12 lg:p-16">
+            <div className="mx-auto w-full max-w-[380px]">
+              <div className="mb-10 flex h-12 items-center md:hidden">
+                {logoDoPortal("max-h-full h-full")}
+              </div>
+
+              {etapa !== "entrar" ? (
+                <EtapaAcesso
+                  etapa={etapa}
+                  token={loginPendente?.token}
+                  codigo={codigoRecuperacao}
+                  emailInicial={email}
+                  onConcluir={(resposta) => {
+                    toast.success("Senha salva com sucesso!");
+                    if (etapa === "criar") {
+                      salvarSessao({ ...loginPendente, token: resposta.token });
+                      setTimeout(irParaOPortal, 800);
+                    } else {
+                      window.history.replaceState(null, "", "/login-b2b");
+                      setSenha("");
+                      setEtapa("entrar");
+                    }
+                  }}
+                  onVoltar={() => {
+                    window.history.replaceState(null, "", "/login-b2b");
+                    setEtapa("entrar");
+                  }}
+                />
+              ) : (
+                <>
+                  <h2 className="text-[28px] font-semibold tracking-[-0.02em]">Entrar</h2>
+                  <p className="mt-1.5 text-[15px] text-zinc-500">Acesse o portal para comprar e acompanhar seus pedidos.</p>
+
+                  {errorMsg && (
+                    <div role="alert" className="mt-6 flex items-start gap-3 rounded-2xl bg-rose-500/10 px-4 py-3 animate-in slide-in-from-top-2">
+                      <AlertTriangle size={18} className="mt-0.5 shrink-0 text-rose-500" />
+                      <p className="text-sm font-medium leading-snug text-rose-700">{errorMsg}</p>
+                    </div>
+                  )}
+
+                  <form onSubmit={handleLogin} className="mt-7 flex flex-col gap-4">
+                    <div>
+                      <label htmlFor="b2b-email" className="mb-1.5 block text-[13px] font-medium text-zinc-500">E-mail</label>
+                      <div className="relative group">
+                        <Mail size={18} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 transition-colors group-focus-within:text-purple-500" />
+                        <input
+                          id="b2b-email"
+                          type="email"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          placeholder="seu@email.com.br"
+                          autoComplete="email"
+                          inputMode="email"
+                          className={campo}
+                          required
+                          disabled={isConfiguring || !configuracaoPronta}
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="mb-1.5 flex items-center justify-between">
+                        <label htmlFor="b2b-senha" className="block text-[13px] font-medium text-zinc-500">Senha</label>
+                        <button type="button" onClick={() => setEtapa("esqueci")} className="text-[13px] font-medium text-purple-600 transition-colors hover:text-purple-500">
+                          Esqueceu a senha?
+                        </button>
+                      </div>
+                      <div className="relative group">
+                        <Lock size={18} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 transition-colors group-focus-within:text-purple-500" />
+                        <input
+                          id="b2b-senha"
+                          type="password"
+                          value={senha}
+                          onChange={(e) => setSenha(e.target.value)}
+                          placeholder="Digite sua senha"
+                          autoComplete="current-password"
+                          className={campo}
+                          required
+                          disabled={isConfiguring || !configuracaoPronta}
+                        />
+                      </div>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={isLoading || isConfiguring || !configuracaoPronta || !email || senha.length < 6}
+                      className={`${BOTAO_PRIMARIO} mt-3 !h-12 w-full text-[15px]`}
+                    >
+                      {isLoading || isConfiguring ? (
+                        <div className="h-5 w-5 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                      ) : (
+                        <>Entrar <ArrowRight size={18} /></>
+                      )}
+                    </button>
+                  </form>
+                  <p className="mt-5 text-center text-[13px] text-zinc-500">
+                    Primeiro acesso? Use os 6 primeiros dígitos do seu CNPJ ou CPF.
+                  </p>
+                </>
+              )}
+
+              <div className="mt-10 flex items-center justify-between gap-4 border-t border-black/[0.06] pt-5 text-[12px] font-medium text-zinc-400">
+                <span>Portal B2B · versão {packageJson.version}</span>
+                <a href="/login" className="transition-colors hover:text-purple-600">Acesso da empresa &rarr;</a>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </main>
     </div>
   );
 }

@@ -4,7 +4,7 @@ import PortalShell from "@/components/portal/PortalShell";
 const inter = Inter({ subsets: ["latin"], display: "swap" });
 
 export const metadata = {
-  title: "Portal de compras",
+  title: "Portal B2B",
   description: "Compre, acompanhe seus pedidos e veja seu financeiro",
 };
 

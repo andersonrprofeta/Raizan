@@ -1,4 +1,5 @@
-const { app, BrowserWindow, ipcMain, screen } = require('electron');
+const { app, BrowserWindow, ipcMain, screen, Tray, Menu, nativeImage } = require('electron');
+const fs = require('fs');
 const serve = require('electron-serve');
 const path = require('path');
 const { autoUpdater } = require('electron-updater');
@@ -7,6 +8,114 @@ const serveApp = serve.default || serve;
 const appServe = serveApp({ directory: path.join(__dirname, 'out') });
 
 let mainWindow;
+let bandeja = null;
+// Só vira true quando a pessoa escolhe Sair (bandeja) ou quando a atualização reinicia o app
+let saindoDeVerdade = false;
+// A janela só pode ser trazida para frente depois que a splash terminou
+let janelaLiberada = false;
+
+// ==========================================
+// PREFERÊNCIAS DO APP (ficam na pasta do usuário, fora do instalador)
+// ==========================================
+const ARQUIVO_PREFERENCIAS = () => path.join(app.getPath('userData'), 'preferencias.json');
+
+function lerPreferencias() {
+  try {
+    return JSON.parse(fs.readFileSync(ARQUIVO_PREFERENCIAS(), 'utf8')) || {};
+  } catch (e) {
+    return {};
+  }
+}
+
+function salvarPreferencias(mudancas) {
+  try {
+    const atuais = lerPreferencias();
+    fs.writeFileSync(ARQUIVO_PREFERENCIAS(), JSON.stringify({ ...atuais, ...mudancas }, null, 2));
+  } catch (e) {}
+}
+
+// Só o app instalado se registra para abrir com o Windows: em desenvolvimento registraria o electron.exe
+const PODE_INICIAR_COM_WINDOWS = app.isPackaged || process.env.RAIZAN_TESTAR_INICIAR_COM_WINDOWS === '1';
+
+function iniciarComWindowsLigado() {
+  // Ligado por padrão: só fica desligado se a pessoa desmarcou na bandeja
+  return lerPreferencias().iniciarComWindows !== false;
+}
+
+function aplicarIniciarComWindows(ligado) {
+  if (!PODE_INICIAR_COM_WINDOWS || process.platform !== 'win32') return;
+  app.setLoginItemSettings({ openAtLogin: ligado, path: process.execPath, args: [] });
+}
+
+// ==========================================
+// INSTÂNCIA ÚNICA: abrir pelo atalho de novo só traz a janela que já está rodando
+// ==========================================
+const primeiraInstancia = app.requestSingleInstanceLock();
+if (!primeiraInstancia) {
+  app.quit();
+} else {
+  app.on('second-instance', () => mostrarJanela());
+}
+
+function mostrarJanela() {
+  if (!mainWindow || mainWindow.isDestroyed() || !janelaLiberada) return;
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  if (!mainWindow.isVisible()) mainWindow.show();
+  mainWindow.focus();
+}
+
+function sairDoApp() {
+  saindoDeVerdade = true;
+  app.quit();
+}
+
+// ==========================================
+// BANDEJA DO WINDOWS (perto do relógio), igual ao Discord
+// ==========================================
+function montarMenuDaBandeja() {
+  if (!bandeja) return;
+  bandeja.setContextMenu(Menu.buildFromTemplate([
+    { label: 'Abrir Raizan Core', click: () => mostrarJanela() },
+    { type: 'separator' },
+    {
+      label: 'Iniciar com o Windows',
+      type: 'checkbox',
+      checked: iniciarComWindowsLigado(),
+      enabled: PODE_INICIAR_COM_WINDOWS,
+      click: (item) => {
+        salvarPreferencias({ iniciarComWindows: item.checked });
+        aplicarIniciarComWindows(item.checked);
+      }
+    },
+    { type: 'separator' },
+    { label: 'Sair do Raizan Core', click: () => sairDoApp() }
+  ]));
+}
+
+function criarBandeja() {
+  const icone = nativeImage.createFromPath(path.join(__dirname, 'logo.ico'));
+  bandeja = new Tray(icone.isEmpty() ? nativeImage.createEmpty() : icone);
+  bandeja.setToolTip('Raizan Core');
+  bandeja.on('click', () => mostrarJanela());
+  bandeja.on('double-click', () => mostrarJanela());
+  montarMenuDaBandeja();
+}
+
+// O X esconde na bandeja. Na primeira vez, um aviso explica onde o app ficou.
+function esconderNaBandeja() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  mainWindow.hide();
+  if (bandeja && !lerPreferencias().avisouBandeja) {
+    salvarPreferencias({ avisouBandeja: true });
+    try {
+      bandeja.displayBalloon({
+        iconType: 'info',
+        title: 'O Raizan Core continua aberto',
+        content: 'Ele fica aqui na bandeja, perto do relógio. Clique no ícone para abrir ou use o menu para sair.'
+      });
+    } catch (e) {}
+  }
+}
 
 const LARGURA_SPLASH = 1000;
 const ALTURA_SPLASH = 650;
@@ -92,6 +201,16 @@ function createWindow() {
     },
   });
 
+  // O X (da tela ou o Alt+F4) só esconde a janela: sair de verdade é pela bandeja
+  mainWindow.on('close', (evento) => {
+    if (saindoDeVerdade) return;
+    evento.preventDefault();
+    esconderNaBandeja();
+  });
+  // Desligar ou sair do Windows não pode ser travado pela janela escondida
+  mainWindow.on('query-session-end', () => { saindoDeVerdade = true; });
+  mainWindow.on('session-end', () => { saindoDeVerdade = true; });
+
   appServe(mainWindow).then(() => {
     mainWindow.loadURL('app://-/');
   });
@@ -102,6 +221,7 @@ function createWindow() {
   const abrirSistema = () => {
     if (abriu || mainWindow.isDestroyed()) return;
     abriu = true;
+    janelaLiberada = true;
 
     if (!splash.isDestroyed()) splash.webContents.send('splash-sair');
     mainWindow.setOpacity(0);
@@ -136,7 +256,8 @@ function createWindow() {
 // ==========================================
 // LÓGICA DOS BOTÕES ESTILO APPLE (FECHAR, MIN, MAX)
 // ==========================================
-ipcMain.on('fechar-janela', () => app.quit());
+// Fechar esconde na bandeja (igual ao Discord); quem quiser sair usa o menu da bandeja
+ipcMain.on('fechar-janela', () => esconderNaBandeja());
 
 ipcMain.on('minimizar-janela', () => {
   if (mainWindow) mainWindow.minimize();
@@ -181,16 +302,27 @@ autoUpdater.on('update-downloaded', () => {
 });
 
 ipcMain.on('buscar-atualizacao', () => autoUpdater.checkForUpdates());
-ipcMain.on('instalar-atualizacao', () => autoUpdater.quitAndInstall(false, true));
+ipcMain.on('instalar-atualizacao', () => {
+  saindoDeVerdade = true;
+  autoUpdater.quitAndInstall(false, true);
+});
 
 // ==========================================
 // INICIALIZAÇÃO DO APP
 // ==========================================
 app.on('ready', () => {
+  if (!primeiraInstancia) return;
+  if (process.platform === 'win32') app.setAppUserModelId('com.raizancore.app');
+  aplicarIniciarComWindows(iniciarComWindowsLigado());
+  criarBandeja();
   createWindow();
   setTimeout(() => {
     autoUpdater.checkForUpdates();
   }, 3000);
+});
+
+app.on('before-quit', () => {
+  saindoDeVerdade = true;
 });
 
 app.on('window-all-closed', () => {

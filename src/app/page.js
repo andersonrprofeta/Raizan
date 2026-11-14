@@ -1,30 +1,32 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation"; // 🚀 O motor de rotas oficial do Next.js
+import { useRouter } from "next/navigation";
+import { descobrirPortalDoEndereco } from "@/components/login/MolduraLogin";
 
 export default function RootPage() {
   const router = useRouter();
 
   useEffect(() => {
-    // 1. O Guarda olha no cofre se a máquina já tem uma Licença de Admin salva
-    const hasAdminLicense = localStorage.getItem("@raizan:license");
+    const escolherPrimeiraTela = async () => {
+      // Quem já entrou no painel neste computador vai direto para ele
+      if (localStorage.getItem("@raizan:license")) return router.replace("/resumo");
 
-    if (hasAdminLicense) {
-      // 2. Já que você criou a pasta como "resumo", apontamos pra cá!
-      router.push("/resumo"); 
-    } else {
-      // 3. O nome exato da sua pasta do B2B
-      router.push("/login-b2b");
-    }
+      // O app instalado é sempre o painel da empresa
+      if (window.electronAPI) return router.replace("/login");
+
+      // No navegador, o endereço diz quem está chegando: portal B2B registrado vai para o portal;
+      // endereço sem portal (quem só usa o painel ou o módulo de sites) vai para o login do painel.
+      // Se a API não responder, mantém o caminho de antes (portal) para não travar os lojistas.
+      const portal = await descobrirPortalDoEndereco();
+      router.replace(portal === "nao" ? "/login" : "/login-b2b");
+    };
+    escolherPrimeiraTela();
   }, [router]);
 
-  // Coloquei um texto piscando, assim você sabe que a tela não travou, ela só está pensando!
   return (
-    <div className="min-h-screen bg-[#09090b] flex items-center justify-center">
-      <span className="text-zinc-500 text-sm animate-pulse font-medium">
-        Carregando ambiente seguro...
-      </span>
+    <div className="min-h-screen bg-[#f5f5f7] dark:bg-black flex items-center justify-center">
+      <div className="h-6 w-6 rounded-full border-2 border-purple-500/25 border-t-purple-500 animate-spin" aria-label="Carregando" />
     </div>
   );
 }
